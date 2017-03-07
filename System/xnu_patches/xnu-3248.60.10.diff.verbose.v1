@@ -1,0 +1,3531 @@
+diff -urN ../xnu-3248.60.10/bsd/dev/dtrace/dtrace_glue.c xnu-3248.60.10_trace/bsd/dev/dtrace/dtrace_glue.c
+--- ../xnu-3248.60.10/bsd/dev/dtrace/dtrace_glue.c	2015-03-20 14:48:17.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/dev/dtrace/dtrace_glue.c	2016-12-30 19:33:03.000000000 -0500
+@@ -65,6 +65,7 @@
+ #include <mach/task.h>
+ #include <vm/pmap.h>
+ #include <vm/vm_map.h> /* All the bits we care about are guarded by MACH_KERNEL_PRIVATE :-( */
++#include <sys/kdebug.h>
+ 
+ /*
+  * pid/proc
+@@ -567,6 +568,14 @@
+ 	ASSERT(cyclic != CYCLIC_NONE);
+ 
+ 	while (!thread_call_cancel(wrapTC->TChdl)) {
++
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "cyclic_remove", 13);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			wrapTC,
++			reason[0], reason[1], reason[2], 0);
++
+ 		int ret = assert_wait(wrapTC, THREAD_UNINT);
+ 		ASSERT(ret == THREAD_WAITING);
+ 
+diff -urN ../xnu-3248.60.10/bsd/kern/kdebug.c xnu-3248.60.10_trace/bsd/kern/kdebug.c
+--- ../xnu-3248.60.10/bsd/kern/kdebug.c	2016-08-04 15:09:26.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kdebug.c	2016-12-30 19:33:03.000000000 -0500
+@@ -3037,6 +3037,14 @@
+ 				ret = EINVAL;
+ 				goto out;
+ 			}
++			{
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "kdlog_bg_trace", 14);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					&kdlog_bg_trace,
++					reason[0], reason[1], reason[2], 0);
++			}
+ 			wait_result_t wait_result = assert_wait(&kdlog_bg_trace, THREAD_ABORTSAFE);
+ 			lck_mtx_unlock(kd_trace_mtx_sysctl);
+ 			if (wait_result == THREAD_WAITING)
+diff -urN ../xnu-3248.60.10/bsd/kern/kern_aio.c xnu-3248.60.10_trace/bsd/kern/kern_aio.c
+--- ../xnu-3248.60.10/bsd/kern/kern_aio.c	2015-03-05 18:23:37.000000000 -0500
++++ xnu-3248.60.10_trace/bsd/kern/kern_aio.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1759,6 +1759,7 @@
+ {
+ 	aio_workq_entry		 		*entryp = NULL;
+ 	aio_workq_t 				queue = NULL;
++	uint64_t reason[3] = {0};
+ 
+ 	/* Just one queue for the moment.  In the future there will be many. */
+ 	queue = &aio_anchor.aio_async_workqs[0];	
+@@ -1826,6 +1827,10 @@
+ 
+ nowork:
+ 	/* We will wake up when someone enqueues something */
++	memcpy((void *)reason, "aioq", 4);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		CAST_EVENT64_T(queue), reason[0], reason[1], reason[2], 0);		
+ 	waitq_assert_wait64(&queue->aioq_waitq, CAST_EVENT64_T(queue), THREAD_UNINT, 0);
+ 	aio_workq_unlock(queue);
+ 	thread_block( (thread_continue_t)aio_work_thread );
+diff -urN ../xnu-3248.60.10/bsd/kern/kern_event.c xnu-3248.60.10_trace/bsd/kern/kern_event.c
+--- ../xnu-3248.60.10/bsd/kern/kern_event.c	2016-01-09 14:48:04.000000000 -0500
++++ xnu-3248.60.10_trace/bsd/kern/kern_event.c	2016-12-30 19:33:03.000000000 -0500
+@@ -105,6 +105,7 @@
+ #if CONFIG_MEMORYSTATUS
+ #include <sys/kern_memorystatus.h>
+ #endif
++#include <sys/kdebug.h>
+ 
+ MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
+ 
+@@ -364,6 +365,14 @@
+ {
+ 	if ((kn->kn_status & (KN_DROPPING | KN_ATTACHING)) != 0) {
+ 		kn->kn_status |= KN_USEWAIT;
++
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "kn_use_wait", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			CAST_EVENT64_T(&kn->kn_status),
++			reason[0], reason[1], reason[2], 0);
++				
+ 		waitq_assert_wait64((struct waitq *)kq->kq_wqs,
+ 				    CAST_EVENT64_T(&kn->kn_status),
+ 				    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
+@@ -434,6 +443,12 @@
+ 		}
+ 	}
+ 	kn->kn_status |= KN_USEWAIT;
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "kn_drop_wait", 12);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		CAST_EVENT64_T(&kn->kn_status),
++		reason[0], reason[1], reason[2], 0);
+ 	waitq_assert_wait64((struct waitq *)kq->kq_wqs,
+ 			    CAST_EVENT64_T(&kn->kn_status),
+ 			    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
+@@ -878,6 +893,13 @@
+ 		} else {
+ 			/* we have to wait for the expire routine.  */
+ 			kn->kn_hookid |= TIMER_CANCELWAIT;
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "kn_timercancel", 14);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				CAST_EVENT64_T(&kn->kn_hook),
++				reason[0], reason[1], reason[2], 0);
++
+ 			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
+ 					    CAST_EVENT64_T(&kn->kn_hook),
+ 					    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
+@@ -2319,6 +2341,12 @@
+ 
+ 		/* if someone else is processing the queue, wait */
+ 		if (kq->kq_nprocess != 0) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "kq_processing", 13);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				CAST_EVENT64_T(&kq->kq_nprocess),
++				reason[0], reason[1], reason[2], 0);
+ 			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
+ 					    CAST_EVENT64_T(&kq->kq_nprocess),
+ 					    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
+@@ -2443,6 +2471,12 @@
+ 		error = kqueue_process(kq, cont_args->call, cont_args, &count,
+ 		    current_proc());
+ 		if (error == 0 && count == 0) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "kq_event_wait", 13);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				KQ_EVENT, reason[0], reason[1], reason[2], 0);
++
+ 			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
+ 					    KQ_EVENT, THREAD_ABORTSAFE,
+ 					    cont_args->deadline);
+@@ -2549,6 +2583,12 @@
+ 		}
+ 
+ 		/* go ahead and wait */
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "kq_event_wait", 13);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			KQ_EVENT, reason[0], reason[1], reason[2], 0);
++
+ 		waitq_assert_wait64_leeway((struct waitq *)kq->kq_wqs,
+ 					   KQ_EVENT, THREAD_ABORTSAFE,
+ 					   TIMEOUT_URGENCY_USER_NORMAL,
+diff -urN ../xnu-3248.60.10/bsd/kern/kern_memorystatus.c xnu-3248.60.10_trace/bsd/kern/kern_memorystatus.c
+--- ../xnu-3248.60.10/bsd/kern/kern_memorystatus.c	2016-08-04 15:09:26.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_memorystatus.c	2016-12-30 19:33:03.000000000 -0500
+@@ -2438,6 +2438,12 @@
+ static int
+ memorystatus_thread_block(uint32_t interval_ms, thread_continue_t continuation)
+ {
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "memorystatus_wakeup", 19);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		&memorystatus_wakeup,
++		reason[0], reason[1], reason[2], 0);
+ 	if (interval_ms) {
+ 		assert_wait_timeout(&memorystatus_wakeup, THREAD_UNINT, interval_ms, 1000 * NSEC_PER_USEC);
+ 	} else {
+@@ -4276,6 +4282,12 @@
+ 		}
+ 	}
+ 	lck_mtx_unlock(&freezer_mutex);
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "memorystatus_freeze_wk", 22);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		&memorystatus_freeze_wakeup,
++		reason[0], reason[1], reason[2], 0);
+ 
+ 	assert_wait((event_t) &memorystatus_freeze_wakeup, THREAD_UNINT);
+ 	thread_block((thread_continue_t) memorystatus_freeze_thread);	
+diff -urN ../xnu-3248.60.10/bsd/kern/kern_sig.c xnu-3248.60.10_trace/bsd/kern/kern_sig.c
+--- ../xnu-3248.60.10/bsd/kern/kern_sig.c	2015-08-31 17:13:44.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_sig.c	2016-12-30 19:33:03.000000000 -0500
+@@ -2397,6 +2397,12 @@
+ 					proc_parentdropref(pp, 1);
+ 					proc_list_unlock();
+ 				}
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "sigwait", 7);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(caddr_t)&p->sigwait,
++					reason[0], reason[1], reason[2], 0);
+ 
+ 				assert_wait((caddr_t)&p->sigwait, (THREAD_INTERRUPTIBLE));
+ 				thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/bsd/kern/kern_synch.c xnu-3248.60.10_trace/bsd/kern/kern_synch.c
+--- ../xnu-3248.60.10/bsd/kern/kern_synch.c	2013-05-30 20:22:36.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_synch.c	2016-12-30 19:33:03.000000000 -0500
+@@ -58,6 +58,8 @@
+ #include <sys/systm.h>			/* for unix_syscall_return() */
+ #include <libkern/OSAtomic.h>
+ 
++#include <sys/kdebug.h>
++
+ extern void compute_averunnable(void *);	/* XXX */
+ 
+ 
+@@ -201,8 +203,15 @@
+ 			wait_result = lck_mtx_sleep(mtx, flags, chan, catch);
+ 	}
+ 	else {
+-		if (chan != NULL)
++		if (chan != NULL) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "sleep", 5);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(uintptr_t)chan,
++				reason[0], reason[1], reason[2], 0);
+ 			assert_wait_deadline(chan, catch, abstime);
++		}
+ 		if (mtx)
+ 			lck_mtx_unlock(mtx);
+ 
+diff -urN ../xnu-3248.60.10/bsd/kern/sys_generic.c xnu-3248.60.10_trace/bsd/kern/sys_generic.c
+--- ../xnu-3248.60.10/bsd/kern/sys_generic.c	2016-08-04 15:09:27.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/sys_generic.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1336,6 +1336,11 @@
+ 		panic("selprocess: 2nd pass assertwaiting");
+ 
+ 	/* waitq_set has waitqueue as first element */
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "select_process", 14);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		NO_EVENT64, reason[0], reason[1], reason[2], 0);
+ 	wait_result = waitq_assert_wait64_leeway((struct waitq *)uth->uu_wqset,
+ 						 NO_EVENT64, THREAD_ABORTSAFE,
+ 						 TIMEOUT_URGENCY_USER_NORMAL,
+@@ -3435,6 +3440,12 @@
+ 
+ 	printf("[WQ]: Current thread waiting on waitq [%d] event:0x%llx\n",
+ 	       index, event64);
++	
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "sys_wait", 8);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(event64_t)event64, reason[0], reason[1], reason[2], 0);
+ 	kr = waitq_assert_wait64(waitq, (event64_t)event64, THREAD_INTERRUPTIBLE, 0);
+ 	if (kr == THREAD_WAITING)
+ 		thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/bsd/kern/uipc_mbuf.c xnu-3248.60.10_trace/bsd/kern/uipc_mbuf.c
+--- ../xnu-3248.60.10/bsd/kern/uipc_mbuf.c	2016-08-04 15:09:27.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/uipc_mbuf.c	2016-12-30 19:33:03.000000000 -0500
+@@ -6306,6 +6306,12 @@
+ 
+ 		lck_mtx_unlock(mbuf_mlock);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "mbuf_worker", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(uintptr_t)&mbuf_worker_run,
++			reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&mbuf_worker_run, THREAD_UNINT);
+ 		(void) thread_block((thread_continue_t)mbuf_worker_thread);
+ 	}
+diff -urN ../xnu-3248.60.10/bsd/security/audit/audit_bsd.c xnu-3248.60.10_trace/bsd/security/audit/audit_bsd.c
+--- ../xnu-3248.60.10/bsd/security/audit/audit_bsd.c	2011-03-21 20:33:32.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/security/audit/audit_bsd.c	2016-12-30 19:33:03.000000000 -0500
+@@ -50,6 +50,7 @@
+ #include <mach/host_priv.h>
+ #include <mach/host_special_ports.h>
+ #include <mach/audit_triggers_server.h>
++#include <sys/kdebug.h>
+ 
+ #if CONFIG_AUDIT
+ struct mhdr {
+@@ -383,6 +384,13 @@
+ 	int status = KERN_SUCCESS;
+ 
+ 	cvp->cv_waiters++;
++	
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "condition_variable", 18);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(uintptr_t)cvp,
++		reason[0], reason[1], reason[2], 0);
+ 	assert_wait(cvp, THREAD_UNINT);
+ 	lck_mtx_unlock(mp);
+ 
+diff -urN ../xnu-3248.60.10/bsd/sys/kdebug.h xnu-3248.60.10_trace/bsd/sys/kdebug.h
+--- ../xnu-3248.60.10/bsd/sys/kdebug.h	2016-08-04 15:09:33.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/sys/kdebug.h	2016-12-31 18:00:53.000000000 -0500
+@@ -374,6 +374,13 @@
+ #define MACH_REC_CORES_FAILSAFE    0x2e /* recommended processor failsafe kicked in */
+ #define MACH_SCHED_QUANTUM_EXPIRED 0x2f /* thread quantum expired */
+ 
++/* Add for Beachball analysis */
++#define MACH_WAIT_REASON		0x41
++#define MACH_WAKEUP_REASON		0x42
++#define MACH_TS_MAINTENANCE		0x43
++#define MACH_CALLCREATE			0x44
++#define MACH_CALLCANCEL			0x45
++
+ /* Variants for MACH_MULTIQ_DEQUEUE */
+ #define MACH_MULTIQ_BOUND     1
+ #define MACH_MULTIQ_GROUP     2
+@@ -403,6 +410,19 @@
+ #define MACH_IPC_VOUCHER_CREATE_ATTR_DATA	0x8	/* Attr data for newly created voucher */
+ #define MACH_IPC_VOUCHER_DESTROY		0x9	/* Voucher removed from global voucher hashtable */
+ 
++/* Add for Beachball analysis */
++#define MACH_IPC_VOUCHER_REUSE		0xc
++#define MACH_IPC_VOUCHER_CONN		0xd
++#define MACH_IPC_VOUCHER_REMOVE		0xe
++#define MACH_IPC_VOUCHER_BANK		0xf
++
++#define MACH_IPC_MSG_DUMP			0x11
++#define MACH_IPC_MSG_BOARDER		0x12
++#define MACH_IPC_MSG_DSC			0x13
++#define MACH_IPC_MSG_TRAP			0x14
++#define MACH_IPC_MSG_INTERNAL_DSC	0x15
++#define MACH_IPC_THREAD_VOUCHER		0x16
++
+ /* Codes for pmap (DBG_MACH_PMAP) */
+ #define PMAP__CREATE		0x0
+ #define PMAP__DESTROY		0x1
+@@ -625,6 +645,7 @@
+ #define	TRACE_LOST_EVENTS		(TRACEDBG_CODE(DBG_TRACE_INFO, 2))
+ #define	TRACE_WRITING_EVENTS		(TRACEDBG_CODE(DBG_TRACE_INFO, 3))
+ #define	TRACE_INFO_STRING		(TRACEDBG_CODE(DBG_TRACE_INFO, 4))
++#define TRACE_INFO_NEWTHREAD	(TRACEDGB_CODE(DBG_TRACE_INFO, 5))
+ 
+ /* The Kernel Debug Sub Classes for DBG_CORESTORAGE */
+ #define DBG_CS_IO	0
+@@ -716,6 +737,7 @@
+ /* Codes for BANK_ACCOUNT_INFO */
+ #define BANK_SETTLE_CPU_TIME		0x1	/* Bank ledger(chit) rolled up to tasks. */
+ #define BANK_SECURE_ORIGINATOR_CHANGED	0x2	/* Secure Originator changed. */
++#define BANK_VOUCHER_REDEEM			0x3
+ 
+ /* Codes for ATM_SUBAID_INFO */
+ #define ATM_MIN_CALLED				0x1
+diff -urN ../xnu-3248.60.10/bsd/vfs/vfs_subr.c xnu-3248.60.10_trace/bsd/vfs/vfs_subr.c
+--- ../xnu-3248.60.10/bsd/vfs/vfs_subr.c	2016-08-04 15:09:35.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/vfs/vfs_subr.c	2016-12-30 19:33:03.000000000 -0500
+@@ -3962,6 +3962,12 @@
+ 		vnode_list_lock();
+ 
+ 		if ( TAILQ_EMPTY(q) ) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "async_work", 10);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(uintptr_t)q,
++				reason[0], reason[1], reason[2], 0);
+ 			assert_wait(q, (THREAD_UNINT));
+ 	
+ 			vnode_list_unlock();
+@@ -4207,6 +4213,12 @@
+ 			 * can satisfy the new_vnode request with less latency then waiting
+ 			 * for the full 100ms duration we're ultimately willing to tolerate
+ 			 */
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "new_vnode", 9);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(caddr_t)&dead_vnode_wanted,
++				reason[0], reason[1], reason[2], 0);
+ 			assert_wait_timeout((caddr_t)&dead_vnode_wanted, (THREAD_INTERRUPTIBLE), 10000, NSEC_PER_USEC);
+ 
+ 			vnode_list_unlock();
+diff -urN ../xnu-3248.60.10/iokit/Kernel/IOCPU.cpp xnu-3248.60.10_trace/iokit/Kernel/IOCPU.cpp
+--- ../xnu-3248.60.10/iokit/Kernel/IOCPU.cpp	2016-08-04 15:09:36.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOCPU.cpp	2016-12-30 19:33:03.000000000 -0500
+@@ -793,6 +793,12 @@
+   IOUnlock(vector->interruptLock);
+   
+   if (enabledCPUs != numCPUs) {
++	
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "register_interrupt", 18);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(uintptr_t)this, reason[0], reason[1], reason[2], 0);
+     assert_wait(this, THREAD_UNINT);
+     thread_block(THREAD_CONTINUE_NULL);
+   }
+diff -urN ../xnu-3248.60.10/iokit/Kernel/IOConditionLock.cpp xnu-3248.60.10_trace/iokit/Kernel/IOConditionLock.cpp
+--- ../xnu-3248.60.10/iokit/Kernel/IOConditionLock.cpp	2006-11-09 21:05:25.000000000 -0500
++++ xnu-3248.60.10_trace/iokit/Kernel/IOConditionLock.cpp	2016-12-30 19:33:03.000000000 -0500
+@@ -191,7 +191,12 @@
+ 	 * thread_sleep()) ensures that we'll be notified
+ 	 * of changes in _condition.
+ 	 */
+-        assert_wait((void *) &condition, interruptible); /* assert event */
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "io_condition_lock", 17);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(uintptr_t)&condition, reason[0], reason[1], reason[2], 0);
++    assert_wait((void *) &condition, interruptible); /* assert event */
+ 	IOUnlock(cond_interlock);			 /* release the lock */
+ 	thread_res = thread_block(THREAD_CONTINUE_NULL); /* block ourselves */
+     } while (thread_res == THREAD_AWAKENED);
+diff -urN ../xnu-3248.60.10/iokit/Kernel/IOService.cpp xnu-3248.60.10_trace/iokit/Kernel/IOService.cpp
+--- ../xnu-3248.60.10/iokit/Kernel/IOService.cpp	2016-08-04 15:09:37.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOService.cpp	2016-12-30 19:33:03.000000000 -0500
+@@ -779,8 +779,15 @@
+ 
+             unlockForArbitration();
+ 
+-            if( waitAgain)
++            if( waitAgain) {
++				
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "io_start_matching", 17);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) this, reason[0], reason[1], reason[2], 0);
+                 assert_wait( (event_t) this/*&__state[1]*/, THREAD_UNINT);
++			}
+ 
+             IOLockUnlock( gIOServiceBusyLock );
+             if( waitAgain)
+@@ -1128,6 +1135,7 @@
+     ArbitrationLockQueueElement * element;
+     ArbitrationLockQueueElement * active;
+     ArbitrationLockQueueElement * waiting;
++	uint64_t reason[3]= {0};
+ 
+     enum { kPutOnFreeQueue, kPutOnActiveQueue, kPutOnWaitingQueue } action;
+ 
+@@ -1282,7 +1290,13 @@
+                              link );
+ 
+                 // declare that this thread will wait for a given event
+-restart_sleep:  wait_result = assert_wait( element,
++restart_sleep: 
++				reason[0] = reason[1] = reason[2] = 0;
++				memcpy((void *)reason, "look_for_arbitration", 20);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					element, reason[0], reason[1], reason[2], 0);
++				wait_result = assert_wait( element,
+ 					   element->required ? THREAD_UNINT
+ 					   : THREAD_INTERRUPTIBLE );
+ 
+@@ -1949,6 +1963,12 @@
+ 			    getName(), getRegistryEntryID(), victim->getName(), victim->getRegistryEntryID());
+ 			victim->__state[1] |= kIOServiceTerm1WaiterState;
+ 			victim->unlockForArbitration();
++			
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "waitPhase1", 10);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &victim->__state[1], reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t)&victim->__state[1], THREAD_UNINT);
+ 		    }
+ 		    IOLockUnlock(gIOServiceBusyLock);
+@@ -3684,6 +3704,11 @@
+         if( wait) {
+             __state[1] |= kIOServiceBusyWaiterState;
+             unlockForArbitration();
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "wait_for_state", 14);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) this, reason[0], reason[1], reason[2], 0);
+             if( timeout != UINT64_MAX ) {
+                 if( computeDeadline ) {
+                     AbsoluteTime  nsinterval;
+diff -urN ../xnu-3248.60.10/iokit/Kernel/IOSyncer.cpp xnu-3248.60.10_trace/iokit/Kernel/IOSyncer.cpp
+--- ../xnu-3248.60.10/iokit/Kernel/IOSyncer.cpp	2006-11-09 21:05:25.000000000 -0500
++++ xnu-3248.60.10_trace/iokit/Kernel/IOSyncer.cpp	2016-12-30 19:33:03.000000000 -0500
+@@ -87,7 +87,12 @@
+     IOInterruptState is = IOSimpleLockLockDisableInterrupt(guardLock);
+ 
+     if (threadMustStop) {
+-	assert_wait((void *) &threadMustStop, false);
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "thread_must_stop", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &threadMustStop, reason[0], reason[1], reason[2], 0);
++		assert_wait((void *) &threadMustStop, false);
+     	IOSimpleLockUnlockEnableInterrupt(guardLock, is);
+         thread_block(THREAD_CONTINUE_NULL);
+     }
+diff -urN ../xnu-3248.60.10/iokit/Kernel/IOWorkLoop.cpp xnu-3248.60.10_trace/iokit/Kernel/IOWorkLoop.cpp
+--- ../xnu-3248.60.10/iokit/Kernel/IOWorkLoop.cpp	2015-04-20 17:46:08.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOWorkLoop.cpp	2016-12-30 19:33:03.000000000 -0500
+@@ -393,6 +393,11 @@
+ 
+ 	IOInterruptState is = IOSimpleLockLockDisableInterrupt(workToDoLock);
+         if ( !ISSETP(&fFlags, kLoopTerminate) && !workToDo) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "io_work_todo", 12);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &workToDo, reason[0], reason[1], reason[2], 0);
+ 	    assert_wait((void *) &workToDo, false);
+ 	    IOSimpleLockUnlockEnableInterrupt(workToDoLock, is);
+ 	    thread_continue_t cptr = NULL;
+diff -urN ../xnu-3248.60.10/libkern/kxld/Makefile xnu-3248.60.10_trace/libkern/kxld/Makefile
+--- ../xnu-3248.60.10/libkern/kxld/Makefile	2015-02-11 19:08:33.000000000 -0500
++++ xnu-3248.60.10_trace/libkern/kxld/Makefile	2016-12-30 19:33:03.000000000 -0500
+@@ -67,7 +67,7 @@
+ endif
+ 
+ DEFINES = -DPRIVATE
+-CFLAGS=-std=c99 -Wall -Wextra -Werror -pedantic -Wformat=2 -Wcast-align \
++CFLAGS=-std=c99 -Wall -Wextra -pedantic -Wformat=2 -Wcast-align \
+ 	-Wwrite-strings -Wshorten-64-to-32 -Wshadow -Winit-self -Wpointer-arith \
+ 	-Wno-format-y2k -W -Wstrict-prototypes -Wmissing-prototypes -Wreturn-type \
+ 	-Wcast-qual -Wwrite-strings -Wswitch -Wcast-align -Wbad-function-cast \
+diff -urN ../xnu-3248.60.10/libkern/libkern/Makefile xnu-3248.60.10_trace/libkern/libkern/Makefile
+--- ../xnu-3248.60.10/libkern/libkern/Makefile	2016-08-04 15:09:51.000000000 -0400
++++ xnu-3248.60.10_trace/libkern/libkern/Makefile	2016-12-30 19:33:03.000000000 -0500
+@@ -75,7 +75,11 @@
+ 	kxld_types.h           \
+ 	stack_protector.h
+ 
++INSTALL_KF_MI_LCL_LIST += \
++	section_keywords.h
+ 
++EXPORT_MI_LIST += \
++	section_keywords.h
+ 
+ EXPORT_MI_GEN_LIST = version.h
+ 
+diff -urN ../xnu-3248.60.10/makedefs/MakeInc.def xnu-3248.60.10_trace/makedefs/MakeInc.def
+--- ../xnu-3248.60.10/makedefs/MakeInc.def	2016-08-04 15:09:58.000000000 -0400
++++ xnu-3248.60.10_trace/makedefs/MakeInc.def	2016-12-30 19:33:03.000000000 -0500
+@@ -92,7 +92,7 @@
+ #
+ 
+ CWARNFLAGS_STD = \
+-	-Wall -Werror -Wno-format-y2k -Wextra -Wstrict-prototypes \
++	-Wall -Wno-format-y2k -Wextra -Wstrict-prototypes \
+ 	-Wmissing-prototypes -Wpointer-arith -Wreturn-type -Wcast-qual \
+ 	-Wwrite-strings -Wswitch -Wshadow -Wcast-align -Wchar-subscripts \
+ 	-Winline -Wnested-externs -Wredundant-decls -Wextra-tokens \
+@@ -106,7 +106,7 @@
+ endef
+ 
+ CXXWARNFLAGS_STD = \
+-	-Wall -Werror -Wno-format-y2k -Wextra -Wpointer-arith -Wreturn-type \
++	-Wall -Wno-format-y2k -Wextra -Wpointer-arith -Wreturn-type \
+ 	-Wcast-qual -Wwrite-strings -Wswitch -Wcast-align -Wchar-subscripts \
+ 	-Wredundant-decls -Wextra-tokens \
+ 	-Wunreachable-code
+diff -urN ../xnu-3248.60.10/osfmk/bank/bank.c xnu-3248.60.10_trace/osfmk/bank/bank.c
+--- ../xnu-3248.60.10/osfmk/bank/bank.c	2016-05-09 16:28:11.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/bank/bank.c	2016-12-30 19:33:03.000000000 -0500
+@@ -421,6 +421,8 @@
+ 
+ 			bank_proximateprocess = bank_merchant;
+ 
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, (BANK_CODE(BANK_ACCOUNT_INFO, (BANK_VOUCHER_REDEEM))) | DBG_FUNC_NONE,
++				bank_merchant->bt_pid, bank_holder->bt_pid, 0, 0, 0);
+ 			/* Check if trying to redeem for self task, return the bank task */
+ 			if (bank_holder == bank_merchant && 
+ 				bank_holder == bank_secureoriginator &&
+@@ -519,6 +521,7 @@
+ 	mach_voucher_attr_value_handle_t bank_handle;
+ 	char buf[MACH_VOUCHER_BANK_CONTENT_SIZE];
+ 	mach_msg_type_number_t i;
++	int buf_index = 0;
+ 
+ 	assert(MACH_VOUCHER_ATTR_KEY_BANK == key);
+ 	assert(manager == &bank_manager);
+@@ -1026,6 +1029,7 @@
+ 
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, (BANK_CODE(BANK_ACCOUNT_INFO, (BANK_SETTLE_CPU_TIME))) | DBG_FUNC_NONE,
+ 			bank_merchant->bt_pid, bank_holder->bt_pid, credit, debit, 0);
++
+ #if CONFIG_BANK
+ 	ledger_credit(bank_holder->bt_creditcard, task_ledgers.cpu_time_billed_to_me, credit);
+ 	ledger_debit(bank_holder->bt_creditcard, task_ledgers.cpu_time_billed_to_me, debit);
+diff -urN ../xnu-3248.60.10/osfmk/console/serial_general.c xnu-3248.60.10_trace/osfmk/console/serial_general.c
+--- ../xnu-3248.60.10/osfmk/console/serial_general.c	2016-06-16 19:57:15.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/console/serial_general.c	2016-12-30 19:33:03.000000000 -0500
+@@ -37,6 +37,7 @@
+ #include <types.h>
+ #include <kern/thread.h>
+ #include <console/serial_protos.h>
++#include <sys/kdebug.h>
+ 
+ extern void cons_cinput(char ch);		/* The BSD routine that gets characters */
+ 
+@@ -87,6 +88,12 @@
+ 
+ 	clock_interval_to_deadline(16, 1000000, &next);	/* Get time of pop */
+ 
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "keyboard_poll", 13);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(event_t)serial_keyboard_poll, reason[0], reason[1], reason[2], 0);
++
+ 	assert_wait_deadline((event_t)serial_keyboard_poll, THREAD_UNINT, next);	/* Show we are "waiting" */
+ 	thread_block((thread_continue_t)serial_keyboard_poll);	/* Wait for it */
+ 	panic("serial_keyboard_poll: Shouldn't never ever get here...\n");
+diff -urN ../xnu-3248.60.10/osfmk/default_pager/dp_backing_store.c xnu-3248.60.10_trace/osfmk/default_pager/dp_backing_store.c
+--- ../xnu-3248.60.10/osfmk/default_pager/dp_backing_store.c	2016-08-04 15:09:41.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/default_pager/dp_backing_store.c	2016-12-30 19:33:03.000000000 -0500
+@@ -2647,6 +2647,11 @@
+ 				 (io_buf_ptr_t *) &dev_buffer,
+ 				 (mach_msg_type_number_t *) &bytes_read);
+ 		if(kr == MIG_NO_REPLY) { 
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "mig_no_reply", 12);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(event_t) &vsa, reason[0], reason[1], reason[2], 0);
+ 			assert_wait(&vsa, THREAD_UNINT);
+ 			thread_block(THREAD_CONTINUE_NULL);
+ 
+@@ -4608,6 +4613,12 @@
+ 	if (trigger != IP_NULL) {
+ 		VSL_LOCK();
+ 		if(backing_store_release_trigger_disable != 0) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "backing_store_release", 21);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(event_t) &backing_store_release_trigger_disable, reason[0], reason[1], reason[2], 0);
++
+ 			assert_wait((event_t) 
+ 				    &backing_store_release_trigger_disable, 
+ 				    THREAD_UNINT);
+diff -urN ../xnu-3248.60.10/osfmk/default_pager/dp_memory_object.c xnu-3248.60.10_trace/osfmk/default_pager/dp_memory_object.c
+--- ../xnu-3248.60.10/osfmk/default_pager/dp_memory_object.c	2015-08-31 17:13:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/default_pager/dp_memory_object.c	2016-12-30 19:33:03.000000000 -0500
+@@ -128,6 +128,11 @@
+ 	ASSERT(vs->vs_async_pending >= 0);
+ 	while (vs->vs_async_pending > 0) {
+ 		vs->vs_waiting_async = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_async_pending", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vs->vs_async_pending, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&vs->vs_async_pending, THREAD_UNINT);
+ 		VS_UNLOCK(vs);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -165,6 +170,11 @@
+ 	while (vs->vs_seqno != seqno) {
+ 		default_pager_wait_seqno++;
+ 		vs->vs_waiting_seqno = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_seqno", 8);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(event_t) &vs->vs_seqno, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&vs->vs_seqno, THREAD_UNINT);
+ 		VS_UNLOCK(vs);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -208,6 +218,11 @@
+ 	while (vs->vs_readers != 0) {
+ 		default_pager_wait_read++;
+ 		vs->vs_waiting_read = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_readers", 10);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(event_t) &vs->vs_readers, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&vs->vs_readers, THREAD_UNINT);
+ 		VS_UNLOCK(vs);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -252,6 +267,11 @@
+ 	while (vs->vs_writers != 0) {
+ 		default_pager_wait_write++;
+ 		vs->vs_waiting_write = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_writers", 10);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				(event_t) &vs->vs_writers, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&vs->vs_writers, THREAD_UNINT);
+ 		VS_UNLOCK(vs);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -262,7 +282,7 @@
+ 
+ /* This is to be used for the transfer from segment code ONLY */
+ /* The transfer code holds off vs destruction by keeping the  */
+-/* vs_async_wait count non-zero.  It will not ocnflict with   */
++/* vs_async_wait count non-zero.  It will not conflict with   */
+ /* other writers on an async basis because it only writes on  */
+ /* a cluster basis into fresh (as of sync time) cluster locations */
+ 
+@@ -272,7 +292,12 @@
+ {
+         while (vs->vs_writers != 0) {
+                 default_pager_wait_write++;
+-		vs->vs_waiting_write = TRUE;
++				vs->vs_waiting_write = TRUE;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vs_sync_writers", 15);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vs->vs_writers, reason[0], reason[1], reason[2], 0);
+                 assert_wait(&vs->vs_writers, THREAD_UNINT);
+                 VS_UNLOCK(vs);
+                 thread_block(THREAD_CONTINUE_NULL);
+@@ -554,6 +579,11 @@
+ 	while (vs->vs_seqno != seqno) {
+ 		default_pager_wait_seqno++;
+ 		vs->vs_waiting_seqno = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_seqno", 8);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vs->vs_seqno, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&vs->vs_seqno, THREAD_UNINT);
+ 		VS_UNLOCK(vs);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -650,6 +680,11 @@
+ 		while (vs->vs_writers != 0) {
+ 			default_pager_wait_write++;
+ 			vs->vs_waiting_write = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vs_writers", 10);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vs->vs_writers, reason[0], reason[1], reason[2], 0);
+ 			assert_wait(&vs->vs_writers, THREAD_UNINT);
+ 			VS_UNLOCK(vs);
+ 			thread_block(THREAD_CONTINUE_NULL);
+@@ -1141,6 +1176,11 @@
+ 			int wresult;
+ 
+ 			VS_UNLOCK(entry);
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "wait_timeout", 12);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)assert_wait_timeout, reason[0], reason[1], reason[2], 0);
+ 
+ 			assert_wait_timeout((event_t)assert_wait_timeout, THREAD_UNINT, 1, 1000*NSEC_PER_USEC);
+ 			wresult = thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/osfmk/i386/cpu_data.h xnu-3248.60.10_trace/osfmk/i386/cpu_data.h
+--- ../xnu-3248.60.10/osfmk/i386/cpu_data.h	2015-02-17 19:17:21.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/cpu_data.h	2016-12-30 19:33:03.000000000 -0500
+@@ -351,7 +351,6 @@
+ 	CPU_DATA_GET(cpu_phys_number,int)
+ }
+ 
+-
+ static inline void
+ disable_preemption(void)
+ {
+diff -urN ../xnu-3248.60.10/osfmk/i386/lapic_native.c xnu-3248.60.10_trace/osfmk/i386/lapic_native.c
+--- ../xnu-3248.60.10/osfmk/i386/lapic_native.c	2015-04-28 18:22:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/lapic_native.c	2016-12-30 19:33:03.000000000 -0500
+@@ -704,6 +704,7 @@
+ 	int 	esr = -1;
+ 
+ 	interrupt_num -= lapic_interrupt_base;
++
+ 	if (interrupt_num < 0) {
+ 		if (interrupt_num == (LAPIC_NMI_INTERRUPT - lapic_interrupt_base) &&
+ 		    lapic_intr_func[LAPIC_NMI_INTERRUPT] != NULL) {
+diff -urN ../xnu-3248.60.10/osfmk/i386/locks_i386.c xnu-3248.60.10_trace/osfmk/i386/locks_i386.c
+--- ../xnu-3248.60.10/osfmk/i386/locks_i386.c	2015-07-08 19:58:21.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/locks_i386.c	2016-12-30 19:33:03.000000000 -0500
+@@ -925,6 +925,11 @@
+ 
+ 				lck->lck_w_waiting = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "rwlck_writer_lck", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					RW_LOCK_WRITER_EVENT(lck), reason[0], reason[1], reason[2], 0);
+ 				res = assert_wait(RW_LOCK_WRITER_EVENT(lck), THREAD_UNINT);
+ 				lck_interlock_unlock(lck, istate);
+ 
+@@ -1003,6 +1008,11 @@
+ 
+ 				lck->lck_w_waiting = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "rwlck_writer_lck", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					RW_LOCK_WRITER_EVENT(lck), reason[0], reason[1], reason[2], 0);
+ 				res = assert_wait(RW_LOCK_WRITER_EVENT(lck), THREAD_UNINT);
+ 				lck_interlock_unlock(lck, istate);
+ 
+@@ -1264,6 +1274,11 @@
+ 
+ 				lck->lck_r_waiting = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "rwlck_reader_lck", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					RW_LOCK_READER_EVENT(lck), reason[0], reason[1], reason[2], 0);
+ 				res = assert_wait(RW_LOCK_READER_EVENT(lck), THREAD_UNINT);
+ 				lck_interlock_unlock(lck, istate);
+ 
+@@ -1422,6 +1437,11 @@
+ 					     trace_lck, lck->lck_rw_shared_count, 0, 0, 0);
+ 
+ 				lck->lck_w_waiting = TRUE;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "rwlck_writer_lck", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					RW_LOCK_WRITER_EVENT(lck), reason[0], reason[1], reason[2], 0);
+ 
+ 				res = assert_wait(RW_LOCK_WRITER_EVENT(lck), THREAD_UNINT);
+ 				lck_interlock_unlock(lck, istate);
+@@ -2083,6 +2103,11 @@
+ 		thread_unlock(holder);
+ 		splx(s);
+ 	}
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "mutex_lock", 10);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					LCK_MTX_EVENT(mutex), reason[0], reason[1], reason[2], 0);
+ 	assert_wait(LCK_MTX_EVENT(mutex), THREAD_UNINT);
+ 
+ 	lck_mtx_ilk_unlock(mutex);
+diff -urN ../xnu-3248.60.10/osfmk/i386/machine_routines.c xnu-3248.60.10_trace/osfmk/i386/machine_routines.c
+--- ../xnu-3248.60.10/osfmk/i386/machine_routines.c	2015-04-28 18:22:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/machine_routines.c	2016-12-30 19:33:03.000000000 -0500
+@@ -606,6 +606,11 @@
+         current_state = ml_set_interrupts_enabled(FALSE);
+         if (max_cpus_initialized != MAX_CPUS_SET) {
+                 max_cpus_initialized = MAX_CPUS_WAIT;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "max_cpu_initialized", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&max_cpus_initialized, reason[0], reason[1], reason[2], 0);
+                 assert_wait((event_t)&max_cpus_initialized, THREAD_UNINT);
+                 (void)thread_block(THREAD_CONTINUE_NULL);
+         }
+diff -urN ../xnu-3248.60.10/osfmk/i386/mp.c xnu-3248.60.10_trace/osfmk/i386/mp.c
+--- ../xnu-3248.60.10/osfmk/i386/mp.c	2015-12-17 16:03:09.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/mp.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1195,6 +1195,7 @@
+  *	    waiting for all calls to complete in parallel before returning
+  *  NOSYNC: function calls are queued
+  *	    but we return before confirmation of calls completing. 
++ *
+  * The action function may be NULL.
+  * The cpu mask may include the local cpu. Offline cpus are ignored.
+  * The return value is the number of cpus on which the call was made or queued.
+@@ -1447,6 +1448,12 @@
+    mp_bc_action_func = action_func;
+    mp_bc_func_arg = arg;
+ 
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "mp_broadcast_cnt", 16);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)(uintptr_t)&mp_bc_count, reason[0], reason[1], reason[2], 0);
++
+    assert_wait((event_t)(uintptr_t)&mp_bc_count, THREAD_UNINT);
+ 
+    /*
+diff -urN ../xnu-3248.60.10/osfmk/i386/pmap_common.c xnu-3248.60.10_trace/osfmk/i386/pmap_common.c
+--- ../xnu-3248.60.10/osfmk/i386/pmap_common.c	2015-03-11 01:47:33.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/pmap_common.c	2016-12-30 19:33:03.000000000 -0500
+@@ -400,6 +400,11 @@
+ 		if (pv_hashed_kern_free_count < pv_hashed_kern_low_water_mark)
+ 			continue;
+ 		/* Block sans continuation to avoid yielding kernel stack */
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "mapping_replenish", 17);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					&mapping_replenish_event, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&mapping_replenish_event, THREAD_UNINT);
+ 		mappingrecurse = 0;
+ 		thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/osfmk/i386/pmap_internal.h xnu-3248.60.10_trace/osfmk/i386/pmap_internal.h
+--- ../xnu-3248.60.10/osfmk/i386/pmap_internal.h	2015-03-11 01:47:33.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/pmap_internal.h	2016-12-30 19:33:03.000000000 -0500
+@@ -353,6 +353,11 @@
+ 		 * to eliminate the timeout when the reserve is replenished.
+ 		 */
+ 		pmap_pv_throttled_waiters++;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "pmap_user_pv_thrtl", 18);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					&pmap_user_pv_throttle_event, reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout(&pmap_user_pv_throttle_event, THREAD_UNINT, 1, 1000 * NSEC_PER_USEC);
+ 		thread_block(THREAD_CONTINUE_NULL);
+ 	}
+diff -urN ../xnu-3248.60.10/osfmk/i386/rtclock.c xnu-3248.60.10_trace/osfmk/i386/rtclock.c
+--- ../xnu-3248.60.10/osfmk/i386/rtclock.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/rtclock.c	2016-12-30 19:33:03.000000000 -0500
+@@ -429,7 +429,7 @@
+ rtclock_intr(
+ 	x86_saved_state_t	*tregs)
+ {
+-        uint64_t	rip;
++    uint64_t	rip;
+ 	boolean_t	user_mode = FALSE;
+ 
+ 	assert(get_preemption_level() > 0);
+diff -urN ../xnu-3248.60.10/osfmk/i386/thread.h xnu-3248.60.10_trace/osfmk/i386/thread.h
+--- ../xnu-3248.60.10/osfmk/i386/thread.h	2015-02-06 19:55:01.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/thread.h	2016-12-30 19:33:03.000000000 -0500
+@@ -132,7 +132,7 @@
+ #define		CopyIOActive 	0x2 /* Checked to ensure DTrace actions do not re-enter copyio(). */
+ 	uint64_t		thread_gpu_ns;
+ #if NCOPY_WINDOWS > 0
+-        struct {
++    struct {
+ 	        user_addr_t	user_base;
+ 	} copy_window[NCOPY_WINDOWS];
+         int			nxt_window;
+diff -urN ../xnu-3248.60.10/osfmk/i386/trap.c xnu-3248.60.10_trace/osfmk/i386/trap.c
+--- ../xnu-3248.60.10/osfmk/i386/trap.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/trap.c	2016-12-30 19:33:03.000000000 -0500
+@@ -402,7 +402,9 @@
+ 	 * Handle local APIC interrupts
+ 	 * else call platform expert for devices.
+ 	 */
++	//int tmpret = lapic_interrupt(interrupt_num, state);
+ 	if (!lapic_interrupt(interrupt_num, state)) {
++	//if (!tmpret) {
+ 		PE_incoming_interrupt(interrupt_num);
+ 	}
+ 
+diff -urN ../xnu-3248.60.10/osfmk/ipc/ipc_kmsg.c xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.c
+--- ../xnu-3248.60.10/osfmk/ipc/ipc_kmsg.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.c	2017-01-15 13:16:18.000000000 -0500
+@@ -143,8 +143,8 @@
+ 
+ typedef struct
+ {
+-        mach_msg_legacy_header_t       header;
+-        mach_msg_body_t         body;
++   mach_msg_legacy_header_t       header;
++   mach_msg_body_t         body;
+ } mach_msg_legacy_base_t;
+ 
+ typedef struct
+@@ -165,6 +165,21 @@
+   mach_msg_type_descriptor_t			type;
+ } mach_msg_legacy_descriptor_t;
+ 
++/* Forward declarations
++ * 		Add by wlm
++ */
++//#define DUMP_MACH_MSG
++
++#ifdef DUMP_MACH_MSG
++static void dump_batch(void* tag, void* addr, unsigned int size, uint32_t debugid);
++static void ipc_msg_dump_body64(void *tag, void *body, unsigned int size);
++static int ipc_msg_dump_dsc64(void *tag, mach_msg_body_t *body, void *delim);
++void ipc_msg_hex_dump(void *tag, mach_msg_header_t *kmsgh, unsigned int size);
++void ipc_msg_voucher_info(uint64_t ksmg, ipc_voucher_t peek_voucher);	
++extern task_t convert_port_to_task(ipc_port_t      port);
++extern char *proc_name_address(struct proc *p);
++#endif
++
+ #pragma pack()
+ 
+ #define LEGACY_HEADER_SIZE_DELTA ((mach_msg_size_t)(sizeof(mach_msg_header_t) - sizeof(mach_msg_legacy_header_t)))
+@@ -1122,6 +1137,190 @@
+ 	return ipc_kmsg_alloc(size);
+ }
+ 
++#ifdef DUMP_MACH_MSG
++/* 
++ * Routine: dump_batch
++ * 		Add by wlm
++ */
++
++static inline void erase_pad(uint64_t * target, int32_t pad)
++{
++	if (pad <= 0 || pad >= 8)
++		return;
++
++	uint64_t tmp = *target;
++	tmp = tmp >> (pad * 8);
++	*target = tmp;
++}
++
++static void dump_batch(void* msgh, void* addr, unsigned int size, uint32_t debugid)
++{
++	
++	if (!kdebug_enable || addr == (void *)0)
++		return;
++
++	uint64_t *word = (uint64_t *)addr;
++	uint64_t *end = (uint64_t *)(((uintptr_t) addr) + size);
++	int i = 0;
++	uint64_t dump[3] = {0};
++	for (;;) {
++		for (i = 0; i < 3; i++, word++) {
++			if (word >= end) {
++				if (i == 0)
++					return;
++				// erase dump[i-1] pad bytes
++				// leave to user space processing
++				erase_pad(&(dump[i-1]), (int32_t)((uint64_t)word - (uint64_t)end));
++				while(i < 3) {
++					dump[i] = 0;
++					i++;
++				}
++
++				KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, debugid) | DBG_FUNC_NONE,
++					(uintptr_t)msgh, dump[0], dump[1], dump[2], 0);
++				return;
++			}
++			dump[i] = *word;
++		}
++		// erase dump[2] pad bytes
++		// leave to user space processing
++		if (word > end)
++			erase_pad(&(dump[2]),  (int32_t)((uint64_t)word - (uint64_t)end));
++
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, debugid) | DBG_FUNC_NONE,
++			(uintptr_t)msgh, dump[0], dump[1], dump[2], 0);
++		dump[0] = dump[1] = dump[2] = 0;
++	}
++	
++}
++
++/*
++ * Routine: ipc_msg_dump_body64
++ *		Add by wlm
++ */
++static void ipc_msg_dump_body64(void *tag, void *body, unsigned int size)
++{
++	dump_batch(tag, body, size, MACH_IPC_MSG_DUMP);
++}
++/*
++ * Rountin: ipc_msg_dump_dsc64
++ *		Add by wlm
++ */
++
++static int ipc_msg_dump_dsc64(void *tag, mach_msg_body_t *body, void *delim)
++{
++	if (!kdebug_enable)
++		return 0;
++
++	mach_msg_descriptor_t *saddr;
++	mach_msg_descriptor_type_t type;
++	saddr = (mach_msg_descriptor_t *)(body + 1);
++	
++	int dsc_count = body->msgh_descriptor_count;
++	int dsc_size = 0;
++
++	for (int i = 0 ; i < dsc_count && (void *)saddr < delim; i++) {
++		type = saddr->type.type;
++		switch (type) {
++			case MACH_MSG_PORT_DESCRIPTOR: {
++				mach_msg_legacy_port_descriptor_t *usr_dsc 
++					= (mach_msg_legacy_port_descriptor_t*) &saddr->port;
++				dsc_size += sizeof(*usr_dsc);
++				saddr = (mach_msg_descriptor_t *)(usr_dsc + 1);
++				break;
++			}
++			case MACH_MSG_OOL_VOLATILE_DESCRIPTOR:
++			case MACH_MSG_OOL_DESCRIPTOR: {
++				
++				mach_msg_ool_descriptor64_t *usr_dsc 
++					= (mach_msg_ool_descriptor64_t*) &saddr->out_of_line;
++				dsc_size += sizeof(*usr_dsc);
++				saddr = (mach_msg_descriptor_t *)(usr_dsc + 1);
++				//fixme: can't read here
++				dump_batch(tag, (void *)(usr_dsc->address), usr_dsc->size, MACH_IPC_MSG_DSC);
++				break;
++			}
++			case MACH_MSG_OOL_PORTS_DESCRIPTOR: {
++				mach_msg_ool_ports_descriptor64_t *usr_dsc
++					= (mach_msg_ool_ports_descriptor64_t *) &saddr->ool_ports;
++				dsc_size += sizeof(*usr_dsc);
++				saddr = (mach_msg_descriptor_t *)(usr_dsc + 1);
++				// fixme: if it can read
++				unsigned int ports_size = (usr_dsc->count) * sizeof(mach_port_name_t);
++				dump_batch(tag, (void *)(usr_dsc->address), ports_size, MACH_IPC_MSG_DSC);
++				break;
++			}
++			default:
++				goto out; 
++		}
++	} 
++out:
++	return dsc_size;
++}
++
++
++/*
++ * Routine:		ipc_msg_hex_dump
++ *		Add by wlm
++ */
++void ipc_msg_hex_dump(void *tag, mach_msg_header_t *kmsgh, unsigned int size) 
++{
++	if (!kdebug_enable)
++		return;
++	/*
++	mach_msg_bits_t mbits = kmsgh->msgh_bits;
++	if (mbits & MACH_MSGH_BITS_COMPLEX) {
++		mach_msg_body_t *body = (mach_msg_body_t *)(kmsgh + 1);
++		ipc_msg_dump_dsc64(tag, body, (void *)((uint64_t)body + size));
++	}
++	*/
++	
++	ipc_msg_dump_body64(tag, (void *)(kmsgh + 1), size);
++}
++
++/*
++ * Routine: ipc_msg_voucher_info
++ */
++
++void ipc_msg_voucher_info(uint64_t kmsg, ipc_voucher_t peek_voucher)
++{
++	//mach_voucher_attr_content_t content[MACH_VOUCHER_BANK_CONTENT_SIZE];
++	unsigned char content[MACH_VOUCHER_BANK_CONTENT_SIZE];
++	mach_voucher_attr_content_size_t size = MACH_VOUCHER_BANK_CONTENT_SIZE;
++	kern_return_t ret = mach_voucher_extract_attr_content(peek_voucher, MACH_VOUCHER_ATTR_KEY_BANK, content, &size);
++	if (size == 0 || ret != KERN_SUCCESS)
++		return;
++	char * sub_content = (char *)content;
++	char enter[8];
++	int read_size = 0;
++	while ((uint64_t)sub_content - (uint64_t)content < size - 1 && sub_content != NULL) {
++		if (!strncmp((const char*)sub_content, " Bank Context", 13)){
++			int bank_pid;
++			sscanf((const char*)sub_content," Bank Context for a pid %d%[\n]%n", &bank_pid, enter, &read_size);
++    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
++				BANK_TASK, (uint64_t)bank_pid << 32, 0);	
++		} else if (!strncmp((const char*)sub_content, " Bank Account", 13)) {
++			int holder_pid, merchant_pid;
++			sscanf((const char *)sub_content,
++					" Bank Account linking holder pid %d with merchant pid %d%[\n]%n",
++					&holder_pid, &merchant_pid, enter, &read_size); 
++    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
++				BANK_ACCOUNT,
++				((uint64_t)holder_pid << 32) | merchant_pid,
++				0);	
++		}
++		if (read_size == 0)
++			break;
++		sub_content += read_size;
++		read_size = 0;
++	}
++}
++
++#endif
+ 
+ /*
+  *	Routine:	ipc_kmsg_get
+@@ -1434,15 +1633,14 @@
+ 		assert(ip_active(port));
+ 		port->ip_messages.imq_seqno++;
+ 		ip_unlock(port);
+-
+ 		current_task()->messages_sent++;
+-
+ 		/*
+ 		 * Call the server routine, and get the reply message to send.
+ 		 */
+ 		kmsg = ipc_kobject_server(kmsg);
+-		if (kmsg == IKM_NULL)
++		if (kmsg == IKM_NULL) {
+ 			return MACH_MSG_SUCCESS;
++		}
+ 
+ 		port = (ipc_port_t) kmsg->ikm_header->msgh_remote_port;
+ 		assert(IP_VALID(port));
+@@ -1577,7 +1775,7 @@
+ 							 kmsg->ikm_header->msgh_local_port,
+ 							 kmsg->ikm_header->msgh_voucher_port,
+ 							 kmsg->ikm_header->msgh_id);
+-
++	
+ #if defined(__LP64__)
+ 	if (current_task() != kernel_task) { /* don't if receiver expects fully-cooked in-kernel msg; ux_exception */
+ 		mach_msg_legacy_header_t *legacy_header = 
+@@ -1614,6 +1812,7 @@
+ 		kprintf("type: %d\n", ((mach_msg_type_descriptor_t *)(((mach_msg_base_t *)kmsg->ikm_header)+1))->type);
+ 	}
+ 	__unreachable_ok_pop
++
+ 	if (copyoutmsg((const char *) kmsg->ikm_header, msg_addr, size))
+ 		mr = MACH_RCV_INVALID_DATA;
+ 	else
+@@ -2569,6 +2768,13 @@
+             case MACH_MSG_PORT_DESCRIPTOR:
+                 user_addr = ipc_kmsg_copyin_port_descriptor((mach_msg_port_descriptor_t *)kern_addr, 
+                         (mach_msg_legacy_port_descriptor_t *)user_addr, space, dest, kmsg, &mr);
++
++				#ifdef DUMP_MACH_MSG
++				if (mr == MACH_MSG_SUCCESS)
++					KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_INTERNAL_DSC) | DBG_FUNC_NONE,
++						VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((mach_msg_port_descriptor_t *)kern_addr)->name, 0, 0, 0);
++				#endif
++						
+                 kern_addr++;
+                 complex = TRUE;
+                 break;
+@@ -2579,12 +2785,26 @@
+                 kern_addr++;
+                 complex = TRUE;
+                 break;
+-            case MACH_MSG_OOL_PORTS_DESCRIPTOR: 
++
++            case MACH_MSG_OOL_PORTS_DESCRIPTOR: {
++			
+                 user_addr = ipc_kmsg_copyin_ool_ports_descriptor((mach_msg_ool_ports_descriptor_t *)kern_addr, 
+                         user_addr, is_task_64bit, map, space, dest, kmsg, &mr);
++
++				#ifdef DUMP_MACH_MSG
++				if (mr == MACH_MSG_SUCCESS) {
++					mach_msg_ool_ports_descriptor_t * kern_ool_ports_dsc = (typeof(kern_ool_ports_dsc))kern_addr;
++					int kern_ports_size = (kern_ool_ports_dsc->count) * sizeof(mach_port_t);
++					if (kern_ports_size != 0 && kern_ports_size <= INT_MAX)
++						dump_batch((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kern_ool_ports_dsc->address,
++											kern_ports_size, MACH_IPC_MSG_INTERNAL_DSC);
++				}
++				#endif
++
+                 kern_addr++;
+                 complex = TRUE;
+                 break;
++			}
+             default:
+                 /* Invalid descriptor */
+                 mr = MACH_SEND_INVALID_TYPE;
+@@ -2640,21 +2860,45 @@
+ 	mach_msg_option_t	*optionp)
+ {
+     mach_msg_return_t 		mr;
++	
++	uint64_t ports_name = ((uint64_t)kmsg->ikm_header->msgh_remote_port << 32) | ((uint64_t)kmsg->ikm_header->msgh_local_port);
+ 
+     kmsg->ikm_header->msgh_bits &= MACH_MSGH_BITS_USER;
+-
+     mr = ipc_kmsg_copyin_header(kmsg, space, optionp);
+-
++	
+     if (mr != MACH_MSG_SUCCESS)
+-	return mr;
++		return mr;
+ 
++	#ifdef DUMP_MACH_MSG
++	// begin dump of send
++	uint32_t pid = task_pid(current_task());
++	uint32_t body_size = kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), pid, body_size, 0, 0);
++
++	uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg),VM_KERNEL_ADDRPERM(thread_voucher), 0, 0, 0);
++
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), kmsg->ikm_header->msgh_remote_port, kmsg->ikm_header->msgh_local_port, ports_name, 0);
++	ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size); 
++	
++	if (IP_VALID(kmsg->ikm_voucher)) {
++		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++	#endif
++/*
+     KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
+ 			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
+ 			  (uintptr_t)kmsg->ikm_header->msgh_bits,
+ 			  (uintptr_t)kmsg->ikm_header->msgh_id,
+ 			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
+ 			  0);
+-
++*/
+     DEBUG_KPRINT_SYSCALL_IPC("ipc_kmsg_copyin header:\n%.8x\n%.8x\n%p\n%p\n%p\n%.8x\n",
+ 			     kmsg->ikm_header->msgh_size,
+ 			     kmsg->ikm_header->msgh_bits,
+@@ -2663,11 +2907,32 @@
+ 			     kmsg->ikm_voucher,
+ 			     kmsg->ikm_header->msgh_id);
+ 
+-    if ((kmsg->ikm_header->msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0)
+-	return MACH_MSG_SUCCESS;
++    if ((kmsg->ikm_header->msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0) {
++    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			  (uintptr_t)kmsg->ikm_header->msgh_bits,
++			  (uintptr_t)kmsg->ikm_header->msgh_id,
++			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			  0);
++
++		return MACH_MSG_SUCCESS;
++	}
+     
+ 	mr = ipc_kmsg_copyin_body( kmsg, space, map);
+ 
++	if (mr != MACH_MSG_SUCCESS) {
++    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 0, mr, 0 ,0);
++	}
++	else {
++    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			  (uintptr_t)kmsg->ikm_header->msgh_bits,
++			  (uintptr_t)kmsg->ikm_header->msgh_id,
++			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			  0);
++	}
++
+ 	/* unreachable if !DEBUG */
+ 	__unreachable_ok_push
+ 	if (DEBUG_KPRINT_SYSCALL_PREDICATE(DEBUG_KPRINT_SYSCALL_IPC_MASK))
+@@ -2719,6 +2984,27 @@
+ 	 *	The common case is a complex message with no reply port,
+ 	 *	because that is what the memory_object interface uses.
+ 	 */
++	
++	#ifdef DUMP_MACH_MSG
++	// begin dump of send
++	uint32_t pid = task_pid(current_task());
++	uint32_t body_size = 0;
++	//kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
++
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++		0, VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 0, 1, 0);
++
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), pid, body_size, 0, 0);
++
++	uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), VM_KERNEL_ADDRPERM(thread_voucher), 0, 0, 0);
++
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), kmsg->ikm_header->msgh_remote_port, kmsg->ikm_header->msgh_local_port, 0, 0);
++	ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size); 
++	#endif
+ 
+ 	if (bits == (MACH_MSGH_BITS_COMPLEX |
+ 		     MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0))) {
+@@ -2732,9 +3018,17 @@
+ 				       ipc_object_copyin_type(lname)));
+ 
+ 		kmsg->ikm_header->msgh_bits = bits;
+-		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0)
++		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0) {
++    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			  (uintptr_t)kmsg->ikm_header->msgh_bits,
++			  (uintptr_t)kmsg->ikm_header->msgh_id,
++			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			  0);
+ 			return MACH_MSG_SUCCESS;
++		}
+ 	}
++
+     {
+     	mach_msg_descriptor_t	*saddr;
+     	mach_msg_body_t		*body;
+@@ -2825,8 +3119,15 @@
+ #endif	/* MACH_ASSERT */
+ 		}
+ 	    }
++		
+ 	}
+     }
++    KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++	  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++	  (uintptr_t)kmsg->ikm_header->msgh_bits,
++	  (uintptr_t)kmsg->ikm_header->msgh_id,
++	  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++	  0);
+     return MACH_MSG_SUCCESS;
+ }
+ 
+@@ -3310,7 +3611,7 @@
+ 
+ 	if (IP_VALID(release_voucher_port))
+ 		ipc_port_release_send(release_voucher_port);
+-
++	
+ 
+ 	if ((option & MACH_RCV_VOUCHER) != 0) {
+ 	    KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_RECV) | DBG_FUNC_NONE,
+@@ -3327,6 +3628,14 @@
+ 				  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(voucher)),
+ 				  0);
+ 	}
++	#ifdef DUMP_MACH_MSG
++	if (IP_VALID(voucher)) {
++		if (ip_kotype(voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++	#endif
+ 
+ 	msg->msgh_bits = MACH_MSGH_BITS_SET(reply_type, dest_type,
+ 					    voucher_type, mbits);
+@@ -3452,12 +3761,11 @@
+     dsc_type = dsc->type;
+ 
+     if (copy != VM_MAP_COPY_NULL) {
+-	kern_return_t kr;
+-
++		kern_return_t kr;
+         rcv_addr = 0;
+-	if (vm_map_copy_validate_size(map, copy, (vm_map_size_t)size) == FALSE)
+-		panic("Inconsistent OOL/copyout size on %p: expected %d, got %lld @%p",
+-		      dsc, size, (unsigned long long)copy->size, copy);
++		if (vm_map_copy_validate_size(map, copy, (vm_map_size_t)size) == FALSE)
++			panic("Inconsistent OOL/copyout size on %p: expected %d, got %lld @%p",
++				dsc, size, (unsigned long long)copy->size, copy);
+         kr = vm_map_copyout(map, &rcv_addr, copy);
+         if (kr != KERN_SUCCESS) {
+             if (kr == KERN_RESOURCE_SHORTAGE)
+@@ -3716,31 +4024,60 @@
+ 
+     /* Do scatter list setup */
+     if (slist != MACH_MSG_BODY_NULL) {
+-    panic("Scatter lists disabled");
+-	saddr = (mach_msg_descriptor_t *) (slist + 1);
+-	sdsc_count = slist->msgh_descriptor_count;
++    	panic("Scatter lists disabled");
++		saddr = (mach_msg_descriptor_t *) (slist + 1);
++		sdsc_count = slist->msgh_descriptor_count;
+     }
+     else {
+-	saddr = MACH_MSG_DESCRIPTOR_NULL;
+-	sdsc_count = 0;
++		saddr = MACH_MSG_DESCRIPTOR_NULL;
++		sdsc_count = 0;
+     }
+ 
++	/* Dump for beachball analysis */
++	#ifdef DUMP_MACH_MSG
++	for (i = 0; i < (int)dsc_count; i++) {
++		switch (kern_dsc[i].type.type) {
++			case MACH_MSG_PORT_DESCRIPTOR:
++					KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_INTERNAL_DSC) | DBG_FUNC_NONE,
++						VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((mach_msg_port_descriptor_t *)&kern_dsc[i])->name, 0, 0, 0);
++				break;
++			case MACH_MSG_OOL_VOLATILE_DESCRIPTOR:
++			case MACH_MSG_OOL_DESCRIPTOR :
++				break;                                                                                                                                   
++			case MACH_MSG_OOL_PORTS_DESCRIPTOR :
++			{    
++				int size = ((mach_msg_ool_ports_descriptor_t*)&kern_dsc[i])->count * sizeof(mach_port_t);
++				if (is_task_64bit)
++					dump_batch((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), 
++						((mach_msg_ool_ports_descriptor_t*)&kern_dsc[i])->address,
++						size, MACH_IPC_MSG_INTERNAL_DSC);
++				break;
++			}    
++			default : {
++					panic("untyped IPC copyout body: invalid message descriptor");
++			}
++		}        
++	}
++	#endif
+     /* Now process the descriptors */
+     for (i = dsc_count-1; i >= 0; i--) {
+         switch (kern_dsc[i].type.type) {
+-
+-            case MACH_MSG_PORT_DESCRIPTOR: 
++            case MACH_MSG_PORT_DESCRIPTOR: {
+                 user_dsc = ipc_kmsg_copyout_port_descriptor(&kern_dsc[i], user_dsc, space, &mr);
+                 break;
++			}
+             case MACH_MSG_OOL_VOLATILE_DESCRIPTOR:
+-            case MACH_MSG_OOL_DESCRIPTOR : 
++            case MACH_MSG_OOL_DESCRIPTOR : {
+                 user_dsc = ipc_kmsg_copyout_ool_descriptor(
+                         (mach_msg_ool_descriptor_t *)&kern_dsc[i], user_dsc, is_task_64bit, map, &mr);
+                 break;
++			}
+             case MACH_MSG_OOL_PORTS_DESCRIPTOR : 
++			{
+                 user_dsc = ipc_kmsg_copyout_ool_ports_descriptor(
+                         (mach_msg_ool_ports_descriptor_t *)&kern_dsc[i], user_dsc, is_task_64bit, map, space, kmsg, &mr);
+                 break;
++			}
+             default : {
+                           panic("untyped IPC copyout body: invalid message descriptor");
+                       }
+@@ -3836,11 +4173,16 @@
+ 	ipc_space_t		space,
+ 	vm_map_t		map,
+ 	mach_msg_body_t		*slist,
+-	 mach_msg_option_t	option)
++	mach_msg_option_t	option)
+ {
+ 	mach_msg_return_t mr;
+-
++	
++	uintptr_t internal_remote = (uintptr_t)(kmsg->ikm_header->msgh_remote_port);
++	uintptr_t internal_local = (uintptr_t)(kmsg->ikm_header->msgh_local_port); 
++	
+ 	mr = ipc_kmsg_copyout_header(kmsg, space, option);
++	// trace receive begins inside above function
++
+ 	if (mr != MACH_MSG_SUCCESS) {
+ 		return mr;
+ 	}
+@@ -3852,6 +4194,13 @@
+ 			mr |= MACH_RCV_BODY_ERROR;
+ 	}
+ 
++	 //dump of receive
++	#ifdef DUMP_MACH_MSG
++	uint64_t pid = (uint64_t)(task_pid(current_task())); 
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
++		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), internal_remote, internal_local, ((pid << 32) | 1), 0);
++	#endif
++
+ 	return mr;
+ }
+ 
+diff -urN ../xnu-3248.60.10/osfmk/ipc/ipc_kmsg.h xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.h
+--- ../xnu-3248.60.10/osfmk/ipc/ipc_kmsg.h	2015-07-13 18:20:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.h	2016-12-30 19:33:03.000000000 -0500
+@@ -249,6 +249,14 @@
+ 	}								\
+ MACRO_END
+ 
++#define DUMP_MACH_MSG
++#ifdef DUMP_MACH_MSG
++extern void ipc_msg_hex_dump(
++		void *tag,
++		mach_msg_header_t *kmsgh,
++		unsigned int size);
++#endif
++
+ /* Allocate a kernel message */
+ extern ipc_kmsg_t ipc_kmsg_alloc(
+         mach_msg_size_t size);
+diff -urN ../xnu-3248.60.10/osfmk/ipc/ipc_mqueue.c xnu-3248.60.10_trace/osfmk/ipc/ipc_mqueue.c
+--- ../xnu-3248.60.10/osfmk/ipc/ipc_mqueue.c	2015-08-04 16:06:10.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_mqueue.c	2016-12-30 19:33:03.000000000 -0500
+@@ -442,7 +442,6 @@
+ 	} else {
+ 		thread_t cur_thread = current_thread();
+ 		uint64_t deadline;
+-
+ 		/* 
+ 		 * We have to wait for space to be granted to us.
+ 		 */
+@@ -452,6 +451,7 @@
+ 			return MACH_SEND_TIMED_OUT;
+ 		}
+ 		if (imq_full_kernel(mqueue)) {
++			/* Unlikely reach here */
+ 			imq_unlock(mqueue);
+ 			splx(s);
+ 			return MACH_SEND_NO_BUFFER;
+@@ -462,6 +462,14 @@
+ 			clock_interval_to_deadline(send_timeout, 1000*NSEC_PER_USEC, &deadline);
+ 		else
+ 			deadline = 0;
++
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "imq_full", 8);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			IPC_MQUEUE_FULL,
++			reason[0], reason[1], reason[2], 0);
++  
+ 		wresult = waitq_assert_wait64_locked(
+ 						&mqueue->imq_wait_queue,
+ 						IPC_MQUEUE_FULL,
+@@ -472,14 +480,13 @@
+ 		thread_unlock(cur_thread);
+ 		imq_unlock(mqueue);
+ 		splx(s);
+-		
++
+ 		if (wresult == THREAD_WAITING) {
+ 			wresult = thread_block(THREAD_CONTINUE_NULL);
+ 			counter(c_ipc_mqueue_send_block++);
+ 		}
+-		
+-		switch (wresult) {
+ 
++		switch (wresult) {
+ 		case THREAD_AWAKENED:
+ 			/* 
+ 			 * we can proceed - inherited msgcount from waker
+@@ -615,6 +622,7 @@
+ 			imq_release_and_unlock(mqueue, reserved_prepost, s);
+ 			ipc_kmsg_destroy(kmsg);
+ 			current_task()->messages_sent++;
++
+ 			return;
+ 		}
+ 	
+@@ -625,9 +633,9 @@
+ 		 * go look for another thread that can.
+ 		 */
+ 		if (receiver->ith_state != MACH_RCV_IN_PROGRESS) {
+-				  thread_unlock(receiver);
+-				  splx(th_spl);
+-				  continue;
++			thread_unlock(receiver);
++			splx(th_spl);
++			continue;
+ 		}
+ 
+ 	
+@@ -652,7 +660,6 @@
+ 		 */
+ 		if ((receiver->ith_state == MACH_MSG_SUCCESS) ||
+ 		    !(receiver->ith_option & MACH_RCV_LARGE)) {
+-
+ 			receiver->ith_kmsg = kmsg;
+ 			receiver->ith_seqno = mqueue->imq_seqno++;
+ 			thread_unlock(receiver);
+@@ -678,8 +685,8 @@
+ 	/* clear the waitq boost we may have been given */
+ 	waitq_clear_promotion_locked(&mqueue->imq_wait_queue, current_thread());
+ 	imq_release_and_unlock(mqueue, reserved_prepost, s);
+-	
+ 	current_task()->messages_sent++;
++
+ 	return;
+ }
+ 
+@@ -693,6 +700,7 @@
+ 	/*
+ 	 * why did we wake up?
+ 	 */
++
+ 	switch (saved_wait_result) {
+ 	case THREAD_TIMED_OUT:
+ 		self->ith_state = MACH_RCV_TIMED_OUT;
+@@ -786,11 +794,12 @@
+ 	wait_result_t           wresult;
+         thread_t                self = current_thread();
+         
+-        wresult = ipc_mqueue_receive_on_thread(mqueue, option, max_size,
++    wresult = ipc_mqueue_receive_on_thread(mqueue, option, max_size,
+                                                rcv_timeout, interruptible,
+                                                self);
+-        if (wresult == THREAD_NOT_WAITING)
+-                return;
++
++    if (wresult == THREAD_NOT_WAITING)
++            return;
+ 
+ 	if (wresult == THREAD_WAITING) {
+ 		counter((interruptible == THREAD_ABORTSAFE) ? 
+@@ -931,6 +940,12 @@
+ 	else
+ 		deadline = 0;
+ 
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "imq_receive", 11);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		IPC_MQUEUE_RECEIVE,
++		reason[0], reason[1], reason[2], 0);
+ 	wresult = waitq_assert_wait64_locked(&mqueue->imq_wait_queue,
+ 					     IPC_MQUEUE_RECEIVE,
+ 					     interruptible,
+diff -urN ../xnu-3248.60.10/osfmk/ipc/ipc_voucher.c xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.c
+--- ../xnu-3248.60.10/osfmk/ipc/ipc_voucher.c	2016-01-28 18:47:28.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.c	2016-12-30 19:33:03.000000000 -0500
+@@ -304,9 +304,13 @@
+ 		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_VOUCHER_DESTROY) | DBG_FUNC_NONE,
+ 				      VM_KERNEL_ADDRPERM((uintptr_t)iv), 0, ivht_count, 0, 0);
+ 
+-	} else
+-		assert(0 == --iv->iv_refs);
++	} else {
++		
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_VOUCHER_REMOVE) | DBG_FUNC_NONE,
++				      VM_KERNEL_ADDRPERM((uintptr_t)iv), 0, ivht_count, 0, 0);
+ 
++		assert(0 == --iv->iv_refs);
++	}
+ 	/*
+ 	 * if a port was allocated for this voucher,
+ 	 * it must not have any remaining send rights,
+@@ -1547,6 +1551,10 @@
+ 
+ 		break;
+ 	}
++	if (prev_iv != IV_NULL)
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_VOUCHER_CONN) | DBG_FUNC_NONE,
++					      VM_KERNEL_ADDRPERM((uintptr_t)prev_iv),
++					      VM_KERNEL_ADDRPERM((uintptr_t)voucher), command, key, 0);
+ 	return KERN_SUCCESS;
+ }
+ 
+@@ -1655,6 +1663,10 @@
+ 			ivht_unlock();
+ 
+ 			/* referenced previous, so deallocate the new one */
++			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_VOUCHER_REUSE) | DBG_FUNC_NONE,
++					      VM_KERNEL_ADDRPERM((uintptr_t)iv),
++					      VM_KERNEL_ADDRPERM((uintptr_t)new_iv), ivht_count, 0, 0);
++
+ 			iv_dealloc(new_iv, FALSE);
+ 			return iv;
+ 		}
+@@ -2113,7 +2125,6 @@
+ }
+ 
+ 
+-
+ /*
+  *	Routine: 	mach_voucher_extract_all_attr_recipes
+  *	Purpose:
+diff -urN ../xnu-3248.60.10/osfmk/ipc/ipc_voucher.h xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.h
+--- ../xnu-3248.60.10/osfmk/ipc/ipc_voucher.h	2016-01-28 18:47:28.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.h	2016-12-30 19:33:03.000000000 -0500
+@@ -310,6 +310,13 @@
+ extern uintptr_t unsafe_convert_port_to_voucher(
+ 	ipc_port_t		port);
+ 
++extern kern_return_t
++mach_voucher_extract_attr_content(
++	ipc_voucher_t				voucher,
++	mach_voucher_attr_key_t			key,
++	mach_voucher_attr_content_t		content,
++	mach_voucher_attr_content_size_t	*in_out_size);
++
+ /* Convert from a port to a voucher */
+ extern ipc_voucher_t convert_port_to_voucher(
+ 	ipc_port_t		port);
+diff -urN ../xnu-3248.60.10/osfmk/ipc/mach_msg.c xnu-3248.60.10_trace/osfmk/ipc/mach_msg.c
+--- ../xnu-3248.60.10/osfmk/ipc/mach_msg.c	2015-07-13 18:20:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/mach_msg.c	2017-01-15 13:16:18.000000000 -0500
+@@ -115,6 +115,7 @@
+ #define offsetof(type, member)  ((size_t)(&((type *)0)->member))
+ #endif /* offsetof */
+ 
++extern char	*proc_name_address(struct proc *p);
+ /*
+  * Forward declarations - kernel internal routines
+  */
+@@ -339,8 +340,28 @@
+ 
+ 	trailer_size = ipc_kmsg_add_trailer(kmsg, space, option, self, seqno, FALSE, 
+ 			kmsg->ikm_header->msgh_remote_port->ip_context);
++
+ 	mr = ipc_kmsg_copyout(kmsg, space, map, MACH_MSG_BODY_NULL, option);
+ 
++	
++	#ifdef DUMP_MACH_MSG
++		uint32_t body_size = kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
++		ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size);
++		// port names are been exchanged here, we restore it in tracing log
++		// format: remote_port_name << 32 | local_port_name
++		uint64_t ports_name = (uint64_t)(kmsg->ikm_header->msgh_remote_port)|((uint64_t)(kmsg->ikm_header->msgh_local_port) << 32);
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name, body_size, 1, 0);
++
++		uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),VM_KERNEL_ADDRPERM(thread_voucher), mr, 0, 0);
++
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), msg_addr, mr,
++			(uint64_t)(option & (MACH_SEND_MSG|MACH_RCV_MSG)) | ((uint64_t)(kmsg->ikm_header->msgh_local_port) << 32), 0);
++	#endif
++
+ 	if (mr != MACH_MSG_SUCCESS) {
+ 		/* already received importance, so have to undo that here */
+ 		ipc_importance_unreceive(kmsg, option);
+@@ -461,6 +482,10 @@
+ 
+ 		mr = ipc_kmsg_get(msg_addr, send_size, &kmsg);
+ 
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			msg_addr, VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			mr, (option & (MACH_SEND_MSG|MACH_RCV_MSG)), 0);
++
+ 		if (mr != MACH_MSG_SUCCESS)
+ 			return mr;
+ 
+@@ -488,6 +513,7 @@
+ 		ipc_mqueue_t mqueue;
+ 
+ 		mr = ipc_mqueue_copyin(space, rcv_name, &mqueue, &object);
++
+ 		if (mr != MACH_MSG_SUCCESS) {
+ 			return mr;
+ 		}
+@@ -497,6 +523,7 @@
+ 			self->ith_msg_addr = rcv_msg_addr;
+ 		else
+ 			self->ith_msg_addr = msg_addr;
++
+ 		self->ith_object = object;
+ 		self->ith_msize = rcv_size;
+ 		self->ith_option = option;
+@@ -528,7 +555,6 @@
+ {
+ 	kern_return_t kr;
+ 	args->rcv_msg = (mach_vm_address_t)0;
+-
+  	kr = mach_msg_overwrite_trap(args);
+ 	return kr;
+ }
+diff -urN ../xnu-3248.60.10/osfmk/kern/clock.c xnu-3248.60.10_trace/osfmk/kern/clock.c
+--- ../xnu-3248.60.10/osfmk/kern/clock.c	2015-04-02 17:51:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/clock.c	2016-12-30 19:33:03.000000000 -0500
+@@ -828,6 +828,11 @@
+ 	uint64_t		deadline = args->deadline;
+ 	wait_result_t	wresult;
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "mach_wait_until_trap", 20);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)mach_wait_until_trap, reason[0], reason[1], reason[2], 0);
+ 	wresult = assert_wait_deadline_with_leeway((event_t)mach_wait_until_trap, THREAD_ABORTSAFE,
+ 						   TIMEOUT_URGENCY_USER_NORMAL, deadline, 0);
+ 	if (wresult == THREAD_WAITING)
+@@ -883,6 +888,11 @@
+ 		 * For now, assume a leeway request of 0 means the client does not want a leeway
+ 		 * value. We may want to change this interpretation in the future.
+ 		 */
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "clock_delay_until", 17);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)clock_delay_until, reason[0], reason[1], reason[2], 0);
+ 
+ 		if (leeway) {
+ 			assert_wait_deadline_with_leeway((event_t)clock_delay_until, THREAD_UNINT, TIMEOUT_URGENCY_LEEWAY, deadline, leeway);
+diff -urN ../xnu-3248.60.10/osfmk/kern/clock_oldops.c xnu-3248.60.10_trace/osfmk/kern/clock_oldops.c
+--- ../xnu-3248.60.10/osfmk/kern/clock_oldops.c	2013-10-23 19:29:52.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/clock_oldops.c	2016-12-30 19:33:03.000000000 -0500
+@@ -575,6 +575,12 @@
+ 		/*
+ 		 * Wait for alarm to occur.
+ 		 */
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "alarm", 5);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)alarm, reason[0], reason[1], reason[2], 0);
++
+ 		wait_result = assert_wait((event_t)alarm, THREAD_ABORTSAFE);
+ 		if (wait_result == THREAD_WAITING) {
+ 			alarm->al_time = *sleep_time;
+diff -urN ../xnu-3248.60.10/osfmk/kern/ledger.c xnu-3248.60.10_trace/osfmk/kern/ledger.c
+--- ../xnu-3248.60.10/osfmk/kern/ledger.c	2015-05-31 16:21:30.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/ledger.c	2016-12-30 19:33:03.000000000 -0500
+@@ -42,6 +42,7 @@
+ 
+ #include <libkern/OSAtomic.h>
+ #include <mach/mach_types.h>
++#include <sys/kdebug.h>
+ 
+ /*
+  * Ledger entry flags. Bits in second nibble (masked by 0xF0) are used for
+@@ -1364,6 +1365,12 @@
+ 			continue;
+ 
+ 		/* Prepare to sleep until the resource is refilled */
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "ledger_perform_refill", 21);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)le, reason[0], reason[1], reason[2], 0);
++
+ 		ret = assert_wait_deadline(le, TRUE,
+ 		    le->_le.le_refill.le_last_refill + le->_le.le_refill.le_refill_period);
+ 		if (ret != THREAD_WAITING)
+diff -urN ../xnu-3248.60.10/osfmk/kern/locks.c xnu-3248.60.10_trace/osfmk/kern/locks.c
+--- ../xnu-3248.60.10/osfmk/kern/locks.c	2016-08-04 15:09:43.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/locks.c	2016-12-30 19:33:03.000000000 -0500
+@@ -431,6 +431,11 @@
+ 	if ((lck_sleep_action & ~LCK_SLEEP_MASK) != 0)
+ 		panic("Invalid lock sleep action %x\n", lck_sleep_action);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_spin_sleep", 14);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
+ 	res = assert_wait(event, interruptible);
+ 	if (res == THREAD_WAITING) {
+ 		lck_spin_unlock(lck);
+@@ -462,6 +467,12 @@
+ 	if ((lck_sleep_action & ~LCK_SLEEP_MASK) != 0)
+ 		panic("Invalid lock sleep action %x\n", lck_sleep_action);
+ 
++	uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_spin_sleep_deadline", 23);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
++
+ 	res = assert_wait_deadline(event, interruptible, deadline);
+ 	if (res == THREAD_WAITING) {
+ 		lck_spin_unlock(lck);
+@@ -539,6 +550,11 @@
+ 		thread->rwlock_count++;
+ 	}
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_mtx_sleep", 13);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
+ 	res = assert_wait(event, interruptible);
+ 	if (res == THREAD_WAITING) {
+ 		lck_mtx_unlock(lck);
+@@ -594,6 +610,11 @@
+ 		thread->rwlock_count++;
+ 	}
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_mtx_sleep_deadline", 22);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
+ 	res = assert_wait_deadline(event, interruptible, deadline);
+ 	if (res == THREAD_WAITING) {
+ 		lck_mtx_unlock(lck);
+@@ -689,6 +710,11 @@
+ 		mutex->lck_mtx_waiters++;
+ 	}
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_mtx_wait", 12);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			LCK_MTX_EVENT(mutex), reason[0], reason[1], reason[2], 0);
+ 	assert_wait(LCK_MTX_EVENT(mutex), THREAD_UNINT);
+ 	lck_mtx_ilk_unlock(mutex);
+ 
+@@ -881,6 +907,11 @@
+ 	        collisions = MAX_COLLISION - 1;
+ 	back_off = collision_backoffs[collisions];
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "mutex_pause", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)mutex_pause, reason[0], reason[1], reason[2], 0);
+ 	wait_result = assert_wait_timeout((event_t)mutex_pause, THREAD_UNINT, back_off, NSEC_PER_USEC);
+ 	assert(wait_result == THREAD_WAITING);
+ 
+@@ -947,6 +978,11 @@
+ 		thread->rwlock_count++;
+ 	}
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_rw_sleep", 12);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
+ 	res = assert_wait(event, interruptible);
+ 	if (res == THREAD_WAITING) {
+ 		lck_rw_type = lck_rw_done(lck);
+@@ -1001,6 +1037,11 @@
+ 		thread->rwlock_count++;
+ 	}
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "lck_rw_sleep_deadline", 21);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			event, reason[0], reason[1], reason[2], 0);
+ 	res = assert_wait_deadline(event, interruptible, deadline);
+ 	if (res == THREAD_WAITING) {
+ 		lck_rw_type = lck_rw_done(lck);
+diff -urN ../xnu-3248.60.10/osfmk/kern/sched_grrr.c xnu-3248.60.10_trace/osfmk/kern/sched_grrr.c
+--- ../xnu-3248.60.10/osfmk/kern/sched_grrr.c	2015-04-30 11:36:25.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_grrr.c	2016-12-30 19:33:03.000000000 -0500
+@@ -291,6 +291,11 @@
+ 	
+ 	clock_deadline_for_periodic_event(10*sched_one_second_interval, abstime,
+ 						&sched_grrr_tick_deadline);
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "sched_grrr_mtn_c", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)sched_grrr_maintenance_continuation, reason[0], reason[1], reason[2], 0);
+ 	
+ 	assert_wait_deadline((event_t)sched_grrr_maintenance_continuation, THREAD_UNINT, sched_grrr_tick_deadline);
+ 	thread_block((thread_continue_t)sched_grrr_maintenance_continuation);
+diff -urN ../xnu-3248.60.10/osfmk/kern/sched_prim.c xnu-3248.60.10_trace/osfmk/kern/sched_prim.c
+--- ../xnu-3248.60.10/osfmk/kern/sched_prim.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_prim.c	2017-01-02 23:57:20.000000000 -0500
+@@ -622,6 +622,7 @@
+ 	boolean_t		ready_for_runq = FALSE;
+ 	thread_t		cthread = current_thread();
+ 	uint32_t		new_run_count;
++	
+ 
+ 	/*
+ 	 *	Set wait_result.
+@@ -641,6 +642,7 @@
+ 	 *	Update scheduling state: not waiting,
+ 	 *	set running.
+ 	 */
++ 
+ 	thread->state &= ~(TH_WAIT|TH_UNINT);
+ 
+ 	if (!(thread->state & TH_RUN)) {
+@@ -669,8 +671,9 @@
+ 		if (thread->state & TH_IDLE) {
+ 			processor_t		processor = thread->last_processor;
+ 
+-			if (processor != current_processor())
++			if (processor != current_processor()) {
+ 				machine_signal_idle(processor);
++			}
+ 		}
+ #else
+ 		assert((thread->state & TH_IDLE) == 0);
+@@ -742,10 +745,10 @@
+ 		thread->callout_woken_from_platform_idle = pidle;
+ 		thread->callout_woke_thread = FALSE;
+ 	}
+-
++	
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 		MACHDBG_CODE(DBG_MACH_SCHED,MACH_MAKE_RUNNABLE) | DBG_FUNC_NONE,
+-		(uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result, new_run_count, 0);
++		(uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result, (((uint64_t)(ready_for_runq) << 32) | (uint64_t)new_run_count & ((1UL << 32 ) - 1)), 0);
+ 
+ 	DTRACE_SCHED2(wakeup, struct thread *, thread, struct proc *, thread->task->bsd_info);
+ 
+@@ -896,9 +899,11 @@
+ 	if (__improbable(event == NO_EVENT))
+ 		panic("%s() called with NO_EVENT", __func__);
+ 
++	/*
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
+ 		VM_KERNEL_UNSLIDE_OR_PERM(event), 0, 0, 0, 0);
++	*/
+ 
+ 	struct waitq *waitq;
+ 	waitq = global_eventq(event);
+@@ -929,10 +934,11 @@
+ 
+ 	clock_interval_to_deadline(interval, scale_factor, &deadline);
+ 
++	/*
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 				  MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
+ 				  VM_KERNEL_UNSLIDE_OR_PERM(event), interruptible, deadline, 0, 0);
+-
++	*/
+ 	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
+ 					     interruptible,
+ 					     TIMEOUT_URGENCY_SYS_NORMAL,
+@@ -978,9 +984,11 @@
+ 	waitq_lock(waitq);
+ 	thread_lock(thread);
+ 
++	/*
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 				  MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
+-				  VM_KERNEL_UNSLIDE_OR_PERM(event), interruptible, deadline, 0, 0);
++				 /VM_KERNEL_UNSLIDE_OR_PERM(event), interruptible, deadline, 0, 0);
++	*/
+ 
+ 	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
+ 					     interruptible,
+@@ -1013,9 +1021,11 @@
+ 	waitq_lock(waitq);
+ 	thread_lock(thread);
+ 
++	/*
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 				  MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
+ 				  VM_KERNEL_UNSLIDE_OR_PERM(event), interruptible, deadline, 0, 0);
++	*/
+ 
+ 	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
+ 					     interruptible,
+@@ -1048,10 +1058,11 @@
+ 	s = splsched();
+ 	waitq_lock(waitq);
+ 	thread_lock(thread);
+-
++	/*
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 				  MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
+ 				  VM_KERNEL_UNSLIDE_OR_PERM(event), interruptible, deadline, 0, 0);
++	*/
+ 
+ 	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
+ 					     interruptible,
+@@ -1135,6 +1146,12 @@
+ 		thread->wake_active = TRUE;
+ 		thread_unlock(thread);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "thread_stop", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			&thread->wake_active, reason[0], reason[1], reason[2], 0);
++
+ 		wresult = assert_wait(&thread->wake_active, THREAD_ABORTSAFE);
+ 		wake_unlock(thread);
+ 		splx(s);
+@@ -1165,6 +1182,11 @@
+ 		thread->wake_active = TRUE;
+ 		thread_unlock(thread);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "thread_stop", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			&thread->wake_active, reason[0], reason[1], reason[2], 0);
+ 		wresult = assert_wait(&thread->wake_active, THREAD_ABORTSAFE);
+ 		wake_unlock(thread);
+ 		splx(s);
+@@ -1273,6 +1295,11 @@
+ 		thread->wake_active = TRUE;
+ 		thread_unlock(thread);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "thread_stop", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			&thread->wake_active, reason[0], reason[1], reason[2], 0);
+ 		wresult = assert_wait(&thread->wake_active, THREAD_UNINT);
+ 		wake_unlock(thread);
+ 		splx(s);
+@@ -1334,8 +1361,12 @@
+ 		}
+ 
+ 		/* TODO: Can we instead assert TH_TERMINATE is not set?  */
+-		if ((thread->state & (TH_WAIT|TH_TERMINATE)) == TH_WAIT)
++		if ((thread->state & (TH_WAIT|TH_TERMINATE)) == TH_WAIT) {
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++				(uintptr_t)thread_tid(thread), thread->wait_event, CLEAR_WAIT, task_pid(current_thread()->task), 0);
+ 			return (thread_go(thread, wresult));
++		}
+ 		else
+ 			return (KERN_NOT_WAITING);
+ 	} while ((--i > 0) || machine_timeout_suspended());
+@@ -2201,7 +2232,7 @@
+ 			thread_unlock(self);
+ 
+ 			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-				MACHDBG_CODE(DBG_MACH_SCHED,MACH_SCHED) | DBG_FUNC_NONE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_SCHED) | DBG_FUNC_NONE,
+ 				self->reason, (uintptr_t)thread_tid(thread), self->sched_pri, thread->sched_pri, 0);
+ 
+ 			return (TRUE);
+@@ -4534,6 +4565,12 @@
+ 						  0,
+ 						  0);
+ 
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "sched_timeshare_mtn", 19);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++		(event_t)sched_timeshare_maintenance_continue, reason[0], reason[1], reason[2], 0);
++
+ 	assert_wait((event_t)sched_timeshare_maintenance_continue, THREAD_UNINT);
+ 	thread_block((thread_continue_t)sched_timeshare_maintenance_continue);
+ 	/*NOTREACHED*/
+@@ -4563,6 +4600,11 @@
+ 		ndeadline = ctime + sched_tick_interval;
+ 
+ 		if (__probable(__sync_bool_compare_and_swap(&sched_maintenance_deadline, deadline, ndeadline))) {
++			
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_TS_MAINTENANCE) | DBG_FUNC_NONE,
++				0, 0, 0, 0, 0);
++				
+ 			thread_wakeup((event_t)sched_timeshare_maintenance_continue);
+ 			sched_maintenance_wakeups++;
+ 		}
+diff -urN ../xnu-3248.60.10/osfmk/kern/sched_proto.c xnu-3248.60.10_trace/osfmk/kern/sched_proto.c
+--- ../xnu-3248.60.10/osfmk/kern/sched_proto.c	2015-04-30 11:36:25.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_proto.c	2016-12-30 19:33:03.000000000 -0500
+@@ -281,6 +281,11 @@
+ 	clock_deadline_for_periodic_event(sched_one_second_interval, abstime,
+ 						&sched_proto_tick_deadline);
+ 	
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "sched_proto_mtn", 15);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)sched_proto_maintenance_continuation, reason[0], reason[1], reason[2], 0);
+ 	assert_wait_deadline((event_t)sched_proto_maintenance_continuation, THREAD_UNINT, sched_proto_tick_deadline);
+ 	thread_block((thread_continue_t)sched_proto_maintenance_continuation);
+ 	/*NOTREACHED*/
+diff -urN ../xnu-3248.60.10/osfmk/kern/sfi.c xnu-3248.60.10_trace/osfmk/kern/sfi.c
+--- ../xnu-3248.60.10/osfmk/kern/sfi.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sfi.c	2016-12-30 19:33:03.000000000 -0500
+@@ -973,6 +973,12 @@
+ 		/* Need to block thread in wait queue */
+ 		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_SFI, SFI_THREAD_DEFER), tid, class_id, 0, 0, 0);
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "sfi_class", 9);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			CAST_EVENT64_T(class_id),
++			reason[0], reason[1], reason[2], 0);
+ 		waitret = waitq_assert_wait64(&sfi_class->waitq,
+ 					      CAST_EVENT64_T(class_id),
+ 					      THREAD_INTERRUPTIBLE,
+diff -urN ../xnu-3248.60.10/osfmk/kern/startup.c xnu-3248.60.10_trace/osfmk/kern/startup.c
+--- ../xnu-3248.60.10/osfmk/kern/startup.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/startup.c	2016-12-30 19:33:03.000000000 -0500
+@@ -583,6 +583,8 @@
+ 	buf_kernel_addrperm |= 1;
+ 	read_random(&vm_kernel_addrperm_ext, sizeof(vm_kernel_addrperm_ext));
+ 	vm_kernel_addrperm_ext |= 1;
++	
++	//vm_kernel_addrperm = vm_kernel_addrperm_ext = 0;
+ 
+ 	vm_set_restrictions();
+ 
+diff -urN ../xnu-3248.60.10/osfmk/kern/sync_sema.c xnu-3248.60.10_trace/osfmk/kern/sync_sema.c
+--- ../xnu-3248.60.10/osfmk/kern/sync_sema.c	2015-10-21 17:32:32.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sync_sema.c	2016-12-30 19:33:03.000000000 -0500
+@@ -59,6 +59,7 @@
+ #include <kern/mach_param.h>
+ 
+ #include <libkern/OSAtomic.h>
++#include <sys/kdebug.h>
+ 
+ static unsigned int semaphore_event;
+ #define SEMAPHORE_EVENT CAST_EVENT64_T(&semaphore_event)
+@@ -688,6 +689,14 @@
+ 
+ 		wait_semaphore->count = -1;  /* we don't keep an actual count */
+ 		thread_lock(self);
++
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "semaphora", 9);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			SEMAPHORE_EVENT,
++			reason[0], reason[1], reason[2], 0);
++		
+ 		(void)waitq_assert_wait64_locked(
+ 					&wait_semaphore->waitq,
+ 					SEMAPHORE_EVENT,
+diff -urN ../xnu-3248.60.10/osfmk/kern/syscall_subr.c xnu-3248.60.10_trace/osfmk/kern/syscall_subr.c
+--- ../xnu-3248.60.10/osfmk/kern/syscall_subr.c	2015-11-03 18:29:51.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/kern/syscall_subr.c	2016-12-30 19:33:03.000000000 -0500
+@@ -359,9 +359,16 @@
+ 			/* We can't be dropping the last ref here */
+ 			thread_deallocate_safe(thread);
+ 
+-			if (wait_option)
++			if (wait_option) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "assert_wait_timeout", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)assert_wait_timeout, reason[0], reason[1], reason[2], 0);
++
+ 				assert_wait_timeout((event_t)assert_wait_timeout, THREAD_ABORTSAFE,
+ 				                    option_time, scale_factor);
++			}
+ 			else if (depress_option)
+ 				thread_depress_ms(option_time);
+ 
+@@ -378,8 +385,14 @@
+ 		thread_deallocate(thread);
+ 	}
+ 
+-	if (wait_option)
++	if (wait_option) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "assert_wait_timeout", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)assert_wait_timeout, reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout((event_t)assert_wait_timeout, THREAD_ABORTSAFE, option_time, scale_factor);
++	}
+ 	else if (depress_option)
+ 		thread_depress_ms(option_time);
+ 
+diff -urN ../xnu-3248.60.10/osfmk/kern/task.c xnu-3248.60.10_trace/osfmk/kern/task.c
+--- ../xnu-3248.60.10/osfmk/kern/task.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/task.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1763,6 +1763,11 @@
+ 	 *	woken up.
+ 	 */
+ 	if (task->thread_count > 1) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "task_halting", 12);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&task->halting, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&task->halting, THREAD_UNINT);
+ 		task_unlock(task);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -2526,6 +2531,11 @@
+ 
+ 	while (task->changing_freeze_state) {
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "task_pid_resume", 15);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&task->changing_freeze_state, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
+ 		task_unlock(task);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -2596,6 +2606,11 @@
+ 
+ 	while (task->changing_freeze_state) {
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "task_freeze", 11);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)&task->changing_freeze_state, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
+ 		task_unlock(task);
+ 		thread_block(THREAD_CONTINUE_NULL);
+@@ -2661,6 +2676,12 @@
+ 	
+ 	while (task->changing_freeze_state) {
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "task_thaw", 9);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t)&task->changing_freeze_state, reason[0], reason[1], reason[2], 0);
++
+ 		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
+ 		task_unlock(task);
+ 		thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/osfmk/kern/thread.c xnu-3248.60.10_trace/osfmk/kern/thread.c
+--- ../xnu-3248.60.10/osfmk/kern/thread.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/thread.c	2016-12-30 19:33:03.000000000 -0500
+@@ -684,6 +684,11 @@
+ 		simple_lock(&thread_terminate_lock);
+ 	}
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "thread_terminate_queue", 22);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&thread_terminate_queue, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t)&thread_terminate_queue, THREAD_UNINT);
+ 	simple_unlock(&thread_terminate_lock);
+ 	/* splsched */
+@@ -781,6 +786,11 @@
+ 		simple_lock(&thread_stack_lock);
+ 	}
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "thread_stack_queue", 18);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&thread_stack_queue, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t)&thread_stack_queue, THREAD_UNINT);
+ 	simple_unlock(&thread_stack_lock);
+ 	splx(s);
+@@ -1051,6 +1061,10 @@
+ 	}
+ 
+ 	DTRACE_PROC1(lwp__create, thread_t, *out_thread);
++	
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++			TRACEDBG_CODE(DBG_TRACE_INFO, 5) | DBG_FUNC_NONE,
++			(vm_address_t)(uintptr_t)thread_tid(new_thread), new_thread->ith_state, 0, 0, 0);
+ 
+ 	return (KERN_SUCCESS);
+ }
+diff -urN ../xnu-3248.60.10/osfmk/kern/thread_act.c xnu-3248.60.10_trace/osfmk/kern/thread_act.c
+--- ../xnu-3248.60.10/osfmk/kern/thread_act.c	2015-11-03 18:29:51.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/kern/thread_act.c	2016-12-30 19:33:03.000000000 -0500
+@@ -838,6 +838,12 @@
+ 	 */
+ 	if (thread->active) {
+ 		if (thread->suspend_count > 0) {
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "suspend_count", 13);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				&thread->suspend_count,
++				reason[0], reason[1], reason[2], 0);
+ 			assert_wait(&thread->suspend_count, THREAD_ABORTSAFE);
+ 			thread_mtx_unlock(thread);
+ 			thread_block((thread_continue_t)special_handler_continue);
+diff -urN ../xnu-3248.60.10/osfmk/kern/thread_call.c xnu-3248.60.10_trace/osfmk/kern/thread_call.c
+--- ../xnu-3248.60.10/osfmk/kern/thread_call.c	2015-10-07 19:57:16.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/thread_call.c	2017-01-03 09:28:25.000000000 -0500
+@@ -466,12 +466,19 @@
+ 	queue_head_t		*old_queue;
+ 
+ 	old_queue = call_entry_enqueue_deadline(CE(call), &group->delayed_queue, deadline);
+-
++	// call entry -> queue := group->delayed_queue
+ 	if (old_queue == &group->pending_queue)
+ 		group->pending_count--;
+ 	else if (old_queue == NULL) 
+ 		call->tc_submit_count++;
+-
++	else if (old_queue == &group->delayed_queue) {
++		KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	}
+ 	return (old_queue != NULL);
+ }
+ 
+@@ -909,6 +916,15 @@
+ 	}
+ 
+ 	group = thread_call_get_group(call);
++
++	/*
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_START,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0), 
++			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	*/
+ 	abstime =  mach_absolute_time();
+ 	
+ 	call->tc_flags |= THREAD_CALL_DELAYED;
+@@ -940,6 +956,21 @@
+ 
+ 	if (queue_first(&group->delayed_queue) == qe(call))
+ 		_set_delayed_call_timer(call, group);
++	
++	/*
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_END,
++			VM_KERNEL_UNSLIDE(call->tc_call.func),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0), 
++			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	*/
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
+ 
+ #if CONFIG_DTRACE
+ 	DTRACE_TMR5(thread_callout__create, thread_call_func_t, call->tc_call.func, uint64_t, (deadline - sdeadline), uint64_t, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), call);
+@@ -991,6 +1022,14 @@
+ #if CONFIG_DTRACE
+ 	DTRACE_TMR4(thread_callout__cancel, thread_call_func_t, call->tc_call.func, 0, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF));
+ #endif
++	
++	if (result)
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
+ 
+ 	return (result);
+ }
+@@ -1026,6 +1065,15 @@
+ 
+ 	thread_call_unlock();
+ 	(void) spllo();
++	
++	if (result)
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++
+ 
+ 	return result;
+ }
+@@ -1213,8 +1261,30 @@
+ #if CONFIG_DTRACE
+ 		DTRACE_TMR6(thread_callout__start, thread_call_func_t, func, int, 0, int, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), (call->tc_flags & THREAD_CALL_DELAYED), call);
+ #endif
++	/*
++		KERNEL_DEBUG_CONSTANT(
++				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_START,
++				VM_KERNEL_UNSLIDE(func), 
++				VM_KERNEL_UNSLIDE_OR_PERM(param0), 
++				VM_KERNEL_UNSLIDE_OR_PERM(param1),
++				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	*/
++		KERNEL_DEBUG_CONSTANT(
++				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_NONE,
++				VM_KERNEL_UNSLIDE(func), 
++				VM_KERNEL_UNSLIDE_OR_PERM(param0),
++				VM_KERNEL_UNSLIDE_OR_PERM(param1),
++				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
+ 
+ 		(*func)(param0, param1);
++	/*
++		KERNEL_DEBUG_CONSTANT(
++				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_END,
++				VM_KERNEL_UNSLIDE(func), 
++				VM_KERNEL_UNSLIDE_OR_PERM(param0), 
++				VM_KERNEL_UNSLIDE_OR_PERM(param1),
++				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	*/
+ 
+ #if CONFIG_DTRACE
+ 		DTRACE_TMR6(thread_callout__end, thread_call_func_t, func, int, 0, int, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), (call->tc_flags & THREAD_CALL_DELAYED), call);
+@@ -1268,6 +1338,12 @@
+ 		}   
+ 
+ 		/* Wait for more work (or termination) */
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "group_idle_waitq_int", 20);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			NO_EVENT64,
++			reason[0], reason[1], reason[2], 0);
+ 		wres = waitq_assert_wait64(&group->idle_waitq, NO_EVENT64, THREAD_INTERRUPTIBLE, 0);
+ 		if (wres != THREAD_WAITING) {
+ 			panic("kcall worker unable to assert wait?");
+@@ -1280,6 +1356,12 @@
+ 		if (group->idle_count < group->target_thread_count) {
+ 			group->idle_count++;
+ 
++			uint64_t reason[3] = {0};
++			memcpy((void *)reason, "group_idle_waitq_uint", 21);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				NO_EVENT64,
++				reason[0], reason[1], reason[2], 0);
+ 			waitq_assert_wait64(&group->idle_waitq, NO_EVENT64, THREAD_UNINT, 0); /* Interrupted means to exit */
+ 
+ 			enable_ints_and_unlock(s);
+@@ -1335,6 +1417,12 @@
+ 
+ out:
+ 	thread_call_daemon_awake = FALSE;
++	uint64_t reason[3] = {0};
++	memcpy((void *)reason, "thread_call_daemon", 18);
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++				NO_EVENT64,
++				reason[0], reason[1], reason[2], 0);
+ 	waitq_assert_wait64(&daemon_waitq, NO_EVENT64, THREAD_UNINT, 0);
+ 
+ 	enable_ints_and_unlock(s);
+@@ -1536,6 +1624,13 @@
+ 
+ 	while (call->tc_finish_count < submit_count) {
+ 		call->tc_flags |= THREAD_CALL_WAIT;
++		
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "thread_call_wait", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			call,
++			reason[0], reason[1], reason[2], 0);
+ 
+ 		res = assert_wait(call, THREAD_UNINT);
+ 		if (res != THREAD_WAITING) {
+diff -urN ../xnu-3248.60.10/osfmk/kern/timer_call.c xnu-3248.60.10_trace/osfmk/kern/timer_call.c
+--- ../xnu-3248.60.10/osfmk/kern/timer_call.c	2015-10-07 19:57:16.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/timer_call.c	2016-12-30 19:33:03.000000000 -0500
+@@ -844,7 +844,6 @@
+ 			}
+ 
+ 			timer_call_entry_dequeue(call);
+-
+ 			func = TCE(call)->func;
+ 			param0 = TCE(call)->param0;
+ 			param1 = TCE(call)->param1;
+@@ -868,10 +867,12 @@
+ 			/* Maintain time-to-deadline in per-processor data
+ 			 * structure for thread wakeup deadline statistics.
+ 			 */
++
+ 			uint64_t *ttdp = &(PROCESSOR_DATA(current_processor(), timer_call_ttd));
+ 			*ttdp = call->ttd;
+ 			(*func)(param0, param1);
+ 			*ttdp = 0;
++
+ #if CONFIG_DTRACE
+ 			DTRACE_TMR4(callout__end, timer_call_func_t, func,
+ 			    param0, param1, call);
+diff -urN ../xnu-3248.60.10/osfmk/kern/waitq.c xnu-3248.60.10_trace/osfmk/kern/waitq.c
+--- ../xnu-3248.60.10/osfmk/kern/waitq.c	2015-09-25 17:13:09.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/waitq.c	2016-12-31 18:00:28.000000000 -0500
+@@ -244,6 +244,23 @@
+ #endif
+ } __attribute__((aligned(8)));
+ 
++//check if the wait comes from kext
++static boolean_t is_called_from_kext() {
++	const uint32_t btMin = 3;
++	void *bt[3];
++	unsigned btCount = sizeof(bt) / sizeof(bt[0]);
++	uint32_t i;
++	vm_offset_t *scanAddr = NULL;
++	btCount = fastbacktrace((uintptr_t*)bt, btCount);
++	
++	scanAddr = (vm_offset_t*)&bt[btMin - 1];
++	for (i = btMin - 1; i < btCount; i++, scanAddr++) {
++		if (*scanAddr < VM_MIN_KERNEL_ADDRESS && *scanAddr > VM_MIN_KERNEL_AND_KEXT_ADDRESS)
++			return TRUE;
++	}
++	return FALSE;
++}
++
+ #define wqt_elem_ofst_slab(slab, slab_msk, ofst) \
+ 	/* cast through 'void *' to avoid compiler alignment warning messages */ \
+ 	((struct wqt_elem *)((void *)((uintptr_t)(slab) + ((ofst) & (slab_msk)))))
+@@ -3317,6 +3334,21 @@
+ 							prepost_exists_cb);
+ 			if (ret == WQ_ITERATE_FOUND) {
+ 				thread->wait_result = THREAD_AWAKENED;
++				
++				boolean_t is_kext = is_called_from_kext();
++				if (is_kext) {
++					uint64_t reason[3] = {0};
++					memcpy((void *)reason, "from_kext", 9);
++					KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++						MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++						(uintptr_t)(wait_event),
++						reason[0], reason[1], reason[2], 0);
++				}
++				
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++						MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
++						(uintptr_t)(wait_event), task_pid(current_thread()->task)/* interruptible*/, deadline, thread->wait_result, 0);
++				
+ 				return THREAD_AWAKENED;
+ 			}
+ 		}
+@@ -3369,6 +3401,20 @@
+ 		waitq_stats_count_wait(waitq);
+ 	}
+ 
++	boolean_t is_kext = is_called_from_kext();
++	if (is_kext) {
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "from_kext", 9);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(uintptr_t)(wait_event),
++			reason[0], reason[1], reason[2], 0);
++	}
++
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
++				(uintptr_t)(wait_event), task_pid(current_thread()->task)/* interruptible*/, deadline, wait_result, 0);
++
+ 	return wait_result;
+ }
+ 
+@@ -3527,6 +3573,11 @@
+ 	qe_foreach_element_safe(thread, &wakeup_queue, links) {
+ 		remqueue(&thread->links);
+ 		maybe_adjust_thread_pri(thread, priority);
++
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ALL, task_pid(current_thread()->task), 0);
++
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+@@ -3559,7 +3610,7 @@
+ 	spl_t th_spl;
+ 
+ 	assert(waitq_held(waitq));
+-
++	
+ 	thread = waitq_select_one_locked(waitq, wake_event,
+ 					 reserved_preposts,
+ 					 priority, &th_spl);
+@@ -3574,6 +3625,11 @@
+ 
+ 	if (thread != THREAD_NULL) {
+ 		maybe_adjust_thread_pri(thread, priority);
++		
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE, task_pid(current_thread()->task), 0);
++
+ 		kern_return_t ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+@@ -3620,6 +3676,9 @@
+ 		waitq_unlock(waitq);
+ 
+ 	if (thread != THREAD_NULL) {
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE,  task_pid(current_thread()->task), 0);
+ 		kern_return_t __assert_only ret;
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+@@ -3670,6 +3729,10 @@
+ 	if (ret != KERN_SUCCESS)
+ 		return KERN_NOT_WAITING;
+ 
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++		(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR,  task_pid(current_thread()->task), 0);
++
+ 	ret = thread_go(thread, result);
+ 	assert(ret == KERN_SUCCESS);
+ 	thread_unlock(thread);
+@@ -5829,6 +5892,9 @@
+ 	waitq_unlock(waitq);
+ 
+ 	if (ret == KERN_SUCCESS) {
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR,  task_pid(current_thread()->task), 0);
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+diff -urN ../xnu-3248.60.10/osfmk/kern/waitq.h xnu-3248.60.10_trace/osfmk/kern/waitq.h
+--- ../xnu-3248.60.10/osfmk/kern/waitq.h	2015-08-04 16:06:10.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/waitq.h	2016-12-31 18:00:40.000000000 -0500
+@@ -40,6 +40,14 @@
+ #include <sys/cdefs.h>
+ 
+ /*
++ * define for beachball
++ */
++#define WAKEUP_ALL	0x1
++#define WAKEUP_ONE	0x2
++#define WAKEUP_THR  0x3
++#define CLEAR_WAIT	0x4
++
++/*
+  * Constants and types used in the waitq APIs
+  */
+ #define WAITQ_ALL_PRIORITIES   (-1)
+diff -urN ../xnu-3248.60.10/osfmk/kern/zalloc.c xnu-3248.60.10_trace/osfmk/kern/zalloc.c
+--- ../xnu-3248.60.10/osfmk/kern/zalloc.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/zalloc.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1895,6 +1895,11 @@
+ #endif
+ 					zcram(z, space, alloc_size);
+ 				} else {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "zone_replenish_thread", 21);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&z->zone_replenish_thread, reason[0], reason[1], reason[2], 0);
+ 					assert_wait_timeout(&z->zone_replenish_thread, THREAD_UNINT, 1, 100 * NSEC_PER_USEC);
+ 					thread_block(THREAD_CONTINUE_NULL);
+ 				}
+@@ -1910,6 +1915,11 @@
+ 		 */
+ 		thread_wakeup(z);
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "zone_replenish_thread", 21);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&z->zone_replenish_thread, reason[0], reason[1], reason[2], 0);
+ 		assert_wait(&z->zone_replenish_thread, THREAD_UNINT);
+ 		thread_block(THREAD_CONTINUE_NULL);
+ 		zone_replenish_wakeups++;
+@@ -2470,6 +2480,11 @@
+ 				     */
+ 				    if (zone_alloc_throttle) {
+ 					    zone_replenish_throttle_count++;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "zalloc_throttle", 15);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)zone, reason[0], reason[1], reason[2], 0);
+ 					    assert_wait_timeout(zone, THREAD_UNINT, 1, NSEC_PER_MSEC);
+ 					    thread_block(THREAD_CONTINUE_NULL);
+ 				    }
+diff -urN ../xnu-3248.60.10/osfmk/prng/random.c xnu-3248.60.10_trace/osfmk/prng/random.c
+--- ../xnu-3248.60.10/osfmk/prng/random.c	2015-05-07 19:21:21.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/prng/random.c	2016-12-30 19:33:03.000000000 -0500
+@@ -378,6 +378,11 @@
+ 	 */
+ 	while (prng_ccdrbg_factory == NULL ) {
+ 		wait_result_t	wait_result;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "prng_ccdrbg_factory", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&prng_ccdrbg_factory, reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout((event_t) &prng_ccdrbg_factory, TRUE,
+ 				    10, NSEC_PER_USEC);
+ 		lck_mtx_unlock(gPRNGMutex);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_apple_protect.c xnu-3248.60.10_trace/osfmk/vm/vm_apple_protect.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_apple_protect.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_apple_protect.c	2016-12-30 19:33:03.000000000 -0500
+@@ -765,6 +765,11 @@
+ 				 * too much CPU time retrying and failing
+ 				 * the same fault over and over again.
+ 				 */
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "pager_data_request", 18);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) apple_protect_pager_data_request, reason[0], reason[1], reason[2], 0);
+ 				wait_result = assert_wait_timeout(
+ 					(event_t) apple_protect_pager_data_request,
+ 					THREAD_UNINT,
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_compressor.c xnu-3248.60.10_trace/osfmk/vm/vm_compressor.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_compressor.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_compressor.c	2016-12-30 19:33:03.000000000 -0500
+@@ -789,6 +789,12 @@
+ c_seg_wait_on_busy(c_segment_t c_seg)
+ {
+ 	c_seg->c_wanted = 1;
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "c_seg", 5);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)c_seg, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) (c_seg), THREAD_UNINT);
+ 
+ 	lck_mtx_unlock_always(&c_seg->c_lock);
+@@ -1756,6 +1762,11 @@
+ 	compaction_swapper_abort = 1;
+ 
+ 	while (compaction_swapper_running) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "compaction_swapper_run", 22);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&compaction_swapper_running, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&compaction_swapper_running, THREAD_UNINT);
+ 
+ 		lck_mtx_unlock_always(c_list_lock);
+@@ -1943,6 +1954,11 @@
+ 	compaction_swapper_abort = 1;
+ 
+ 	while (compaction_swapper_running) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "compaction_swapper_run", 22);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&compaction_swapper_running, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&compaction_swapper_running, THREAD_UNINT);
+ 
+ 		lck_mtx_unlock_always(c_list_lock);
+@@ -1967,6 +1983,11 @@
+ 
+ 	while (!queue_empty(&c_swapout_list_head)) {
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "compaction_swapper_run", 22);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&compaction_swapper_running, reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout((event_t) &compaction_swapper_running, THREAD_INTERRUPTIBLE, 5000, 1000*NSEC_PER_USEC);
+ 
+ 		lck_mtx_unlock_always(c_list_lock);
+@@ -2029,6 +2050,11 @@
+ 
+ 	vm_compressor_compact_and_swap(FALSE);
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "compressor_swap_trigger", 23);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&c_compressor_swap_trigger, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t)&c_compressor_swap_trigger, THREAD_UNINT);
+ 
+ 	compaction_swapper_running = 0;
+@@ -2259,6 +2285,11 @@
+ 		}
+ 		if (c_swapout_count >= C_SWAPOUT_LIMIT) {
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "compaction_swapper_run", 22);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&compaction_swapper_running, reason[0], reason[1], reason[2], 0);
+ 			assert_wait_timeout((event_t) &compaction_swapper_running, THREAD_INTERRUPTIBLE, 100, 1000*NSEC_PER_USEC);
+ 
+ 			lck_mtx_unlock_always(c_list_lock);
+@@ -2477,6 +2508,11 @@
+ 		lck_mtx_lock_spin_always(c_list_lock);
+ 
+ 		while (c_segments_busy == TRUE) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "c_segments_busy", 15);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&c_segments_busy, reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t) (&c_segments_busy), THREAD_UNINT);
+ 	
+ 			lck_mtx_unlock_always(c_list_lock);
+@@ -3046,6 +3082,11 @@
+ 		 * only set and cleared and the thread_wakeup done when the lock
+ 		 * is held exclusively
+ 		 */
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "decompressions", 14);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&decompressions_blocked, reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t)&decompressions_blocked, THREAD_UNINT);
+ 
+ 		PAGE_REPLACEMENT_DISALLOWED(FALSE);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_compressor_backing_store.c xnu-3248.60.10_trace/osfmk/vm/vm_compressor_backing_store.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_compressor_backing_store.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_compressor_backing_store.c	2016-12-30 19:33:03.000000000 -0500
+@@ -529,6 +529,13 @@
+ 	}
+ 	vm_swapfile_create_thread_running = 0;
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vm_swapfile_create", 18);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vm_swapfile_create_needed,
++			reason[0], reason[1], reason[2], 0);
++
+ 	assert_wait((event_t)&vm_swapfile_create_needed, THREAD_UNINT);
+ 
+ 	lck_mtx_unlock(&vm_swap_data_lock);
+@@ -577,6 +584,12 @@
+ 	}
+ 	vm_swapfile_gc_thread_running = 0;
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vm_swapfile_gc", 14);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vm_swapfile_gc_needed,
++			reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t)&vm_swapfile_gc_needed, THREAD_UNINT);
+ 
+ 	lck_mtx_unlock(&vm_swap_data_lock);
+@@ -785,6 +798,12 @@
+ 
+ 		lck_mtx_lock_spin_always(c_list_lock);
+ 	}
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "c_swapout_list_head", 19);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &c_swapout_list_head,
++			reason[0], reason[1], reason[2], 0);
+ 
+ 	assert_wait((event_t)&c_swapout_list_head, THREAD_UNINT);
+ 
+@@ -1079,6 +1098,12 @@
+ 
+ 	if (hibernate_flushing == FALSE || VM_SWAP_SHOULD_CREATE(sec)) {
+ 		waiting = TRUE;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vm_num_swapfiles", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &vm_num_swap_files,
++			reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout((event_t) &vm_num_swap_files, THREAD_INTERRUPTIBLE, 1000, 1000*NSEC_PER_USEC);
+ 	} else
+ 		hibernate_no_swapspace = TRUE;
+@@ -1227,6 +1252,12 @@
+ {
+ 	while (delayed_trim_handling_in_progress == TRUE) {
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "vm_swap_delay_trim", 18);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &delayed_trim_handling_in_progress,
++			reason[0], reason[1], reason[2], 0);
+ 		assert_wait((event_t) &delayed_trim_handling_in_progress, THREAD_UNINT);
+ 		lck_mtx_unlock(&vm_swap_data_lock);
+ 		
+@@ -1420,6 +1451,13 @@
+ 
+ 			swf->swp_flags |= SWAP_WANTED;
+ 
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "swapfile_wait_io", 16);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) &swf->swp_flags,
++			reason[0], reason[1], reason[2], 0);
++
+ 			assert_wait((event_t) &swf->swp_flags, THREAD_UNINT);
+ 			lck_mtx_unlock(&vm_swap_data_lock);
+ 		
+@@ -1457,6 +1495,12 @@
+ 			 * this c_segment no longer exists.
+ 			 */
+ 			c_seg->c_wanted = 1;
++		uint64_t reason[3] = {0};
++		memcpy((void *)reason, "swap_out_c_segment", 18);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++			(event_t) c_seg,
++			reason[0], reason[1], reason[2], 0);
+ 			
+ 			assert_wait((event_t) (c_seg), THREAD_UNINT);
+ 			lck_mtx_unlock_always(&c_seg->c_lock);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_fault.c xnu-3248.60.10_trace/osfmk/vm/vm_fault.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_fault.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_fault.c	2016-12-30 19:33:03.000000000 -0500
+@@ -706,6 +706,12 @@
+ 			        VM_PAGE_FREE(m);
+ 			vm_fault_cleanup(object, first_m);
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_backing_store_low", 20);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&vm_backing_store_low, reason[0], reason[1], reason[2], 0);
++
+ 		        assert_wait((event_t)&vm_backing_store_low, THREAD_UNINT);
+ 
+ 			thread_block(THREAD_CONTINUE_NULL);
+@@ -1348,6 +1354,13 @@
+ 				m = vm_page_lookup(object, offset);
+ 
+ 				if (m != VM_PAGE_NULL && m->cleaning) {
++	
++				uint64_t reason[3] = {0};\
++				memcpy((void *)reason, "page_assert_wait", 16);\
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,\
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,\
++					(event_t)m, reason[0], reason[1], reason[2], 0);\
++
+ 					PAGE_ASSERT_WAIT(m, interruptible);
+ 
+ 					vm_object_unlock(object);
+@@ -1531,6 +1544,13 @@
+ 				assert(object->ref_count > 0);
+ 
+ 				if (!object->pager_ready) {
++					
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vmobj_pager_ready", 17);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					VM_OBJECT_EVENT_PAGER_READY, reason[0], reason[1], reason[2], 0);
++
+ 					wait_result = vm_object_assert_wait(object, VM_OBJECT_EVENT_PAGER_READY, interruptible);
+ 
+ 					vm_object_unlock(object);
+@@ -1571,7 +1591,13 @@
+ 				assert(object->ref_count > 0);
+ 
+ 				if (object->paging_in_progress >= vm_object_pagein_throttle) {
+-				        vm_object_assert_wait(object, VM_OBJECT_EVENT_PAGING_ONLY_IN_PROGRESS, interruptible);
++					uint64_t reason[3] = {0};
++					memcpy((void *)reason, "vmobj_paging_progress", 21);
++					KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++						MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++						VM_OBJECT_EVENT_PAGING_ONLY_IN_PROGRESS, reason[0], reason[1], reason[2], 0);
++
++				    vm_object_assert_wait(object, VM_OBJECT_EVENT_PAGING_ONLY_IN_PROGRESS, interruptible);
+ 
+ 					vm_object_unlock(object);
+ 					wait_result = thread_block(THREAD_CONTINUE_NULL);
+@@ -2056,6 +2082,11 @@
+ 					RELEASE_PAGE(m);
+ 					vm_fault_cleanup(object, first_m);
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_backing_store_low", 20);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&vm_backing_store_low, reason[0], reason[1], reason[2], 0);
+ 					assert_wait((event_t)&vm_backing_store_low, THREAD_UNINT);
+ 
+ 					thread_block(THREAD_CONTINUE_NULL);
+@@ -2264,6 +2295,13 @@
+ 				 * contents.
+ 				 */
+ 				if (copy_m != VM_PAGE_NULL && copy_m->busy) {
++
++				uint64_t reason[3] = {0};\
++				memcpy((void *)reason, "page_assert_wait", 16);\
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,\
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,\
++					(event_t)copy_m, reason[0], reason[1], reason[2], 0);\
++
+ 					PAGE_ASSERT_WAIT(copy_m, interruptible);
+ 
+ 					vm_object_unlock(copy_object);
+@@ -2298,6 +2336,12 @@
+ 				 * sleep unless we are privileged.
+ 				 */
+ 				if (!(current_task()->priv_flags & VM_BACKING_STORE_PRIV)) {
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_backing_store_low", 20);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)&vm_backing_store_low, reason[0], reason[1], reason[2], 0);
+ 					assert_wait((event_t)&vm_backing_store_low, THREAD_UNINT);
+ 
+ 					RELEASE_PAGE(m);
+@@ -3611,6 +3655,13 @@
+ 				if (real_map != map)
+ 				        vm_map_unlock(real_map);
+ 
++	
++				uint64_t reason[3] = {0};\
++				memcpy((void *)reason, "page_assert_wait", 16);\
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,\
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,\
++					(event_t)m, reason[0], reason[1], reason[2], 0);\
++
+ 				result = PAGE_ASSERT_WAIT(m, interruptible);
+ 
+ 				vm_object_unlock(cur_object);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_fourk_pager.c xnu-3248.60.10_trace/osfmk/vm/vm_fourk_pager.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_fourk_pager.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_fourk_pager.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1270,6 +1270,11 @@
+ 				 * too much CPU time retrying and failing
+ 				 * the same fault over and over again.
+ 				 */
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "fourk_pager_data_req", 20);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) fourk_pager_data_request, reason[0], reason[1], reason[2], 0);
+ 				wait_result = assert_wait_timeout(
+ 					(event_t) fourk_pager_data_request,
+ 					THREAD_UNINT,
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_map.c xnu-3248.60.10_trace/osfmk/vm/vm_map.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_map.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_map.c	2016-12-30 19:33:03.000000000 -0500
+@@ -2135,6 +2135,13 @@
+ 					assert(!keep_map_locked);
+ 					if (size <= (effective_max_offset -
+ 						     effective_min_offset)) {
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "map", 3);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)map, reason[0], reason[1], reason[2], 0);
++
+ 						assert_wait((event_t)map,
+ 							    THREAD_ABORTSAFE);
+ 						vm_map_unlock(map);
+@@ -8835,6 +8842,12 @@
+ 		if ((end > dst_map->max_offset) || (end < start)) {
+ 			if (dst_map->wait_for_space) {
+ 				if (size <= (dst_map->max_offset - dst_map->min_offset)) {
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "dst_map", 7);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)dst_map, reason[0], reason[1], reason[2], 0);
+ 					assert_wait((event_t) dst_map,
+ 						    THREAD_INTERRUPTIBLE);
+ 					vm_map_unlock(dst_map);
+@@ -13935,6 +13948,11 @@
+ 				if (map->wait_for_space) {
+ 					if (size <= (map->max_offset -
+ 						     map->min_offset)) {
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "map", 3);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)map, reason[0], reason[1], reason[2], 0);
+ 						assert_wait((event_t) map, THREAD_INTERRUPTIBLE);
+ 						vm_map_unlock(map);
+ 						thread_block(THREAD_CONTINUE_NULL);
+@@ -14894,6 +14912,12 @@
+ 			     (msr->offset >= offset &&
+ 			      msr->offset < (offset + flush_size))))
+ 			{
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "msr", 3);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)msr, reason[0], reason[1], reason[2], 0);
+ 				assert_wait((event_t) msr,THREAD_INTERRUPTIBLE);
+ 				msr_unlock(msr);
+ 				vm_object_unlock(object);
+@@ -14930,6 +14954,12 @@
+ 		msr = (msync_req_t)queue_first(&req_q);
+ 		msr_lock(msr);
+ 		while(msr->flag != VM_MSYNC_DONE) {
++	
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "msr", 3);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)msr, reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t) msr, THREAD_INTERRUPTIBLE);
+ 			msr_unlock(msr);
+ 			thread_block(THREAD_CONTINUE_NULL);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_object.c xnu-3248.60.10_trace/osfmk/vm/vm_object.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_object.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_object.c	2016-12-30 19:33:03.000000000 -0500
+@@ -413,6 +413,11 @@
+ #define IO_REPRIO_THREAD_WAKEUP() 	thread_wakeup((event_t)&io_reprioritize_wakeup)
+ #define IO_REPRIO_THREAD_CONTINUATION() 				\
+ { 								\
++				uint64_t reason[3] = {0};\
++				memcpy((void *)reason, "io_reprioritize", 14);\
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,\
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,\
++					(event_t)&io_reprioritize_wakeup, reason[0], reason[1], reason[2], 0);\
+ 	assert_wait(&io_reprioritize_wakeup, THREAD_UNINT);	\
+ 	thread_block(io_reprioritize_thread);			\
+ }
+@@ -1094,6 +1099,12 @@
+ 		
+ 		if (object->pager_created && ! object->pager_initialized) {
+ 			assert(! object->can_persist);
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vmobj_initialized", 17);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(vm_offset_t)object + VM_OBJECT_EVENT_INITIALIZED, reason[0], reason[1], reason[2], 0);
+ 			vm_object_assert_wait(object,
+ 					      VM_OBJECT_EVENT_INITIALIZED,
+ 					      THREAD_UNINT);
+@@ -2358,6 +2369,12 @@
+ 	}
+ 
+ 	/* wait for more work... */
++	
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vmobj_reaper_queue", 18);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_object_reaper_queue, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &vm_object_reaper_queue, THREAD_UNINT);
+ 
+ 	vm_object_reaper_unlock();
+@@ -4579,6 +4596,11 @@
+ 			 */
+ 			entry->waiting = TRUE;
+ 			entry = VM_OBJECT_HASH_ENTRY_NULL;
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "pager", 5);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)pager, reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t) pager, THREAD_UNINT);
+ 			vm_object_hash_unlock(lck);
+ 
+@@ -6509,6 +6531,12 @@
+ 
+ 		if (object->pager_created && !object->pager_initialized) {
+ 			assert(!object->can_persist);
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vmobj_initialized", 17);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(vm_offset_t)(object) + VM_OBJECT_EVENT_INITIALIZED, reason[0], reason[1], reason[2], 0);
+ 			vm_object_assert_wait(object,
+ 					VM_OBJECT_EVENT_INITIALIZED,
+ 					THREAD_UNINT);
+@@ -8917,6 +8945,11 @@
+ 					
+ 			iq->pgo_draining = TRUE;
+ 					
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_laundry", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) (&iq->pgo_laundry + 1), reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t) (&iq->pgo_laundry + 1),
+ 				    THREAD_INTERRUPTIBLE);
+ 			vm_page_unlock_queues();
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_pageout.c xnu-3248.60.10_trace/osfmk/vm/vm_pageout.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_pageout.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_pageout.c	2016-12-30 19:33:03.000000000 -0500
+@@ -1127,6 +1127,13 @@
+ 	if (wait_for_pressure) {
+ 		/* wait until there's memory pressure */
+ 		while (vm_page_free_count >= vm_page_free_target) {
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_page_free_wanted", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_page_free_wanted, reason[0], reason[1], reason[2], 0);
++
+ 			wr = assert_wait((event_t) &vm_page_free_wanted,
+ 					 THREAD_INTERRUPTIBLE);
+ 			if (wr == THREAD_WAITING) {
+@@ -1243,6 +1250,11 @@
+ 			}
+ 			iq->pgo_draining = TRUE;
+ 					
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_laundry", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)  (&iq->pgo_laundry + 1), reason[0], reason[1], reason[2], 0);
+ 			assert_wait((event_t) (&iq->pgo_laundry + 1), THREAD_INTERRUPTIBLE);
+ 			vm_page_unlock_queues();
+ 					
+@@ -2185,6 +2197,11 @@
+ 				vm_pageout_scan_throttle++;
+ 			iq->pgo_throttled = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_laundry", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)  (&iq->pgo_laundry), reason[0], reason[1], reason[2], 0);
+ 			assert_wait_timeout((event_t) &iq->pgo_laundry, THREAD_INTERRUPTIBLE, msecs, 1000*NSEC_PER_USEC);
+ 			counter(c_vm_pageout_scan_block++);
+ 
+@@ -3139,6 +3156,12 @@
+ 	 */
+ 	assert(vm_page_free_wanted == 0);
+ 	assert(vm_page_free_wanted_privileged == 0);
++	
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_page_free_wanted", 19);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_page_free_wanted, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &vm_page_free_wanted, THREAD_UNINT);
+ 
+ 	vm_pageout_running = FALSE;
+@@ -3382,6 +3405,11 @@
+ 	q->pgo_busy = FALSE;
+ 	q->pgo_idle = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_pending", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &q->pgo_pending, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &q->pgo_pending, THREAD_UNINT);
+ 	vm_page_unlock_queues();
+ 
+@@ -3526,6 +3554,11 @@
+ 	q->pgo_busy = FALSE;
+ 	q->pgo_idle = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_pending", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &q->pgo_pending, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &q->pgo_pending, THREAD_UNINT);
+ 	vm_page_unlock_queues();
+ 
+@@ -3646,6 +3679,12 @@
+ 
+ 					if (vm_page_free_wanted_privileged++ == 0)
+ 						need_wakeup = 1;
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_page_free_wanted_pri", 23);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_page_free_wanted_privileged, reason[0], reason[1], reason[2], 0);
+ 					wait_result = assert_wait((event_t)&vm_page_free_wanted_privileged, THREAD_UNINT);
+ 
+ 					lck_mtx_unlock(&vm_page_queue_free_lock);
+@@ -3681,6 +3720,11 @@
+ 	q->pgo_busy = FALSE;
+ 	q->pgo_idle = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_pending", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t)((uintptr_t)&q->pgo_pending + cq->id), reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) ((uintptr_t)&q->pgo_pending + cq->id), THREAD_UNINT);
+ 	vm_page_unlock_queues();
+ 
+@@ -4081,6 +4125,12 @@
+ 			wait_result_t		wr = 0;
+ 
+ 			while (old_level == *pressure_level) {
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_pressure_chgd", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_pressure_changed, reason[0], reason[1], reason[2], 0);
+ 				wr = assert_wait((event_t) &vm_pressure_changed,
+ 						 THREAD_INTERRUPTIBLE);
+ 				if (wr == THREAD_WAITING) {
+@@ -4122,6 +4172,12 @@
+ 	}
+ 
+ 	thread_initialized = TRUE;
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_pressure_thrd", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_pressure_thread, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &vm_pressure_thread, THREAD_UNINT);
+ 	thread_block((thread_continue_t)vm_pressure_thread);
+ }
+@@ -4175,6 +4231,11 @@
+ 
+ 		consider_machine_adjust();
+ 	}
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_pgo_gc", 9);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_pageout_garbage_collect, reason[0], reason[1], reason[2], 0);
+ 	assert_wait((event_t) &vm_pageout_garbage_collect, THREAD_UNINT);
+ 
+ 	thread_block_parameter((thread_continue_t) vm_pageout_garbage_collect, (void *)1);
+@@ -9121,6 +9182,12 @@
+ 			 */
+ 			vm_paging_page_waiter_total++;
+ 			vm_paging_page_waiter++;
++	
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_paging_page", 14);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_paging_page_waiter, reason[0], reason[1], reason[2], 0);
+ 			kr = assert_wait((event_t)&vm_paging_page_waiter, THREAD_UNINT);
+ 			if (kr == THREAD_WAITING) {
+ 				simple_unlock(&vm_paging_lock);
+diff -urN ../xnu-3248.60.10/osfmk/vm/vm_resident.c xnu-3248.60.10_trace/osfmk/vm/vm_resident.c
+--- ../xnu-3248.60.10/osfmk/vm/vm_resident.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_resident.c	2016-12-30 19:33:03.000000000 -0500
+@@ -2556,10 +2556,24 @@
+ 	        if (is_privileged) {
+ 		        if (vm_page_free_wanted_privileged++ == 0)
+ 			        need_wakeup = 1;
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_page_free_wanted_pri", 23);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_page_free_wanted_privileged, reason[0], reason[1], reason[2], 0);
++
+ 			wait_result = assert_wait((event_t)&vm_page_free_wanted_privileged, interruptible);
+ 		} else {
+ 		        if (vm_page_free_wanted++ == 0)
+ 			        need_wakeup = 1;
++
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "vm_page_free_count", 18);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) &vm_page_free_count, reason[0], reason[1], reason[2], 0);
++
+ 			wait_result = assert_wait((event_t)&vm_page_free_count, interruptible);
+ 		}
+ 		lck_mtx_unlock(&vm_page_queue_free_lock);
+@@ -5207,6 +5221,11 @@
+ 
+ 		q->pgo_draining = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_laundry", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) (&q->pgo_laundry+1), reason[0], reason[1], reason[2], 0);
+ 		assert_wait_timeout((event_t) (&q->pgo_laundry+1), THREAD_INTERRUPTIBLE, 5000, 1000*NSEC_PER_USEC);
+ 
+ 		vm_page_unlock_queues();
+@@ -5376,6 +5395,11 @@
+ 
+ 				tq->pgo_throttled = TRUE;
+ 
++				uint64_t reason[3] = {0};
++				memcpy((void *)reason, "page_out_laundry", 16);
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAIT_REASON)|DBG_FUNC_NONE,
++					(event_t) (&tq->pgo_laundry), reason[0], reason[1], reason[2], 0);
+ 				assert_wait_timeout((event_t) &tq->pgo_laundry, THREAD_INTERRUPTIBLE, 1000, 1000*NSEC_PER_USEC);
+ 
+ 				vm_page_unlock_queues();
+diff -urN ../xnu-3248.60.10/pexpert/i386/pe_interrupt.c xnu-3248.60.10_trace/pexpert/i386/pe_interrupt.c
+--- ../xnu-3248.60.10/pexpert/i386/pe_interrupt.c	2016-06-15 17:54:26.000000000 -0400
++++ xnu-3248.60.10_trace/pexpert/i386/pe_interrupt.c	2016-12-30 19:33:03.000000000 -0500
+@@ -28,6 +28,7 @@
+ #include <pexpert/pexpert.h>
+ #include <pexpert/protos.h>
+ #include <machine/machine_routines.h>
++#include <sys/kdebug.h>
+ 
+ #if CONFIG_DTRACE && DEVELOPMENT
+ #include <mach/sdt.h>
+@@ -62,8 +63,10 @@
+                     void *, vector->refCon);
+ #endif
+ 
++
+ 	vector->handler(vector->target, NULL, vector->nub, interrupt);
+ 
++
+ #if CONFIG_DTRACE && DEVELOPMENT
+         DTRACE_INT5(interrupt_complete, void *, vector->nub, int, 0, 
+                     void *, vector->target, IOInterruptHandler, vector->handler,
