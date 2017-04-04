@@ -2,16 +2,16 @@
 #define TIMER_CALL_PATTERN_HPP
 #include "timer_callout.hpp"
 class TimercallPattern {
-	list<event_t *> &callcreate_list;
-	list<event_t *> &callout_list;
-	list<event_t *> &callcancel_list;
+	list<event_t *> &timercreate_list;
+	list<event_t *> &timercallout_list;
+	list<event_t *> &timercancel_list;
 public:
-	TimercallPattern(list<event_t*> &_callcreate_list, list<event_t *> &_callout_list, list<event_t*> &_callcancel_list);
-	void connect_timercall_patterns(void) {connect_create_and_cancel(); connect_create_and_callout();}
+	TimercallPattern(list<event_t*> &_timercreate_list, list<event_t *> &_timercallout_list, list<event_t*> &_timercancel_list);
+	void connect_timercall_patterns(void) {connect_create_and_cancel(); connect_create_and_timercallout();}
 	void connect_create_and_cancel(void);
-	void connect_create_and_callout(void);
-	bool connect_callcreate_for_callout(list<callcreate_ev_t*> &tmp_create_list, callout_ev_t *callout_event);
-	bool connect_callcreate_for_callcancel(list<callcreate_ev_t *>&tmp_create_list, callcancel_ev_t *callcancel_event);
+	void connect_create_and_timercallout(void);
+	bool connect_timercreate_for_timercallout(list<timercreate_ev_t*> &tmp_create_list, timercallout_ev_t *timercallout_event);
+	bool connect_timercreate_for_timercancel(list<timercreate_ev_t *>&tmp_create_list, timercancel_ev_t *timercancel_event);
 };
 typedef TimercallPattern timercall_pattern_t;
 #endif

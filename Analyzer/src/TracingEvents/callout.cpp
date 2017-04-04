@@ -1,5 +1,5 @@
 #include "timer_callout.hpp"
-CalloutEvent::CalloutEvent(double timestamp, string op, uint64_t _tid, uint32_t event_core, 
+TimerCalloutEvent::TimerCalloutEvent(double timestamp, string op, uint64_t _tid, uint32_t event_core, 
 	void * funcptr, uint64_t p0, uint64_t p1, void * qptr, string procname)
 : EventBase(timestamp, op, _tid, event_core, procname)
 {
@@ -10,7 +10,7 @@ CalloutEvent::CalloutEvent(double timestamp, string op, uint64_t _tid, uint32_t 
 	q_ptr = qptr;
 }
 
-bool CalloutEvent::check_root(callcreate_ev_t * event)
+bool TimerCalloutEvent::check_root(timercreate_ev_t * event)
 {
 	if (func_ptr != event->get_func_ptr()
 		|| param0 != event->get_param0())
@@ -21,21 +21,21 @@ bool CalloutEvent::check_root(callcreate_ev_t * event)
 
 	if (event->check_called() == true) {
 		cerr << "Error:\n";
-		cerr << "callout at " << fixed << setprecision(2) << get_abstime() << endl;
+		cerr << "timercallout at " << fixed << setprecision(2) << get_abstime() << endl;
 		cerr << "try to match called create " << fixed << setprecision(2) << event->get_abstime() << endl;
 		cerr << "calleded at " << fixed << setprecision(2) << event->get_called_peer()->get_abstime() << endl;
 	}
 	
 	if (event->check_cancel() == true) {
 		cerr << "Error:\n";
-		cerr << "callout at " << fixed << setprecision(2) << get_abstime() << endl;
+		cerr << "timercallout at " << fixed << setprecision(2) << get_abstime() << endl;
 		cerr << "try to match cancelled create " << fixed << setprecision(2) << event->get_abstime() << endl;
 		cerr << "canceled at " << fixed << setprecision(2) << event->get_cancel_peer()->get_abstime() << endl;
 	}
 	return true;
 }
 
-void CalloutEvent::decode_event(bool is_verbose, ofstream &outfile)
+void TimerCalloutEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
 	outfile << "\n*****" << endl;
     outfile << "\n group_id = " << std::right << hex << get_group_id();
@@ -50,11 +50,11 @@ void CalloutEvent::decode_event(bool is_verbose, ofstream &outfile)
 	}
 }
 
-void CalloutEvent::streamout_event(ofstream &outfile)
+void TimerCalloutEvent::streamout_event(ofstream &outfile)
 {
 	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
 	outfile << "\t" << get_tid() << "\t" << get_procname();
-	outfile << "\tkern_callout_";
+	outfile << "\tkern_timercallout_";
 	outfile << "func_" << hex << func_ptr << "(" << hex << param0 << ",";
 	outfile << hex << param1 << ")" << endl;
 }

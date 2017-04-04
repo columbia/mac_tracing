@@ -1,4 +1,4 @@
-TARGET		:= diff
+TARGET		:= analyzer
 #trace_voucher
 #analyzer
 #diff

@@ -9,6 +9,7 @@ Group::Group(uint64_t _group_id, event_t * _root)
 	is_ground = is_infected = false;
 	infected_event = NULL;
 	container.clear();
+	state_aggregate_time.clear();
 }
 
 Group::~Group(void)
@@ -45,7 +46,6 @@ void Group::set_root(event_t * r)
 {
 	if (root != NULL)
 		cerr << "Warning: change root for group " << hex << group_id << endl;
-
 	root = r;
 }
 
@@ -79,5 +79,14 @@ void Group::streamout_group(ofstream & output)
 	for (it = container.begin(); it != container.end(); it++) {
 		event_t * cur_ev = *it;
 		cur_ev->streamout_event(output);
+	}
+
+	if (state_aggregate_time.size() == 0)
+		return;
+
+	output << "Aggregate state time cost " << endl;
+	map<string, double>::iterator time_it;
+	for (time_it = state_aggregate_time.begin(); time_it != state_aggregate_time.end(); time_it++) {
+		output << time_it->first << "\t:" << fixed << setprecision(1) << time_it->second << endl;
 	}
 }

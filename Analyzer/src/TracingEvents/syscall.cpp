@@ -47,6 +47,7 @@ void SyscallEvent::decode_event(bool is_verbose, ofstream &outfile)
 				outfile << "\n\t" << sc_entry->args[i] << " = " << args[i];
 		}
 	}
+	outfile << "\n\treturn = " << hex << ret;
 	outfile << endl;
 }
 
@@ -54,6 +55,6 @@ void SyscallEvent::streamout_event(ofstream &outfile)
 {
 	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
 	outfile << "\t" << hex << get_tid() << "\t" << get_procname();
-	outfile << "\t" << get_op();
+	outfile << "\t" << get_op() << "\t" << hex << ret;
 	outfile << endl;
 }

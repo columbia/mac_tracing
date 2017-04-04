@@ -139,9 +139,9 @@ namespace Parse
 	};
 
 	class TimercallParser:public Parser {
-		bool process_callcreate(string opname, double abstime, istringstream &iss);
-		bool process_callout(string opname, double abstime, istringstream &iss);
-		bool process_callcancel(string opname, double abstime, istringstream &iss);
+		bool process_timercreate(string opname, double abstime, istringstream &iss);
+		bool process_timercallout(string opname, double abstime, istringstream &iss);
+		bool process_timercancel(string opname, double abstime, istringstream &iss);
 	public:
 		TimercallParser(string filename);
 		void process();

@@ -13,7 +13,8 @@
 #include "group.hpp"
 #include "cluster.hpp"
 #include "cluster_filter.hpp"
-#include "divider.hpp"
+#include "thread_divider.hpp"
+//#include "timercall_divider.hpp"
 #include <time.h>
 
 static string get_prefix(string &input_path)
@@ -58,11 +59,20 @@ int	main(int argc, char* argv[]) {
 	/* output files */
 	string streamout_file = get_prefix(logfile) + "_allevent.stream";
 	string eventdump_file = get_prefix(logfile) + "_allevent.decode";
-	string eventdump_voucher_file = get_prefix(logfile) + "_voucher.decode";
-	string dump_clusters = get_prefix(logfile) + "_clusters.decode";
+
+	string stream_groups = get_prefix(logfile) + "_groups.stream";
+	string decode_groups = get_prefix(logfile) + "_groups.decode";
+
 	string stream_clusters = get_prefix(logfile) + "_clusters.stream";
-	string stream_dispatch_events = get_prefix(logfile) + "_dispatchs.stream";
+	string decode_clusters = get_prefix(logfile) + "_clusters.decode";
 	string stream_filtered_clusters = get_prefix(logfile) + "_filtered_clusters.stream";
+
+	/*
+	string streamout_mthread_group = get_prefix(logfile) + "_mthread_groups.stream";
+	string decode_mthread_group = get_prefix(logfile) + "_mthread_groups.decode";
+	string streamout_nsethread_group = get_prefix(logfile) + "_nsethread_groups.stream";
+	string decode_nsethread_group = get_prefix(logfile) + "_nsethread_groups.decode";
+	*/
 	time_t time_begin, time_end;
 
 	/* parser */
@@ -75,78 +85,88 @@ int	main(int argc, char* argv[]) {
 	cout << "Time cost for parsing " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 
 	/* grouping */
+	cout << "begin grouping and filling connectors ..." << endl;
 	time(&time_begin);
 	groups_t * g_ptr = new groups_t(event_lists);
 	g_ptr->para_group();
-	cout << "Total group size : " << (g_ptr->get_groups()).size() << endl;
+
+	cout << "Decode groups ... " << endl;
+	g_ptr->decode_groups(decode_groups);
+	g_ptr->streamout_groups(stream_groups);
+
 	time(&time_end);
 	cout << "Time cost for grouping " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 
-	/* clustering */
-	cout << "begin fill connector " << endl;
+	/*
+	MainThreadDivider mthreaddivider(g_ptr->get_list_of_uimain());
+	mthreaddivider.divide();
+	mthreaddivider.streamout_groups(streamout_mthread_group);
+	mthreaddivider.decode_groups(decode_mthread_group);
+	cout << "Finished dividing UI Main thread ... " << endl;
+		
+	NSEventThreadDivider nsethreaddivider(g_ptr->get_list_of_nsevent());
+	nsethreaddivider.divide();
+	nsethreaddivider.streamout_groups(streamout_nsethread_group);
+	nsethreaddivider.decode_groups(decode_nsethread_group);
+	cout << "Finished dividing UI NSevent thread ..." << endl;
+	*/
+	
+
+	/* clustering
+	cout << "begin merge groups into clusters..." << endl;
 	time(&time_begin);
 	clusters_t *c_ptr = new clusters_t(g_ptr);
-	cout << "begin merge " << endl;
 	c_ptr->merge_by_mach_msg();
 	c_ptr->merge_by_dispatch_ops();
 	c_ptr->merge_by_mkrun();
-	c_ptr->merge_by_callout();
-	time(&time_end);
-	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-
-	/*decoding*/
-	time(&time_begin);
-	cout << "Decode original cluster ... " << endl;
+	c_ptr->merge_by_timercallout();
+	cout << "Decode clusters ... " << endl;
 	c_ptr->streamout_clusters(stream_clusters);
 	time(&time_end);
-	cout << "Time cost for decodeing original cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
+	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
+	*/
 
+	cout << "begin merge groups into clusters..." << endl;
+	time(&time_begin);
+	ClusterGen *c_ptr = new ClusterGen(g_ptr);
+	cout << "Decode clusters ... " << endl;
+	c_ptr->streamout_clusters(stream_clusters);
+	time(&time_end);
+	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
+	
+
+	#if FILTER
+	cout << "Time cost for decodeing original cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 	cout << "begin filter cluster" << endl;
 	Filter * filter_ptr = new Filter(c_ptr);
 	time(&time_begin);
 	filter_ptr->clusters_filter_para();
 	time(&time_end);
 	cout << "Time cost for filtering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-
-
 	time(&time_begin);
 	cout << "Decode filted cluster ... " << endl;
 	filter_ptr->streamout_filtered_clusters(stream_filtered_clusters);
+	time(&time_end);
+	cout << "Time cost for decodeing filted cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
+	#endif
 
-	cout << "Decode lists ... " << endl;
+	/* decoding */
+	time(&time_begin);
+	cout << "Decode event list... " << endl;
 	EventListOp::streamout_all_event(event_lists[0], streamout_file.c_str());
 	EventListOp::dump_all_event(event_lists[0], eventdump_file.c_str());
-	EventListOp::dump_all_event(event_lists[MACH_IPC_VOUCHER_INFO], eventdump_voucher_file.c_str());
-
-	#if CHECK_DISPATH
-	list<event_t *> mix_list;
-	mix_list.insert(mix_list.end(), event_lists[DISP_ENQ].begin(), event_lists[DISP_ENQ].end());
-	mix_list.insert(mix_list.end(), event_lists[DISP_DEQ].begin(), event_lists[DISP_DEQ].end());
-	mix_list.insert(mix_list.end(), event_lists[DISP_EXE].begin(), event_lists[DISP_EXE].end());
-	EventListOp::sort_event_list(mix_list);
-	EventListOp::streamout_all_event(mix_list, stream_dispatch_events.c_str());
-	#endif
-
 	time(&time_end);
-	cout << "Time cost for decodeing " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-
-	/* Alternative diffing inside one trace of repeated actions */
-	#if DIVIDE
-	cerr << "Try divide..." << endl;
-	Divider divider(event_lists[0], event_lists[BACKTRACE], 0, NULL);
-	divider.divide();
-	divider.compare();
-	cerr << "End of divide and compare..." << endl;
-	#endif
+	cout << "Time cost for decodeing original cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
+	
 
 	/* clearing */
+	#if FILTER
 	cout << "Clearing filter ... " << endl;
 	delete(filter_ptr);
-	cout << "Clearing clusters ... " << endl;
-	c_ptr->clear_clusters();
+	#endif
+	cout << "Clearing clusters ..." << endl;
 	delete(c_ptr);
 	cout << "Clearing groups..." << endl;
-	g_ptr->clear_groups();
 	delete(g_ptr);
 	cout << "Clearing events..." << endl;
 	EventListOp::clear_event_list(event_lists[0]);

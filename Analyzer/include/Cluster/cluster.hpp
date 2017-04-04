@@ -30,9 +30,12 @@ class Cluster {
 	bool is_infected;
 	vector<group_t *> infected_groups;
 	vector<group_t *> gt_groups;
+	group_t * root;
+	list<event_t *>connectors;
 
 public:
 	Cluster(void);
+	Cluster(group_t *);
 	~Cluster();
 	void add_edge(group_t*, group_t*, event_t *, event_t *, uint32_t);
 	void add_node(group_t*);
@@ -53,7 +56,14 @@ public:
 	void decode_cluster(ofstream &outfile);
 	void decode_edges(ofstream &outfile);
 	void streamout_cluster(ofstream &outfile);
-	//void clear_cluster();
+
+	list<event_t *> pop_cur_connectors() {
+		list<event_t *> ret = connectors;
+		connectors.clear();
+		return ret;
+	}
+	
+	void push_connectors(group_t *, event_t *);
 };
 
 typedef Cluster cluster_t;
@@ -69,7 +79,6 @@ class Clusters {
 	cluster_t * cluster_of(group_t *);
 
 	cluster_t * merge(cluster_t*, cluster_t*);
-	void para_connector_generate(void);
 	void merge_clusters_of_events(event_t *, event_t *, uint32_t);
 
 public:
@@ -79,15 +88,33 @@ public:
 	void merge_by_mach_msg(void);
 	void merge_by_dispatch_ops(void);
 	void merge_by_mkrun(void);
-	void merge_by_callout(void);
+	void merge_by_timercallout(void);
 
 	uint64_t get_size(void) { return clusters.size();}
 	map<uint64_t, cluster_t *>& get_clusters() {return clusters;}
 	void decode_clusters(string & output_path);
 	void streamout_clusters(string & output_path);
 	void decode_dangle_groups(string & output_path);
-	//void clear_clusters(void);
 };
 typedef Clusters clusters_t;
+
+class ClusterGen {
+	groups_t * groups_ptr;
+	map<uint64_t, cluster_t *> clusters;
+
+	cluster_t * init_cluster(group_t * group);
+	void augment_cluster(cluster_t * cluster);
+
+	void merge_by_mach_msg(cluster_t *, msg_ev_t *);
+	void merge_by_dispatch_ops(cluster_t *, blockinvoke_ev_t *);
+	void merge_by_dispatch_ops(cluster_t *, dequeue_ev_t *);
+	void merge_by_mkrun(cluster_t *, mkrun_ev_t *);
+	void merge_by_timercallout(cluster_t *, timercallout_ev_t *);
+
+public:
+	ClusterGen(groups_t * groups_ptr);
+	~ClusterGen(void);
+	void streamout_clusters(string & output_path);
+};
 
 #endif

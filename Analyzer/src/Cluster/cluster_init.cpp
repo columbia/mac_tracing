@@ -171,33 +171,33 @@ void Clusters::merge_by_dispatch_ops()
 	cerr << "merge dispatch-execute done\n";
 }
 
-void Clusters::merge_by_callout()
+void Clusters::merge_by_timercallout()
 {
-	cerr << "merge cluster via callout\n";
+	cerr << "merge cluster via timercallout\n";
 
 	list<event_t*> ::iterator it;
-	list<event_t *> callout_list = groups_ptr->get_list_of_op(MACH_CALLOUT);
-	for (it = callout_list.begin(); it != callout_list.end(); it++) {
-		callout_ev_t * callout_event = dynamic_cast<callout_ev_t*>(*it);
-		assert(callout_event != NULL);
-		callcreate_ev_t * callcreate_event = callout_event->get_callcreate();
-		if (callcreate_event != NULL) {
-			merge_clusters_of_events(callcreate_event, callout_event, CALLOUT);
+	list<event_t *> timercallout_list = groups_ptr->get_list_of_op(MACH_CALLOUT);
+	for (it = timercallout_list.begin(); it != timercallout_list.end(); it++) {
+		timercallout_ev_t * timercallout_event = dynamic_cast<timercallout_ev_t*>(*it);
+		assert(timercallout_event != NULL);
+		timercreate_ev_t * timercreate_event = timercallout_event->get_timercreate();
+		if (timercreate_event != NULL) {
+			merge_clusters_of_events(timercreate_event, timercallout_event, CALLOUT);
 		}
 	}
 
 	list<event_t *>::iterator ct;
-	list<event_t *> callcancel_list = groups_ptr->get_list_of_op(MACH_CALLCANCEL);
-	for (ct = callcancel_list.begin(); ct != callcancel_list.end(); ct++) {
-		callcancel_ev_t * callcancel_event = dynamic_cast<callcancel_ev_t*>(*ct);
-		assert(callcancel_event != NULL);
-		callcreate_ev_t * callcreate_event = callcancel_event->get_callcreate();
-		if (callcreate_event != NULL) {
-			merge_clusters_of_events(callcreate_event, callcancel_event, CALLOUTCANCEL);
+	list<event_t *> timercancel_list = groups_ptr->get_list_of_op(MACH_CALLCANCEL);
+	for (ct = timercancel_list.begin(); ct != timercancel_list.end(); ct++) {
+		timercancel_ev_t * timercancel_event = dynamic_cast<timercancel_ev_t*>(*ct);
+		assert(timercancel_event != NULL);
+		timercreate_ev_t * timercreate_event = timercancel_event->get_timercreate();
+		if (timercreate_event != NULL) {
+			merge_clusters_of_events(timercreate_event, timercancel_event, CALLOUTCANCEL);
 		}
 	}
 
-	cerr << "merge callouts done\n";
+	cerr << "merge timercallouts done\n";
 }
 
 void Clusters::merge_by_mkrun()
@@ -227,8 +227,8 @@ void Clusters::merge_by_mkrun()
 			continue;
 		}
 
-		// timer callout
-		if (dynamic_cast<callout_ev_t *>(*pos))
+		// timer timercallout
+		if (dynamic_cast<timercallout_ev_t *>(*pos))
 			continue;
 
 		// clear wait && run_nextreq

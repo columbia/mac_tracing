@@ -162,8 +162,8 @@ void Normalizer::compare(Normalizer * base, const char *output_file)
 	cout << "***** compare summary *****" << endl;
 	cout << "total clusters of target = " << std::dec << norm_clusters.size() << endl;
 	cout << "compare to base clusters = " << std::dec << base_clusters.size() << endl;
-	cout << "equal_groups = " << std::dec << equal << endl;
-	cout << "outstanding groups = " << std::dec << outstanders.size() << endl;
+	cout << "equal clusters = " << std::dec << equal << endl;
+	cout << "outstanding clusters = " << std::dec << outstanders.size() << endl;
 	cout << "***************************" << endl;
 }
 
@@ -202,6 +202,7 @@ void Normalizer::check_group(norm_group_t * group, vector<norm_group_t *> & base
 	vector<norm_group_t *>::iterator it;
 	for (it = base_groups.begin(); it != base_groups.end(); it++) {
 		if (*group == **it) {
+			//TODO : check group delta
 			group->set_norm();
 			break;
 		}

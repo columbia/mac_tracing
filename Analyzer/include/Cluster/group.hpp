@@ -24,6 +24,12 @@
 #include "voucher_bank_attrs.hpp"
 
 #define GROUP_ID_BITS 20
+
+typedef struct {
+	event_t * begin;
+	event_t * end;
+} state_boundary_t;
+
 class Group {
 	uint64_t cluster_id;
 	uint64_t group_id;
@@ -37,6 +43,9 @@ class Group {
 	list<event_t *> container;
 	map<string, uint32_t> group_tags;
 	set<string> group_peer;
+
+	map<string, state_boundary_t> state_boundary;
+	map<string, double> state_aggregate_time;
 	
 public:
 	Group(uint64_t _group_id, event_t *_root);
@@ -71,6 +80,16 @@ public:
 	event_t * get_first_event(void) { return container.size() > 0 ? container.front() : NULL;}
 	bool find_event(event_t * event) { return event->get_group_id() == group_id ? true: false;}
 	void sort_container(void) {container.sort(Parse::EventComparator::compare_time);}
+	void set_state_begin(string state, event_t * event) {state_boundary[state].begin = event;}
+	void set_state_end(string state, event_t * event) {state_boundary[state].end = event;}
+	event_t * get_state_begin(string state) {return state_boundary[state].begin;}
+	event_t * get_state_end(string state) {return state_boundary[state].end;}
+
+	void attribute_time(string state, double delta) {
+		double new_val = state_aggregate_time[state] + delta;
+		state_aggregate_time[state] = new_val;
+	}
+	double get_state_time(string state) {return state_aggregate_time[state];}
 	void decode_group(ofstream &outfile);
 	void streamout_group(ofstream &outfile);
 };
@@ -87,8 +106,11 @@ class Groups {
 
 	op_events_t &op_lists;
 	gid_group_map_t groups;
+	uint64_t main_thread;
+	uint64_t nsevent_thread;
 	tid_evlist_t tid_lists;	
 	vector<gid_group_map_t> sub_results;
+	gid_group_map_t main_groups;
 
 	// for update missing info
 	tid_comm_map_t tid_comm;
@@ -107,6 +129,7 @@ class Groups {
 	tid_evlist_t divide_eventlist_and_mapping(list<event_t *> &_list);
 
 	void para_connector_generate(void); /* connect events for later clustering */
+	void check_host_uithreads(list<event_t *> &);//backtrace_ev_t *backtrace_event);
 	group_t * create_group(uint64_t group_id, event_t *root_event);
 	bool voucher_manipulation(event_t *event);
 	bool mr_by_intr(mkrun_ev_t * mr, intr_ev_t * intr_event);
@@ -123,6 +146,22 @@ public:
 	map<uint64_t, list<event_t *> >& get_tid_lists(void) {return tid_lists;}
 	list<event_t *> & get_list_of_tid(uint64_t tid) {return tid_lists[tid];}
 	list<event_t *> & get_list_of_op(uint64_t op) {return op_lists[op];}
+	list<event_t *> get_list_of_uimain(void) {
+		if (main_thread == 0) {
+			list<event_t *> empty;
+			cerr << "Unable get main thread backtrace, abort" << endl;
+			return empty;
+		}
+		return get_list_of_tid(main_thread);
+	}
+	list<event_t *> get_list_of_nsevent(void) {
+		if (nsevent_thread == 0) {
+			list<event_t *> empty;
+			cerr << "Unable get nsevent thread backtrace, abort" << endl;
+			return empty;
+		}
+		return get_list_of_tid(nsevent_thread);
+	}
 	mkrun_pos_t &get_all_mkrun(void) { return mkrun_map;}
 	pid_comm_map_t & get_pid_comms(void) {return pid_comm;}
 	map<uint64_t, group_t *> & get_groups(void) {return groups;}
@@ -130,6 +169,7 @@ public:
 	void init_groups(int idx , list<event_t*> & tid_list); /* per-thread grouping */
 	group_t * group_of(event_t *event);
 	void collect_groups(map<uint64_t, group_t *> & sub_groups);
+	map<uint64_t, group_t *> & get_main_groups() {return main_groups;}
 	//void clear_groups(void);
 	int decode_groups(string & output_path);
 	int streamout_groups(string & output_path);

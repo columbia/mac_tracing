@@ -14,7 +14,7 @@
 #include "cluster.hpp"
 #include "canonization.hpp"
 #include "cluster_filter.hpp"
-#include "divider.hpp"
+#include "timercall_divider.hpp"
 #include <time.h>
 
 static string get_prefix(string &input_path)
@@ -122,13 +122,13 @@ int	main(int argc, char* argv[]) {
 	c_ptr->merge_by_mach_msg();
 	c_ptr->merge_by_dispatch_ops();
 	c_ptr->merge_by_mkrun();
-	c_ptr->merge_by_callout();
+	c_ptr->merge_by_timercallout();
 	
 	clusters_t * norm_c_ptr = new clusters_t(norm_g_ptr);
 	norm_c_ptr->merge_by_mach_msg();
 	norm_c_ptr->merge_by_dispatch_ops();
 	norm_c_ptr->merge_by_mkrun();
-	norm_c_ptr->merge_by_callout();
+	norm_c_ptr->merge_by_timercallout();
 	time(&time_end);
 	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 
@@ -140,7 +140,7 @@ int	main(int argc, char* argv[]) {
 	/* Alternative diffing inside one trace of repeated actions */
 //	#if DIVIDE
 //	cerr << "Try divide..." << endl;
-//	Divider divider(event_lists[0], event_lists[BACKTRACE], 0, NULL);
+//	TimerCallDivider divider(event_lists[0], event_lists[BACKTRACE], 0, NULL);
 //	divider.divide();
 //	divider.compare();
 //	cerr << "End of divide and compare..." << endl;

@@ -3,8 +3,8 @@
 
 //#define  TIMERCALL_DEBUG
 
-TimercallPattern::TimercallPattern(list<event_t*> &_callcreate_list, list<event_t *> &_callout_list, list<event_t*> &_callcancel_list)
-:callcreate_list(_callcreate_list), callout_list(_callout_list), callcancel_list(_callcancel_list)
+TimercallPattern::TimercallPattern(list<event_t*> &_timercreate_list, list<event_t *> &_timercallout_list, list<event_t*> &_timercancel_list)
+:timercreate_list(_timercreate_list), timercallout_list(_timercallout_list), timercancel_list(_timercancel_list)
 {
 }
 
@@ -12,81 +12,81 @@ void TimercallPattern::connect_create_and_cancel(void)
 {
 	list<event_t *>::iterator it;
 	list<event_t *> mix_list;
-	list<callcreate_ev_t*> tmp_create_list;
-	callcreate_ev_t * callcreate_event;
-	callcancel_ev_t * callcancel_event;
+	list<timercreate_ev_t*> tmp_create_list;
+	timercreate_ev_t * timercreate_event;
+	timercancel_ev_t * timercancel_event;
 
-	mix_list.insert(mix_list.end(), callcreate_list.begin(), callcreate_list.end());
-	mix_list.insert(mix_list.end(), callcancel_list.begin(), callcancel_list.end());
+	mix_list.insert(mix_list.end(), timercreate_list.begin(), timercreate_list.end());
+	mix_list.insert(mix_list.end(), timercancel_list.begin(), timercancel_list.end());
 	EventListOp::sort_event_list(mix_list);
 
 	for (it = mix_list.begin(); it != mix_list.end(); it++) {
-		callcreate_event = dynamic_cast<callcreate_ev_t *>(*it);
-		if (callcreate_event) {
-			tmp_create_list.push_back(callcreate_event);
+		timercreate_event = dynamic_cast<timercreate_ev_t *>(*it);
+		if (timercreate_event) {
+			tmp_create_list.push_back(timercreate_event);
 		} else {
-			callcancel_event = dynamic_cast<callcancel_ev_t *>(*it);
-			connect_callcreate_for_callcancel(tmp_create_list, callcancel_event);
+			timercancel_event = dynamic_cast<timercancel_ev_t *>(*it);
+			connect_timercreate_for_timercancel(tmp_create_list, timercancel_event);
 		}
 	}
 	//TODO : check the rest events
 }
 
-bool TimercallPattern::connect_callcreate_for_callcancel(list<callcreate_ev_t *>&tmp_create_list, callcancel_ev_t *callcancel_event)
+bool TimercallPattern::connect_timercreate_for_timercancel(list<timercreate_ev_t *>&tmp_create_list, timercancel_ev_t *timercancel_event)
 {
-	list<callcreate_ev_t *>::reverse_iterator rit;
+	list<timercreate_ev_t *>::reverse_iterator rit;
 	for (rit = tmp_create_list.rbegin(); rit != tmp_create_list.rend(); rit++) {
-		callcreate_ev_t * callcreate_event = dynamic_cast<callcreate_ev_t *>(*rit);
-		if (callcancel_event->check_root(callcreate_event) == true) {
-			callcancel_event->set_callcreate(callcreate_event);
-			callcreate_event->cancel_call(callcancel_event);
+		timercreate_ev_t * timercreate_event = dynamic_cast<timercreate_ev_t *>(*rit);
+		if (timercancel_event->check_root(timercreate_event) == true) {
+			timercancel_event->set_timercreate(timercreate_event);
+			timercreate_event->cancel_call(timercancel_event);
 			tmp_create_list.erase(next(rit).base());
 			return true;
 		}
 	}
 	#ifdef TIMERCALL_DEBUG
-	cerr << "Warn: no callcreate for callcancel " << fixed << setprecision(1) << callcancel_event->get_abstime() << endl; 
+	cerr << "Warn: no timercreate for timercancel " << fixed << setprecision(1) << timercancel_event->get_abstime() << endl; 
 	#endif
 	return false;
 }
 
-void TimercallPattern::connect_create_and_callout(void)
+void TimercallPattern::connect_create_and_timercallout(void)
 {
 	list<event_t *>::iterator it;
 	list<event_t *> mix_list;
-	list<callcreate_ev_t*> tmp_create_list;
-	callcreate_ev_t * callcreate_event;
-	callout_ev_t * callout_event;
+	list<timercreate_ev_t*> tmp_create_list;
+	timercreate_ev_t * timercreate_event;
+	timercallout_ev_t * timercallout_event;
 
-	mix_list.insert(mix_list.end(), callcreate_list.begin(), callcreate_list.end());
-	mix_list.insert(mix_list.end(), callout_list.begin(), callout_list.end());
+	mix_list.insert(mix_list.end(), timercreate_list.begin(), timercreate_list.end());
+	mix_list.insert(mix_list.end(), timercallout_list.begin(), timercallout_list.end());
 	EventListOp::sort_event_list(mix_list);
 	for (it = mix_list.begin(); it != mix_list.end(); it++) {
-		callcreate_event = dynamic_cast<callcreate_ev_t *>(*it);
-		if (callcreate_event) {
-			tmp_create_list.push_back(callcreate_event);
+		timercreate_event = dynamic_cast<timercreate_ev_t *>(*it);
+		if (timercreate_event) {
+			tmp_create_list.push_back(timercreate_event);
 		} else {
-			callout_event = dynamic_cast<callout_ev_t*>(*it);
-			connect_callcreate_for_callout(tmp_create_list, callout_event);
+			timercallout_event = dynamic_cast<timercallout_ev_t*>(*it);
+			connect_timercreate_for_timercallout(tmp_create_list, timercallout_event);
 		}
 	}
 }
 
-bool TimercallPattern::connect_callcreate_for_callout(list<callcreate_ev_t*> &tmp_create_list, callout_ev_t *callout_event)
+bool TimercallPattern::connect_timercreate_for_timercallout(list<timercreate_ev_t*> &tmp_create_list, timercallout_ev_t *timercallout_event)
 {
-	list<callcreate_ev_t *>::reverse_iterator rit;
+	list<timercreate_ev_t *>::reverse_iterator rit;
 	for (rit = tmp_create_list.rbegin(); rit != tmp_create_list.rend(); rit++) {
-		callcreate_ev_t * callcreate_event = dynamic_cast<callcreate_ev_t *>(*rit);
-		if (callout_event->check_root(callcreate_event) == true) {
-			callout_event->set_callcreate(callcreate_event);
-			callcreate_event->set_called_peer(callout_event);
+		timercreate_ev_t * timercreate_event = dynamic_cast<timercreate_ev_t *>(*rit);
+		if (timercallout_event->check_root(timercreate_event) == true) {
+			timercallout_event->set_timercreate(timercreate_event);
+			timercreate_event->set_called_peer(timercallout_event);
 			tmp_create_list.erase(next(rit).base());
 			return true;
 		}
 	}
 
 	#ifdef TIMERCALL_DEBUG
-	cerr << "Warn: no callcreate for callout " << fixed << setprecision(1) << callout_event->get_abstime() << endl; 
+	cerr << "Warn: no timercreate for timercallout " << fixed << setprecision(1) << timercallout_event->get_abstime() << endl; 
 	#endif
 	return false;
 }

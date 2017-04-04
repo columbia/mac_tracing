@@ -52,7 +52,6 @@ void NormGroup::normalize_events(void)
 	double begin, last;
 
 	for (it = events.begin(); it != events.end(); it++) {
-		last = (*it)->get_abstime();
 		if (key_events[LoadData::map_op_code(0, (*it)->get_op())] == true) {
 			norm_ev_t *norm_event = new norm_ev_t((*it), virtual_tid);
 			if (norm_event == NULL)
@@ -61,7 +60,9 @@ void NormGroup::normalize_events(void)
 				container.push_back(norm_event);
 		}
 	}
-	begin = (*events.begin())->get_abstime();
+
+	begin = events.front()->get_abstime();
+	last = events.back()->get_abstime();
 	delta = last - begin;
 }
 

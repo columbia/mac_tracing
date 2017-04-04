@@ -24,11 +24,17 @@ void MsgEvent::decode_event(bool is_verbose, ofstream &outfile)
 	outfile << "\n group_id = " << std::right << hex << get_group_id();
 	outfile << "\n [" << dec << get_pid() <<"] " << get_procname() << "(" << hex << get_tid() << ")" << get_coreid();
 	outfile << "\n\t" << fixed << setprecision(1) << get_abstime();
+	outfile << "\n\t" << get_op() << "_" << hex << tag;
+
 	header->decode_header(outfile);
 	if (peer)
 		outfile << "\n\tpeer " << hex << peer->get_tid() << "\t" << fixed << setprecision(1) << peer->get_abstime();
 	if (next)
 		outfile << "\n\tnext " << hex << next->get_tid() << "\t" <<  fixed << setprecision(1) << next->get_abstime();
+
+	if (is_freed_before_deliver())
+		outfile << "\n\tfreed before deliver";
+	
 	if (bt)
 		outfile  << "\n\tbacktrace at: " << fixed << setprecision(2) << bt->get_abstime() << endl;
 	if (voucher)
@@ -40,7 +46,8 @@ void MsgEvent::streamout_event(ofstream & outfile)
 {
 	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
 	outfile << "\t" << hex << get_tid() << "\t" << get_procname();
-	outfile << "\t" << get_op() << "_";
+	outfile << "\t" << get_op() << "_" << hex << tag << "_";
+
 	if (header->is_mig()) {
 		assert(LoadData::mig_dictionary.find(header->get_msgh_id()) != 
 		LoadData::mig_dictionary.end());
@@ -51,6 +58,9 @@ void MsgEvent::streamout_event(ofstream & outfile)
 
 	if (peer)
 		outfile << "\tpeer " << hex << peer->get_tid() << "\t" << fixed << setprecision(1) << peer->get_abstime();
+
+	if (is_freed_before_deliver())
+		outfile << "\tfreed before deliver";
 
 	outfile << endl;
 }

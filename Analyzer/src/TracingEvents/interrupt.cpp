@@ -113,6 +113,7 @@ void IntrEvent::decode_event(bool is_verbose, ofstream & outfile)
 	outfile << "\n\t" << fixed << setprecision(1) << get_abstime();
 	outfile << " - " << fixed << setprecision(1) << finish_time;
 	outfile << "\n\t" << get_op();
+
 	const char * intr_desc = decode_interrupt_num(interrupt_num);
 	if (strcmp(intr_desc, "unknown"))
 		outfile << "\n\t" << intr_desc;
@@ -121,10 +122,13 @@ void IntrEvent::decode_event(bool is_verbose, ofstream & outfile)
 
 	outfile << "\n\t" << "priority: " << hex << sched_priority_pre << " -> " << hex << sched_priority_post;
 	outfile << "\n\t" << "thread_qos: " << hex << get_thep_qos();
-	if (rip_info.size())
-		outfile << "\n\t" << rip_info;
+
 	outfile << "\n\t" << "thread_ast: " << ast_desc(ast >> 32);
 	outfile << "\n\t" << "block_reason: " << ast_desc((uint32_t)ast);
+
+	outfile << "\n\t" << hex << rip << endl;
+	if (rip_info.size())
+		outfile << "\n\t" << rip_info;
 
 	outfile << endl;
 }
@@ -142,6 +146,7 @@ void IntrEvent::streamout_event(ofstream & outfile)
 	else
 		outfile << "\t" << interrupt_num << "_INTR";
 
+	outfile << "\t" << hex << rip;
 	if (rip_info.size())
 		outfile << "\t" << rip_info;
 	/*

@@ -49,6 +49,7 @@ public:
 	map<string, uint32_t> & get_group_tags(void) {return group->get_group_tags();}
 	void set_norm(void) {is_norm = true;}
 	bool check_norm(void) {return is_norm;}
+	double get_delta(void) {return delta;}
 	bool operator==(NormGroup & other);
 	bool operator!=(NormGroup & other);
 	void decode_group(ofstream & output);

@@ -209,6 +209,11 @@ void NormCluster::compress_cluster(void)
 	free(mark);
 }
 
+void NormCluster::topological_sort(void)
+{
+	
+}
+
 void NormCluster::check_compress(void)
 {
 	if (compressed) {
@@ -250,6 +255,7 @@ bool NormCluster::operator==(NormCluster &other)
 			return false;
 		}
 	}
+	#endif
 
 	uint64_t norm_num = 0;
 	for (this_it = norm_nodes.begin(); this_it != norm_nodes.end(); this_it++)
@@ -258,8 +264,9 @@ bool NormCluster::operator==(NormCluster &other)
 
 	if (norm_num == norm_nodes.size())
 		return true;
-	#endif
-	
+	return false;
+
+	#if 0
 	for (other_it = other_nodes.begin(), this_it = norm_nodes.begin();
 		other_it != other_nodes.end() && this_it != end;
 		other_it++, this_it++) {
@@ -274,6 +281,7 @@ bool NormCluster::operator==(NormCluster &other)
 	}
 
 	return ret;
+	#endif
 }
 
 bool NormCluster::operator!=(NormCluster & other)
@@ -284,13 +292,11 @@ bool NormCluster::operator!=(NormCluster & other)
 void NormCluster::decode_cluster(ofstream &output)
 {
 	//cluster->decode_cluster(output);
-	cluster->streamout_cluster(output);
+	//cluster->streamout_cluster(output);
 
-	/*
 	vector<norm_group_t *>::iterator it;
 	for (it = norm_nodes.begin(); it != norm_nodes.end(); it++) {
 		if ((*it)->check_norm() == false)
 			(*it)->decode_group(output);
 	}
-	*/
 }

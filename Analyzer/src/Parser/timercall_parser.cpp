@@ -7,7 +7,7 @@ namespace Parse
 	{
 	}
 
-	bool TimercallParser::process_callcreate(string opname, double abstime, istringstream &iss)
+	bool TimercallParser::process_timercreate(string opname, double abstime, istringstream &iss)
 	{
 		uint64_t func_ptr, param0, param1, q_ptr, tid, coreid;
 		string procname = "";
@@ -15,14 +15,14 @@ namespace Parse
 			return false;
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
-		callcreate_ev_t * callcreate_event = new callcreate_ev_t(abstime, opname, tid, coreid, 
+		timercreate_ev_t * timercreate_event = new timercreate_ev_t(abstime, opname, tid, coreid, 
 				(void*)func_ptr, param0, param1, (void*)q_ptr, procname);
-		local_event_list.push_back(callcreate_event);
-		callcreate_event->set_complete();
+		local_event_list.push_back(timercreate_event);
+		timercreate_event->set_complete();
 		return true;
 	}
 
-	bool TimercallParser::process_callout(string opname, double abstime, istringstream &iss)
+	bool TimercallParser::process_timercallout(string opname, double abstime, istringstream &iss)
 	{
 		uint64_t func_ptr, param0, param1, q_ptr, tid, coreid;
 		string procname = "";
@@ -30,14 +30,14 @@ namespace Parse
 			return false;
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
-		callout_ev_t * callout_event = new callout_ev_t(abstime, opname, tid, coreid, 
+		timercallout_ev_t * timercallout_event = new timercallout_ev_t(abstime, opname, tid, coreid, 
 				(void*)func_ptr, param0, param1, (void*)q_ptr, procname);
-		local_event_list.push_back(callout_event);
-		callout_event->set_complete();
+		local_event_list.push_back(timercallout_event);
+		timercallout_event->set_complete();
 		return true;
 	}
 
-	bool TimercallParser::process_callcancel(string opname, double abstime, istringstream &iss)
+	bool TimercallParser::process_timercancel(string opname, double abstime, istringstream &iss)
 	{
 		uint64_t func_ptr, param0, param1, q_ptr, tid, coreid;
 		string procname = "";
@@ -45,10 +45,10 @@ namespace Parse
 			return false;
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
-		callcancel_ev_t * callcancel_event = new callcancel_ev_t(abstime - 0.05, opname, tid, coreid, 
+		timercancel_ev_t * timercancel_event = new timercancel_ev_t(abstime - 0.05, opname, tid, coreid, 
 				(void*)func_ptr, param0, param1, (void*)q_ptr, procname);
-		local_event_list.push_back(callcancel_event);
-		callcancel_event->set_complete();
+		local_event_list.push_back(timercancel_event);
+		timercancel_event->set_complete();
 		return true;
 	}
 	
@@ -65,13 +65,13 @@ namespace Parse
 			}
 			switch (LoadData::map_op_code(0, opname)) {
 				case MACH_CALLCREATE:
-					ret = process_callcreate(opname, abstime, iss);
+					ret = process_timercreate(opname, abstime, iss);
 					break;
 				case MACH_CALLOUT:
-					ret = process_callout(opname, abstime, iss);
+					ret = process_timercallout(opname, abstime, iss);
 					break;
 				case MACH_CALLCANCEL:
-					ret = process_callcancel(opname, abstime, iss);
+					ret = process_timercancel(opname, abstime, iss);
 					break;
 				default:
 					ret = false;

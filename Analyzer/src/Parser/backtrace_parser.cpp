@@ -259,8 +259,8 @@ namespace Parse
 		for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
 			cur_proc = it->first;
 			cerr << "proc_images for " << cur_proc << endl;
-			if (cur_proc.find(LoadData::meta_data.host) == string::npos)
-				//&& cur_proc.find("WindowServer") == string::npos )
+			if (cur_proc.find(LoadData::meta_data.host) == string::npos
+				&& cur_proc.find("WindowServer") == string::npos)
 				continue;
 			cerr << "Decodeing backtrace for " << cur_proc << endl;
 			ret = setup_lldb(&cur_debugger, it->second);

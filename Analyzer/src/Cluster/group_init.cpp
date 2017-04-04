@@ -1,4 +1,5 @@
 #include "group.hpp"
+#include "thread_divider.hpp"
 #include <algorithm>
 #include <boost/asio/io_service.hpp>
 #include <boost/bind.hpp>
@@ -15,6 +16,7 @@ Groups::Groups(op_events_t &_op_lists)
 	tid_pid.clear();
 
 	mkrun_map.clear();
+	main_thread = nsevent_thread = 0;
 	tid_lists = divide_eventlist_and_mapping(op_lists[0]);
 
 	/* para-processing-per-list's result template in vector */
@@ -29,6 +31,9 @@ Groups::Groups(op_events_t &_op_lists)
 	
 	/* para-processing connectors */
 	para_connector_generate();
+
+	/* recognize uimain thread and nsevent thread */
+	check_host_uithreads(get_list_of_op(BACKTRACE));
 }
 
 Groups::~Groups(void)
@@ -238,6 +243,39 @@ void Groups::para_connector_generate(void)
 	//ioService.stop();
 }
 
+void Groups::check_host_uithreads(list<event_t *> & backtrace_list)
+{
+	list<event_t *>::iterator it;
+	backtrace_ev_t * backtrace_event;
+	string mainthread("NSApplicationMain");
+	string nsthread("_NSEventThread");
+
+	for (it = backtrace_list.begin(); it != backtrace_list.end(); it++) {
+		if (main_thread != 0 && nsevent_thread != 0)
+			break;
+
+		backtrace_event = dynamic_cast<backtrace_ev_t *>(*it);
+
+		if ((main_thread != 0 && backtrace_event->get_tid() == main_thread)
+			||(nsevent_thread != 0 && backtrace_event->get_tid() == nsevent_thread))
+			continue;
+
+		if (backtrace_event->get_procname() != LoadData::meta_data.host
+				&& tid2comm(backtrace_event->get_tid()) != LoadData::meta_data.host)
+			continue;
+
+		if (main_thread == 0 && backtrace_event->check_backtrace_symbol(mainthread)) {
+			main_thread = backtrace_event->get_tid();
+			continue;
+		}
+
+		if (nsevent_thread == 0 && backtrace_event->check_backtrace_symbol(nsthread)) {
+				nsevent_thread = backtrace_event->get_tid();
+				continue;
+		}
+	}
+}
+
 group_t * Groups::create_group(uint64_t group_id, event_t *root_event)
 {
 	group_t * new_gptr = new group_t(group_id, root_event);
@@ -283,7 +321,7 @@ uint64_t Groups::check_mr_type(mkrun_ev_t * mr_event, event_t * last_event, intr
 {
 	if (dynamic_cast<tsm_ev_t*>(last_event)) 
 		mr_event->set_mr_type(SCHED_TSM_MR);
-	else if (dynamic_cast<callout_ev_t *>(last_event))
+	else if (dynamic_cast<timercallout_ev_t *>(last_event))
 		mr_event->set_mr_type(CALLOUT_MR);
 	else if (mr_by_wqnext(mr_event, last_event))
 		mr_event->set_mr_type(WORKQ_MR);
@@ -387,6 +425,7 @@ bool Groups::voucher_manipulation(event_t *event)
 	return false;
 }
 
+/*general group dividing*/
 void Groups::init_groups(int idx, list<event_t*> & tid_list)
 {
 	/* per list data init */
@@ -443,8 +482,6 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 		/* record backtrace */
 		backtrace_ev_t * backtrace_event = dynamic_cast<backtrace_ev_t *>(event);
 		if (backtrace_event) {
-			//if (backtrace_for_hook != NULL)
-			//	cerr << "Checking omitted backtrace at " << fixed << setprecision(1) << backtrace_for_hook->get_abstime() << endl;
 			backtrace_for_hook = backtrace_event;
 			continue;
 		}
@@ -452,8 +489,6 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 		/* record voucher_info */
 		voucher_ev_t * voucher_event = dynamic_cast<voucher_ev_t *>(event);
 		if (voucher_event) {
-			//if (voucher_for_hook != NULL)
-			//	cerr << "Checking omitted voucher at " << fixed << setprecision(1) << voucher_for_hook->get_abstime() << endl;
 			voucher_for_hook = voucher_event;
 			continue;
 		}
@@ -491,14 +526,14 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 
 		/* in kernel thread, always has a new group
 		 * because one callthread(kernel thread) might
-		 * invoke multiple timer callouts
+		 * invoke multiple timer timercallouts
 		 */
-		callout_ev_t * callout_event = dynamic_cast<callout_ev_t*>(event);
-		if (callout_event) {
+		timercallout_ev_t * timercallout_event = dynamic_cast<timercallout_ev_t*>(event);
+		if (timercallout_event) {
 			assert(cur_group->get_blockinvoke_level() == 0);
 			cur_group = create_group((gid_base + ret_map.size()), NULL);
 			ret_map[cur_group->get_group_id()] = cur_group;
-			cur_group->add_to_container(callout_event);
+			cur_group->add_to_container(timercallout_event);
 			continue;
 		} 
 
@@ -554,7 +589,9 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 				voucher_for_hook = NULL;
 			}
 			/* msg without voucher, check with msg_peer in the group*/
-			 else if (msg_event->get_header()->is_mig() == false && cur_group->get_blockinvoke_level() == 0) {
+			 else if (msg_event->get_procname() != LoadData::meta_data.host
+					&& msg_event->get_header()->is_mig() == false
+					&& cur_group->get_blockinvoke_level() == 0) {
 				if (msg_peer != -1 && cur_group->get_group_msg_peer() != -1
 					&& cur_group->get_group_msg_peer() != msg_peer) {
 					cur_group = create_group((gid_base + ret_map.size()), NULL);
@@ -562,7 +599,7 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 				}
 			}
 
-			if (msg_event->get_header()->is_mig() && msg_peer != -1) {
+			if (msg_event->get_header()->is_mig() == false && msg_peer != -1) {
 				cur_group->set_group_msg_peer(msg_peer);
 				cur_group->add_group_peer(pid2comm(msg_peer));
 			}
@@ -589,6 +626,9 @@ bool Groups::check_group_with_voucher(voucher_ev_t * voucher_event, group_t * cu
 	pid_t cur_group_bank_holder = cur_group->get_group_msg_bank_holder();
 	pid_t cur_group_msg_peer = cur_group->get_group_msg_peer();
 	bool ret = false;
+	
+	if (voucher_event->get_procname() == LoadData::meta_data.host)
+		return true;
 
 	if (cur_group_nested_level != 0) {
 		ret = true;
@@ -620,7 +660,6 @@ group_t * Groups::group_of(event_t *event)
 void Groups::collect_groups(map<uint64_t, group_t *> &sub_groups)
 {
 	groups.insert(sub_groups.begin(), sub_groups.end());
-	sub_groups.clear();
 }
 
 int Groups::decode_groups(string & output_path)
@@ -664,10 +703,21 @@ void Groups::para_group(void)
 	
 	tid_evlist_t::iterator it;
 	int idx = 0;
+	int main_idx = -1;
+
 	for (it = tid_lists.begin(); it != tid_lists.end(); it++) {
 		if ((it->second).size() == 0)
 			continue;
-		ioService.post(boost::bind(&Groups::init_groups, this, idx, it->second));
+		if (it->first != 0 && it->first == main_thread) {
+			MainThreadDivider main_thread_divider(idx, sub_results, it->second);
+			ioService.post(boost::bind(&MainThreadDivider::divide, main_thread_divider));
+			main_idx = idx;
+		} else if (it->first != 0 && it->first == nsevent_thread) {
+			NSEventThreadDivider nsevent_thread_divider(idx, sub_results, it->second);
+			ioService.post(boost::bind(&NSEventThreadDivider::divide, nsevent_thread_divider));
+		} else {
+			ioService.post(boost::bind(&Groups::init_groups, this, idx, it->second));
+		}
 		idx++;
 	}
 	
@@ -679,4 +729,5 @@ void Groups::para_group(void)
 	for (ret_it = sub_results.begin(); ret_it != sub_results.end(); ret_it++) {
 		collect_groups(*ret_it);
 	}
+	main_groups = sub_results[main_idx];
 }

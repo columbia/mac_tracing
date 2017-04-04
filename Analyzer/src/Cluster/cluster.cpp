@@ -10,6 +10,18 @@ Cluster::Cluster(void)
 	nodes.clear();
 }
 
+Cluster::Cluster(group_t * group)
+{
+	cluster_id = group->get_group_id();
+	is_ground = is_infected = false;
+	infected_groups.clear();
+	gt_groups.clear();
+	edges.clear();
+	nodes.clear();
+	add_node(group);
+	connectors.clear();
+}
+
 Cluster::~Cluster(void)
 {
 	infected_groups.clear();
@@ -168,13 +180,64 @@ void Cluster::streamout_cluster(ofstream &outfile)
 {
 	list<event_t *> cluster_events;
 	vector<group_t *>::iterator it;
+	
 	for (it = nodes.begin(); it != nodes.end(); it++) {
 		list<event_t*> container = (*it)->get_container();
 		cluster_events.insert(cluster_events.end(), container.begin(), container.end());
 	}
+	outfile << "Size of cluster " << cluster_events.size() << endl;
 	cluster_events.sort(Parse::EventComparator::compare_time);
 	list<event_t *>::iterator jt;
 	for (jt = cluster_events.begin(); jt != cluster_events.end(); jt++) {
 		(*jt)->streamout_event(outfile);
+	}
+}
+
+void Cluster::push_connectors(group_t * group, event_t * exclude)
+{
+	list<event_t*> events = group->get_container();
+	list<event_t *>::iterator it;
+	event_t * event;
+	msg_ev_t * mach_msg_event;
+	blockinvoke_ev_t * invoke_event;
+	dequeue_ev_t * deq_event;
+	timercallout_ev_t * timercallout_event;
+	mkrun_ev_t *mr_event;
+
+	for (it = events.begin(); it != events.end(); it++) {
+		event = *it;
+		if (event == exclude)
+			continue;
+
+		mach_msg_event = dynamic_cast<msg_ev_t *>(event);
+		if (mach_msg_event) {
+			connectors.push_back(mach_msg_event);
+			continue;
+		}
+
+		invoke_event = dynamic_cast<blockinvoke_ev_t*>(event);
+		if (invoke_event) {
+			if (invoke_event->is_begin())
+				connectors.push_back(invoke_event);
+			continue;
+		}
+
+		deq_event = dynamic_cast<dequeue_ev_t*>(event);
+		if (deq_event) {
+			connectors.push_back(deq_event);
+			continue;
+		}
+
+		timercallout_event = dynamic_cast<timercallout_ev_t*>(event);
+		if (timercallout_event) {
+			connectors.push_back(timercallout_event);
+			continue;
+		}
+		
+		mkrun_ev_t *mr_event = dynamic_cast<mkrun_ev_t *>(event);
+		if (mr_event) {
+			connectors.push_back(mr_event);
+			continue;
+		}
 	}
 }

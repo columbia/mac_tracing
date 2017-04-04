@@ -21,8 +21,8 @@ void Images::add_module(uint64_t vm_offset, string path)
 {
 	if (path != main_proc.path
 		&& modules_loaded_map.find(path) != modules_loaded_map.end()) {
-		cerr << "Error: reload identical libraries path for ";
-		cerr << procname << "\n\tlibpath: " << path << endl;
+		cerr << "Warn: reload identical libraries path for ";
+		cerr << procname << "\nlibpath: " << path << endl;
 	}
 	modules_loaded_map[path] = vm_offset;
 }
