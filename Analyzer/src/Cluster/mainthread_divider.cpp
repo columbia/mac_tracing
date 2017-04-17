@@ -1,6 +1,6 @@
 #include "thread_divider.hpp"
 
-static string _applicationMain("NSApplicationMain");
+static string _applicationMain("NSApplication run");
 static string _nextEventMatchingMask("NSApplication _nextEventMatchingEventMask");
 static string _pre_convert_event("pre_convert_event");
 static string _CARender("CA::");
@@ -79,6 +79,8 @@ void MainThreadDivider::divide()
 		}
 
 		event = *it;
+		if (event->get_procname().size() == 0)
+			event->override_procname(LoadData::meta_data.host);
 		backtrace_ev_t * backtrace_event = dynamic_cast<backtrace_ev_t*>(event);
 		voucher_ev_t * voucher_event = dynamic_cast<voucher_ev_t *>(event);
 		if (backtrace_event) 
@@ -116,10 +118,11 @@ void MainThreadDivider::divide()
 		cur_event_state = get_state(backtrace_event);
 		if (cur_event_state == _None) {
 			cur_group->add_to_container(event);
+			cur_group->add_group_tags(backtrace_event->get_symbols());
 			continue;
 		}
 		
-		cerr << state << "->" <<  cur_event_state << "\tat\t" << fixed << setprecision(1) << event->get_abstime() << endl;
+		//cerr << state << "->" <<  cur_event_state << "\tat\t" << fixed << setprecision(1) << event->get_abstime() << endl;
 
 		/* recognize ui event transactions via backtrace */
 
@@ -217,10 +220,10 @@ void MainThreadDivider::divide()
 		}
 
 		else {
-			cerr << "Unkown state " << state << endl;
+			//cerr << "Unkown state " << state << endl;
 		}
-
-		cerr << "Current state " << state << endl;
+		cur_group->add_group_tags(backtrace_event->get_symbols());
+		//cerr << "Current state " << state << endl;
 	}
 	submit_result[index] = uievent_groups;
 }

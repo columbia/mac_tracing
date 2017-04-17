@@ -207,6 +207,28 @@ Groups::tid_evlist_t Groups::divide_eventlist_and_mapping(list<event_t *> &ev_li
 	return tid_list_map;
 }
 
+void Groups::wakeup_connect(void)
+{
+	mkrun_pos_t::iterator mkrun_it;
+
+	for (mkrun_it = mkrun_map.begin(); mkrun_it != mkrun_map.end(); mkrun_it++) {
+		mkrun_ev_t *mr_event = mkrun_it->first;
+		list<event_t *> &tidlist = get_list_of_tid(mr_event->get_peer_tid());
+		list<event_t *>::iterator pos = mkrun_it->second;
+
+		while(pos != tidlist.end() && (*pos)->get_group_id() == -1)
+			pos++;
+
+		if (pos == tidlist.end())
+			continue;
+
+		if (dynamic_cast<timercallout_ev_t *>(*pos) || mr_event->get_mr_type() == WORKQ_MR)
+			continue;
+		
+		mr_event->set_peer_event(*pos);
+	}
+}
+
 void Groups::para_connector_generate(void)
 {
 	boost::asio::io_service ioService;
@@ -241,13 +263,14 @@ void Groups::para_connector_generate(void)
 	work.reset();
 	threadpool.join_all();
 	//ioService.stop();
+	wakeup_connect();
 }
 
 void Groups::check_host_uithreads(list<event_t *> & backtrace_list)
 {
 	list<event_t *>::iterator it;
 	backtrace_ev_t * backtrace_event;
-	string mainthread("NSApplicationMain");
+	string mainthread("NSApplication run");
 	string nsthread("_NSEventThread");
 
 	for (it = backtrace_list.begin(); it != backtrace_list.end(); it++) {
@@ -274,6 +297,8 @@ void Groups::check_host_uithreads(list<event_t *> & backtrace_list)
 				continue;
 		}
 	}
+	cerr << "Mainthread " << hex << main_thread << endl;
+	cerr << "Eventthread " << hex << nsevent_thread << endl;
 }
 
 group_t * Groups::create_group(uint64_t group_id, event_t *root_event)
@@ -544,6 +569,12 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 				&& backtrace_for_hook != NULL
 				&& backtrace_for_hook->hook_to_event(event, BLOCKINVOKE)) {
 				cur_group->add_to_container(backtrace_for_hook);
+				/*
+				vector<string>::iterator it;
+				vector<string> symbols = backtrace_for_hook->get_symbols();
+				for (it = symbols.begin(); it != symbols.end(); it++)
+					cerr << *it << endl;
+				*/
 				cur_group->add_group_tags(backtrace_for_hook->get_symbols());
 				backtrace_for_hook = NULL;
 			}
@@ -579,7 +610,7 @@ void Groups::init_groups(int idx, list<event_t*> & tid_list)
 			pid_t msg_peer = msg_event->get_peer() ? tid2pid(msg_event->get_peer()->get_tid()) : -1;
 				
 			/* hook voucher and make use of voucher to divide thread activity */
-			if (voucher_for_hook && voucher_for_hook->hook_msg(msg_event)) {
+			if (voucher_for_hook && voucher_for_hook->hook_msg(msg_event) && voucher_for_hook->get_bank_holder() != msg_event->get_pid()) {
 				if (check_group_with_voucher(voucher_for_hook, cur_group, msg_peer) == false) {
 					cur_group = create_group((gid_base + ret_map.size()), NULL);
 					ret_map[cur_group->get_group_id()] = cur_group;
@@ -724,6 +755,10 @@ void Groups::para_group(void)
 	work.reset();
 	threadpool.join_all();
 	//ioService.stop();
+
+	cerr << "Filling wakeup connectors " << endl;
+	wakeup_connect();
+	cerr << "Finished wakeup connecting " << endl;
 	
 	vector<map<uint64_t, group_t *>>::iterator ret_it;
 	for (ret_it = sub_results.begin(); ret_it != sub_results.end(); ret_it++) {

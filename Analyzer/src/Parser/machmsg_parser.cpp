@@ -31,6 +31,57 @@ namespace Parse
 		//collector.insert(pair<string, uint64_t>("MACH_IPC_msg_idsc", MACH_IPC_msg_idsc));
 	}
 
+	/* Check if current msg is kern_service recv,
+	 * if yes, match corresponding send to recv
+	 */
+	msg_ev_t * MachmsgParser::check_mig_recv_by_send(msg_ev_t * cur_msg, uint64_t msgh_id)
+	{
+		if (cur_msg->get_header()->check_recv() == false
+			|| (LoadData::mig_dictionary.find(msgh_id - 100) == LoadData::mig_dictionary.end()))
+			return NULL;
+
+		list<event_t*>::reverse_iterator rit = local_event_list.rbegin();
+		while(rit != local_event_list.rend() && *rit != cur_msg)
+			rit++;
+		if (rit == local_event_list.rend())
+			return NULL;
+		
+		msg_ev_t * msg;
+		for (++rit; rit != local_event_list.rend(); rit++ ) {
+			msg = dynamic_cast<msg_ev_t*>(*rit);
+			/*
+			outfile << "Checking msg " << fixed << setprecision(1) <<  msg->get_abstime() << " for " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+			if (msg->is_freed_before_deliver())
+				outfile << "is free before_delivery" << endl;
+			outfile << "msg tid " << hex << msg->get_tid() << "\t cur_msg tid " << hex << cur_msg->get_tid() << endl;
+			*/
+
+			if (msg->is_freed_before_deliver() == false 
+				&& msg->get_header()->get_local_port() == cur_msg->get_header()->get_remote_port()
+				&& msg->get_tid() == cur_msg->get_tid()) {
+				break;
+			}
+		}
+
+		if (rit == local_event_list.rend()) {
+			outfile << "Error : No send for recv [list end] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+			return NULL;
+		}
+
+		/* this is a recv msg with validate mig number and find the nearest prev msg */
+		if (msg->get_header()->is_mig() == false) {
+			outfile << "Error : No mig send for recv [is_mig] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+			return NULL;
+		}
+
+		if (msg->get_header()->check_recv()) {
+			outfile << "Error : No send for mig recv [recv] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+			return NULL;
+		}
+
+		return msg;
+	}
+
 	bool MachmsgParser::process_kmsg_end(string opname, double abstime, istringstream &iss)
 	{
 		uint64_t kmsg_addr, user_addr, rcv_or_send/* 1 send, 2 recv*/, unused, tid, coreid;
@@ -43,6 +94,15 @@ namespace Parse
 		
 		if (msg_events.find(tid) != msg_events.end()) {
 			if (msg_events[tid]->get_header()->check_recv() == bool(rcv_or_send - 1)) {
+				msg_ev_t * cur_msg = msg_events[tid], *mig_send = NULL;
+			
+				/* Check if current msg is kern_service recv,
+				 * if yes, match corresponding send to recv
+				 */
+				mig_send = check_mig_recv_by_send(cur_msg, cur_msg->get_header()->get_msgh_id());
+				if (cur_msg->get_header()->set_msgh_id(cur_msg->get_header()->get_msgh_id(), mig_send) == false && mig_send)
+					outfile << "Error: Incorrect mig number, not a kern_service recv " << fixed << setprecision(1) << abstime << endl;
+
 				msg_events[tid]->set_user_addr(user_addr);
 				msg_events[tid]->set_complete();
 				msg_events.erase(tid);
@@ -95,50 +155,11 @@ namespace Parse
 		return new_msg;
 	}
 
-	/* Check if current msg is kern_service recv,
-	 * if yes, match corresponding send to recv
-	 */
-	msg_ev_t * MachmsgParser::check_mig_recv_by_send(msg_ev_t * cur_msg, uint64_t msgh_id)
-	{
-		if (cur_msg->get_header()->check_recv() == false
-			|| (LoadData::mig_dictionary.find(msgh_id - 100) == LoadData::mig_dictionary.end()))
-			return NULL;
-
-		msg_ev_t * msg;
-		list<event_t*>::reverse_iterator rit = local_event_list.rbegin();
-		assert(*rit == cur_msg);
-		
-		for (++rit; rit != local_event_list.rend(); rit++ ) {
-			msg = dynamic_cast<msg_ev_t*>(*rit);
-			if (msg->is_freed_before_deliver() == false && msg->get_tid() == cur_msg->get_tid()) {
-				break;
-			}
-		}
-
-		if (rit == local_event_list.rend()) {
-			outfile << "Error : No send for recv [list end] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-			return NULL;
-		}
-
-		/* this is a recv msg with validate mig number and find the nearest prev msg */
-		if (msg->get_header()->is_mig() == false) {
-			outfile << "Error : No mig send for recv [is_mig] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-			return NULL;
-		}
-
-		if (msg->get_header()->check_recv()) {
-			outfile << "Error : No send for mig recv [recv] " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-			return NULL;
-		}
-
-		return msg;
-	}
-
 	bool MachmsgParser::process_kmsg_begin(string opname, double abstime, istringstream &iss)
 	{
 		uint64_t kmsg_addr, msgh_bits, msgh_id, msg_voucher, tid, coreid;
 		string procname;
-		msg_ev_t * new_msg_event, * mig_send;
+		msg_ev_t * new_msg_event;
 		msgh_t * header;
 
 		if (!(iss >> hex >> kmsg_addr >> msgh_bits >> msgh_id >> msg_voucher >> tid >> coreid))
@@ -153,14 +174,7 @@ namespace Parse
 				return false;
 			}
 			header = new_msg_event->get_header();
-
-			/* Check if current msg is kern_service recv,
-			 * if yes, match corresponding send to recv
-			 */
-			mig_send = check_mig_recv_by_send(new_msg_event, msgh_id);
-			if (header->set_msgh_id(msgh_id, mig_send) == false && mig_send)
-				outfile << "Error: Incorrect mig number, not a kern_service recv " << fixed << setprecision(1) << abstime << endl;
-
+			header->set_msgh_id(msgh_id, NULL);
 			header->set_msgh_bits(msgh_bits);
 			header->set_carried_vport(msg_voucher);
 			return true;
@@ -196,9 +210,6 @@ namespace Parse
 		if (rit != local_event_list.rend()) {
 			if (msg_events.find(msg_event->get_tid()) != msg_events.end()) {
 				if (msg_events[msg_event->get_tid()] == msg_event) {
-					/* checking if kmsg_free in the middle of msg_send/recv
-				 	 * get freed before successfully send/recv
-				 	 */
 					outfile << "Check mach_msg: msg interrupted " << fixed << setprecision(1) << msg_event->get_abstime() << endl;
 					msg_events.erase(msg_event->get_tid());
 					local_event_list.remove(msg_event);
@@ -207,15 +218,12 @@ namespace Parse
 				}
 			} 
 			/* if send -> freed then, the msg is freed before delivered
-			 * otherwise it should be freed after recv by receiver
 			 * TODO : check if msg freed in the middle of recv, then sender is not able to find peer
 			 *        or receiver will retry
 			 * observed case : a send and wake up b, b wake up c, c free msg
 			 */
 			if ((msg_event->get_header()->check_recv() == false ) && (msg_event->get_header()->is_mig() == false)) {
 				outfile << "Check mach_msg: msg free after send " << fixed << setprecision(1) << msg_event->get_abstime() << endl;
-				//local_event_list.remove(msg_event);
-				//delete(msg_event);
 				msg_event->set_freed();
 				return true;
 			}

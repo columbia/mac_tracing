@@ -24,30 +24,15 @@ typedef struct fat_header * fat_header_t;
 typedef struct fat_arch * fat_arch_t;
 
 struct hack_handler {
-	void *file_address; 
+	void const *library_address; 
 	void const *mach_address; 
 	char const *string_table;  
 	struct nlist_64 const *symbol_table;  
 	uint32_t nsyms;
-	
-	void const *library_address; 
+	uint32_t strsize;
 	int64_t vm_slide;
-	
-	/*import table*/
-	uint32_t const *indirect_table;
-	uint32_t nindirectsyms; 
-	uint32_t nundefsym;
-	uint32_t iundefsym;
-
-	uint32_t iindirectsyms; 
-	uint64_t import_table_addr;  
-	uint64_t import_table_size;
-	
-	/*text section*/
-	uint64_t text_sect_addr;
-	uint64_t text_sect_offset;
-
 };
+
 
 struct hack_segments {
 	struct segment_command_64 *seg_linkedit_ptr;
@@ -55,5 +40,46 @@ struct hack_segments {
 	struct symtab_command *symtab_ptr;
 	struct dysymtab_command *dysymtab_ptr;
 };
+
+#if defined(__LP64__)
+#define save_registers { \
+	asm volatile("pushq %%rax\n"\
+		"pushq %%rbx\n"\
+		"pushq %%rdi\n"\
+		"pushq %%rsi\n"\
+		"pushq %%rdx\n"\
+		"pushq %%rcx\n"\
+		"pushq %%r8\n"\
+		"pushq %%r9\n"\
+		"pushq %%r10"\
+		::);\
+	}
+
+#define restore_registers { \
+	asm volatile("popq %%r10\n"\
+		"popq %%r9\n"\
+		"popq %%r8\n"\
+		"popq %%rcx\n"\
+		"popq %%rdx\n"\
+		"popq %%rsi\n"\
+		"popq %%rdi\n"\
+		"popq %%rbx\n"\
+		"popq %%rax"\
+		::);\
+	}
+
+#endif
+#define DEBUG_INIT		0x23456770
+#define MSG_BACKTRACE   0x29000094
+#define BACK_TRACE_BUFFER 17
+
+extern void * get_func_ptr_from_lib(void * func, const char * sym);
+extern void detour(struct hack_handler * hack_handler_ptr);
+extern bool detour_function(struct hack_handler * hack_handler_ptr,
+					 char const * sym,
+					 void * shell_func_addr,
+					 uint32_t offset,
+					 uint32_t bytes);
+extern void back_trace(uint64_t tag);
 
 #endif

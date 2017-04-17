@@ -1,6 +1,6 @@
 #include "msg_pattern.hpp"
 #include "parse_helper.hpp"
-#define MSG_PATTERN_DEBUG
+//#define MSG_PATTERN_DEBUG
 
 MsgPattern::MsgPattern(list<event_t*> & list)
 :ev_list(list)

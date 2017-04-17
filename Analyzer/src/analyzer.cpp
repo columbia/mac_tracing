@@ -64,6 +64,7 @@ int	main(int argc, char* argv[]) {
 	string decode_groups = get_prefix(logfile) + "_groups.decode";
 
 	string stream_clusters = get_prefix(logfile) + "_clusters.stream";
+	string pic_cluster = get_prefix(logfile) + "_cluster_for_pic.js";
 	string decode_clusters = get_prefix(logfile) + "_clusters.decode";
 	string stream_filtered_clusters = get_prefix(logfile) + "_filtered_clusters.stream";
 
@@ -85,9 +86,10 @@ int	main(int argc, char* argv[]) {
 	cout << "Time cost for parsing " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 
 	/* grouping */
-	cout << "begin grouping and filling connectors ..." << endl;
+	cout << "begin filling connectors ..." << endl;
 	time(&time_begin);
 	groups_t * g_ptr = new groups_t(event_lists);
+	cerr << "begin grouping ... " << endl;
 	g_ptr->para_group();
 
 	cout << "Decode groups ... " << endl;
@@ -131,6 +133,8 @@ int	main(int argc, char* argv[]) {
 	ClusterGen *c_ptr = new ClusterGen(g_ptr);
 	cout << "Decode clusters ... " << endl;
 	c_ptr->streamout_clusters(stream_clusters);
+	//cout << "Pic clusters..." << endl;
+	c_ptr->pic_clusters(pic_cluster);
 	time(&time_end);
 	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 	

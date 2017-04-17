@@ -5,7 +5,7 @@ Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 	host_event_tag = tag;
 	proc_name = procname;
 	tid = _tid;
-	is_infected = false;
+	is_spin = is_infected = false;
 	frame_addrs.clear();
 	frame_symbols.clear();
 }
@@ -69,31 +69,34 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 		lldb::SBStream strm;
 		sc.GetDescription(strm);
 		string desc(strm.GetData());
+		desc.erase(std::remove(desc.begin(), desc.end(), '\n'), desc.end());
 
 		string filepath = "";
 		string symbol = "unknown";
-		size_t pos_1 = desc.find("file =");
-		size_t pos_2 = desc.find(",");
-		size_t pos_3 = desc.find("name=");
-		size_t pos_4 = desc.find("mangled=");
-
-		desc.erase(std::remove(desc.begin(), desc.end(), '\n'), desc.end());
-
-		if (pos_1 != string::npos && pos_2 != string::npos) {
-			filepath = desc.substr(pos_1 + 8, pos_2 - pos_1 - 9);
+		size_t pos = desc.find("file =");
+		size_t pos_1 = pos != string::npos ? desc.find("\"", pos) : string::npos;
+		size_t pos_2 = pos_1 != string::npos ? desc.find("\"", pos_1 + 1) : string::npos;
+		
+		if (pos_2 != string::npos) {
+			pos_1++;
+			filepath = desc.substr(pos_1, pos_2 - pos_1);
 		}
 
-		if (pos_3 != string::npos) {
-			if (pos_4 != string::npos)
-				symbol = desc.substr(pos_3 + 5, pos_4 - pos_3 - 9);
-			else
-				symbol = desc.substr(pos_3 + 5, desc.find("\"", pos_3 + 6) - pos_3 - 5);
+		pos = desc.find("name=");
+		pos_1 = pos != string::npos ? desc.find("\"", pos) : string::npos;	
+		pos_2 = pos_1 != string::npos ? desc.find("\"", pos_1 + 1) : string::npos;
+		
+		if (pos_2 != string::npos) {
+			pos_1++;
+			symbol = desc.substr(pos_1, pos_2 - pos_1);
 		} else {
-			if (pos_4 != string::npos) {
-				string mangled_name = desc.substr(pos_4 + 8, desc.find("\"", pos_4 + 9) - pos_4 - 8);
-				symbol = mangled_name;
-			}
-			else 
+			pos = desc.find("mangled=");
+			pos_1 = pos != string::npos ? desc.find("\"", pos) : string::npos;
+			pos_2 = pos_1 != string::npos ? desc.find("\"", pos_1 + 1) : string::npos;
+			if (pos_2 != string::npos) {
+				pos_1++;
+				symbol = desc.substr(pos_1, pos_2 - pos_1);
+			} else
 				symbol = desc;
 		}
 		cur_frame->symbol = symbol;
@@ -117,20 +120,19 @@ void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64
 
 			if (cur_frame_info.filepath.find("CoreGraphics") != string::npos)
 				checking_symbol_with_image_in_memory(cur_frame_info.symbol, *addr_it, cur_frame_info.filepath, image_vmsym_map);
-
-			/*
-			if (cur_frame_info.symbol != pre_check_sym) {
-				cerr << "Different symbol from file and memory " << cur_frame_info.filepath << endl;
-				cerr << "checked symbol" << cur_frame_info.symbol << endl;
-				cerr << "lldb symbol" << pre_check_sym << endl;
-			}
-			*/
+			//cerr << cur_frame_info.symbol + "\t" + cur_frame_info.filepath << endl;
 			frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
 		
-			if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos) {
+			if (is_infected == true && cur_frame_info.symbol.find("NSEventThread") != string::npos) {
+				is_spin = true;	
 				cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
+			}
+
+			if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos) {
+				//cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
 				is_infected = true;
 			}
+
 		} else {
 			string desc("unknown_frame");
 			frame_symbols.push_back(desc);
@@ -154,7 +156,8 @@ void Frames::decode_frames(ofstream & outfile)
 		return;
 
 	if (frame_addrs.size() != frame_symbols.size())
-		cerr << "Error: Not symbolicated " << proc_name << endl;
+		return;
+		//cerr << "Error: Not symbolicated " << proc_name << endl;
 
 	uint32_t i = 0;
 	vector<uint64_t>::iterator it;

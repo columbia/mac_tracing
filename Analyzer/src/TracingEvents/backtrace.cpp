@@ -49,17 +49,25 @@ bool BacktraceEvent::hook_to_event(event_t * event, uint32_t _event_type)
 		default:
 			ret = false;
 	}
+
 	if (ret && check_infected()) {
 		event->set_infected();
 	}
+
 	return ret;
 }
 
 void BacktraceEvent::symbolize_frame(debug_data_t * debugger,  map<string, map<uint64_t, string> >&image_vmsymbol_map)
 {
 	frame_info->symbolication(debugger, image_vmsymbol_map);
-	if (frame_info->check_infected() == true)
+	if (frame_info->check_infected() == true) {
 		set_infected();
+		cerr << "backtrace set spin " << endl;
+		if (LoadData::meta_data.spin_timestamp < 10e-8) {
+			LoadData::meta_data.spin_timestamp = get_abstime();
+			cerr << "bakctrace host set spin timestamp " << fixed << setprecision(1) << LoadData::meta_data.spin_timestamp << endl;
+		}
+	}
 }
 
 void BacktraceEvent::decode_event(bool is_verbose, ofstream &outfile)

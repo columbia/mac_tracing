@@ -1,6 +1,6 @@
-diff -urN xnu-3248.30.4/bsd/dev/dtrace/dtrace_glue.c xnu-3248.30.4-trace/bsd/dev/dtrace/dtrace_glue.c
---- xnu-3248.30.4/bsd/dev/dtrace/dtrace_glue.c	2015-03-20 14:48:17.000000000 -0400
-+++ xnu-3248.30.4-trace/bsd/dev/dtrace/dtrace_glue.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/dev/dtrace/dtrace_glue.c xnu-3248.60.10_trace/bsd/dev/dtrace/dtrace_glue.c
+--- xnu-3248.60.10/bsd/dev/dtrace/dtrace_glue.c	2015-03-20 14:48:17.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/dev/dtrace/dtrace_glue.c	2017-03-29 15:19:48.000000000 -0400
 @@ -65,6 +65,7 @@
  #include <mach/task.h>
  #include <vm/pmap.h>
@@ -24,10 +24,44 @@ diff -urN xnu-3248.30.4/bsd/dev/dtrace/dtrace_glue.c xnu-3248.30.4-trace/bsd/dev
  		int ret = assert_wait(wrapTC, THREAD_UNINT);
  		ASSERT(ret == THREAD_WAITING);
  
-diff -urN xnu-3248.30.4/bsd/kern/kdebug.c xnu-3248.30.4-trace/bsd/kern/kdebug.c
---- xnu-3248.30.4/bsd/kern/kdebug.c	2016-02-25 16:58:53.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/kern/kdebug.c	2016-12-15 16:13:57.000000000 -0500
-@@ -3037,6 +3037,14 @@
+diff -urN xnu-3248.60.10/bsd/kern/kdebug.c xnu-3248.60.10_trace/bsd/kern/kdebug.c
+--- xnu-3248.60.10/bsd/kern/kdebug.c	2016-08-04 15:09:26.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kdebug.c	2017-03-29 15:19:48.000000000 -0400
+@@ -126,7 +126,7 @@
+ void commpage_update_kdebug_enable(void); /* XXX sign */
+ 
+ /* XXX should probably be static, but it's debugging code... */
+-int kdbg_read(user_addr_t, size_t *, vnode_t, vfs_context_t, uint32_t);
++int kdbg_read(user_addr_t, size_t *, vnode_t, vfs_context_t, uint32_t, uint64_t raw_file_limit);
+ void kdbg_control_chud(int, void *);
+ int kdbg_control(int *, u_int, user_addr_t, size_t *);
+ int kdbg_readcpumap(user_addr_t, size_t *);
+@@ -308,6 +308,7 @@
+ 
+ off_t	RAW_file_offset = 0;
+ int	RAW_file_written = 0;
++static off_t kdbg_thrmap_size = 0;
+ 
+ #define	RAW_FLUSH_SIZE	(2 * 1024 * 1024)
+ 
+@@ -2945,6 +2946,7 @@
+ 	kbufinfo_t kd_bufinfo;
+ 	pid_t curpid;
+ 	proc_t p, curproc;
++	uint64_t raw_file_limit = 0;
+ 
+ 	if (name[0] == KERN_KDGETENTROPY ||
+ 		name[0] == KERN_KDWRITETR ||
+@@ -2960,6 +2962,8 @@
+ 		if ( namelen < 2 )
+ 			return(EINVAL);
+ 		value = name[1];
++		if (name[0] == KERN_KDWRITETR && namelen >= 3)
++			raw_file_limit = (name[2] % 8192) * 1024 * 1024;
+ 	}
+ 	
+ 	kdbg_lock_init();
+@@ -3037,6 +3041,14 @@
  				ret = EINVAL;
  				goto out;
  			}
@@ -42,9 +76,99 @@ diff -urN xnu-3248.30.4/bsd/kern/kdebug.c xnu-3248.30.4-trace/bsd/kern/kdebug.c
  			wait_result_t wait_result = assert_wait(&kdlog_bg_trace, THREAD_ABORTSAFE);
  			lck_mtx_unlock(kd_trace_mtx_sysctl);
  			if (wait_result == THREAD_WAITING)
-diff -urN xnu-3248.30.4/bsd/kern/kern_aio.c xnu-3248.30.4-trace/bsd/kern/kern_aio.c
---- xnu-3248.30.4/bsd/kern/kern_aio.c	2015-03-05 18:23:37.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/kern/kern_aio.c	2016-12-15 16:13:57.000000000 -0500
+@@ -3165,7 +3177,7 @@
+ 			ret = EINVAL;
+ 			break;
+ 		case KERN_KDREADTR:
+-			ret = kdbg_read(where, sizep, NULL, NULL, RAW_VERSION1);
++			ret = kdbg_read(where, sizep, NULL, NULL, RAW_VERSION1, 0);
+ 			break;
+ 		case KERN_KDWRITETR:
+ 		case KERN_KDWRITETR_V3:
+@@ -3236,9 +3248,9 @@
+ 
+ 					KERNEL_DEBUG_CONSTANT(TRACE_WRITING_EVENTS | DBG_FUNC_START, 0, 0, 0, 0, 0);
+ 					if (name[0] == KERN_KDWRITETR_V3)
+-						ret = kdbg_read(0, &number, vp, &context, RAW_VERSION3);
++						ret = kdbg_read(0, &number, vp, &context, RAW_VERSION3, 0);
+ 					else
+-						ret = kdbg_read(0, &number, vp, &context, RAW_VERSION1);
++						ret = kdbg_read(0, &number, vp, &context, RAW_VERSION1, raw_file_limit);
+ 					KERNEL_DEBUG_CONSTANT(TRACE_WRITING_EVENTS | DBG_FUNC_END, number, 0, 0, 0, 0);
+ 
+ 					*sizep = number;
+@@ -3248,6 +3260,7 @@
+ 						kdbg_readthrmap_v3(0, &number, fd);
+ 					else
+ 						kdbg_readthrmap(0, &number, vp, &context);
++					kdbg_thrmap_size = RAW_file_offset;
+ 				}
+ 				fp->f_fglob->fg_offset = RAW_file_offset;
+ 				vnode_put(vp);
+@@ -3395,7 +3408,7 @@
+  * move through the lists w/o use of any locks
+  */
+ int
+-kdbg_read(user_addr_t buffer, size_t *number, vnode_t vp, vfs_context_t ctx, uint32_t file_version)
++kdbg_read(user_addr_t buffer, size_t *number, vnode_t vp, vfs_context_t ctx, uint32_t file_version, uint64_t dbg_raw_file_limit)
+ {
+ 	unsigned int count;
+ 	unsigned int cpu, min_cpu;
+@@ -3570,6 +3583,7 @@
+ 			if ((RAW_file_written += sizeof(kd_buf)) >= RAW_FLUSH_SIZE)
+ 				break;
+ 		}
++
+ 		if (tempbuf_number) {
+ 			if (file_version == RAW_VERSION3) {
+ 				if ( !(kdbg_write_v3_event_chunk_header(buffer, V3_RAW_EVENTS, (tempbuf_number * sizeof(kd_buf)), vp, ctx))) {
+@@ -3585,15 +3599,29 @@
+ 			}
+ 			if (vp) {
+ 				size_t write_size = tempbuf_number * sizeof(kd_buf);
+-				error = kdbg_write_to_vnode((caddr_t)kdcopybuf, write_size, vp, ctx, RAW_file_offset);
+-				if (!error)
+-					RAW_file_offset += write_size;
+-	
++				if (dbg_raw_file_limit == 0 || dbg_raw_file_limit < kdbg_thrmap_size
++					|| (dbg_raw_file_limit > RAW_file_offset + write_size)) {
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf, write_size, vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset += write_size;
++				} else {
++					//dbg_file_limit != 0 and Raw_file_offset + write_size > dbg_raw_file_limit
++					size_t tail = (dbg_raw_file_limit - RAW_file_offset) / sizeof(kd_buf);
++
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf, tail * sizeof(kd_buf), vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset = kdbg_thrmap_size;
++
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf + tail * sizeof(kd_buf), write_size -  tail * sizeof(kd_buf), vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset += write_size - tail * sizeof(kd_buf);
++				}
++
+ 				if (RAW_file_written >= RAW_FLUSH_SIZE) {
+ 					cluster_push(vp, 0);
+-
+ 					RAW_file_written = 0;
+ 				}
++
+ 			} else {
+ 				error = copyout(kdcopybuf, buffer, tempbuf_number * sizeof(kd_buf));
+ 				buffer += (tempbuf_number * sizeof(kd_buf));
+@@ -3934,7 +3962,7 @@
+ 	kdbg_readthrmap(0, &number, vp, ctx);
+ 
+ 	number = nkdbufs*sizeof(kd_buf);
+-	kdbg_read(0, &number, vp, ctx, RAW_VERSION1);
++	kdbg_read(0, &number, vp, ctx, RAW_VERSION1, 0);
+ 	
+ 	vnode_close(vp, FWRITE, ctx);
+ 
+diff -urN xnu-3248.60.10/bsd/kern/kern_aio.c xnu-3248.60.10_trace/bsd/kern/kern_aio.c
+--- xnu-3248.60.10/bsd/kern/kern_aio.c	2015-03-05 18:23:37.000000000 -0500
++++ xnu-3248.60.10_trace/bsd/kern/kern_aio.c	2017-03-29 15:19:48.000000000 -0400
 @@ -1759,6 +1759,7 @@
  {
  	aio_workq_entry		 		*entryp = NULL;
@@ -64,9 +188,9 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_aio.c xnu-3248.30.4-trace/bsd/kern/kern_ai
  	waitq_assert_wait64(&queue->aioq_waitq, CAST_EVENT64_T(queue), THREAD_UNINT, 0);
  	aio_workq_unlock(queue);
  	thread_block( (thread_continue_t)aio_work_thread );
-diff -urN xnu-3248.30.4/bsd/kern/kern_event.c xnu-3248.30.4-trace/bsd/kern/kern_event.c
---- xnu-3248.30.4/bsd/kern/kern_event.c	2015-08-24 19:59:07.000000000 -0400
-+++ xnu-3248.30.4-trace/bsd/kern/kern_event.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/kern/kern_event.c xnu-3248.60.10_trace/bsd/kern/kern_event.c
+--- xnu-3248.60.10/bsd/kern/kern_event.c	2016-01-09 14:48:04.000000000 -0500
++++ xnu-3248.60.10_trace/bsd/kern/kern_event.c	2017-03-29 15:19:48.000000000 -0400
 @@ -105,6 +105,7 @@
  #if CONFIG_MEMORYSTATUS
  #include <sys/kern_memorystatus.h>
@@ -117,7 +241,7 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_event.c xnu-3248.30.4-trace/bsd/kern/kern_
  			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
  					    CAST_EVENT64_T(&kn->kn_hook),
  					    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
-@@ -2318,6 +2340,12 @@
+@@ -2319,6 +2341,12 @@
  
  		/* if someone else is processing the queue, wait */
  		if (kq->kq_nprocess != 0) {
@@ -130,7 +254,7 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_event.c xnu-3248.30.4-trace/bsd/kern/kern_
  			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
  					    CAST_EVENT64_T(&kq->kq_nprocess),
  					    THREAD_UNINT, TIMEOUT_WAIT_FOREVER);
-@@ -2442,6 +2470,12 @@
+@@ -2443,6 +2471,12 @@
  		error = kqueue_process(kq, cont_args->call, cont_args, &count,
  		    current_proc());
  		if (error == 0 && count == 0) {
@@ -143,7 +267,7 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_event.c xnu-3248.30.4-trace/bsd/kern/kern_
  			waitq_assert_wait64((struct waitq *)kq->kq_wqs,
  					    KQ_EVENT, THREAD_ABORTSAFE,
  					    cont_args->deadline);
-@@ -2548,6 +2582,12 @@
+@@ -2549,6 +2583,12 @@
  		}
  
  		/* go ahead and wait */
@@ -156,10 +280,10 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_event.c xnu-3248.30.4-trace/bsd/kern/kern_
  		waitq_assert_wait64_leeway((struct waitq *)kq->kq_wqs,
  					   KQ_EVENT, THREAD_ABORTSAFE,
  					   TIMEOUT_URGENCY_USER_NORMAL,
-diff -urN xnu-3248.30.4/bsd/kern/kern_memorystatus.c xnu-3248.30.4-trace/bsd/kern/kern_memorystatus.c
---- xnu-3248.30.4/bsd/kern/kern_memorystatus.c	2016-02-25 16:58:54.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/kern/kern_memorystatus.c	2016-12-15 16:13:57.000000000 -0500
-@@ -2421,6 +2421,12 @@
+diff -urN xnu-3248.60.10/bsd/kern/kern_memorystatus.c xnu-3248.60.10_trace/bsd/kern/kern_memorystatus.c
+--- xnu-3248.60.10/bsd/kern/kern_memorystatus.c	2016-08-04 15:09:26.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_memorystatus.c	2017-03-29 15:19:48.000000000 -0400
+@@ -2438,6 +2438,12 @@
  static int
  memorystatus_thread_block(uint32_t interval_ms, thread_continue_t continuation)
  {
@@ -172,7 +296,7 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_memorystatus.c xnu-3248.30.4-trace/bsd/ker
  	if (interval_ms) {
  		assert_wait_timeout(&memorystatus_wakeup, THREAD_UNINT, interval_ms, 1000 * NSEC_PER_USEC);
  	} else {
-@@ -4253,6 +4259,12 @@
+@@ -4276,6 +4282,12 @@
  		}
  	}
  	lck_mtx_unlock(&freezer_mutex);
@@ -185,9 +309,9 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_memorystatus.c xnu-3248.30.4-trace/bsd/ker
  
  	assert_wait((event_t) &memorystatus_freeze_wakeup, THREAD_UNINT);
  	thread_block((thread_continue_t) memorystatus_freeze_thread);	
-diff -urN xnu-3248.30.4/bsd/kern/kern_sig.c xnu-3248.30.4-trace/bsd/kern/kern_sig.c
---- xnu-3248.30.4/bsd/kern/kern_sig.c	2015-08-27 23:26:17.000000000 -0400
-+++ xnu-3248.30.4-trace/bsd/kern/kern_sig.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/kern/kern_sig.c xnu-3248.60.10_trace/bsd/kern/kern_sig.c
+--- xnu-3248.60.10/bsd/kern/kern_sig.c	2015-08-31 17:13:44.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_sig.c	2017-03-29 15:19:48.000000000 -0400
 @@ -2397,6 +2397,12 @@
  					proc_parentdropref(pp, 1);
  					proc_list_unlock();
@@ -201,9 +325,9 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_sig.c xnu-3248.30.4-trace/bsd/kern/kern_si
  
  				assert_wait((caddr_t)&p->sigwait, (THREAD_INTERRUPTIBLE));
  				thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/bsd/kern/kern_synch.c xnu-3248.30.4-trace/bsd/kern/kern_synch.c
---- xnu-3248.30.4/bsd/kern/kern_synch.c	2013-05-30 20:22:36.000000000 -0400
-+++ xnu-3248.30.4-trace/bsd/kern/kern_synch.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/kern/kern_synch.c xnu-3248.60.10_trace/bsd/kern/kern_synch.c
+--- xnu-3248.60.10/bsd/kern/kern_synch.c	2013-05-30 20:22:36.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/kern_synch.c	2017-03-29 15:19:48.000000000 -0400
 @@ -58,6 +58,8 @@
  #include <sys/systm.h>			/* for unix_syscall_return() */
  #include <libkern/OSAtomic.h>
@@ -230,9 +354,9 @@ diff -urN xnu-3248.30.4/bsd/kern/kern_synch.c xnu-3248.30.4-trace/bsd/kern/kern_
  		if (mtx)
  			lck_mtx_unlock(mtx);
  
-diff -urN xnu-3248.30.4/bsd/kern/sys_generic.c xnu-3248.30.4-trace/bsd/kern/sys_generic.c
---- xnu-3248.30.4/bsd/kern/sys_generic.c	2016-02-25 16:58:54.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/kern/sys_generic.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/kern/sys_generic.c xnu-3248.60.10_trace/bsd/kern/sys_generic.c
+--- xnu-3248.60.10/bsd/kern/sys_generic.c	2016-08-04 15:09:27.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/sys_generic.c	2017-03-29 15:19:48.000000000 -0400
 @@ -1336,6 +1336,11 @@
  		panic("selprocess: 2nd pass assertwaiting");
  
@@ -245,7 +369,7 @@ diff -urN xnu-3248.30.4/bsd/kern/sys_generic.c xnu-3248.30.4-trace/bsd/kern/sys_
  	wait_result = waitq_assert_wait64_leeway((struct waitq *)uth->uu_wqset,
  						 NO_EVENT64, THREAD_ABORTSAFE,
  						 TIMEOUT_URGENCY_USER_NORMAL,
-@@ -3430,6 +3435,12 @@
+@@ -3435,6 +3440,12 @@
  
  	printf("[WQ]: Current thread waiting on waitq [%d] event:0x%llx\n",
  	       index, event64);
@@ -258,9 +382,9 @@ diff -urN xnu-3248.30.4/bsd/kern/sys_generic.c xnu-3248.30.4-trace/bsd/kern/sys_
  	kr = waitq_assert_wait64(waitq, (event64_t)event64, THREAD_INTERRUPTIBLE, 0);
  	if (kr == THREAD_WAITING)
  		thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/bsd/kern/uipc_mbuf.c xnu-3248.30.4-trace/bsd/kern/uipc_mbuf.c
---- xnu-3248.30.4/bsd/kern/uipc_mbuf.c	2016-02-25 16:58:54.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/kern/uipc_mbuf.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/kern/uipc_mbuf.c xnu-3248.60.10_trace/bsd/kern/uipc_mbuf.c
+--- xnu-3248.60.10/bsd/kern/uipc_mbuf.c	2016-08-04 15:09:27.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/kern/uipc_mbuf.c	2017-03-29 15:19:48.000000000 -0400
 @@ -6306,6 +6306,12 @@
  
  		lck_mtx_unlock(mbuf_mlock);
@@ -274,9 +398,9 @@ diff -urN xnu-3248.30.4/bsd/kern/uipc_mbuf.c xnu-3248.30.4-trace/bsd/kern/uipc_m
  		assert_wait(&mbuf_worker_run, THREAD_UNINT);
  		(void) thread_block((thread_continue_t)mbuf_worker_thread);
  	}
-diff -urN xnu-3248.30.4/bsd/security/audit/audit_bsd.c xnu-3248.30.4-trace/bsd/security/audit/audit_bsd.c
---- xnu-3248.30.4/bsd/security/audit/audit_bsd.c	2011-03-21 20:33:32.000000000 -0400
-+++ xnu-3248.30.4-trace/bsd/security/audit/audit_bsd.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/security/audit/audit_bsd.c xnu-3248.60.10_trace/bsd/security/audit/audit_bsd.c
+--- xnu-3248.60.10/bsd/security/audit/audit_bsd.c	2011-03-21 20:33:32.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/security/audit/audit_bsd.c	2017-03-29 15:19:48.000000000 -0400
 @@ -50,6 +50,7 @@
  #include <mach/host_priv.h>
  #include <mach/host_special_ports.h>
@@ -299,71 +423,55 @@ diff -urN xnu-3248.30.4/bsd/security/audit/audit_bsd.c xnu-3248.30.4-trace/bsd/s
  	assert_wait(cvp, THREAD_UNINT);
  	lck_mtx_unlock(mp);
  
-diff -urN xnu-3248.30.4/bsd/sys/kdebug.h xnu-3248.30.4-trace/bsd/sys/kdebug.h
---- xnu-3248.30.4/bsd/sys/kdebug.h	2016-02-25 16:59:02.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/sys/kdebug.h	2016-12-18 20:44:55.000000000 -0500
-@@ -370,6 +370,18 @@
- #define MACH_WAITQ_PROMOTE         0x2b /* Thread promoted by waitq boost */
- #define MACH_WAITQ_DEMOTE          0x2c /* Thread demoted from waitq boost */
+diff -urN xnu-3248.60.10/bsd/sys/kdebug.h xnu-3248.60.10_trace/bsd/sys/kdebug.h
+--- xnu-3248.60.10/bsd/sys/kdebug.h	2016-08-04 15:09:33.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/sys/kdebug.h	2017-03-29 15:19:48.000000000 -0400
+@@ -374,6 +374,13 @@
+ #define MACH_REC_CORES_FAILSAFE    0x2e /* recommended processor failsafe kicked in */
+ #define MACH_SCHED_QUANTUM_EXPIRED 0x2f /* thread quantum expired */
  
-+/* Add for BB*/
-+#define MACH_WAIT_REASON           0x2d
-+#define MACH_WAKEUP64_ALL_LOCKED   0x2e
-+#define MACH_WAKEUP64_ONE_LOCKED   0x2f
-+#define MACH_WAKEUP64_ID_LOCKED	   0x30
-+#define MACH_WAKEUP64_THR_LOCKED   0x31
-+#define MACH_WAKEUP64_THR		   0x32
-+#define MACH_CLEAR_WAIT			   0x33
-+#define MACH_TS_MAINTENANCE		   0x34
-+#define MACH_CALLCREATE			   0x35
-+#define MACH_CALLCANCEL			   0x36
++/* Add for Beachball analysis */
++#define MACH_WAIT_REASON		0x41
++#define MACH_WAKEUP_REASON		0x42
++#define MACH_TS_MAINTENANCE		0x43
++#define MACH_CALLCREATE			0x44
++#define MACH_CALLCANCEL			0x45
 +
  /* Variants for MACH_MULTIQ_DEQUEUE */
  #define MACH_MULTIQ_BOUND     1
  #define MACH_MULTIQ_GROUP     2
-@@ -399,6 +411,23 @@
+@@ -402,6 +409,20 @@
+ #define MACH_IPC_VOUCHER_CREATE			0x7	/* Voucher added to global voucher hashtable */
  #define MACH_IPC_VOUCHER_CREATE_ATTR_DATA	0x8	/* Attr data for newly created voucher */
  #define MACH_IPC_VOUCHER_DESTROY		0x9	/* Voucher removed from global voucher hashtable */
- 
++#define MACH_IPC_KMSG_LINK				0xb /* link a kernel kmsg pointer to user mach_msg_header_t */
 +
-+/* Additional Codes for IPC DBG for Beachballs*/
-+#define MACH_IPC_KERNEL_SERVICE		0xa /* Add for BB*/
-+#define MACH_IPC_COUNTER_PART		0xb /* Add for BB */
-+#define MACH_IPC_VOUCHER_REUSE		0xc /* Add for BB */
-+#define MACH_IPC_VOUCHER_CONN		0xd /* Add for BB */
-+#define MACH_IPC_VOUCHER_REMOVE		0xe /* Add for BB */
++/* Add for Beachball analysis */
++#define MACH_IPC_VOUCHER_REUSE		0xc
++#define MACH_IPC_VOUCHER_CONN		0xd
++#define MACH_IPC_VOUCHER_REMOVE		0xe
 +#define MACH_IPC_VOUCHER_BANK		0xf
-+//#define MACH_IPC_SEND_ERR			0xf
-+//#define MACH_IPC_RECV_ERR			0x10
++
 +#define MACH_IPC_MSG_DUMP			0x11
 +#define MACH_IPC_MSG_BOARDER		0x12
 +#define MACH_IPC_MSG_DSC			0x13
 +#define MACH_IPC_MSG_TRAP			0x14
 +#define MACH_IPC_MSG_INTERNAL_DSC	0x15
 +#define MACH_IPC_THREAD_VOUCHER		0x16
-+
+ 
  /* Codes for pmap (DBG_MACH_PMAP) */
  #define PMAP__CREATE		0x0
- #define PMAP__DESTROY		0x1
-@@ -621,6 +650,7 @@
- #define	TRACE_LOST_EVENTS		(TRACEDBG_CODE(DBG_TRACE_INFO, 2))
- #define	TRACE_WRITING_EVENTS		(TRACEDBG_CODE(DBG_TRACE_INFO, 3))
- #define	TRACE_INFO_STRING		(TRACEDBG_CODE(DBG_TRACE_INFO, 4))
-+#define TRACE_INFO_NEWTHREAD	(TRACEDGB_CODE(DBG_TRACE_INFO, 5))
- 
- /* The Kernel Debug Sub Classes for DBG_CORESTORAGE */
- #define DBG_CS_IO	0
-@@ -711,6 +741,7 @@
- 
+@@ -716,6 +737,7 @@
  /* Codes for BANK_ACCOUNT_INFO */
  #define BANK_SETTLE_CPU_TIME		0x1	/* Bank ledger(chit) rolled up to tasks. */
+ #define BANK_SECURE_ORIGINATOR_CHANGED	0x2	/* Secure Originator changed. */
 +#define BANK_VOUCHER_REDEEM			0x3
  
  /* Codes for ATM_SUBAID_INFO */
  #define ATM_MIN_CALLED				0x1
-diff -urN xnu-3248.30.4/bsd/vfs/vfs_subr.c xnu-3248.30.4-trace/bsd/vfs/vfs_subr.c
---- xnu-3248.30.4/bsd/vfs/vfs_subr.c	2016-02-25 16:59:04.000000000 -0500
-+++ xnu-3248.30.4-trace/bsd/vfs/vfs_subr.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/bsd/vfs/vfs_subr.c xnu-3248.60.10_trace/bsd/vfs/vfs_subr.c
+--- xnu-3248.60.10/bsd/vfs/vfs_subr.c	2016-08-04 15:09:35.000000000 -0400
++++ xnu-3248.60.10_trace/bsd/vfs/vfs_subr.c	2017-03-29 15:19:48.000000000 -0400
 @@ -3962,6 +3962,12 @@
  		vnode_list_lock();
  
@@ -390,10 +498,10 @@ diff -urN xnu-3248.30.4/bsd/vfs/vfs_subr.c xnu-3248.30.4-trace/bsd/vfs/vfs_subr.
  			assert_wait_timeout((caddr_t)&dead_vnode_wanted, (THREAD_INTERRUPTIBLE), 10000, NSEC_PER_USEC);
  
  			vnode_list_unlock();
-diff -urN xnu-3248.30.4/iokit/Kernel/IOCPU.cpp xnu-3248.30.4-trace/iokit/Kernel/IOCPU.cpp
---- xnu-3248.30.4/iokit/Kernel/IOCPU.cpp	2016-02-25 16:59:06.000000000 -0500
-+++ xnu-3248.30.4-trace/iokit/Kernel/IOCPU.cpp	2016-12-15 16:13:57.000000000 -0500
-@@ -811,6 +811,12 @@
+diff -urN xnu-3248.60.10/iokit/Kernel/IOCPU.cpp xnu-3248.60.10_trace/iokit/Kernel/IOCPU.cpp
+--- xnu-3248.60.10/iokit/Kernel/IOCPU.cpp	2016-08-04 15:09:36.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOCPU.cpp	2017-03-29 15:19:48.000000000 -0400
+@@ -793,6 +793,12 @@
    IOUnlock(vector->interruptLock);
    
    if (enabledCPUs != numCPUs) {
@@ -406,9 +514,9 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOCPU.cpp xnu-3248.30.4-trace/iokit/Kernel/
      assert_wait(this, THREAD_UNINT);
      thread_block(THREAD_CONTINUE_NULL);
    }
-diff -urN xnu-3248.30.4/iokit/Kernel/IOConditionLock.cpp xnu-3248.30.4-trace/iokit/Kernel/IOConditionLock.cpp
---- xnu-3248.30.4/iokit/Kernel/IOConditionLock.cpp	2006-11-09 21:05:25.000000000 -0500
-+++ xnu-3248.30.4-trace/iokit/Kernel/IOConditionLock.cpp	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/iokit/Kernel/IOConditionLock.cpp xnu-3248.60.10_trace/iokit/Kernel/IOConditionLock.cpp
+--- xnu-3248.60.10/iokit/Kernel/IOConditionLock.cpp	2006-11-09 21:05:25.000000000 -0500
++++ xnu-3248.60.10_trace/iokit/Kernel/IOConditionLock.cpp	2017-03-29 15:19:48.000000000 -0400
 @@ -191,7 +191,12 @@
  	 * thread_sleep()) ensures that we'll be notified
  	 * of changes in _condition.
@@ -423,9 +531,9 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOConditionLock.cpp xnu-3248.30.4-trace/iok
  	IOUnlock(cond_interlock);			 /* release the lock */
  	thread_res = thread_block(THREAD_CONTINUE_NULL); /* block ourselves */
      } while (thread_res == THREAD_AWAKENED);
-diff -urN xnu-3248.30.4/iokit/Kernel/IOService.cpp xnu-3248.30.4-trace/iokit/Kernel/IOService.cpp
---- xnu-3248.30.4/iokit/Kernel/IOService.cpp	2015-12-03 18:27:56.000000000 -0500
-+++ xnu-3248.30.4-trace/iokit/Kernel/IOService.cpp	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/iokit/Kernel/IOService.cpp xnu-3248.60.10_trace/iokit/Kernel/IOService.cpp
+--- xnu-3248.60.10/iokit/Kernel/IOService.cpp	2016-08-04 15:09:37.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOService.cpp	2017-03-29 15:19:48.000000000 -0400
 @@ -779,8 +779,15 @@
  
              unlockForArbitration();
@@ -479,7 +587,7 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOService.cpp xnu-3248.30.4-trace/iokit/Ker
  			assert_wait((event_t)&victim->__state[1], THREAD_UNINT);
  		    }
  		    IOLockUnlock(gIOServiceBusyLock);
-@@ -3682,6 +3702,11 @@
+@@ -3684,6 +3704,11 @@
          if( wait) {
              __state[1] |= kIOServiceBusyWaiterState;
              unlockForArbitration();
@@ -491,9 +599,9 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOService.cpp xnu-3248.30.4-trace/iokit/Ker
              if( timeout != UINT64_MAX ) {
                  if( computeDeadline ) {
                      AbsoluteTime  nsinterval;
-diff -urN xnu-3248.30.4/iokit/Kernel/IOSyncer.cpp xnu-3248.30.4-trace/iokit/Kernel/IOSyncer.cpp
---- xnu-3248.30.4/iokit/Kernel/IOSyncer.cpp	2006-11-09 21:05:25.000000000 -0500
-+++ xnu-3248.30.4-trace/iokit/Kernel/IOSyncer.cpp	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/iokit/Kernel/IOSyncer.cpp xnu-3248.60.10_trace/iokit/Kernel/IOSyncer.cpp
+--- xnu-3248.60.10/iokit/Kernel/IOSyncer.cpp	2006-11-09 21:05:25.000000000 -0500
++++ xnu-3248.60.10_trace/iokit/Kernel/IOSyncer.cpp	2017-03-29 15:19:48.000000000 -0400
 @@ -87,7 +87,12 @@
      IOInterruptState is = IOSimpleLockLockDisableInterrupt(guardLock);
  
@@ -508,9 +616,9 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOSyncer.cpp xnu-3248.30.4-trace/iokit/Kern
      	IOSimpleLockUnlockEnableInterrupt(guardLock, is);
          thread_block(THREAD_CONTINUE_NULL);
      }
-diff -urN xnu-3248.30.4/iokit/Kernel/IOWorkLoop.cpp xnu-3248.30.4-trace/iokit/Kernel/IOWorkLoop.cpp
---- xnu-3248.30.4/iokit/Kernel/IOWorkLoop.cpp	2015-04-20 17:46:08.000000000 -0400
-+++ xnu-3248.30.4-trace/iokit/Kernel/IOWorkLoop.cpp	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/iokit/Kernel/IOWorkLoop.cpp xnu-3248.60.10_trace/iokit/Kernel/IOWorkLoop.cpp
+--- xnu-3248.60.10/iokit/Kernel/IOWorkLoop.cpp	2015-04-20 17:46:08.000000000 -0400
++++ xnu-3248.60.10_trace/iokit/Kernel/IOWorkLoop.cpp	2017-03-29 15:19:48.000000000 -0400
 @@ -393,6 +393,11 @@
  
  	IOInterruptState is = IOSimpleLockLockDisableInterrupt(workToDoLock);
@@ -523,9 +631,9 @@ diff -urN xnu-3248.30.4/iokit/Kernel/IOWorkLoop.cpp xnu-3248.30.4-trace/iokit/Ke
  	    assert_wait((void *) &workToDo, false);
  	    IOSimpleLockUnlockEnableInterrupt(workToDoLock, is);
  	    thread_continue_t cptr = NULL;
-diff -urN xnu-3248.30.4/libkern/kxld/Makefile xnu-3248.30.4-trace/libkern/kxld/Makefile
---- xnu-3248.30.4/libkern/kxld/Makefile	2015-02-11 19:08:33.000000000 -0500
-+++ xnu-3248.30.4-trace/libkern/kxld/Makefile	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/libkern/kxld/Makefile xnu-3248.60.10_trace/libkern/kxld/Makefile
+--- xnu-3248.60.10/libkern/kxld/Makefile	2015-02-11 19:08:33.000000000 -0500
++++ xnu-3248.60.10_trace/libkern/kxld/Makefile	2017-03-29 15:19:48.000000000 -0400
 @@ -67,7 +67,7 @@
  endif
  
@@ -535,9 +643,9 @@ diff -urN xnu-3248.30.4/libkern/kxld/Makefile xnu-3248.30.4-trace/libkern/kxld/M
  	-Wwrite-strings -Wshorten-64-to-32 -Wshadow -Winit-self -Wpointer-arith \
  	-Wno-format-y2k -W -Wstrict-prototypes -Wmissing-prototypes -Wreturn-type \
  	-Wcast-qual -Wwrite-strings -Wswitch -Wcast-align -Wbad-function-cast \
-diff -urN xnu-3248.30.4/libkern/libkern/Makefile xnu-3248.30.4-trace/libkern/libkern/Makefile
---- xnu-3248.30.4/libkern/libkern/Makefile	2016-02-25 16:59:21.000000000 -0500
-+++ xnu-3248.30.4-trace/libkern/libkern/Makefile	2016-12-15 17:45:03.000000000 -0500
+diff -urN xnu-3248.60.10/libkern/libkern/Makefile xnu-3248.60.10_trace/libkern/libkern/Makefile
+--- xnu-3248.60.10/libkern/libkern/Makefile	2016-08-04 15:09:51.000000000 -0400
++++ xnu-3248.60.10_trace/libkern/libkern/Makefile	2017-03-29 15:19:48.000000000 -0400
 @@ -75,7 +75,11 @@
  	kxld_types.h           \
  	stack_protector.h
@@ -550,9 +658,9 @@ diff -urN xnu-3248.30.4/libkern/libkern/Makefile xnu-3248.30.4-trace/libkern/lib
  
  EXPORT_MI_GEN_LIST = version.h
  
-diff -urN xnu-3248.30.4/makedefs/MakeInc.def xnu-3248.30.4-trace/makedefs/MakeInc.def
---- xnu-3248.30.4/makedefs/MakeInc.def	2016-02-25 16:59:31.000000000 -0500
-+++ xnu-3248.30.4-trace/makedefs/MakeInc.def	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/makedefs/MakeInc.def xnu-3248.60.10_trace/makedefs/MakeInc.def
+--- xnu-3248.60.10/makedefs/MakeInc.def	2016-08-04 15:09:58.000000000 -0400
++++ xnu-3248.60.10_trace/makedefs/MakeInc.def	2017-03-29 15:19:48.000000000 -0400
 @@ -92,7 +92,7 @@
  #
  
@@ -571,19 +679,19 @@ diff -urN xnu-3248.30.4/makedefs/MakeInc.def xnu-3248.30.4-trace/makedefs/MakeIn
  	-Wcast-qual -Wwrite-strings -Wswitch -Wcast-align -Wchar-subscripts \
  	-Wredundant-decls -Wextra-tokens \
  	-Wunreachable-code
-diff -urN xnu-3248.30.4/osfmk/bank/bank.c xnu-3248.30.4-trace/osfmk/bank/bank.c
---- xnu-3248.30.4/osfmk/bank/bank.c	2016-12-18 20:43:23.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/bank/bank.c	2016-12-18 20:43:28.000000000 -0500
-@@ -323,6 +323,8 @@
- 			if (bank_merchant == BANK_TASK_NULL)
- 				return KERN_RESOURCE_SHORTAGE;
+diff -urN xnu-3248.60.10/osfmk/bank/bank.c xnu-3248.60.10_trace/osfmk/bank/bank.c
+--- xnu-3248.60.10/osfmk/bank/bank.c	2016-05-09 16:28:11.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/bank/bank.c	2017-03-29 15:19:48.000000000 -0400
+@@ -421,6 +421,8 @@
+ 
+ 			bank_proximateprocess = bank_merchant;
  
 +			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, (BANK_CODE(BANK_ACCOUNT_INFO, (BANK_VOUCHER_REDEEM))) | DBG_FUNC_NONE,
 +				bank_merchant->bt_pid, bank_holder->bt_pid, 0, 0, 0);
  			/* Check if trying to redeem for self task, return the bank task */
- 			if (bank_holder == bank_merchant) {
- 				bank_task_reference(bank_holder);
-@@ -373,6 +375,7 @@
+ 			if (bank_holder == bank_merchant && 
+ 				bank_holder == bank_secureoriginator &&
+@@ -519,6 +521,7 @@
  	mach_voucher_attr_value_handle_t bank_handle;
  	char buf[MACH_VOUCHER_BANK_CONTENT_SIZE];
  	mach_msg_type_number_t i;
@@ -591,41 +699,7 @@ diff -urN xnu-3248.30.4/osfmk/bank/bank.c xnu-3248.30.4-trace/osfmk/bank/bank.c
  
  	assert(MACH_VOUCHER_ATTR_KEY_BANK == key);
  	assert(manager == &bank_manager);
-@@ -390,24 +393,26 @@
- 
- 		if (bank_element->be_type == BANK_TASK) {
- 			bank_task = CAST_TO_BANK_TASK(bank_element);
--			snprintf(buf, MACH_VOUCHER_BANK_CONTENT_SIZE, 
-+			int size = snprintf(buf + buf_index, MACH_VOUCHER_BANK_CONTENT_SIZE - buf_index, 
- 			         " Bank Context for a pid %d\n", bank_task->bt_pid);
-+			buf_index += size; 
- 		} else if (bank_element->be_type == BANK_ACCOUNT) {
- 			bank_account = CAST_TO_BANK_ACCOUNT(bank_element);
--			snprintf(buf, MACH_VOUCHER_BANK_CONTENT_SIZE,
-+			int size = snprintf(buf + buf_index, MACH_VOUCHER_BANK_CONTENT_SIZE - buf_index,
- 			         " Bank Account linking holder pid %d with merchant pid %d\n",
- 				 bank_account->ba_holder->bt_pid,
- 				 bank_account->ba_merchant->bt_pid);
-+			buf_index += size;
- 		} else {
- 			panic("Bogus bank type: %d passed in get_value\n", bank_element->be_type);
- 		}
-+	}
- 
--
--		memcpy(&out_recipe[0], buf, strlen(buf) + 1);
-+		memcpy(&out_recipe[0], buf, buf_index + 1);//strlen(buf) + 1);
- 		*out_command = MACH_VOUCHER_ATTR_BANK_NULL;
--		*in_out_recipe_size = (mach_voucher_attr_content_size_t)strlen(buf) + 1;
--		return KERN_SUCCESS;
--	}
-+		*in_out_recipe_size = (mach_voucher_attr_content_size_t)buf_index + 1; //strlen(buf) + 1;
-+	//	return KERN_SUCCESS;
-+	//}
- 
- 	return KERN_SUCCESS;
- }
-@@ -771,6 +776,7 @@
+@@ -1026,6 +1029,7 @@
  
  	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, (BANK_CODE(BANK_ACCOUNT_INFO, (BANK_SETTLE_CPU_TIME))) | DBG_FUNC_NONE,
  			bank_merchant->bt_pid, bank_holder->bt_pid, credit, debit, 0);
@@ -633,9 +707,9 @@ diff -urN xnu-3248.30.4/osfmk/bank/bank.c xnu-3248.30.4-trace/osfmk/bank/bank.c
  #if CONFIG_BANK
  	ledger_credit(bank_holder->bt_creditcard, task_ledgers.cpu_time_billed_to_me, credit);
  	ledger_debit(bank_holder->bt_creditcard, task_ledgers.cpu_time_billed_to_me, debit);
-diff -urN xnu-3248.30.4/osfmk/console/serial_general.c xnu-3248.30.4-trace/osfmk/console/serial_general.c
---- xnu-3248.30.4/osfmk/console/serial_general.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/console/serial_general.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/console/serial_general.c xnu-3248.60.10_trace/osfmk/console/serial_general.c
+--- xnu-3248.60.10/osfmk/console/serial_general.c	2016-06-16 19:57:15.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/console/serial_general.c	2017-03-29 15:19:48.000000000 -0400
 @@ -37,6 +37,7 @@
  #include <types.h>
  #include <kern/thread.h>
@@ -657,9 +731,9 @@ diff -urN xnu-3248.30.4/osfmk/console/serial_general.c xnu-3248.30.4-trace/osfmk
  	assert_wait_deadline((event_t)serial_keyboard_poll, THREAD_UNINT, next);	/* Show we are "waiting" */
  	thread_block((thread_continue_t)serial_keyboard_poll);	/* Wait for it */
  	panic("serial_keyboard_poll: Shouldn't never ever get here...\n");
-diff -urN xnu-3248.30.4/osfmk/default_pager/dp_backing_store.c xnu-3248.30.4-trace/osfmk/default_pager/dp_backing_store.c
---- xnu-3248.30.4/osfmk/default_pager/dp_backing_store.c	2016-02-25 16:59:10.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/default_pager/dp_backing_store.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/default_pager/dp_backing_store.c xnu-3248.60.10_trace/osfmk/default_pager/dp_backing_store.c
+--- xnu-3248.60.10/osfmk/default_pager/dp_backing_store.c	2016-08-04 15:09:41.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/default_pager/dp_backing_store.c	2017-03-29 15:19:48.000000000 -0400
 @@ -2647,6 +2647,11 @@
  				 (io_buf_ptr_t *) &dev_buffer,
  				 (mach_msg_type_number_t *) &bytes_read);
@@ -685,9 +759,9 @@ diff -urN xnu-3248.30.4/osfmk/default_pager/dp_backing_store.c xnu-3248.30.4-tra
  			assert_wait((event_t) 
  				    &backing_store_release_trigger_disable, 
  				    THREAD_UNINT);
-diff -urN xnu-3248.30.4/osfmk/default_pager/dp_memory_object.c xnu-3248.30.4-trace/osfmk/default_pager/dp_memory_object.c
---- xnu-3248.30.4/osfmk/default_pager/dp_memory_object.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/default_pager/dp_memory_object.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/default_pager/dp_memory_object.c xnu-3248.60.10_trace/osfmk/default_pager/dp_memory_object.c
+--- xnu-3248.60.10/osfmk/default_pager/dp_memory_object.c	2015-08-31 17:13:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/default_pager/dp_memory_object.c	2017-03-29 15:19:48.000000000 -0400
 @@ -128,6 +128,11 @@
  	ASSERT(vs->vs_async_pending >= 0);
  	while (vs->vs_async_pending > 0) {
@@ -795,9 +869,9 @@ diff -urN xnu-3248.30.4/osfmk/default_pager/dp_memory_object.c xnu-3248.30.4-tra
  
  			assert_wait_timeout((event_t)assert_wait_timeout, THREAD_UNINT, 1, 1000*NSEC_PER_USEC);
  			wresult = thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/osfmk/i386/cpu_data.h xnu-3248.30.4-trace/osfmk/i386/cpu_data.h
---- xnu-3248.30.4/osfmk/i386/cpu_data.h	2015-02-17 19:17:21.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/i386/cpu_data.h	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/cpu_data.h xnu-3248.60.10_trace/osfmk/i386/cpu_data.h
+--- xnu-3248.60.10/osfmk/i386/cpu_data.h	2015-02-17 19:17:21.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/cpu_data.h	2017-03-29 15:19:48.000000000 -0400
 @@ -351,7 +351,6 @@
  	CPU_DATA_GET(cpu_phys_number,int)
  }
@@ -806,9 +880,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/cpu_data.h xnu-3248.30.4-trace/osfmk/i386/cpu
  static inline void
  disable_preemption(void)
  {
-diff -urN xnu-3248.30.4/osfmk/i386/lapic_native.c xnu-3248.30.4-trace/osfmk/i386/lapic_native.c
---- xnu-3248.30.4/osfmk/i386/lapic_native.c	2015-04-28 18:22:23.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/lapic_native.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/lapic_native.c xnu-3248.60.10_trace/osfmk/i386/lapic_native.c
+--- xnu-3248.60.10/osfmk/i386/lapic_native.c	2015-04-28 18:22:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/lapic_native.c	2017-03-29 15:19:48.000000000 -0400
 @@ -704,6 +704,7 @@
  	int 	esr = -1;
  
@@ -817,9 +891,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/lapic_native.c xnu-3248.30.4-trace/osfmk/i386
  	if (interrupt_num < 0) {
  		if (interrupt_num == (LAPIC_NMI_INTERRUPT - lapic_interrupt_base) &&
  		    lapic_intr_func[LAPIC_NMI_INTERRUPT] != NULL) {
-diff -urN xnu-3248.30.4/osfmk/i386/locks_i386.c xnu-3248.30.4-trace/osfmk/i386/locks_i386.c
---- xnu-3248.30.4/osfmk/i386/locks_i386.c	2015-07-08 11:42:44.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/locks_i386.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/locks_i386.c xnu-3248.60.10_trace/osfmk/i386/locks_i386.c
+--- xnu-3248.60.10/osfmk/i386/locks_i386.c	2015-07-08 19:58:21.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/locks_i386.c	2017-03-29 15:19:48.000000000 -0400
 @@ -925,6 +925,11 @@
  
  				lck->lck_w_waiting = TRUE;
@@ -880,9 +954,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/locks_i386.c xnu-3248.30.4-trace/osfmk/i386/l
  	assert_wait(LCK_MTX_EVENT(mutex), THREAD_UNINT);
  
  	lck_mtx_ilk_unlock(mutex);
-diff -urN xnu-3248.30.4/osfmk/i386/machine_routines.c xnu-3248.30.4-trace/osfmk/i386/machine_routines.c
---- xnu-3248.30.4/osfmk/i386/machine_routines.c	2015-04-28 18:22:23.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/machine_routines.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/machine_routines.c xnu-3248.60.10_trace/osfmk/i386/machine_routines.c
+--- xnu-3248.60.10/osfmk/i386/machine_routines.c	2015-04-28 18:22:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/machine_routines.c	2017-03-29 15:19:48.000000000 -0400
 @@ -606,6 +606,11 @@
          current_state = ml_set_interrupts_enabled(FALSE);
          if (max_cpus_initialized != MAX_CPUS_SET) {
@@ -895,10 +969,10 @@ diff -urN xnu-3248.30.4/osfmk/i386/machine_routines.c xnu-3248.30.4-trace/osfmk/
                  assert_wait((event_t)&max_cpus_initialized, THREAD_UNINT);
                  (void)thread_block(THREAD_CONTINUE_NULL);
          }
-diff -urN xnu-3248.30.4/osfmk/i386/mp.c xnu-3248.30.4-trace/osfmk/i386/mp.c
---- xnu-3248.30.4/osfmk/i386/mp.c	2015-10-06 18:28:30.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/mp.c	2016-12-15 16:13:57.000000000 -0500
-@@ -1193,6 +1193,7 @@
+diff -urN xnu-3248.60.10/osfmk/i386/mp.c xnu-3248.60.10_trace/osfmk/i386/mp.c
+--- xnu-3248.60.10/osfmk/i386/mp.c	2015-12-17 16:03:09.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/mp.c	2017-03-29 15:19:48.000000000 -0400
+@@ -1195,6 +1195,7 @@
   *	    waiting for all calls to complete in parallel before returning
   *  NOSYNC: function calls are queued
   *	    but we return before confirmation of calls completing. 
@@ -906,7 +980,7 @@ diff -urN xnu-3248.30.4/osfmk/i386/mp.c xnu-3248.30.4-trace/osfmk/i386/mp.c
   * The action function may be NULL.
   * The cpu mask may include the local cpu. Offline cpus are ignored.
   * The return value is the number of cpus on which the call was made or queued.
-@@ -1445,6 +1446,12 @@
+@@ -1447,6 +1448,12 @@
     mp_bc_action_func = action_func;
     mp_bc_func_arg = arg;
  
@@ -919,9 +993,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/mp.c xnu-3248.30.4-trace/osfmk/i386/mp.c
     assert_wait((event_t)(uintptr_t)&mp_bc_count, THREAD_UNINT);
  
     /*
-diff -urN xnu-3248.30.4/osfmk/i386/pmap_common.c xnu-3248.30.4-trace/osfmk/i386/pmap_common.c
---- xnu-3248.30.4/osfmk/i386/pmap_common.c	2015-03-11 01:47:33.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/pmap_common.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/pmap_common.c xnu-3248.60.10_trace/osfmk/i386/pmap_common.c
+--- xnu-3248.60.10/osfmk/i386/pmap_common.c	2015-03-11 01:47:33.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/pmap_common.c	2017-03-29 15:19:48.000000000 -0400
 @@ -400,6 +400,11 @@
  		if (pv_hashed_kern_free_count < pv_hashed_kern_low_water_mark)
  			continue;
@@ -934,9 +1008,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/pmap_common.c xnu-3248.30.4-trace/osfmk/i386/
  		assert_wait(&mapping_replenish_event, THREAD_UNINT);
  		mappingrecurse = 0;
  		thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/osfmk/i386/pmap_internal.h xnu-3248.30.4-trace/osfmk/i386/pmap_internal.h
---- xnu-3248.30.4/osfmk/i386/pmap_internal.h	2015-03-11 01:47:33.000000000 -0400
-+++ xnu-3248.30.4-trace/osfmk/i386/pmap_internal.h	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/pmap_internal.h xnu-3248.60.10_trace/osfmk/i386/pmap_internal.h
+--- xnu-3248.60.10/osfmk/i386/pmap_internal.h	2015-03-11 01:47:33.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/pmap_internal.h	2017-03-29 15:19:48.000000000 -0400
 @@ -353,6 +353,11 @@
  		 * to eliminate the timeout when the reserve is replenished.
  		 */
@@ -949,9 +1023,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/pmap_internal.h xnu-3248.30.4-trace/osfmk/i38
  		assert_wait_timeout(&pmap_user_pv_throttle_event, THREAD_UNINT, 1, 1000 * NSEC_PER_USEC);
  		thread_block(THREAD_CONTINUE_NULL);
  	}
-diff -urN xnu-3248.30.4/osfmk/i386/rtclock.c xnu-3248.30.4-trace/osfmk/i386/rtclock.c
---- xnu-3248.30.4/osfmk/i386/rtclock.c	2016-02-25 16:59:11.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/i386/rtclock.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/rtclock.c xnu-3248.60.10_trace/osfmk/i386/rtclock.c
+--- xnu-3248.60.10/osfmk/i386/rtclock.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/rtclock.c	2017-03-29 15:19:48.000000000 -0400
 @@ -429,7 +429,7 @@
  rtclock_intr(
  	x86_saved_state_t	*tregs)
@@ -961,9 +1035,9 @@ diff -urN xnu-3248.30.4/osfmk/i386/rtclock.c xnu-3248.30.4-trace/osfmk/i386/rtcl
  	boolean_t	user_mode = FALSE;
  
  	assert(get_preemption_level() > 0);
-diff -urN xnu-3248.30.4/osfmk/i386/thread.h xnu-3248.30.4-trace/osfmk/i386/thread.h
---- xnu-3248.30.4/osfmk/i386/thread.h	2015-02-06 19:55:01.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/i386/thread.h	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/i386/thread.h xnu-3248.60.10_trace/osfmk/i386/thread.h
+--- xnu-3248.60.10/osfmk/i386/thread.h	2015-02-06 19:55:01.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/i386/thread.h	2017-03-29 15:19:48.000000000 -0400
 @@ -132,7 +132,7 @@
  #define		CopyIOActive 	0x2 /* Checked to ensure DTrace actions do not re-enter copyio(). */
  	uint64_t		thread_gpu_ns;
@@ -973,22 +1047,70 @@ diff -urN xnu-3248.30.4/osfmk/i386/thread.h xnu-3248.30.4-trace/osfmk/i386/threa
  	        user_addr_t	user_base;
  	} copy_window[NCOPY_WINDOWS];
          int			nxt_window;
-diff -urN xnu-3248.30.4/osfmk/i386/trap.c xnu-3248.30.4-trace/osfmk/i386/trap.c
---- xnu-3248.30.4/osfmk/i386/trap.c	2016-02-25 16:59:12.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/i386/trap.c	2016-12-15 16:13:57.000000000 -0500
-@@ -402,7 +402,9 @@
- 	 * Handle local APIC interrupts
- 	 * else call platform expert for devices.
- 	 */
-+	//int tmpret = lapic_interrupt(interrupt_num, state);
- 	if (!lapic_interrupt(interrupt_num, state)) {
-+	//if (!tmpret) {
- 		PE_incoming_interrupt(interrupt_num);
- 	}
+diff -urN xnu-3248.60.10/osfmk/i386/trap.c xnu-3248.60.10_trace/osfmk/i386/trap.c
+--- xnu-3248.60.10/osfmk/i386/trap.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/i386/trap.c	2017-03-29 15:19:48.000000000 -0400
+@@ -343,6 +343,7 @@
+ {
+ 	uint64_t	rip;
+ 	uint64_t	rsp;
++	uint64_t	rbp;
+ 	int		interrupt_num;
+ 	boolean_t	user_mode = FALSE;
+ 	int		ipl;
+@@ -356,6 +357,7 @@
+ 	        state64 = saved_state64(state);
+ 		rip = state64->isf.rip;
+ 		rsp = state64->isf.rsp;
++		rbp = state64->rbp;
+ 		interrupt_num = state64->isf.trapno;
+ #ifdef __x86_64__
+ 		if(state64->isf.cs & 0x03)
+@@ -382,11 +384,21 @@
+ 	else
+ 		itype = 3;
  
-diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_kmsg.c
---- xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c	2016-02-25 16:59:12.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/ipc_kmsg.c	2016-12-19 18:33:41.000000000 -0500
++	#if 0
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
+ 		MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_START,
+ 		interrupt_num,
+ 		(user_mode ? rip : VM_KERNEL_UNSLIDE(rip)),
+ 		user_mode, itype, 0);
++	#endif
++
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_START,
++		(uint64_t)(current_thread()->sched_pri) << 32 | (uint64_t)interrupt_num,
++		(user_mode ? rip : VM_KERNEL_UNSLIDE(rip)),
++		user_mode, //itype, 0);
++		(uint64_t)(current_thread()->ast) << 32 | (uint64_t)(current_thread()->reason), /*ast related*/
++		0);
+ 
+ 	SCHED_STATS_INTERRUPT(current_processor());
+ 
+@@ -466,10 +478,18 @@
+ 	
+ 	if (cnum == master_cpu)
+ 		ml_entropy_collect();
+-
++	#if 0
+ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
+ 		MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_END,
+ 		interrupt_num, 0, 0, 0, 0);
++	#endif
++
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_END,
++		(uint64_t)(current_thread()->sched_pri) << 32 | (uint64_t)interrupt_num,
++		(uint64_t)(current_thread()->ast) << 32 | (uint64_t)(current_thread()->reason), /*ast related*/
++		*(uint64_t*)&(current_thread()->effective_policy),
++		*(uint64_t*)&(current_thread()->requested_policy), 0);
+ 
+ 	assert(ml_get_interrupts_enabled() == FALSE);
+ }
+diff -urN xnu-3248.60.10/osfmk/ipc/ipc_kmsg.c xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.c
+--- xnu-3248.60.10/osfmk/ipc/ipc_kmsg.c	2016-08-04 15:09:42.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.c	2017-03-29 15:19:48.000000000 -0400
 @@ -143,8 +143,8 @@
  
  typedef struct
@@ -1000,21 +1122,20 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  } mach_msg_legacy_base_t;
  
  typedef struct
-@@ -165,6 +165,21 @@
+@@ -165,6 +165,20 @@
    mach_msg_type_descriptor_t			type;
  } mach_msg_legacy_descriptor_t;
  
 +/* Forward declarations
 + * 		Add by wlm
 + */
-+//#define DUMP_MACH_MSG
 +
 +#ifdef DUMP_MACH_MSG
 +static void dump_batch(void* tag, void* addr, unsigned int size, uint32_t debugid);
 +static void ipc_msg_dump_body64(void *tag, void *body, unsigned int size);
 +static int ipc_msg_dump_dsc64(void *tag, mach_msg_body_t *body, void *delim);
 +void ipc_msg_hex_dump(void *tag, mach_msg_header_t *kmsgh, unsigned int size);
-+void ipc_msg_voucher_info(uint64_t ksmg, ipc_voucher_t peek_voucher);	
++static void ipc_msg_voucher_info(uint64_t ksmg, ipc_voucher_t peek_voucher);	
 +extern task_t convert_port_to_task(ipc_port_t      port);
 +extern char *proc_name_address(struct proc *p);
 +#endif
@@ -1022,7 +1143,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  #pragma pack()
  
  #define LEGACY_HEADER_SIZE_DELTA ((mach_msg_size_t)(sizeof(mach_msg_header_t) - sizeof(mach_msg_legacy_header_t)))
-@@ -1122,6 +1137,190 @@
+@@ -1122,6 +1136,208 @@
  	return ipc_kmsg_alloc(size);
  }
  
@@ -1163,15 +1284,15 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
 +		ipc_msg_dump_dsc64(tag, body, (void *)((uint64_t)body + size));
 +	}
 +	*/
-+	
 +	ipc_msg_dump_body64(tag, (void *)(kmsgh + 1), size);
 +}
 +
 +/*
 + * Routine: ipc_msg_voucher_info
++ *		Add by wlm
 + */
 +
-+void ipc_msg_voucher_info(uint64_t kmsg, ipc_voucher_t peek_voucher)
++static void ipc_msg_voucher_info(uint64_t kmsg, ipc_voucher_t peek_voucher)
 +{
 +	//mach_voucher_attr_content_t content[MACH_VOUCHER_BANK_CONTENT_SIZE];
 +	unsigned char content[MACH_VOUCHER_BANK_CONTENT_SIZE];
@@ -1192,15 +1313,33 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
 +				BANK_TASK, (uint64_t)bank_pid << 32, 0);	
 +		} else if (!strncmp((const char*)sub_content, " Bank Account", 13)) {
 +			int holder_pid, merchant_pid;
++			int originator_pid, proximate_pid;
++			uint32_t orig_persona, prox_persona;
 +			sscanf((const char *)sub_content,
++				" Bank Account linking holder pid %d with merchant pid %d, originator PID/persona: %d, %u and proximate PID/persona: %d, %u%[\n]%n",
++					&holder_pid, &merchant_pid,
++					&originator_pid, &orig_persona,
++					&proximate_pid, &prox_persona, 
++					enter, &read_size); 
++			/*
 +					" Bank Account linking holder pid %d with merchant pid %d%[\n]%n",
 +					&holder_pid, &merchant_pid, enter, &read_size); 
++			*/
 +    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
 +				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
 +				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
-+				BANK_ACCOUNT,
++				//BANK_ACCOUNT,
++				(uint64_t)originator_pid << 32 | proximate_pid,
 +				((uint64_t)holder_pid << 32) | merchant_pid,
 +				0);	
++			/*
++    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
++				((uint64_t)originator_pid << 32) | orig_persona,
++				((uint64_t)proximate_pid << 32) | prox_persona,
++				0);	
++			*/
 +		}
 +		if (read_size == 0)
 +			break;
@@ -1213,7 +1352,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  
  /*
   *	Routine:	ipc_kmsg_get
-@@ -1432,15 +1631,14 @@
+@@ -1434,9 +1650,7 @@
  		assert(ip_active(port));
  		port->ip_messages.imq_seqno++;
  		ip_unlock(port);
@@ -1223,15 +1362,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  		/*
  		 * Call the server routine, and get the reply message to send.
  		 */
- 		kmsg = ipc_kobject_server(kmsg);
--		if (kmsg == IKM_NULL)
-+		if (kmsg == IKM_NULL) {
- 			return MACH_MSG_SUCCESS;
-+		}
- 
- 		port = (ipc_port_t) kmsg->ikm_header->msgh_remote_port;
- 		assert(IP_VALID(port));
-@@ -1575,7 +1773,7 @@
+@@ -1577,7 +1791,7 @@
  							 kmsg->ikm_header->msgh_local_port,
  							 kmsg->ikm_header->msgh_voucher_port,
  							 kmsg->ikm_header->msgh_id);
@@ -1240,181 +1371,158 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  #if defined(__LP64__)
  	if (current_task() != kernel_task) { /* don't if receiver expects fully-cooked in-kernel msg; ux_exception */
  		mach_msg_legacy_header_t *legacy_header = 
-@@ -1612,6 +1810,7 @@
+@@ -1614,11 +1828,11 @@
  		kprintf("type: %d\n", ((mach_msg_type_descriptor_t *)(((mach_msg_base_t *)kmsg->ikm_header)+1))->type);
  	}
  	__unreachable_ok_pop
 +
  	if (copyoutmsg((const char *) kmsg->ikm_header, msg_addr, size))
  		mr = MACH_RCV_INVALID_DATA;
- 	else
-@@ -2567,6 +2766,13 @@
-             case MACH_MSG_PORT_DESCRIPTOR:
-                 user_addr = ipc_kmsg_copyin_port_descriptor((mach_msg_port_descriptor_t *)kern_addr, 
-                         (mach_msg_legacy_port_descriptor_t *)user_addr, space, dest, kmsg, &mr);
-+
-+				#ifdef DUMP_MACH_MSG
-+				if (mr == MACH_MSG_SUCCESS)
-+					KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_INTERNAL_DSC) | DBG_FUNC_NONE,
-+						VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((mach_msg_port_descriptor_t *)kern_addr)->name, 0, 0, 0);
-+				#endif
-+						
-                 kern_addr++;
-                 complex = TRUE;
-                 break;
-@@ -2577,12 +2783,26 @@
+-	else
++	else 
+ 		mr = MACH_MSG_SUCCESS;
+-
+ 	ipc_kmsg_free(kmsg);
+ 	return mr;
+ }
+@@ -2579,12 +2793,14 @@
                  kern_addr++;
                  complex = TRUE;
                  break;
 -            case MACH_MSG_OOL_PORTS_DESCRIPTOR: 
 +
-+            case MACH_MSG_OOL_PORTS_DESCRIPTOR: {
-+			
++            case MACH_MSG_OOL_PORTS_DESCRIPTOR:
                  user_addr = ipc_kmsg_copyin_ool_ports_descriptor((mach_msg_ool_ports_descriptor_t *)kern_addr, 
                          user_addr, is_task_64bit, map, space, dest, kmsg, &mr);
-+
-+				#ifdef DUMP_MACH_MSG
-+				if (mr == MACH_MSG_SUCCESS) {
-+					mach_msg_ool_ports_descriptor_t * kern_ool_ports_dsc = (typeof(kern_ool_ports_dsc))kern_addr;
-+					int kern_ports_size = (kern_ool_ports_dsc->count) * sizeof(mach_port_t);
-+					if (kern_ports_size != 0 && kern_ports_size <= INT_MAX)
-+						dump_batch((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kern_ool_ports_dsc->address,
-+											kern_ports_size, MACH_IPC_MSG_INTERNAL_DSC);
-+				}
-+				#endif
-+
                  kern_addr++;
                  complex = TRUE;
                  break;
-+			}
++
              default:
                  /* Invalid descriptor */
                  mr = MACH_SEND_INVALID_TYPE;
-@@ -2638,21 +2858,45 @@
+@@ -2640,18 +2856,34 @@
  	mach_msg_option_t	*optionp)
  {
      mach_msg_return_t 		mr;
+-
++	uint64_t is_mig = 0;
 +	
-+	uint64_t ports_name = ((uint64_t)kmsg->ikm_header->msgh_remote_port << 32) | ((uint64_t)kmsg->ikm_header->msgh_local_port);
- 
      kmsg->ikm_header->msgh_bits &= MACH_MSGH_BITS_USER;
 -
      mr = ipc_kmsg_copyin_header(kmsg, space, optionp);
 -
 +	
      if (mr != MACH_MSG_SUCCESS)
--	return mr;
-+		return mr;
+ 	return mr;
  
 +	#ifdef DUMP_MACH_MSG
-+	// begin dump of send
-+	uint32_t pid = task_pid(current_task());
-+	uint32_t body_size = kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), pid, body_size, 0, 0);
-+
-+	uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg),VM_KERNEL_ADDRPERM(thread_voucher), 0, 0, 0);
-+
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), kmsg->ikm_header->msgh_remote_port, kmsg->ikm_header->msgh_local_port, ports_name, 0);
-+	ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size); 
-+	
 +	if (IP_VALID(kmsg->ikm_voucher)) {
 +		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
 +			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
 +			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
 +		}
 +	}
++
++	ipc_port_t port = (ipc_port_t) kmsg->ikm_header->msgh_remote_port;
++	assert(IP_VALID(port));
++	//ip_lock(port);
++	if (ip_active(port) && (port->ip_receiver == ipc_space_kernel))
++		is_mig = 1UL << 60;
++	//ip_unlock(port);
 +	#endif
-+/*
++
      KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
  			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
  			  (uintptr_t)kmsg->ikm_header->msgh_bits,
- 			  (uintptr_t)kmsg->ikm_header->msgh_id,
+-			  (uintptr_t)kmsg->ikm_header->msgh_id,
++			  ((uintptr_t)kmsg->ikm_header->msgh_id | is_mig),
  			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
  			  0);
--
-+*/
-     DEBUG_KPRINT_SYSCALL_IPC("ipc_kmsg_copyin header:\n%.8x\n%.8x\n%p\n%p\n%p\n%.8x\n",
- 			     kmsg->ikm_header->msgh_size,
- 			     kmsg->ikm_header->msgh_bits,
-@@ -2661,11 +2905,32 @@
+ 
+@@ -2663,7 +2895,7 @@
  			     kmsg->ikm_voucher,
  			     kmsg->ikm_header->msgh_id);
  
 -    if ((kmsg->ikm_header->msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0)
--	return MACH_MSG_SUCCESS;
-+    if ((kmsg->ikm_header->msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0) {
-+    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
-+			  (uintptr_t)kmsg->ikm_header->msgh_bits,
-+			  (uintptr_t)kmsg->ikm_header->msgh_id,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
-+			  0);
-+
-+		return MACH_MSG_SUCCESS;
-+	}
++    if ((kmsg->ikm_header->msgh_bits & MACH_MSGH_BITS_COMPLEX) == 0) 
+ 	return MACH_MSG_SUCCESS;
      
  	mr = ipc_kmsg_copyin_body( kmsg, space, map);
+@@ -2707,14 +2939,38 @@
+ 	ipc_object_t remote = (ipc_object_t) kmsg->ikm_header->msgh_remote_port;
+ 	ipc_object_t local = (ipc_object_t) kmsg->ikm_header->msgh_local_port;
  
-+	if (mr != MACH_MSG_SUCCESS) {
-+    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 0, mr, 0 ,0);
-+	}
-+	else {
-+    	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
-+			  (uintptr_t)kmsg->ikm_header->msgh_bits,
-+			  (uintptr_t)kmsg->ikm_header->msgh_id,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
-+			  0);
-+	}
++	#ifdef DUMP_MACH_MSG
++	uint64_t rport_name = 0, lport_name = 0;
++	uint64_t from_kernel = 1UL << 58;
++	ipc_port_t port = NULL;
++	#endif
 +
- 	/* unreachable if !DEBUG */
- 	__unreachable_ok_push
- 	if (DEBUG_KPRINT_SYSCALL_PREDICATE(DEBUG_KPRINT_SYSCALL_IPC_MASK))
-@@ -2717,6 +2982,27 @@
+ 	/* translate the destination and reply ports */
+ 	if (!IO_VALID(remote))
+ 		return MACH_SEND_INVALID_DEST;
+-
+ 	ipc_object_copyin_from_kernel(remote, rname);
++
++	#ifdef DUMP_MACH_MSG
++	port = (ipc_port_t)remote;
++	if (ip_active(port)) {
++		ip_lock(port);
++		rport_name = port->ip_receiver_name;
++		ip_unlock(port);
++	}
++	#endif
++
+ 	if (IO_VALID(local))
+ 		ipc_object_copyin_from_kernel(local, lname);
+ 
++	#ifdef DUMP_MACH_MSG
++	port = (ipc_port_t)local;
++	if (IO_VALID(local) && ip_active(port)) {
++		ip_lock(port);
++		lport_name = port->ip_receiver_name;
++		ip_unlock(port);
++	}
++	#endif
++
+ 	/*
  	 *	The common case is a complex message with no reply port,
  	 *	because that is what the memory_object interface uses.
- 	 */
-+	
-+	#ifdef DUMP_MACH_MSG
-+	// begin dump of send
-+	uint32_t pid = task_pid(current_task());
-+	uint32_t body_size = 0;
-+	//kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
-+
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
-+		0, VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 0, 1, 0);
-+
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), pid, body_size, 0, 0);
-+
-+	uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), VM_KERNEL_ADDRPERM(thread_voucher), 0, 0, 0);
-+
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), kmsg->ikm_header->msgh_remote_port, kmsg->ikm_header->msgh_local_port, 0, 0);
-+	ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size); 
-+	#endif
- 
- 	if (bits == (MACH_MSGH_BITS_COMPLEX |
- 		     MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0))) {
-@@ -2730,9 +3016,17 @@
+@@ -2732,17 +2988,47 @@
  				       ipc_object_copyin_type(lname)));
  
  		kmsg->ikm_header->msgh_bits = bits;
 -		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0)
 +		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0) {
++
++			#ifdef DUMP_MACH_MSG
++			if (IP_VALID(kmsg->ikm_voucher)) {
++				if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++					ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++					ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++				}
++			}
++
 +    		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
-+			  (uintptr_t)kmsg->ikm_header->msgh_bits,
-+			  (uintptr_t)kmsg->ikm_header->msgh_id,
-+			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
-+			  0);
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				(uintptr_t)kmsg->ikm_header->msgh_bits,
++				((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++				VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++				0);
++
++			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++				VM_KERNEL_ADDRPERM(remote),//kmsg->ikm_header->msgh_remote_port),
++				VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++				0);
++
++			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++				0,
++				MACH_SEND_MSG, 0, 0);
++			#endif
++
  			return MACH_MSG_SUCCESS;
 +		}
  	}
@@ -1422,35 +1530,62 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
      {
      	mach_msg_descriptor_t	*saddr;
      	mach_msg_body_t		*body;
-@@ -2823,8 +3117,15 @@
+-	mach_msg_type_number_t	i, count;
++		mach_msg_type_number_t	i, count;
+ 
+     	body = (mach_msg_body_t *) (kmsg->ikm_header + 1);
+     	saddr = (mach_msg_descriptor_t *) (body + 1);
+-	count = body->msgh_descriptor_count;
++		count = body->msgh_descriptor_count;
+ 
+     	for (i = 0; i < count; i++, saddr++) {
+ 
+@@ -2823,11 +3109,36 @@
+ #if	MACH_ASSERT
+ 		    panic("ipc_kmsg_copyin_from_kernel:  bad descriptor");
  #endif	/* MACH_ASSERT */
- 		}
+-		}
++			}
  	    }
-+		
- 	}
+-	}
++		}
      }
-+    KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
-+	  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
-+	  (uintptr_t)kmsg->ikm_header->msgh_bits,
-+	  (uintptr_t)kmsg->ikm_header->msgh_id,
-+	  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
-+	  0);
-     return MACH_MSG_SUCCESS;
+-    return MACH_MSG_SUCCESS;
++
++	#ifdef DUMP_MACH_MSG
++	if (IP_VALID(kmsg->ikm_voucher)) {
++		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			(uintptr_t)kmsg->ikm_header->msgh_bits,
++			((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++			VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			0);
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++			VM_KERNEL_ADDRPERM(remote), //kmsg->ikm_header->msgh_remote_port),
++			VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++			0);
++	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++			0,
++			MACH_SEND_MSG, 0, 0);
++	#endif
++	return MACH_MSG_SUCCESS;
  }
  
-@@ -3308,7 +3609,7 @@
+ #if IKM_SUPPORT_LEGACY
+@@ -3310,7 +3621,15 @@
  
  	if (IP_VALID(release_voucher_port))
  		ipc_port_release_send(release_voucher_port);
 -
 +	
- 
- 	if ((option & MACH_RCV_VOUCHER) != 0) {
- 	    KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_RECV) | DBG_FUNC_NONE,
-@@ -3325,6 +3626,14 @@
- 				  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(voucher)),
- 				  0);
- 	}
 +	#ifdef DUMP_MACH_MSG
 +	if (IP_VALID(voucher)) {
 +		if (ip_kotype(voucher) == IKOT_VOUCHER) {
@@ -1460,9 +1595,9 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
 +	}
 +	#endif
  
- 	msg->msgh_bits = MACH_MSGH_BITS_SET(reply_type, dest_type,
- 					    voucher_type, mbits);
-@@ -3450,12 +3759,11 @@
+ 	if ((option & MACH_RCV_VOUCHER) != 0) {
+ 	    KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_RECV) | DBG_FUNC_NONE,
+@@ -3452,12 +3771,11 @@
      dsc_type = dsc->type;
  
      if (copy != VM_MAP_COPY_NULL) {
@@ -1479,7 +1614,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
          kr = vm_map_copyout(map, &rcv_addr, copy);
          if (kr != KERN_SUCCESS) {
              if (kr == KERN_RESOURCE_SHORTAGE)
-@@ -3714,31 +4022,60 @@
+@@ -3716,24 +4034,23 @@
  
      /* Do scatter list setup */
      if (slist != MACH_MSG_BODY_NULL) {
@@ -1497,58 +1632,21 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
 +		sdsc_count = 0;
      }
  
-+	/* Dump for beachball analysis */
-+	#ifdef DUMP_MACH_MSG
-+	for (i = 0; i < (int)dsc_count; i++) {
-+		switch (kern_dsc[i].type.type) {
-+			case MACH_MSG_PORT_DESCRIPTOR:
-+					KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_INTERNAL_DSC) | DBG_FUNC_NONE,
-+						VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((mach_msg_port_descriptor_t *)&kern_dsc[i])->name, 0, 0, 0);
-+				break;
-+			case MACH_MSG_OOL_VOLATILE_DESCRIPTOR:
-+			case MACH_MSG_OOL_DESCRIPTOR :
-+				break;                                                                                                                                   
-+			case MACH_MSG_OOL_PORTS_DESCRIPTOR :
-+			{    
-+				int size = ((mach_msg_ool_ports_descriptor_t*)&kern_dsc[i])->count * sizeof(mach_port_t);
-+				if (is_task_64bit)
-+					dump_batch((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), 
-+						((mach_msg_ool_ports_descriptor_t*)&kern_dsc[i])->address,
-+						size, MACH_IPC_MSG_INTERNAL_DSC);
-+				break;
-+			}    
-+			default : {
-+					panic("untyped IPC copyout body: invalid message descriptor");
-+			}
-+		}        
-+	}
-+	#endif
      /* Now process the descriptors */
      for (i = dsc_count-1; i >= 0; i--) {
          switch (kern_dsc[i].type.type) {
 -
 -            case MACH_MSG_PORT_DESCRIPTOR: 
-+            case MACH_MSG_PORT_DESCRIPTOR: {
++            case MACH_MSG_PORT_DESCRIPTOR:
                  user_dsc = ipc_kmsg_copyout_port_descriptor(&kern_dsc[i], user_dsc, space, &mr);
                  break;
-+			}
              case MACH_MSG_OOL_VOLATILE_DESCRIPTOR:
 -            case MACH_MSG_OOL_DESCRIPTOR : 
-+            case MACH_MSG_OOL_DESCRIPTOR : {
++            case MACH_MSG_OOL_DESCRIPTOR :
                  user_dsc = ipc_kmsg_copyout_ool_descriptor(
                          (mach_msg_ool_descriptor_t *)&kern_dsc[i], user_dsc, is_task_64bit, map, &mr);
                  break;
-+			}
-             case MACH_MSG_OOL_PORTS_DESCRIPTOR : 
-+			{
-                 user_dsc = ipc_kmsg_copyout_ool_ports_descriptor(
-                         (mach_msg_ool_ports_descriptor_t *)&kern_dsc[i], user_dsc, is_task_64bit, map, space, kmsg, &mr);
-                 break;
-+			}
-             default : {
-                           panic("untyped IPC copyout body: invalid message descriptor");
-                       }
-@@ -3834,11 +4171,16 @@
+@@ -3836,11 +4153,11 @@
  	ipc_space_t		space,
  	vm_map_t		map,
  	mach_msg_body_t		*slist,
@@ -1557,33 +1655,14 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.c xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  {
  	mach_msg_return_t mr;
 -
-+	
-+	uintptr_t internal_remote = (uintptr_t)(kmsg->ikm_header->msgh_remote_port);
-+	uintptr_t internal_local = (uintptr_t)(kmsg->ikm_header->msgh_local_port); 
-+	
  	mr = ipc_kmsg_copyout_header(kmsg, space, option);
-+	// trace receive begins inside above function
 +
  	if (mr != MACH_MSG_SUCCESS) {
  		return mr;
  	}
-@@ -3850,6 +4192,13 @@
- 			mr |= MACH_RCV_BODY_ERROR;
- 	}
- 
-+	 //dump of receive
-+	#ifdef DUMP_MACH_MSG
-+	uint64_t pid = (uint64_t)(task_pid(current_task())); 
-+	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_DUMP) | DBG_FUNC_NONE,
-+		VM_KERNEL_ADDRPERM((uintptr_t)kmsg), internal_remote, internal_local, ((pid << 32) | 1), 0);
-+	#endif
-+
- 	return mr;
- }
- 
-diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.h xnu-3248.30.4-trace/osfmk/ipc/ipc_kmsg.h
---- xnu-3248.30.4/osfmk/ipc/ipc_kmsg.h	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/ipc_kmsg.h	2016-12-16 12:42:45.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/ipc/ipc_kmsg.h xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.h
+--- xnu-3248.60.10/osfmk/ipc/ipc_kmsg.h	2015-07-13 18:20:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_kmsg.h	2017-03-29 15:19:48.000000000 -0400
 @@ -249,6 +249,14 @@
  	}								\
  MACRO_END
@@ -1599,9 +1678,9 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_kmsg.h xnu-3248.30.4-trace/osfmk/ipc/ipc_k
  /* Allocate a kernel message */
  extern ipc_kmsg_t ipc_kmsg_alloc(
          mach_msg_size_t size);
-diff -urN xnu-3248.30.4/osfmk/ipc/ipc_mqueue.c xnu-3248.30.4-trace/osfmk/ipc/ipc_mqueue.c
---- xnu-3248.30.4/osfmk/ipc/ipc_mqueue.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/ipc_mqueue.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/ipc/ipc_mqueue.c xnu-3248.60.10_trace/osfmk/ipc/ipc_mqueue.c
+--- xnu-3248.60.10/osfmk/ipc/ipc_mqueue.c	2015-08-04 16:06:10.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_mqueue.c	2017-03-29 15:19:48.000000000 -0400
 @@ -442,7 +442,6 @@
  	} else {
  		thread_t cur_thread = current_thread();
@@ -1726,10 +1805,10 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_mqueue.c xnu-3248.30.4-trace/osfmk/ipc/ipc
  	wresult = waitq_assert_wait64_locked(&mqueue->imq_wait_queue,
  					     IPC_MQUEUE_RECEIVE,
  					     interruptible,
-diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.c xnu-3248.30.4-trace/osfmk/ipc/ipc_voucher.c
---- xnu-3248.30.4/osfmk/ipc/ipc_voucher.c	2015-12-03 18:27:56.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/ipc_voucher.c	2016-12-19 18:30:26.000000000 -0500
-@@ -296,9 +296,13 @@
+diff -urN xnu-3248.60.10/osfmk/ipc/ipc_voucher.c xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.c
+--- xnu-3248.60.10/osfmk/ipc/ipc_voucher.c	2016-01-28 18:47:28.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.c	2017-03-29 15:19:48.000000000 -0400
+@@ -304,9 +304,13 @@
  		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_VOUCHER_DESTROY) | DBG_FUNC_NONE,
  				      VM_KERNEL_ADDRPERM((uintptr_t)iv), 0, ivht_count, 0, 0);
  
@@ -1745,7 +1824,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.c xnu-3248.30.4-trace/osfmk/ipc/ip
  	/*
  	 * if a port was allocated for this voucher,
  	 * it must not have any remaining send rights,
-@@ -1523,6 +1527,10 @@
+@@ -1547,6 +1551,10 @@
  
  		break;
  	}
@@ -1756,7 +1835,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.c xnu-3248.30.4-trace/osfmk/ipc/ip
  	return KERN_SUCCESS;
  }
  
-@@ -1631,6 +1639,10 @@
+@@ -1655,6 +1663,10 @@
  			ivht_unlock();
  
  			/* referenced previous, so deallocate the new one */
@@ -1767,7 +1846,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.c xnu-3248.30.4-trace/osfmk/ipc/ip
  			iv_dealloc(new_iv, FALSE);
  			return iv;
  		}
-@@ -2088,7 +2100,6 @@
+@@ -2113,7 +2125,6 @@
  }
  
  
@@ -1775,10 +1854,10 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.c xnu-3248.30.4-trace/osfmk/ipc/ip
  /*
   *	Routine: 	mach_voucher_extract_all_attr_recipes
   *	Purpose:
-diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.h xnu-3248.30.4-trace/osfmk/ipc/ipc_voucher.h
---- xnu-3248.30.4/osfmk/ipc/ipc_voucher.h	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/ipc_voucher.h	2016-12-15 23:53:46.000000000 -0500
-@@ -299,6 +299,13 @@
+diff -urN xnu-3248.60.10/osfmk/ipc/ipc_voucher.h xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.h
+--- xnu-3248.60.10/osfmk/ipc/ipc_voucher.h	2016-01-28 18:47:28.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/ipc/ipc_voucher.h	2017-03-29 15:19:48.000000000 -0400
+@@ -310,6 +310,13 @@
  extern uintptr_t unsafe_convert_port_to_voucher(
  	ipc_port_t		port);
  
@@ -1792,10 +1871,10 @@ diff -urN xnu-3248.30.4/osfmk/ipc/ipc_voucher.h xnu-3248.30.4-trace/osfmk/ipc/ip
  /* Convert from a port to a voucher */
  extern ipc_voucher_t convert_port_to_voucher(
  	ipc_port_t		port);
-diff -urN xnu-3248.30.4/osfmk/ipc/mach_msg.c xnu-3248.30.4-trace/osfmk/ipc/mach_msg.c
---- xnu-3248.30.4/osfmk/ipc/mach_msg.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/ipc/mach_msg.c	2016-12-16 13:03:00.000000000 -0500
-@@ -114,6 +114,7 @@
+diff -urN xnu-3248.60.10/osfmk/ipc/mach_msg.c xnu-3248.60.10_trace/osfmk/ipc/mach_msg.c
+--- xnu-3248.60.10/osfmk/ipc/mach_msg.c	2015-07-13 18:20:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/ipc/mach_msg.c	2017-03-29 15:19:48.000000000 -0400
+@@ -115,6 +115,7 @@
  #define offsetof(type, member)  ((size_t)(&((type *)0)->member))
  #endif /* offsetof */
  
@@ -1803,47 +1882,63 @@ diff -urN xnu-3248.30.4/osfmk/ipc/mach_msg.c xnu-3248.30.4-trace/osfmk/ipc/mach_
  /*
   * Forward declarations - kernel internal routines
   */
-@@ -335,8 +336,28 @@
+@@ -339,7 +340,31 @@
  
  	trailer_size = ipc_kmsg_add_trailer(kmsg, space, option, self, seqno, FALSE, 
  			kmsg->ikm_header->msgh_remote_port->ip_context);
 +
- 	mr = ipc_kmsg_copyout(kmsg, space, map, MACH_MSG_BODY_NULL, option);
- 
-+	
 +	#ifdef DUMP_MACH_MSG
-+		uint32_t body_size = kmsg->ikm_header->msgh_size - (mach_msg_size_t)sizeof(mach_msg_header_t);
-+		ipc_msg_hex_dump((void *)(VM_KERNEL_ADDRPERM((uintptr_t)kmsg)), kmsg->ikm_header, body_size);
-+		// port names are been exchanged here, we restore it in tracing log
-+		// format: remote_port_name << 32 | local_port_name
-+		uint64_t ports_name = (uint64_t)(kmsg->ikm_header->msgh_remote_port)|((uint64_t)(kmsg->ikm_header->msgh_local_port) << 32);
-+		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_BOARDER) | DBG_FUNC_NONE,
-+			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name, body_size, 1, 0);
-+
-+		uintptr_t thread_voucher = (uintptr_t)(current_thread()->ith_voucher);
-+		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_THREAD_VOUCHER) | DBG_FUNC_NONE,
-+			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),VM_KERNEL_ADDRPERM(thread_voucher), mr, 0, 0);
-+
-+		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
-+			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), msg_addr, mr,
-+			(uint64_t)(option & (MACH_SEND_MSG|MACH_RCV_MSG)) | ((uint64_t)(kmsg->ikm_header->msgh_local_port) << 32), 0);
++	uintptr_t internal_remote = (uintptr_t)(kmsg->ikm_header->msgh_remote_port);
++	uintptr_t internal_local = (uintptr_t)(kmsg->ikm_header->msgh_local_port); 
 +	#endif
 +
+ 	mr = ipc_kmsg_copyout(kmsg, space, map, MACH_MSG_BODY_NULL, option);
++	
++	#ifdef DUMP_MACH_MSG
++	if (mr == MACH_MSG_SUCCESS) {
++		uint64_t ports_name = (((uint64_t)(kmsg->ikm_header->msgh_local_port)) << 32 | (uint64_t)(kmsg->ikm_header->msgh_remote_port));
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name,		
++			VM_KERNEL_ADDRPERM(internal_remote),
++			VM_KERNEL_ADDRPERM(internal_local), 0);
++		
++		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			(msg_addr >= VM_MIN_KERNEL_AND_KEXT_ADDRESS ||
++				msg_addr + kmsg->ikm_header->msgh_size + trailer_size >= VM_MIN_KERNEL_AND_KEXT_ADDRESS) 
++				? (uintptr_t)0 : (uintptr_t)msg_addr,
++			MACH_RCV_MSG /* this is on the receive/copyout path */,
++			0, 0);
++	}
++	#endif
+ 
  	if (mr != MACH_MSG_SUCCESS) {
  		/* already received importance, so have to undo that here */
- 		ipc_importance_unreceive(kmsg, option);
-@@ -457,6 +478,10 @@
- 
- 		mr = ipc_kmsg_get(msg_addr, send_size, &kmsg);
- 
-+		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
-+			msg_addr, VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
-+			mr, (option & (MACH_SEND_MSG|MACH_RCV_MSG)), 0);
-+
+@@ -464,7 +489,23 @@
  		if (mr != MACH_MSG_SUCCESS)
  			return mr;
  
-@@ -484,6 +509,7 @@
++	#ifdef DUMP_MACH_MSG
++		uint64_t ports_name = ((uint64_t)(kmsg->ikm_header->msgh_remote_port) << 32 | (uint64_t)(kmsg->ikm_header->msgh_local_port));
++	#endif
+ 		mr = ipc_kmsg_copyin(kmsg, space, map, &option);
++	#ifdef DUMP_MACH_MSG
++		if (mr == MACH_MSG_SUCCESS) {
++			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name,
++				VM_KERNEL_ADDRPERM(kmsg->ikm_header->msgh_remote_port),
++				VM_KERNEL_ADDRPERM(kmsg->ikm_header->msgh_local_port), 0);
++
++			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++				msg_addr,
++				MACH_SEND_MSG, 0, 0);
++		}
++	#endif
+ 
+ 		if (mr != MACH_MSG_SUCCESS) {
+ 			ipc_kmsg_free(kmsg);
+@@ -488,6 +529,7 @@
  		ipc_mqueue_t mqueue;
  
  		mr = ipc_mqueue_copyin(space, rcv_name, &mqueue, &object);
@@ -1851,7 +1946,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/mach_msg.c xnu-3248.30.4-trace/osfmk/ipc/mach_
  		if (mr != MACH_MSG_SUCCESS) {
  			return mr;
  		}
-@@ -493,6 +519,7 @@
+@@ -497,6 +539,7 @@
  			self->ith_msg_addr = rcv_msg_addr;
  		else
  			self->ith_msg_addr = msg_addr;
@@ -1859,7 +1954,7 @@ diff -urN xnu-3248.30.4/osfmk/ipc/mach_msg.c xnu-3248.30.4-trace/osfmk/ipc/mach_
  		self->ith_object = object;
  		self->ith_msize = rcv_size;
  		self->ith_option = option;
-@@ -524,7 +551,6 @@
+@@ -528,7 +571,6 @@
  {
  	kern_return_t kr;
  	args->rcv_msg = (mach_vm_address_t)0;
@@ -1867,9 +1962,9 @@ diff -urN xnu-3248.30.4/osfmk/ipc/mach_msg.c xnu-3248.30.4-trace/osfmk/ipc/mach_
   	kr = mach_msg_overwrite_trap(args);
  	return kr;
  }
-diff -urN xnu-3248.30.4/osfmk/kern/clock.c xnu-3248.30.4-trace/osfmk/kern/clock.c
---- xnu-3248.30.4/osfmk/kern/clock.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/clock.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/clock.c xnu-3248.60.10_trace/osfmk/kern/clock.c
+--- xnu-3248.60.10/osfmk/kern/clock.c	2015-04-02 17:51:23.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/clock.c	2017-03-29 15:19:48.000000000 -0400
 @@ -828,6 +828,11 @@
  	uint64_t		deadline = args->deadline;
  	wait_result_t	wresult;
@@ -1894,9 +1989,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/clock.c xnu-3248.30.4-trace/osfmk/kern/clock.
  
  		if (leeway) {
  			assert_wait_deadline_with_leeway((event_t)clock_delay_until, THREAD_UNINT, TIMEOUT_URGENCY_LEEWAY, deadline, leeway);
-diff -urN xnu-3248.30.4/osfmk/kern/clock_oldops.c xnu-3248.30.4-trace/osfmk/kern/clock_oldops.c
---- xnu-3248.30.4/osfmk/kern/clock_oldops.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/clock_oldops.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/clock_oldops.c xnu-3248.60.10_trace/osfmk/kern/clock_oldops.c
+--- xnu-3248.60.10/osfmk/kern/clock_oldops.c	2013-10-23 19:29:52.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/clock_oldops.c	2017-03-29 15:19:48.000000000 -0400
 @@ -575,6 +575,12 @@
  		/*
  		 * Wait for alarm to occur.
@@ -1910,9 +2005,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/clock_oldops.c xnu-3248.30.4-trace/osfmk/kern
  		wait_result = assert_wait((event_t)alarm, THREAD_ABORTSAFE);
  		if (wait_result == THREAD_WAITING) {
  			alarm->al_time = *sleep_time;
-diff -urN xnu-3248.30.4/osfmk/kern/ledger.c xnu-3248.30.4-trace/osfmk/kern/ledger.c
---- xnu-3248.30.4/osfmk/kern/ledger.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/ledger.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/ledger.c xnu-3248.60.10_trace/osfmk/kern/ledger.c
+--- xnu-3248.60.10/osfmk/kern/ledger.c	2015-05-31 16:21:30.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/ledger.c	2017-03-29 15:19:48.000000000 -0400
 @@ -42,6 +42,7 @@
  
  #include <libkern/OSAtomic.h>
@@ -1934,9 +2029,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/ledger.c xnu-3248.30.4-trace/osfmk/kern/ledge
  		ret = assert_wait_deadline(le, TRUE,
  		    le->_le.le_refill.le_last_refill + le->_le.le_refill.le_refill_period);
  		if (ret != THREAD_WAITING)
-diff -urN xnu-3248.30.4/osfmk/kern/locks.c xnu-3248.30.4-trace/osfmk/kern/locks.c
---- xnu-3248.30.4/osfmk/kern/locks.c	2016-02-25 16:59:13.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/locks.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/locks.c xnu-3248.60.10_trace/osfmk/kern/locks.c
+--- xnu-3248.60.10/osfmk/kern/locks.c	2016-08-04 15:09:43.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/locks.c	2017-03-29 15:19:48.000000000 -0400
 @@ -431,6 +431,11 @@
  	if ((lck_sleep_action & ~LCK_SLEEP_MASK) != 0)
  		panic("Invalid lock sleep action %x\n", lck_sleep_action);
@@ -2034,9 +2129,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/locks.c xnu-3248.30.4-trace/osfmk/kern/locks.
  	res = assert_wait_deadline(event, interruptible, deadline);
  	if (res == THREAD_WAITING) {
  		lck_rw_type = lck_rw_done(lck);
-diff -urN xnu-3248.30.4/osfmk/kern/sched_grrr.c xnu-3248.30.4-trace/osfmk/kern/sched_grrr.c
---- xnu-3248.30.4/osfmk/kern/sched_grrr.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/sched_grrr.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/sched_grrr.c xnu-3248.60.10_trace/osfmk/kern/sched_grrr.c
+--- xnu-3248.60.10/osfmk/kern/sched_grrr.c	2015-04-30 11:36:25.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_grrr.c	2017-03-29 15:19:48.000000000 -0400
 @@ -291,6 +291,11 @@
  	
  	clock_deadline_for_periodic_event(10*sched_one_second_interval, abstime,
@@ -2049,10 +2144,10 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_grrr.c xnu-3248.30.4-trace/osfmk/kern/s
  	
  	assert_wait_deadline((event_t)sched_grrr_maintenance_continuation, THREAD_UNINT, sched_grrr_tick_deadline);
  	thread_block((thread_continue_t)sched_grrr_maintenance_continuation);
-diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/sched_prim.c
---- xnu-3248.30.4/osfmk/kern/sched_prim.c	2016-02-25 16:59:13.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/sched_prim.c	2016-12-15 16:13:57.000000000 -0500
-@@ -620,6 +620,7 @@
+diff -urN xnu-3248.60.10/osfmk/kern/sched_prim.c xnu-3248.60.10_trace/osfmk/kern/sched_prim.c
+--- xnu-3248.60.10/osfmk/kern/sched_prim.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_prim.c	2017-03-29 15:19:48.000000000 -0400
+@@ -622,6 +622,7 @@
  	boolean_t		ready_for_runq = FALSE;
  	thread_t		cthread = current_thread();
  	uint32_t		new_run_count;
@@ -2060,7 +2155,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  
  	/*
  	 *	Set wait_result.
-@@ -639,6 +640,7 @@
+@@ -641,6 +642,7 @@
  	 *	Update scheduling state: not waiting,
  	 *	set running.
  	 */
@@ -2068,7 +2163,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  	thread->state &= ~(TH_WAIT|TH_UNINT);
  
  	if (!(thread->state & TH_RUN)) {
-@@ -667,8 +669,9 @@
+@@ -669,8 +671,9 @@
  		if (thread->state & TH_IDLE) {
  			processor_t		processor = thread->last_processor;
  
@@ -2079,7 +2174,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  		}
  #else
  		assert((thread->state & TH_IDLE) == 0);
-@@ -740,10 +743,10 @@
+@@ -742,10 +745,10 @@
  		thread->callout_woken_from_platform_idle = pidle;
  		thread->callout_woke_thread = FALSE;
  	}
@@ -2088,11 +2183,11 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
  		MACHDBG_CODE(DBG_MACH_SCHED,MACH_MAKE_RUNNABLE) | DBG_FUNC_NONE,
 -		(uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result, new_run_count, 0);
-+		(uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result, (((uint64_t)(ready_for_runq) << 32) | (uint64_t)new_run_count), 0);
++		(uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result, (((uint64_t)(ready_for_runq) << 32) | (uint64_t)new_run_count & ((1UL << 32 ) - 1)), 0);
  
  	DTRACE_SCHED2(wakeup, struct thread *, thread, struct proc *, thread->task->bsd_info);
  
-@@ -894,9 +897,11 @@
+@@ -896,9 +899,11 @@
  	if (__improbable(event == NO_EVENT))
  		panic("%s() called with NO_EVENT", __func__);
  
@@ -2104,7 +2199,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  
  	struct waitq *waitq;
  	waitq = global_eventq(event);
-@@ -927,10 +932,11 @@
+@@ -929,10 +934,11 @@
  
  	clock_interval_to_deadline(interval, scale_factor, &deadline);
  
@@ -2117,7 +2212,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
  					     interruptible,
  					     TIMEOUT_URGENCY_SYS_NORMAL,
-@@ -976,9 +982,11 @@
+@@ -978,9 +984,11 @@
  	waitq_lock(waitq);
  	thread_lock(thread);
  
@@ -2130,7 +2225,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  
  	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
  					     interruptible,
-@@ -1011,9 +1019,11 @@
+@@ -1013,9 +1021,11 @@
  	waitq_lock(waitq);
  	thread_lock(thread);
  
@@ -2142,7 +2237,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  
  	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
  					     interruptible,
-@@ -1046,10 +1056,11 @@
+@@ -1048,10 +1058,11 @@
  	s = splsched();
  	waitq_lock(waitq);
  	thread_lock(thread);
@@ -2155,7 +2250,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  
  	wresult = waitq_assert_wait64_locked(waitq, CAST_EVENT64_T(event),
  					     interruptible,
-@@ -1133,6 +1144,12 @@
+@@ -1135,6 +1146,12 @@
  		thread->wake_active = TRUE;
  		thread_unlock(thread);
  
@@ -2168,7 +2263,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  		wresult = assert_wait(&thread->wake_active, THREAD_ABORTSAFE);
  		wake_unlock(thread);
  		splx(s);
-@@ -1163,6 +1180,11 @@
+@@ -1165,6 +1182,11 @@
  		thread->wake_active = TRUE;
  		thread_unlock(thread);
  
@@ -2180,7 +2275,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  		wresult = assert_wait(&thread->wake_active, THREAD_ABORTSAFE);
  		wake_unlock(thread);
  		splx(s);
-@@ -1271,6 +1293,11 @@
+@@ -1273,6 +1295,11 @@
  		thread->wake_active = TRUE;
  		thread_unlock(thread);
  
@@ -2192,21 +2287,24 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  		wresult = assert_wait(&thread->wake_active, THREAD_UNINT);
  		wake_unlock(thread);
  		splx(s);
-@@ -1332,8 +1359,12 @@
+@@ -1334,8 +1361,15 @@
  		}
  
  		/* TODO: Can we instead assert TH_TERMINATE is not set?  */
 -		if ((thread->state & (TH_WAIT|TH_TERMINATE)) == TH_WAIT)
 +		if ((thread->state & (TH_WAIT|TH_TERMINATE)) == TH_WAIT) {
++			uint64_t pid = task_pid(thread->task);
++			pid = (pid << 32) | task_pid(current_thread()->task);
++
 +			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+				MACHDBG_CODE(DBG_MACH_SCHED, MACH_CLEAR_WAIT) | DBG_FUNC_NONE,
-+				(uintptr_t)thread_tid(thread), wresult, thread->sched_pri,  task_pid(current_thread()->task), 0);
++				MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++				(uintptr_t)thread_tid(thread), thread->wait_event, CLEAR_WAIT, pid, 0);
  			return (thread_go(thread, wresult));
 +		}
  		else
  			return (KERN_NOT_WAITING);
  	} while ((--i > 0) || machine_timeout_suspended());
-@@ -2199,7 +2230,7 @@
+@@ -2201,7 +2235,7 @@
  			thread_unlock(self);
  
  			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
@@ -2215,7 +2313,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  				self->reason, (uintptr_t)thread_tid(thread), self->sched_pri, thread->sched_pri, 0);
  
  			return (TRUE);
-@@ -4522,6 +4553,12 @@
+@@ -4534,6 +4568,12 @@
  						  0,
  						  0);
  
@@ -2228,7 +2326,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  	assert_wait((event_t)sched_timeshare_maintenance_continue, THREAD_UNINT);
  	thread_block((thread_continue_t)sched_timeshare_maintenance_continue);
  	/*NOTREACHED*/
-@@ -4551,6 +4588,11 @@
+@@ -4563,6 +4603,11 @@
  		ndeadline = ctime + sched_tick_interval;
  
  		if (__probable(__sync_bool_compare_and_swap(&sched_maintenance_deadline, deadline, ndeadline))) {
@@ -2240,9 +2338,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_prim.c xnu-3248.30.4-trace/osfmk/kern/s
  			thread_wakeup((event_t)sched_timeshare_maintenance_continue);
  			sched_maintenance_wakeups++;
  		}
-diff -urN xnu-3248.30.4/osfmk/kern/sched_proto.c xnu-3248.30.4-trace/osfmk/kern/sched_proto.c
---- xnu-3248.30.4/osfmk/kern/sched_proto.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/sched_proto.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/sched_proto.c xnu-3248.60.10_trace/osfmk/kern/sched_proto.c
+--- xnu-3248.60.10/osfmk/kern/sched_proto.c	2015-04-30 11:36:25.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sched_proto.c	2017-03-29 15:19:48.000000000 -0400
 @@ -281,6 +281,11 @@
  	clock_deadline_for_periodic_event(sched_one_second_interval, abstime,
  						&sched_proto_tick_deadline);
@@ -2255,9 +2353,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/sched_proto.c xnu-3248.30.4-trace/osfmk/kern/
  	assert_wait_deadline((event_t)sched_proto_maintenance_continuation, THREAD_UNINT, sched_proto_tick_deadline);
  	thread_block((thread_continue_t)sched_proto_maintenance_continuation);
  	/*NOTREACHED*/
-diff -urN xnu-3248.30.4/osfmk/kern/sfi.c xnu-3248.30.4-trace/osfmk/kern/sfi.c
---- xnu-3248.30.4/osfmk/kern/sfi.c	2016-02-25 16:59:13.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/sfi.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/sfi.c xnu-3248.60.10_trace/osfmk/kern/sfi.c
+--- xnu-3248.60.10/osfmk/kern/sfi.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sfi.c	2017-03-29 15:19:48.000000000 -0400
 @@ -973,6 +973,12 @@
  		/* Need to block thread in wait queue */
  		KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_SFI, SFI_THREAD_DEFER), tid, class_id, 0, 0, 0);
@@ -2271,10 +2369,10 @@ diff -urN xnu-3248.30.4/osfmk/kern/sfi.c xnu-3248.30.4-trace/osfmk/kern/sfi.c
  		waitret = waitq_assert_wait64(&sfi_class->waitq,
  					      CAST_EVENT64_T(class_id),
  					      THREAD_INTERRUPTIBLE,
-diff -urN xnu-3248.30.4/osfmk/kern/startup.c xnu-3248.30.4-trace/osfmk/kern/startup.c
---- xnu-3248.30.4/osfmk/kern/startup.c	2016-02-25 16:59:13.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/startup.c	2016-12-15 16:13:57.000000000 -0500
-@@ -579,6 +579,8 @@
+diff -urN xnu-3248.60.10/osfmk/kern/startup.c xnu-3248.60.10_trace/osfmk/kern/startup.c
+--- xnu-3248.60.10/osfmk/kern/startup.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/startup.c	2017-03-29 15:19:48.000000000 -0400
+@@ -583,6 +583,8 @@
  	buf_kernel_addrperm |= 1;
  	read_random(&vm_kernel_addrperm_ext, sizeof(vm_kernel_addrperm_ext));
  	vm_kernel_addrperm_ext |= 1;
@@ -2283,9 +2381,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/startup.c xnu-3248.30.4-trace/osfmk/kern/star
  
  	vm_set_restrictions();
  
-diff -urN xnu-3248.30.4/osfmk/kern/sync_sema.c xnu-3248.30.4-trace/osfmk/kern/sync_sema.c
---- xnu-3248.30.4/osfmk/kern/sync_sema.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/sync_sema.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/sync_sema.c xnu-3248.60.10_trace/osfmk/kern/sync_sema.c
+--- xnu-3248.60.10/osfmk/kern/sync_sema.c	2015-10-21 17:32:32.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/sync_sema.c	2017-03-29 15:19:48.000000000 -0400
 @@ -59,6 +59,7 @@
  #include <kern/mach_param.h>
  
@@ -2309,9 +2407,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/sync_sema.c xnu-3248.30.4-trace/osfmk/kern/sy
  		(void)waitq_assert_wait64_locked(
  					&wait_semaphore->waitq,
  					SEMAPHORE_EVENT,
-diff -urN xnu-3248.30.4/osfmk/kern/syscall_subr.c xnu-3248.30.4-trace/osfmk/kern/syscall_subr.c
---- xnu-3248.30.4/osfmk/kern/syscall_subr.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/syscall_subr.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/syscall_subr.c xnu-3248.60.10_trace/osfmk/kern/syscall_subr.c
+--- xnu-3248.60.10/osfmk/kern/syscall_subr.c	2015-11-03 18:29:51.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/kern/syscall_subr.c	2017-03-29 15:19:48.000000000 -0400
 @@ -359,9 +359,16 @@
  			/* We can't be dropping the last ref here */
  			thread_deallocate_safe(thread);
@@ -2346,10 +2444,10 @@ diff -urN xnu-3248.30.4/osfmk/kern/syscall_subr.c xnu-3248.30.4-trace/osfmk/kern
  	else if (depress_option)
  		thread_depress_ms(option_time);
  
-diff -urN xnu-3248.30.4/osfmk/kern/task.c xnu-3248.30.4-trace/osfmk/kern/task.c
---- xnu-3248.30.4/osfmk/kern/task.c	2016-02-25 16:59:14.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/task.c	2016-12-15 16:13:57.000000000 -0500
-@@ -1734,6 +1734,11 @@
+diff -urN xnu-3248.60.10/osfmk/kern/task.c xnu-3248.60.10_trace/osfmk/kern/task.c
+--- xnu-3248.60.10/osfmk/kern/task.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/task.c	2017-03-29 15:19:48.000000000 -0400
+@@ -1763,6 +1763,11 @@
  	 *	woken up.
  	 */
  	if (task->thread_count > 1) {
@@ -2361,7 +2459,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/task.c xnu-3248.30.4-trace/osfmk/kern/task.c
  		assert_wait((event_t)&task->halting, THREAD_UNINT);
  		task_unlock(task);
  		thread_block(THREAD_CONTINUE_NULL);
-@@ -2497,6 +2502,11 @@
+@@ -2526,6 +2531,11 @@
  
  	while (task->changing_freeze_state) {
  
@@ -2373,7 +2471,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/task.c xnu-3248.30.4-trace/osfmk/kern/task.c
  		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
  		task_unlock(task);
  		thread_block(THREAD_CONTINUE_NULL);
-@@ -2567,6 +2577,11 @@
+@@ -2596,6 +2606,11 @@
  
  	while (task->changing_freeze_state) {
  
@@ -2385,7 +2483,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/task.c xnu-3248.30.4-trace/osfmk/kern/task.c
  		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
  		task_unlock(task);
  		thread_block(THREAD_CONTINUE_NULL);
-@@ -2632,6 +2647,12 @@
+@@ -2661,6 +2676,12 @@
  	
  	while (task->changing_freeze_state) {
  
@@ -2398,9 +2496,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/task.c xnu-3248.30.4-trace/osfmk/kern/task.c
  		assert_wait((event_t)&task->changing_freeze_state, THREAD_UNINT);
  		task_unlock(task);
  		thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/osfmk/kern/thread.c xnu-3248.30.4-trace/osfmk/kern/thread.c
---- xnu-3248.30.4/osfmk/kern/thread.c	2016-02-25 16:59:14.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/thread.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/thread.c xnu-3248.60.10_trace/osfmk/kern/thread.c
+--- xnu-3248.60.10/osfmk/kern/thread.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/thread.c	2017-03-29 15:19:48.000000000 -0400
 @@ -684,6 +684,11 @@
  		simple_lock(&thread_terminate_lock);
  	}
@@ -2425,7 +2523,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread.c xnu-3248.30.4-trace/osfmk/kern/threa
  	assert_wait((event_t)&thread_stack_queue, THREAD_UNINT);
  	simple_unlock(&thread_stack_lock);
  	splx(s);
-@@ -1054,6 +1064,10 @@
+@@ -1051,6 +1061,10 @@
  	}
  
  	DTRACE_PROC1(lwp__create, thread_t, *out_thread);
@@ -2436,10 +2534,10 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread.c xnu-3248.30.4-trace/osfmk/kern/threa
  
  	return (KERN_SUCCESS);
  }
-diff -urN xnu-3248.30.4/osfmk/kern/thread_act.c xnu-3248.30.4-trace/osfmk/kern/thread_act.c
---- xnu-3248.30.4/osfmk/kern/thread_act.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/thread_act.c	2016-12-15 16:13:57.000000000 -0500
-@@ -830,6 +830,12 @@
+diff -urN xnu-3248.60.10/osfmk/kern/thread_act.c xnu-3248.60.10_trace/osfmk/kern/thread_act.c
+--- xnu-3248.60.10/osfmk/kern/thread_act.c	2015-11-03 18:29:51.000000000 -0500
++++ xnu-3248.60.10_trace/osfmk/kern/thread_act.c	2017-03-29 15:19:48.000000000 -0400
+@@ -838,6 +838,12 @@
  	 */
  	if (thread->active) {
  		if (thread->suspend_count > 0) {
@@ -2452,10 +2550,24 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_act.c xnu-3248.30.4-trace/osfmk/kern/t
  			assert_wait(&thread->suspend_count, THREAD_ABORTSAFE);
  			thread_mtx_unlock(thread);
  			thread_block((thread_continue_t)special_handler_continue);
-diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/thread_call.c
---- xnu-3248.30.4/osfmk/kern/thread_call.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/thread_call.c	2016-12-15 16:13:57.000000000 -0500
-@@ -466,7 +466,7 @@
+diff -urN xnu-3248.60.10/osfmk/kern/thread_call.c xnu-3248.60.10_trace/osfmk/kern/thread_call.c
+--- xnu-3248.60.10/osfmk/kern/thread_call.c	2015-10-07 19:57:16.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/thread_call.c	2017-03-29 15:19:48.000000000 -0400
+@@ -436,6 +436,13 @@
+ 
+ 	if (old_queue == NULL) {
+ 		call->tc_submit_count++;
++
++		KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->pending_queue), 0);
+ 	}
+ 
+ 	group->pending_count++;
+@@ -466,12 +473,20 @@
  	queue_head_t		*old_queue;
  
  	old_queue = call_entry_enqueue_deadline(CE(call), &group->delayed_queue, deadline);
@@ -2464,35 +2576,32 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  	if (old_queue == &group->pending_queue)
  		group->pending_count--;
  	else if (old_queue == NULL) 
-@@ -909,6 +909,15 @@
+ 		call->tc_submit_count++;
+ 
++	else if (old_queue == &group->delayed_queue) {
++		KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++	}
+ 	return (old_queue != NULL);
+ }
+ 
+@@ -909,6 +924,7 @@
  	}
  
  	group = thread_call_get_group(call);
 +
-+	/*
-+	KERNEL_DEBUG_CONSTANT(
-+			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_START,
-+			VM_KERNEL_UNSLIDE(call->tc_call.func), 
-+			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0), 
-+			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
-+			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
-+	*/
  	abstime =  mach_absolute_time();
  	
  	call->tc_flags |= THREAD_CALL_DELAYED;
-@@ -940,6 +949,21 @@
+@@ -940,6 +956,13 @@
  
  	if (queue_first(&group->delayed_queue) == qe(call))
  		_set_delayed_call_timer(call, group);
 +	
-+	/*
-+	KERNEL_DEBUG_CONSTANT(
-+			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_END,
-+			VM_KERNEL_UNSLIDE(call->tc_call.func),
-+			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0), 
-+			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
-+			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
-+	*/
 +	KERNEL_DEBUG_CONSTANT(
 +			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCREATE) | DBG_FUNC_NONE,
 +			VM_KERNEL_UNSLIDE(call->tc_call.func), 
@@ -2502,13 +2611,13 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  
  #if CONFIG_DTRACE
  	DTRACE_TMR5(thread_callout__create, thread_call_func_t, call->tc_call.func, uint64_t, (deadline - sdeadline), uint64_t, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), call);
-@@ -991,6 +1015,14 @@
+@@ -991,6 +1014,14 @@
  #if CONFIG_DTRACE
  	DTRACE_TMR4(thread_callout__cancel, thread_call_func_t, call->tc_call.func, 0, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF));
  #endif
 +	
 +	if (result)
-+	KERNEL_DEBUG_CONSTANT(
++		KERNEL_DEBUG_CONSTANT(
 +			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
 +			VM_KERNEL_UNSLIDE(call->tc_call.func), 
 +			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
@@ -2517,18 +2626,26 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  
  	return (result);
  }
-@@ -1213,8 +1245,30 @@
+@@ -1026,6 +1057,15 @@
+ 
+ 	thread_call_unlock();
+ 	(void) spllo();
++	
++	if (result)
++	KERNEL_DEBUG_CONSTANT(
++			MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
++
+ 
+ 	return result;
+ }
+@@ -1213,6 +1253,12 @@
  #if CONFIG_DTRACE
  		DTRACE_TMR6(thread_callout__start, thread_call_func_t, func, int, 0, int, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), (call->tc_flags & THREAD_CALL_DELAYED), call);
  #endif
-+	/*
-+		KERNEL_DEBUG_CONSTANT(
-+				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_START,
-+				VM_KERNEL_UNSLIDE(func), 
-+				VM_KERNEL_UNSLIDE_OR_PERM(param0), 
-+				VM_KERNEL_UNSLIDE_OR_PERM(param1),
-+				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
-+	*/
 +		KERNEL_DEBUG_CONSTANT(
 +				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_NONE,
 +				VM_KERNEL_UNSLIDE(func), 
@@ -2537,18 +2654,8 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
 +				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
  
  		(*func)(param0, param1);
-+	/*
-+		KERNEL_DEBUG_CONSTANT(
-+				MACHDBG_CODE(DBG_MACH_SCHED,MACH_CALLOUT) | DBG_FUNC_END,
-+				VM_KERNEL_UNSLIDE(func), 
-+				VM_KERNEL_UNSLIDE_OR_PERM(param0), 
-+				VM_KERNEL_UNSLIDE_OR_PERM(param1),
-+				VM_KERNEL_UNSLIDE_OR_PERM(&group->delayed_timer), 0);
-+	*/
  
- #if CONFIG_DTRACE
- 		DTRACE_TMR6(thread_callout__end, thread_call_func_t, func, int, 0, int, (call->ttd >> 32), (unsigned) (call->ttd & 0xFFFFFFFF), (call->tc_flags & THREAD_CALL_DELAYED), call);
-@@ -1268,6 +1322,12 @@
+@@ -1268,6 +1314,12 @@
  		}   
  
  		/* Wait for more work (or termination) */
@@ -2561,7 +2668,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  		wres = waitq_assert_wait64(&group->idle_waitq, NO_EVENT64, THREAD_INTERRUPTIBLE, 0);
  		if (wres != THREAD_WAITING) {
  			panic("kcall worker unable to assert wait?");
-@@ -1280,6 +1340,12 @@
+@@ -1280,6 +1332,12 @@
  		if (group->idle_count < group->target_thread_count) {
  			group->idle_count++;
  
@@ -2574,7 +2681,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  			waitq_assert_wait64(&group->idle_waitq, NO_EVENT64, THREAD_UNINT, 0); /* Interrupted means to exit */
  
  			enable_ints_and_unlock(s);
-@@ -1335,6 +1401,12 @@
+@@ -1335,6 +1393,12 @@
  
  out:
  	thread_call_daemon_awake = FALSE;
@@ -2587,7 +2694,7 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  	waitq_assert_wait64(&daemon_waitq, NO_EVENT64, THREAD_UNINT, 0);
  
  	enable_ints_and_unlock(s);
-@@ -1536,6 +1608,13 @@
+@@ -1536,6 +1600,13 @@
  
  	while (call->tc_finish_count < submit_count) {
  		call->tc_flags |= THREAD_CALL_WAIT;
@@ -2601,9 +2708,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/thread_call.c xnu-3248.30.4-trace/osfmk/kern/
  
  		res = assert_wait(call, THREAD_UNINT);
  		if (res != THREAD_WAITING) {
-diff -urN xnu-3248.30.4/osfmk/kern/timer_call.c xnu-3248.30.4-trace/osfmk/kern/timer_call.c
---- xnu-3248.30.4/osfmk/kern/timer_call.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/timer_call.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/timer_call.c xnu-3248.60.10_trace/osfmk/kern/timer_call.c
+--- xnu-3248.60.10/osfmk/kern/timer_call.c	2015-10-07 19:57:16.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/timer_call.c	2017-03-29 15:19:48.000000000 -0400
 @@ -844,7 +844,6 @@
  			}
  
@@ -2625,9 +2732,9 @@ diff -urN xnu-3248.30.4/osfmk/kern/timer_call.c xnu-3248.30.4-trace/osfmk/kern/t
  #if CONFIG_DTRACE
  			DTRACE_TMR4(callout__end, timer_call_func_t, func,
  			    param0, param1, call);
-diff -urN xnu-3248.30.4/osfmk/kern/waitq.c xnu-3248.30.4-trace/osfmk/kern/waitq.c
---- xnu-3248.30.4/osfmk/kern/waitq.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/waitq.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/waitq.c xnu-3248.60.10_trace/osfmk/kern/waitq.c
+--- xnu-3248.60.10/osfmk/kern/waitq.c	2015-09-25 17:13:09.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/waitq.c	2017-03-29 15:19:48.000000000 -0400
 @@ -244,6 +244,23 @@
  #endif
  } __attribute__((aligned(8)));
@@ -2695,22 +2802,21 @@ diff -urN xnu-3248.30.4/osfmk/kern/waitq.c xnu-3248.30.4-trace/osfmk/kern/waitq.
  	return wait_result;
  }
  
-@@ -3525,8 +3571,14 @@
- 		waitq_unlock(waitq);
- 
+@@ -3527,6 +3573,13 @@
  	qe_foreach_element_safe(thread, &wakeup_queue, links) {
-+		int prev_prio =  thread->sched_pri;
  		remqueue(&thread->links);
  		maybe_adjust_thread_pri(thread, priority);
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
 +
 +		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_ALL_LOCKED) | DBG_FUNC_NONE,
-+			(uintptr_t)thread_tid(thread), wake_event, prev_prio, task_pid(current_thread()->task), 0);
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ALL, pid, 0);
 +
  		ret = thread_go(thread, result);
  		assert(ret == KERN_SUCCESS);
  		thread_unlock(thread);
-@@ -3559,7 +3611,7 @@
+@@ -3559,7 +3612,7 @@
  	spl_t th_spl;
  
  	assert(waitq_held(waitq));
@@ -2719,71 +2825,83 @@ diff -urN xnu-3248.30.4/osfmk/kern/waitq.c xnu-3248.30.4-trace/osfmk/kern/waitq.
  	thread = waitq_select_one_locked(waitq, wake_event,
  					 reserved_preposts,
  					 priority, &th_spl);
-@@ -3573,7 +3625,12 @@
- 		waitq_unlock(waitq);
+@@ -3574,6 +3627,14 @@
  
  	if (thread != THREAD_NULL) {
-+		int prev_prio = thread->sched_pri; 
  		maybe_adjust_thread_pri(thread, priority);
++
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
 +		
 +		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_ONE_LOCKED) | DBG_FUNC_NONE,
-+			(uintptr_t)thread_tid(thread), wake_event, prev_prio,  task_pid(current_thread()->task), 0);
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE, pid, 0);
++
  		kern_return_t ret = thread_go(thread, result);
  		assert(ret == KERN_SUCCESS);
  		thread_unlock(thread);
-@@ -3620,6 +3677,9 @@
+@@ -3620,6 +3681,13 @@
  		waitq_unlock(waitq);
  
  	if (thread != THREAD_NULL) {
++
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
++
 +		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_ID_LOCKED) | DBG_FUNC_NONE,
-+			(uintptr_t)thread_tid(thread), wake_event,	thread->sched_pri,  task_pid(current_thread()->task), 0);
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE, pid, 0); 
  		kern_return_t __assert_only ret;
  		ret = thread_go(thread, result);
  		assert(ret == KERN_SUCCESS);
-@@ -3666,10 +3726,19 @@
- 
- 	if (lock_state == WAITQ_UNLOCK)
- 		waitq_unlock(waitq);
-+/*
-+	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_THR_LOCKED) | DBG_FUNC_NONE,
-+		(uintptr_t)thread_tid(thread), wake_event, thread->sched_pri,  task_pid(current_thread()->task), 0);
-+*/
+@@ -3669,6 +3737,12 @@
  
  	if (ret != KERN_SUCCESS)
  		return KERN_NOT_WAITING;
- 
++	
++	uint64_t pid = task_pid(thread->task);
++	pid = (pid << 32) | task_pid(current_thread()->task);
 +	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_THR_LOCKED) | DBG_FUNC_NONE,
-+		(uintptr_t)thread_tid(thread), wake_event, thread->sched_pri,  task_pid(current_thread()->task), 0);
-+
++		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++		(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR, pid, 0);
+ 
  	ret = thread_go(thread, result);
  	assert(ret == KERN_SUCCESS);
- 	thread_unlock(thread);
-@@ -5828,7 +5897,18 @@
- 
+@@ -5829,6 +5903,13 @@
  	waitq_unlock(waitq);
  
-+/*
-+	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+		MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_THR) | DBG_FUNC_NONE,
-+		(uintptr_t)thread_tid(thread), wake_event, ret,  task_pid(current_thread()->task), 0);
-+*/
-+
-+
  	if (ret == KERN_SUCCESS) {
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
 +
 +		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
-+			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP64_THR) | DBG_FUNC_NONE,
-+			(uintptr_t)thread_tid(thread), wake_event, thread->sched_pri,  task_pid(current_thread()->task), 0);
++			MACHDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR, pid, 0);
++
  		ret = thread_go(thread, result);
  		assert(ret == KERN_SUCCESS);
  		thread_unlock(thread);
-diff -urN xnu-3248.30.4/osfmk/kern/zalloc.c xnu-3248.30.4-trace/osfmk/kern/zalloc.c
---- xnu-3248.30.4/osfmk/kern/zalloc.c	2016-02-25 16:59:14.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/kern/zalloc.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/kern/waitq.h xnu-3248.60.10_trace/osfmk/kern/waitq.h
+--- xnu-3248.60.10/osfmk/kern/waitq.h	2015-08-04 16:06:10.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/waitq.h	2017-03-29 15:19:48.000000000 -0400
+@@ -40,6 +40,14 @@
+ #include <sys/cdefs.h>
+ 
+ /*
++ * define for beachball
++ */
++#define WAKEUP_ALL	0x1
++#define WAKEUP_ONE	0x2
++#define WAKEUP_THR  0x3
++#define CLEAR_WAIT	0x4
++
++/*
+  * Constants and types used in the waitq APIs
+  */
+ #define WAITQ_ALL_PRIORITIES   (-1)
+diff -urN xnu-3248.60.10/osfmk/kern/zalloc.c xnu-3248.60.10_trace/osfmk/kern/zalloc.c
+--- xnu-3248.60.10/osfmk/kern/zalloc.c	2016-08-04 15:09:44.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/kern/zalloc.c	2017-03-29 15:19:48.000000000 -0400
 @@ -1895,6 +1895,11 @@
  #endif
  					zcram(z, space, alloc_size);
@@ -2820,9 +2938,20 @@ diff -urN xnu-3248.30.4/osfmk/kern/zalloc.c xnu-3248.30.4-trace/osfmk/kern/zallo
  					    assert_wait_timeout(zone, THREAD_UNINT, 1, NSEC_PER_MSEC);
  					    thread_block(THREAD_CONTINUE_NULL);
  				    }
-diff -urN xnu-3248.30.4/osfmk/prng/random.c xnu-3248.30.4-trace/osfmk/prng/random.c
---- xnu-3248.30.4/osfmk/prng/random.c	2015-11-06 23:08:04.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/prng/random.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/mach/i386/thread_status.h xnu-3248.60.10_trace/osfmk/mach/i386/thread_status.h
+--- xnu-3248.60.10/osfmk/mach/i386/thread_status.h	2016-06-16 19:57:15.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/mach/i386/thread_status.h	2017-03-29 15:19:48.000000000 -0400
+@@ -390,6 +390,7 @@
+ 
+ 	struct	x86_64_intr_stack_frame	isf;
+ };
++
+ typedef struct x86_saved_state64 x86_saved_state64_t;
+ #define x86_SAVED_STATE64_COUNT	((mach_msg_type_number_t) \
+ 	(sizeof (struct x86_saved_state64)/sizeof(unsigned int)))
+diff -urN xnu-3248.60.10/osfmk/prng/random.c xnu-3248.60.10_trace/osfmk/prng/random.c
+--- xnu-3248.60.10/osfmk/prng/random.c	2015-05-07 19:21:21.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/prng/random.c	2017-03-29 15:19:48.000000000 -0400
 @@ -378,6 +378,11 @@
  	 */
  	while (prng_ccdrbg_factory == NULL ) {
@@ -2835,9 +2964,9 @@ diff -urN xnu-3248.30.4/osfmk/prng/random.c xnu-3248.30.4-trace/osfmk/prng/rando
  		assert_wait_timeout((event_t) &prng_ccdrbg_factory, TRUE,
  				    10, NSEC_PER_USEC);
  		lck_mtx_unlock(gPRNGMutex);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_apple_protect.c xnu-3248.30.4-trace/osfmk/vm/vm_apple_protect.c
---- xnu-3248.30.4/osfmk/vm/vm_apple_protect.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_apple_protect.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_apple_protect.c xnu-3248.60.10_trace/osfmk/vm/vm_apple_protect.c
+--- xnu-3248.60.10/osfmk/vm/vm_apple_protect.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_apple_protect.c	2017-03-29 15:19:48.000000000 -0400
 @@ -765,6 +765,11 @@
  				 * too much CPU time retrying and failing
  				 * the same fault over and over again.
@@ -2850,9 +2979,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_apple_protect.c xnu-3248.30.4-trace/osfmk/vm
  				wait_result = assert_wait_timeout(
  					(event_t) apple_protect_pager_data_request,
  					THREAD_UNINT,
-diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor.c xnu-3248.30.4-trace/osfmk/vm/vm_compressor.c
---- xnu-3248.30.4/osfmk/vm/vm_compressor.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_compressor.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_compressor.c xnu-3248.60.10_trace/osfmk/vm/vm_compressor.c
+--- xnu-3248.60.10/osfmk/vm/vm_compressor.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_compressor.c	2017-03-29 15:19:48.000000000 -0400
 @@ -789,6 +789,12 @@
  c_seg_wait_on_busy(c_segment_t c_seg)
  {
@@ -2938,7 +3067,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor.c xnu-3248.30.4-trace/osfmk/vm/vm
  			assert_wait((event_t) (&c_segments_busy), THREAD_UNINT);
  	
  			lck_mtx_unlock_always(c_list_lock);
-@@ -3031,6 +3067,11 @@
+@@ -3046,6 +3082,11 @@
  		 * only set and cleared and the thread_wakeup done when the lock
  		 * is held exclusively
  		 */
@@ -2950,9 +3079,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor.c xnu-3248.30.4-trace/osfmk/vm/vm
  		assert_wait((event_t)&decompressions_blocked, THREAD_UNINT);
  
  		PAGE_REPLACEMENT_DISALLOWED(FALSE);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-trace/osfmk/vm/vm_compressor_backing_store.c
---- xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_compressor_backing_store.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_compressor_backing_store.c xnu-3248.60.10_trace/osfmk/vm/vm_compressor_backing_store.c
+--- xnu-3248.60.10/osfmk/vm/vm_compressor_backing_store.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_compressor_backing_store.c	2017-03-29 15:19:48.000000000 -0400
 @@ -529,6 +529,13 @@
  	}
  	vm_swapfile_create_thread_running = 0;
@@ -2980,7 +3109,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  	assert_wait((event_t)&vm_swapfile_gc_needed, THREAD_UNINT);
  
  	lck_mtx_unlock(&vm_swap_data_lock);
-@@ -786,6 +799,12 @@
+@@ -785,6 +798,12 @@
  
  		lck_mtx_lock_spin_always(c_list_lock);
  	}
@@ -2993,7 +3122,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  
  	assert_wait((event_t)&c_swapout_list_head, THREAD_UNINT);
  
-@@ -1080,6 +1099,12 @@
+@@ -1079,6 +1098,12 @@
  
  	if (hibernate_flushing == FALSE || VM_SWAP_SHOULD_CREATE(sec)) {
  		waiting = TRUE;
@@ -3006,7 +3135,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  		assert_wait_timeout((event_t) &vm_num_swap_files, THREAD_INTERRUPTIBLE, 1000, 1000*NSEC_PER_USEC);
  	} else
  		hibernate_no_swapspace = TRUE;
-@@ -1228,6 +1253,12 @@
+@@ -1227,6 +1252,12 @@
  {
  	while (delayed_trim_handling_in_progress == TRUE) {
  
@@ -3019,7 +3148,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  		assert_wait((event_t) &delayed_trim_handling_in_progress, THREAD_UNINT);
  		lck_mtx_unlock(&vm_swap_data_lock);
  		
-@@ -1421,6 +1452,13 @@
+@@ -1420,6 +1451,13 @@
  
  			swf->swp_flags |= SWAP_WANTED;
  
@@ -3033,7 +3162,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  			assert_wait((event_t) &swf->swp_flags, THREAD_UNINT);
  			lck_mtx_unlock(&vm_swap_data_lock);
  		
-@@ -1458,6 +1496,12 @@
+@@ -1457,6 +1495,12 @@
  			 * this c_segment no longer exists.
  			 */
  			c_seg->c_wanted = 1;
@@ -3046,9 +3175,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_compressor_backing_store.c xnu-3248.30.4-tra
  			
  			assert_wait((event_t) (c_seg), THREAD_UNINT);
  			lck_mtx_unlock_always(&c_seg->c_lock);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_fault.c xnu-3248.30.4-trace/osfmk/vm/vm_fault.c
---- xnu-3248.30.4/osfmk/vm/vm_fault.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_fault.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_fault.c xnu-3248.60.10_trace/osfmk/vm/vm_fault.c
+--- xnu-3248.60.10/osfmk/vm/vm_fault.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_fault.c	2017-03-29 15:19:48.000000000 -0400
 @@ -706,6 +706,12 @@
  			        VM_PAGE_FREE(m);
  			vm_fault_cleanup(object, first_m);
@@ -3158,9 +3287,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_fault.c xnu-3248.30.4-trace/osfmk/vm/vm_faul
  				result = PAGE_ASSERT_WAIT(m, interruptible);
  
  				vm_object_unlock(cur_object);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_fourk_pager.c xnu-3248.30.4-trace/osfmk/vm/vm_fourk_pager.c
---- xnu-3248.30.4/osfmk/vm/vm_fourk_pager.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_fourk_pager.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_fourk_pager.c xnu-3248.60.10_trace/osfmk/vm/vm_fourk_pager.c
+--- xnu-3248.60.10/osfmk/vm/vm_fourk_pager.c	2016-08-04 15:09:46.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_fourk_pager.c	2017-03-29 15:19:48.000000000 -0400
 @@ -1270,6 +1270,11 @@
  				 * too much CPU time retrying and failing
  				 * the same fault over and over again.
@@ -3173,9 +3302,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_fourk_pager.c xnu-3248.30.4-trace/osfmk/vm/v
  				wait_result = assert_wait_timeout(
  					(event_t) fourk_pager_data_request,
  					THREAD_UNINT,
-diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
---- xnu-3248.30.4/osfmk/vm/vm_map.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_map.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_map.c xnu-3248.60.10_trace/osfmk/vm/vm_map.c
+--- xnu-3248.60.10/osfmk/vm/vm_map.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_map.c	2017-03-29 15:19:48.000000000 -0400
 @@ -2135,6 +2135,13 @@
  					assert(!keep_map_locked);
  					if (size <= (effective_max_offset -
@@ -3190,7 +3319,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
  						assert_wait((event_t)map,
  							    THREAD_ABORTSAFE);
  						vm_map_unlock(map);
-@@ -8820,6 +8827,12 @@
+@@ -8835,6 +8842,12 @@
  		if ((end > dst_map->max_offset) || (end < start)) {
  			if (dst_map->wait_for_space) {
  				if (size <= (dst_map->max_offset - dst_map->min_offset)) {
@@ -3203,7 +3332,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
  					assert_wait((event_t) dst_map,
  						    THREAD_INTERRUPTIBLE);
  					vm_map_unlock(dst_map);
-@@ -13920,6 +13933,11 @@
+@@ -13935,6 +13948,11 @@
  				if (map->wait_for_space) {
  					if (size <= (map->max_offset -
  						     map->min_offset)) {
@@ -3215,7 +3344,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
  						assert_wait((event_t) map, THREAD_INTERRUPTIBLE);
  						vm_map_unlock(map);
  						thread_block(THREAD_CONTINUE_NULL);
-@@ -14879,6 +14897,12 @@
+@@ -14894,6 +14912,12 @@
  			     (msr->offset >= offset &&
  			      msr->offset < (offset + flush_size))))
  			{
@@ -3228,7 +3357,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
  				assert_wait((event_t) msr,THREAD_INTERRUPTIBLE);
  				msr_unlock(msr);
  				vm_object_unlock(object);
-@@ -14915,6 +14939,12 @@
+@@ -14930,6 +14954,12 @@
  		msr = (msync_req_t)queue_first(&req_q);
  		msr_lock(msr);
  		while(msr->flag != VM_MSYNC_DONE) {
@@ -3241,9 +3370,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_map.c xnu-3248.30.4-trace/osfmk/vm/vm_map.c
  			assert_wait((event_t) msr, THREAD_INTERRUPTIBLE);
  			msr_unlock(msr);
  			thread_block(THREAD_CONTINUE_NULL);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_object.c xnu-3248.30.4-trace/osfmk/vm/vm_object.c
---- xnu-3248.30.4/osfmk/vm/vm_object.c	2016-02-25 16:59:16.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_object.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_object.c xnu-3248.60.10_trace/osfmk/vm/vm_object.c
+--- xnu-3248.60.10/osfmk/vm/vm_object.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_object.c	2017-03-29 15:19:48.000000000 -0400
 @@ -413,6 +413,11 @@
  #define IO_REPRIO_THREAD_WAKEUP() 	thread_wakeup((event_t)&io_reprioritize_wakeup)
  #define IO_REPRIO_THREAD_CONTINUATION() 				\
@@ -3319,9 +3448,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_object.c xnu-3248.30.4-trace/osfmk/vm/vm_obj
  			assert_wait((event_t) (&iq->pgo_laundry + 1),
  				    THREAD_INTERRUPTIBLE);
  			vm_page_unlock_queues();
-diff -urN xnu-3248.30.4/osfmk/vm/vm_pageout.c xnu-3248.30.4-trace/osfmk/vm/vm_pageout.c
---- xnu-3248.30.4/osfmk/vm/vm_pageout.c	2016-02-25 16:59:17.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_pageout.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_pageout.c xnu-3248.60.10_trace/osfmk/vm/vm_pageout.c
+--- xnu-3248.60.10/osfmk/vm/vm_pageout.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_pageout.c	2017-03-29 15:19:48.000000000 -0400
 @@ -1127,6 +1127,13 @@
  	if (wait_for_pressure) {
  		/* wait until there's memory pressure */
@@ -3460,7 +3589,7 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_pageout.c xnu-3248.30.4-trace/osfmk/vm/vm_pa
  	assert_wait((event_t) &vm_pageout_garbage_collect, THREAD_UNINT);
  
  	thread_block_parameter((thread_continue_t) vm_pageout_garbage_collect, (void *)1);
-@@ -9115,6 +9176,12 @@
+@@ -9121,6 +9182,12 @@
  			 */
  			vm_paging_page_waiter_total++;
  			vm_paging_page_waiter++;
@@ -3473,9 +3602,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_pageout.c xnu-3248.30.4-trace/osfmk/vm/vm_pa
  			kr = assert_wait((event_t)&vm_paging_page_waiter, THREAD_UNINT);
  			if (kr == THREAD_WAITING) {
  				simple_unlock(&vm_paging_lock);
-diff -urN xnu-3248.30.4/osfmk/vm/vm_resident.c xnu-3248.30.4-trace/osfmk/vm/vm_resident.c
---- xnu-3248.30.4/osfmk/vm/vm_resident.c	2016-02-25 16:59:17.000000000 -0500
-+++ xnu-3248.30.4-trace/osfmk/vm/vm_resident.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/osfmk/vm/vm_resident.c xnu-3248.60.10_trace/osfmk/vm/vm_resident.c
+--- xnu-3248.60.10/osfmk/vm/vm_resident.c	2016-08-04 15:09:47.000000000 -0400
++++ xnu-3248.60.10_trace/osfmk/vm/vm_resident.c	2017-03-29 15:19:48.000000000 -0400
 @@ -2556,10 +2556,24 @@
  	        if (is_privileged) {
  		        if (vm_page_free_wanted_privileged++ == 0)
@@ -3525,9 +3654,9 @@ diff -urN xnu-3248.30.4/osfmk/vm/vm_resident.c xnu-3248.30.4-trace/osfmk/vm/vm_r
  				assert_wait_timeout((event_t) &tq->pgo_laundry, THREAD_INTERRUPTIBLE, 1000, 1000*NSEC_PER_USEC);
  
  				vm_page_unlock_queues();
-diff -urN xnu-3248.30.4/pexpert/i386/pe_interrupt.c xnu-3248.30.4-trace/pexpert/i386/pe_interrupt.c
---- xnu-3248.30.4/pexpert/i386/pe_interrupt.c	2008-10-12 21:11:57.000000000 -0400
-+++ xnu-3248.30.4-trace/pexpert/i386/pe_interrupt.c	2016-12-15 16:13:57.000000000 -0500
+diff -urN xnu-3248.60.10/pexpert/i386/pe_interrupt.c xnu-3248.60.10_trace/pexpert/i386/pe_interrupt.c
+--- xnu-3248.60.10/pexpert/i386/pe_interrupt.c	2016-06-15 17:54:26.000000000 -0400
++++ xnu-3248.60.10_trace/pexpert/i386/pe_interrupt.c	2017-03-29 15:19:48.000000000 -0400
 @@ -28,6 +28,7 @@
  #include <pexpert/pexpert.h>
  #include <pexpert/protos.h>

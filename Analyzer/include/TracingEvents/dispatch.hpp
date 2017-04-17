@@ -48,6 +48,7 @@ public:
 	void set_ptrs(uint64_t _func_ptr, uint64_t _invoke_ptr, uint64_t _vtable_ptr);
 	void set_root(enqueue_ev_t* _root) {root = _root;}
 	enqueue_ev_t * get_root(void) {return root;}
+	blockinvoke_ev_t * get_invoke(void) {return invoke;}
 	uint64_t get_func_ptr(void) {return func_ptr;}
 	uint64_t get_invoke_ptr(void) {return invoke_ptr;}
 	uint64_t get_vtable_ptr(void) {return vtable_ptr;}

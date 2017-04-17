@@ -127,12 +127,12 @@ void Clusters::merge_by_mach_msg()
 		curr_msg = dynamic_cast<msg_ev_t*>(*it);
 		next_msg = curr_msg->get_next();
 		if (next_msg != NULL) {
-			merge_clusters_of_events(curr_msg, next_msg, MSGP);
+			merge_clusters_of_events(curr_msg, next_msg, MSGP_REL);
 		} else {
 			peer_msg = curr_msg->get_peer();
 			if (peer_msg != NULL) {
 				if (peer_msg->get_abstime() >= curr_msg->get_abstime()) 
-					merge_clusters_of_events(curr_msg, peer_msg, MSGP);
+					merge_clusters_of_events(curr_msg, peer_msg, MSGP_REL);
 			} else if (curr_msg->is_freed_before_deliver() == false){
 				cerr << "Check: no peer msg found for : ";
 				cerr << fixed << setprecision(2) << curr_msg->get_abstime() << endl;
@@ -153,19 +153,19 @@ void Clusters::merge_by_dispatch_ops()
 		assert(invoke_event != NULL);
 		event_t * root = invoke_event->get_root();
 		if (root != NULL) {
-			merge_clusters_of_events(root, invoke_event, DISEXE);
+			merge_clusters_of_events(root, invoke_event, DISP_EXE_REL);
 		}
 	}
 
 	list<event_t*>::iterator deq_it;
-	list<event_t*> dispatch_deq_list = groups_ptr->get_list_of_op(DISP_DEQ); 
+	list<event_t*> dispatch_deq_list = groups_ptr->get_list_of_op(DISP_DEQ_REL); 
 
 	for (deq_it = dispatch_deq_list.begin(); deq_it != dispatch_deq_list.end(); deq_it++) {
 		dequeue_ev_t * deq_event = dynamic_cast<dequeue_ev_t*>(*deq_it);
 		assert(deq_event != NULL);
 		event_t * root = deq_event->get_root();
 		if (root != NULL) {
-			merge_clusters_of_events(root, deq_event, DISEXE);
+			merge_clusters_of_events(root, deq_event, DISP_EXE_REL);
 		}
 	}
 	cerr << "merge dispatch-execute done\n";
@@ -182,7 +182,7 @@ void Clusters::merge_by_timercallout()
 		assert(timercallout_event != NULL);
 		timercreate_ev_t * timercreate_event = timercallout_event->get_timercreate();
 		if (timercreate_event != NULL) {
-			merge_clusters_of_events(timercreate_event, timercallout_event, CALLOUT);
+			merge_clusters_of_events(timercreate_event, timercallout_event, CALLOUT_REL);
 		}
 	}
 
@@ -193,7 +193,7 @@ void Clusters::merge_by_timercallout()
 		assert(timercancel_event != NULL);
 		timercreate_ev_t * timercreate_event = timercancel_event->get_timercreate();
 		if (timercreate_event != NULL) {
-			merge_clusters_of_events(timercreate_event, timercancel_event, CALLOUTCANCEL);
+			merge_clusters_of_events(timercreate_event, timercancel_event, CALLOUTCANCEL_REL);
 		}
 	}
 
@@ -208,7 +208,6 @@ void Clusters::merge_by_mkrun()
 
 	for (mkrun_it = all_mkrun.begin(); mkrun_it != all_mkrun.end(); mkrun_it++) {
 		mkrun_ev_t *mr_event = mkrun_it->first;
-		int32_t type = mr_event->get_mr_type();
 		list<event_t *> &tidlist = groups_ptr->get_list_of_tid(mr_event->get_peer_tid());
 		list<event_t *>::iterator pos = mkrun_it->second;
 
@@ -232,10 +231,10 @@ void Clusters::merge_by_mkrun()
 			continue;
 
 		// clear wait && run_nextreq
-		if (type == WORKQ_MR)
+		if (mr_event->get_mr_type() == WORKQ_MR)
 			continue;
 		
-		merge_clusters_of_events(mr_event, (*pos), MKRUN);
+		merge_clusters_of_events(mr_event, (*pos), MKRUN_REL);
 	}	
 	cerr << "merge make_run done\n";
 }

@@ -36,6 +36,7 @@ namespace LoadData
 		string host;
 		pid_t pid;
 		string suspicious_api;
+		double spin_timestamp;
 		uint64_t nthreads;
 	} meta_data_t;
 	extern meta_data_t meta_data;

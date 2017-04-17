@@ -2,11 +2,12 @@
 #define CLUSTER_HPP
 #include "group.hpp"
 
-#define MSGP	0
-#define MKRUN	1
-#define DISEXE	2
-#define CALLOUT 3
-#define CALLOUTCANCEL 4
+#define MSGP_REL	 0
+#define MKRUN_REL	 1
+#define DISP_EXE_REL 2
+#define DISP_DEQ_REL 3
+#define CALLOUT_REL	 4
+#define CALLOUTCANCEL_REL 5
 
 struct rel_t {
 	group_t * g_from;
@@ -22,6 +23,8 @@ struct rel_t {
 	}
 };
 
+typedef map<mkrun_ev_t*, list<event_t *>::iterator> mkrun_pos_t;
+
 class Cluster {
 	uint64_t cluster_id;
 	vector<rel_t> edges;
@@ -32,6 +35,7 @@ class Cluster {
 	vector<group_t *> gt_groups;
 	group_t * root;
 	list<event_t *>connectors;
+	list<wait_ev_t *>wait_events;
 
 public:
 	Cluster(void);
@@ -53,8 +57,14 @@ public:
 	vector<group_t *> & get_gt_groups(void) {return gt_groups;}
 	static bool compare_time(group_t *, group_t*);
 	void sort_nodes();
+	static bool compare_edge_from(rel_t edge1, rel_t edge2);
+	void sort_edges();
 	void decode_cluster(ofstream &outfile);
 	void decode_edges(ofstream &outfile);
+	void pic_edge(ofstream &outfile, event_t * host, const char * action, event_t * peer);
+	void pic_lanes(ofstream &outfile);
+	void pic_groups(ofstream &outfile);
+	void pic_cluster(ofstream &outfile);
 	void streamout_cluster(ofstream &outfile);
 
 	list<event_t *> pop_cur_connectors() {
@@ -62,7 +72,9 @@ public:
 		connectors.clear();
 		return ret;
 	}
-	
+	list<wait_ev_t *> &get_wait_events() {
+		return wait_events;
+	}
 	void push_connectors(group_t *, event_t *);
 };
 
@@ -101,20 +113,23 @@ typedef Clusters clusters_t;
 class ClusterGen {
 	groups_t * groups_ptr;
 	map<uint64_t, cluster_t *> clusters;
+	cluster_t * spin_cluster;
 
 	cluster_t * init_cluster(group_t * group);
 	void augment_cluster(cluster_t * cluster);
 
 	void merge_by_mach_msg(cluster_t *, msg_ev_t *);
-	void merge_by_dispatch_ops(cluster_t *, blockinvoke_ev_t *);
+	void merge_by_dispatch_ops(cluster_t *, enqueue_ev_t *);
 	void merge_by_dispatch_ops(cluster_t *, dequeue_ev_t *);
-	void merge_by_mkrun(cluster_t *, mkrun_ev_t *);
-	void merge_by_timercallout(cluster_t *, timercallout_ev_t *);
+	void merge_by_timercallout(cluster_t *, timercreate_ev_t *);
+	void merge_by_waitsync(cluster_t * cluster, wait_ev_t * wait_event);
+	void add_waitsync(cluster_t * cluster);
 
 public:
 	ClusterGen(groups_t * groups_ptr);
 	~ClusterGen(void);
 	void streamout_clusters(string & output_path);
+	void pic_clusters(string & output_path);
 };
 
 #endif

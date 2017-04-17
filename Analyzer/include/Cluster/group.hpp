@@ -92,6 +92,7 @@ public:
 	double get_state_time(string state) {return state_aggregate_time[state];}
 	void decode_group(ofstream &outfile);
 	void streamout_group(ofstream &outfile);
+	void pic_group(ofstream &outfile);
 };
 typedef Group group_t;
 
@@ -129,6 +130,7 @@ class Groups {
 	tid_evlist_t divide_eventlist_and_mapping(list<event_t *> &_list);
 
 	void para_connector_generate(void); /* connect events for later clustering */
+	void wakeup_connect(void);
 	void check_host_uithreads(list<event_t *> &);//backtrace_ev_t *backtrace_event);
 	group_t * create_group(uint64_t group_id, event_t *root_event);
 	bool voucher_manipulation(event_t *event);
@@ -173,6 +175,7 @@ public:
 	//void clear_groups(void);
 	int decode_groups(string & output_path);
 	int streamout_groups(string & output_path);
+	
 };
 typedef Groups groups_t;
 

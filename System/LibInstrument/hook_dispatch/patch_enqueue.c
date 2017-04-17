@@ -1,6 +1,8 @@
 #include "lib_mach_info.h"
-//#define DISPATCH_ENQUEUE 0x210a0008
+#include <dispatch/dispatch.h>
+
 #if defined(__LP64__)
+#define DISPATCH_ENQUEUE 0x210a0008
 
 /* 2.
 ** __dispatch_queue_wakeup_with_qos_slow:                    
@@ -473,7 +475,6 @@ void detour_dispatch_async_enforce_qos_class_f(struct hack_handler *hack_handler
      detour_function(hack_handler_ptr, "dispatch_async_enforce_qos_class_f",
          shell_dispatch_async_enforce_qos_class_f, 0x11d, 7);
 }
-
 
 /* 25
  * _dispatch_async:

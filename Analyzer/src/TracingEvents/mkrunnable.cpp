@@ -10,6 +10,7 @@ MkrunEvent::MkrunEvent(double timestamp, string op, uint64_t _tid, uint64_t _pee
 	set_pid(_pid);
 	peer_pid = _peer_pid;
 	wait = NULL;
+	peer_event = NULL;
 }
 
 void MkrunEvent::pair_wait(wait_ev_t* _wait)

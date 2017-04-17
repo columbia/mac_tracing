@@ -198,12 +198,14 @@ group_t * NSEventThreadDivider::add_backtrace_to_group(backtrace_ev_t * backtrac
 
 	if (cur_event_state == _None) {
 		cur_group->add_to_container(backtrace_event);
+		cur_group->add_group_tags(backtrace_event->get_symbols());
 		return cur_group;
 	}
 	
 	if (state == _Init) {
 		state = cur_event_state;
 		cur_group->add_to_container(backtrace_event);
+		cur_group->add_group_tags(backtrace_event->get_symbols());
 		return cur_group;
 	}
 
@@ -214,6 +216,7 @@ group_t * NSEventThreadDivider::add_backtrace_to_group(backtrace_ev_t * backtrac
 	}
 
 	cur_group->add_to_container(backtrace_event);
+	cur_group->add_group_tags(backtrace_event->get_symbols());
 	state = cur_event_state;
 	return cur_group;
 }
@@ -291,7 +294,7 @@ void NSEventThreadDivider::divide()
 				//cur_group->add_group_tags(backtrace_for_hook->get_symbols());
 				backtrace_for_hook = NULL;
 			}
-			//cur_group->add_group_tags(invoke_event->get_desc());
+			cur_group->add_group_tags(invoke_event->get_desc());
 		}
 
 		/* hook voucher / backtrace to msg event */

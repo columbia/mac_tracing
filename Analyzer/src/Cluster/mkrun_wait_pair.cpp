@@ -27,13 +27,14 @@ void MkrunWaitPair::pair_wait_mkrun(void)
 				#endif
 			}
 			wait_map[wait->get_tid()] = wait;
-
 		} else {
 			mr_event = dynamic_cast<mkrun_ev_t*>(*it);
 			assert(mr_event);
-			if (wait_map.find(mr_event->get_peer_tid()) != wait_map.end()) 
+			if (wait_map.find(mr_event->get_peer_tid()) != wait_map.end()) {
+			//	&& wait_map[mr_event->get_peer_tid()]->get_wait_event() == mr_event->get_peer_wakeup_event()) {
 				mr_event->pair_wait(wait_map[mr_event->get_peer_tid()]);
-			else {
+				wait_map[mr_event->get_peer_tid()]->pair_mkrun(mr_event);
+			} else {
 				#ifdef MKRUN_WAIT_DEBUG
 				cerr << "Warning: no wait to make runnable " << fixed << setprecision(1) << mr_event->get_abstime() << endl;
 				#endif

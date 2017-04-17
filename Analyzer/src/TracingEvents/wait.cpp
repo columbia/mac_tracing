@@ -4,6 +4,7 @@ WaitEvent::WaitEvent(double timestamp, string op, uint64_t tid, uint64_t _wait_e
 :EventBase(timestamp, op, tid, coreid, procname)
 {
 	wait_event = _wait_event;
+	mkrun_event = NULL;
 }
 
 const char * WaitEvent::decode_wait_result(void) 

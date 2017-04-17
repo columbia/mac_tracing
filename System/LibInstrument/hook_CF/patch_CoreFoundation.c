@@ -1,5 +1,12 @@
 #include "lib_mach_info.h"
 
+#include <CoreFoundation/CFRunLoop.h>
+
+#define DEBUG_CreateObserver	0x23456780
+#define DEBUG_AddObserver		0x23456784
+#define DEBUG_RemoveObserver	0x23456788
+#define DEBUG_CallObserver		0x2345678c
+
 #if defined(__LP64__)
 //_CFRunLoopAddObserver:
 //_CFRunLoopRemoveObserver:
@@ -82,7 +89,7 @@ void shell_CFRunLoopObserverCreate()
 				::"m"(simu_rbx), "m"(simu_r12), "m"(simu_r13));
 }
 
-void detour_corefoundation(struct hack_handler * hack_handler_ptr)
+void detour(struct hack_handler * hack_handler_ptr)
 {
 	detour_function(hack_handler_ptr, "CFRunLoopAddObserver", shell_CFRunLoopAddObserver, 0x11, 6);
 	detour_function(hack_handler_ptr, "CFRunLoopRemoveObserver", shell_CFRunLoopRemoveObserver, 0x11, 6);
@@ -90,11 +97,4 @@ void detour_corefoundation(struct hack_handler * hack_handler_ptr)
 	detour_function(hack_handler_ptr, "CFRunLoopObserverCreate", shell_CFRunLoopObserverCreate, 0x177, 5);
 }
 
-void detour()
-{
-	struct hack_handler hack_handler_info;
-	memset(&hack_handler_info, 0, sizeof(struct hack_handler));
-	if (prepare_detour(CFRunLoopGetCurrent, &hack_handler_info))
-		detour_corefoundation(&hack_handler_info);
-}
 #endif

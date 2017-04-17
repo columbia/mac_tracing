@@ -1,7 +1,11 @@
 #include "lib_mach_info.h"
-//#define DISPATCH_EXECUTE 0x210a0010
-//#define CALLOUT_BEGIN 0
-//#define CALLOUT_END 1
+#include <dispatch/dispatch.h>
+
+#if defined(__LP64__)
+
+#define DISPATCH_EXECUTE 0x210a0010
+#define CALLOUT_BEGIN 0
+#define CALLOUT_END 1
 
 /* __dispatch_client_callout:
  * begin
@@ -10,38 +14,6 @@
  * ->0000000000002407    53                  pushq   %rbx 
  * ->0000000000002408    50                  pushq   %rax
  */
-
-#define BACK_TRACE_BUFFER 17
-#define MSG_BACKTRACE   0x29000094
-
-#if defined(__LP64__)
-
-static void back_trace(uint64_t func)
-{
- 	void *callstack[BACK_TRACE_BUFFER] = {(void *)0};
-	uint32_t frame_index = 0;
-	vm_offset_t stackptr, stackptr_prev, raddr;
-
-	__asm__ volatile("movq %%rbp, %0" : "=m"(stackptr));
-
-	for(frame_index = 0; frame_index < BACK_TRACE_BUFFER; frame_index++) {
-		stackptr_prev = stackptr;
-		stackptr = *((vm_offset_t *) stackptr_prev);
-		if (stackptr < stackptr_prev)
-			break;
-		raddr = *((vm_offset_t *)(stackptr + 8));
-		if (raddr < 4096)
-			break;
-		callstack[frame_index] = (void*) raddr;
-	}
-
-	kdebug_trace(MSG_BACKTRACE, func, frame_index, callstack[0], callstack[1], 0);
- 	for (int i = 2; i < frame_index && i + 2 < BACK_TRACE_BUFFER; i += 3) {
-		if (callstack[i] == (void*)0)
-			break;
-		kdebug_trace(MSG_BACKTRACE, func, callstack[i], callstack[i + 1], callstack[i + 2], 0);
-	}
-}
 
 void shell_dispatch_client_callout_begin(void * ctxt, dispatch_function_t f)
 {

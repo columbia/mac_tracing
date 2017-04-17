@@ -1,5 +1,8 @@
 #include "lib_mach_info.h"
-//#define DISPATCH_DEQUEUE 0x210a000c
+#include <dispatch/dispatch.h>
+
+#if defined(__LP64__)
+#define DISPATCH_DEQUEUE 0x210a000c
 
 /*3
  * __dispatch_root_queue_drain
@@ -25,7 +28,7 @@
  *
  * #define DISPATCH_OBJ_IS_VTABLE(x) ((unsigned long)(x)->do_vtable > 0xfful)
  */
-#if defined(__LP64__)
+
 void shell__dispatch_root_queue_drain()
 {
 	save_registers;
@@ -177,26 +180,37 @@ void detour_callout__dispatch_queue_drain(struct hack_handler *hack_handler_ptr)
  * 0000000000015a00	498b7520        	movq	0x20(%r13), %rsi
  * 0000000000015a04	498b7d28        	movq	0x28(%r13), %rdi
  * 0000000000015a08	e8f6c9feff      	callq	0x2403
+ * calculateing dispath mainq address:
+ * (0x155f2 + 7 + 0x27447 - 0x15a05) (%%ret) = 0x2703b(%%ret)
+ * or gs:0xa0
  *22
  * __dispatch_main_queue_callback_4CF:
  * 0000000000015587	55              	pushq	%rbp
  * 0000000000015c0f	498b7520        	movq	0x20(%r13), %rsi
  * 0000000000015c13	498b7d28        	movq	0x28(%r13), %rdi
  * 0000000000015c17	e8e7c7feff      	callq	0x2403
- *
-void shell_callout__dispatch_main_queue_callback_4CF()
+ * calculateing dispath mainq address:
+ * (0x155f2 + 7 + 0x27447 - 0x15c14) (%%ret) = 0x26e2c(%%ret)
+ * or gs:0xa0
+ */
+void shell_callout__dispatch_main_queue_callback_4CF_1()
 {
 	save_registers;
-	uint64_t item, ctxt, func;
-	asm volatile("movq %%r13, %0\n"
+	uint64_t dq, item, ctxt, func; //, check_dq;
+	asm volatile("movq 0x8(%%rbp), %%rax\n"
+				"addq 0x2703b, %%rax\n"
+				//"movq %%rax, %4\n"
+				//"movq %%gs:0xa0, %%rax\n"
+				"movq %%rax, %0\n"
+				"movq %%r13, %1\n"
 				"movq 0x20(%%r13), %%rax\n"
-				"movq %%rax, %1\n"
+				"movq %%rax, %2\n"
 				"movq 0x28(%%r13), %%rax\n"
-				"movq %%rax, %2"
-			:"=m"(item), "=m"(func), "=m"(ctxt):);
+				"movq %%rax, %3"
+			:"=m"(dq), "=m"(item), "=m"(func), "=m"(ctxt));//, "=m"(check_dq):);
 
-	kdebug_trace(DISPATCH_DEQUEUE, 21, 0, item, ctxt, 0);
-	kdebug_trace(DISPATCH_DEQUEUE,  (1 << 32) | 21, func, 0, 0, 0);
+	kdebug_trace(DISPATCH_DEQUEUE, 21, dq, item, ctxt, 0);
+	kdebug_trace(DISPATCH_DEQUEUE,  (1UL << 32) | 21, func, 0, 0, 0);
 
 	restore_registers;
 	asm volatile("movq 0x20(%%r13), %%rsi\n"
@@ -204,14 +218,38 @@ void shell_callout__dispatch_main_queue_callback_4CF()
 	::);
 }
 
+void shell_callout__dispatch_main_queue_callback_4CF_2()
+{
+	save_registers;
+	uint64_t dq, item, ctxt, func;
+	asm volatile("movq 0x8(%%rbp), %%rax\n"
+				 "addq $0x26e2c, %%rax\n"
+				//"movq %%gs:0xa0, %%rax\n"
+				"movq %%rax, %0\n"
+				"movq %%r13, %1\n"
+				"movq 0x20(%%r13), %%rax\n"
+				"movq %%rax, %2\n"
+				"movq 0x28(%%r13), %%rax\n"
+				"movq %%rax, %3"
+			:"=m"(dq), "=m"(item), "=m"(func), "=m"(ctxt):);
+
+	kdebug_trace(DISPATCH_DEQUEUE, 22, dq, item, ctxt, 0);
+	kdebug_trace(DISPATCH_DEQUEUE,  (1UL << 32) | 22, func, 0, 0, 0);
+
+	restore_registers;
+	asm volatile("movq 0x20(%%r13), %%rsi\n"
+				"movq 0x28(%%r13), %%rdi"
+	::);
+}
+
+
 void detour_callout__dispatch_main_queue_callback_4CF(struct hack_handler *hack_handler_ptr)
 {
 	detour_function(hack_handler_ptr, "_dispatch_main_queue_callback_4CF", 
-		shell_callout__dispatch_main_queue_callback_4CF, 0x479, 8);
+		shell_callout__dispatch_main_queue_callback_4CF_1, 0x479, 8);
 	detour_function(hack_handler_ptr, "_dispatch_main_queue_callback_4CF", 
-		shell_callout__dispatch_main_queue_callback_4CF, 0x688, 8);
+		shell_callout__dispatch_main_queue_callback_4CF_2, 0x688, 8);
 }
-*/
 
 /*23
  * __dispatch_runloop_root_queue_perform_4CF:
@@ -262,5 +300,6 @@ void detour_dequeue(struct hack_handler * hack_handler_ptr)
 	#if defined(__LP64__)
 	detour_callout__dispatch_root_queue_drain(hack_handler_ptr);
 	detour_callout__dispatch_queue_drain(hack_handler_ptr);
+	detour_callout__dispatch_main_queue_callback_4CF(hack_handler_ptr);
 	#endif
 }

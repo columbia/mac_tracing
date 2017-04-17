@@ -64,6 +64,7 @@ class Frames {
 	vector<uint64_t> frame_addrs;
 	vector<string> frame_symbols;
 	bool is_infected;
+	bool is_spin;
 	Images * image;
 public:
 	Frames(uint64_t tag, string procname, uint64_t _tid);
@@ -73,7 +74,7 @@ public:
 	uint64_t get_size(void) {return frame_addrs.size();}
 	vector<string> & get_symbols(void) {return frame_symbols;}
 	bool check_symbol(string &func);
-	bool check_infected(void) {return is_infected;}
+	bool check_infected(void) {return is_infected && is_spin;}
 	void decode_frames(ofstream &outfile);
 	void streamout(ofstream &outfile);
 
