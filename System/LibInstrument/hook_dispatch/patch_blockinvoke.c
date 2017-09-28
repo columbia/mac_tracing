@@ -1,26 +1,31 @@
+/* libdispatch.dylib
+ * version 501.40.12
+ * arch i386 x86_64
+ ************************/
 #include "lib_mach_info.h"
 #include <dispatch/dispatch.h>
-
-#if defined(__LP64__)
 
 #define DISPATCH_EXECUTE 0x210a0010
 #define CALLOUT_BEGIN 0
 #define CALLOUT_END 1
 
+#if __x86_64__
 /* __dispatch_client_callout:
  * begin
- * 0000000000002403    55                  pushq   %rbp
- * ->0000000000002404    4889e5              movq    %rsp, %rbp
- * ->0000000000002407    53                  pushq   %rbx 
- * ->0000000000002408    50                  pushq   %rax
+ * 0000000000002403    55                   pushq   %rbp
+ * ->0000000000002404    4889e5             movq    %rsp, %rbp
+ * ->0000000000002407    53                 pushq   %rbx 
+ * ->0000000000002408    50                 pushq   %rax
+ * 00000000000020b6    ffd6					callq   *%rsi
  */
 
 void shell_dispatch_client_callout_begin(void * ctxt, dispatch_function_t f)
 {
-	save_registers;
-	back_trace(f);
-	kdebug_trace(DISPATCH_EXECUTE|CALLOUT_BEGIN, f, ctxt, CALLOUT_BEGIN, 0, 0);
-	restore_registers;
+	save_registers
+	back_trace((uint64_t)f);
+	kdebug_trace(DISPATCH_EXECUTE|CALLOUT_BEGIN,
+		(uint64_t)f, (uint64_t)ctxt, CALLOUT_BEGIN, 0, 0);
+	restore_registers
 	//emulate pushq and adjust prev_rbp
 	//stack should be transformed
 	// retold  --> rbx
@@ -46,13 +51,45 @@ void shell_dispatch_client_callout_begin(void * ctxt, dispatch_function_t f)
 		"subq $0x10, %%rbp\n"
 		::);
 }
+#elif __i386__
+/*__dispatch_client_callout:
+ * 0x0	0000180d	55 	pushl	%ebp
+ * 0x1L	0000180e	89 e5 	movl	%esp, %ebp
+ * 0x3L	00001810	57 	pushl	%edi
+ * 0x4L	00001811	56 	pushl	%esi
+ * 0x5L	00001812	83 ec 10 	subl	$0x10, %esp
+ * ->0x8L	00001815	8b 45 0c 	movl	0xc(%ebp), %eax
+ * ->0xbL	00001818	8b 4d 08 	movl	0x8(%ebp), %ecx
+ * 0xeL	0000181b	65 8b 35 dc 00 00 00 	movl	%gs:0xdc, %esi
+ */
+void shell_dispatch_client_callout_begin()
+{
+	uint64_t ctxt, func;
+	save_registers
+	asm volatile("movl (%%ebp), %%ebx\n"
+		"movl 0xc(%%ebx), %%eax\n"
+		"movl %%eax, %1\n"
+		"movl 0x8(%%ebx), %%ecx\n"
+		"movl %%ecx, %0"
+		:"=m"(ctxt), "=m"(func):);
+	back_trace(func);
+	uint32_t debug_id = DISPATCH_EXECUTE|CALLOUT_BEGIN;
+	kdebug_trace(debug_id, func, ctxt, CALLOUT_BEGIN, 0, 0);
+	restore_registers
+	//simulation
+	asm volatile("movl (%%ebp), %%esi\n"
+		"movl 0xc(%%esi), %%eax\n"
+		"movl 0x8(%%esi), %%ecx"
+		::);
+}
+#endif
 
+#if __x86_64__
 /* __dispatch_client_callout:
  * end
  * 000000000000240b    4883c408            addq    $0x8, %rsp
  * 000000000000240f    5b                  popq    %rbx
  */
-
 void shell_dispatch_client_callout_end()
 {
 	uint64_t func;
@@ -61,9 +98,10 @@ void shell_dispatch_client_callout_end()
 		"movq %%rax, %0\n"
 		:"=m"(func)
 		:);
-	save_registers;
-	kdebug_trace(DISPATCH_EXECUTE|CALLOUT_END, func, 0, CALLOUT_END, 0, 0);
-	restore_registers;
+	save_registers
+	kdebug_trace(DISPATCH_EXECUTE|CALLOUT_END,
+		func, 0, CALLOUT_END, 0, 0);
+	restore_registers
 	/* simulate
 	 * addq $0x8, %rsp
 	 * popq %rbx
@@ -80,12 +118,46 @@ void shell_dispatch_client_callout_end()
 		"addq $0x10, %%rsp" 
 		::); 
 }
+#elif __i386__
+/* __dispatch_client_callout:
+ * 0x0	0000180d	55 	pushl	%ebp
+ * 0x23L	00001830	c7 86 00 01 00 00 00 00 00 00 	movl	$0x0, 0x100(%esi)
+ * 0x2dL	0000183a	89 0c 24 	movl	%ecx, (%esp)
+ * 0x30L	0000183d	ff d0 	calll	*%eax
+ * 0x32L	0000183f	8b 86 00 01 00 00 	movl	0x100(%esi), %eax
+ * 0x38L	00001845	85 c0 	testl	%eax, %eax
+ * 0x3aL	00001847	74 09 	je	0x1852
+ */
+void shell_dispatch_client_callout_end()
+{
+	save_registers
+	uint64_t ctxt, func;
+	asm volatile("movl (%%ebp), %%esi\n"
+		"movl 0x8(%%esi), %%eax\n"
+		"movl %%eax, %0\n"
+		"movl 0xc(%%esi), %%eax\n"
+		"movl %%eax, %1\n"
+		:"=m"(ctxt), "=m"(func), "=m"(esi):);
+	uint32_t debug_id = DISPATCH_EXECUTE|CALLOUT_END;
+	kdebug_trace(debug_id,
+		func, ctxt, CALLOUT_END, 0, 0);
+	restore_registers
+	//simulation
+	asm volatile("movl 0x100(%%esi), %%eax"::);
+}
 #endif
 
-void detour_blockinvoke(struct hack_handler * hack_handler_ptr)
+void detour_blockinvoke(struct mach_o_handler * handler_ptr)
 {
-	#if defined(__LP64__)
-	detour_function(hack_handler_ptr, "_dispatch_client_callout", shell_dispatch_client_callout_begin, 1, 5);
-	detour_function(hack_handler_ptr, "_dispatch_client_callout", shell_dispatch_client_callout_end, 8, 5);
-	#endif
+#if __x86_64__
+	detour_function(handler_ptr, "_dispatch_client_callout",
+		shell_dispatch_client_callout_begin, 1, 5);
+	detour_function(handler_ptr, "_dispatch_client_callout",
+		shell_dispatch_client_callout_end, 0x8, 5);
+#elif __i386__
+	detour_function(handler_ptr, "_dispatch_client_callout",
+		shell_dispatch_client_callout_begin, 0x8, 6);
+	detour_function(handler_ptr, "_dispatch_client_callout",
+		shell_dispatch_client_callout_end, 0x32, 6);
+#endif
 }

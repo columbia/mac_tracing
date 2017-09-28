@@ -9,7 +9,6 @@ Group::Group(uint64_t _group_id, event_t * _root)
 	is_ground = is_infected = false;
 	infected_event = NULL;
 	container.clear();
-	state_aggregate_time.clear();
 }
 
 Group::~Group(void)
@@ -28,6 +27,12 @@ void Group::set_group_id(uint64_t _group_id)
 	list<event_t *>::iterator it;
 	for (it = container.begin(); it != container.end(); it++)
 		(*it)->set_group_id(group_id);
+}
+
+void Group::add_group_peer(string proc_comm)
+{
+	if (proc_comm.size())
+		group_peer.insert(proc_comm);
 }
 
 void Group::add_group_tags(vector<string> &desc)
@@ -65,6 +70,24 @@ void Group::add_to_container(event_t *event)
 	}
 }
 
+void Group::add_to_container(group_t *group)
+{
+	list<event_t*>::iterator it;
+	list<event_t *> &peer_container = group->get_container();
+	for (it = peer_container.begin(); it != peer_container.end(); it++) {
+		add_to_container(*it);
+	}
+}
+
+void Group::empty_container()
+{
+	list<event_t*>::iterator it;
+	for (it = container.begin(); it != container.end(); it++) {
+		(*it)->set_group_id(-1);
+	}
+	container.clear();
+}
+
 void Group::decode_group(ofstream & output)
 {	
 	list<event_t*>::iterator it;
@@ -77,19 +100,9 @@ void Group::decode_group(ofstream & output)
 void Group::streamout_group(ofstream & output)
 {	
 	list<event_t*>::iterator it;
-	output << "Cluster " << hex  << cluster_id << endl;
 	for (it = container.begin(); it != container.end(); it++) {
 		event_t * cur_ev = *it;
 		cur_ev->streamout_event(output);
-	}
-
-	if (state_aggregate_time.size() == 0)
-		return;
-
-	output << "Aggregate state time cost " << endl;
-	map<string, double>::iterator time_it;
-	for (time_it = state_aggregate_time.begin(); time_it != state_aggregate_time.end(); time_it++) {
-		output << time_it->first << "\t:" << fixed << setprecision(1) << time_it->second << endl;
 	}
 }
 
@@ -100,22 +113,4 @@ void Group::pic_group(ofstream & output)
 	output << hex << group_id << "\t" << get_first_event()->get_procname() << "_" << get_first_event()->get_tid() << endl;
 	output << "Time " << fixed << setprecision(1) << get_first_event()->get_abstime();
 	output << " ~ " << fixed << setprecision(1) << get_last_event()->get_abstime() << endl;
-	if (state_aggregate_time.size()) {
-		output << "Aggregate state time cost ";
-		map<string, double>::iterator time_it;
-		for (time_it = state_aggregate_time.begin(); time_it != state_aggregate_time.end(); time_it++) {
-			output << time_it->first << ":" << fixed << setprecision(1) << time_it->second << ";";
-		}
-		output << endl;
-	}
-	
-	/*
-	if (group_tags.size()) {
-		map<string, uint32_t>::iterator it;
-		output << "Group tags ";
-		for (it = group_tags.begin(); it != group_tags.end(); it++)
-			output << it->first << ";";
-		output << endl;
-	}
-	*/
 }

@@ -2,9 +2,41 @@
 namespace LoadData
 {
 	meta_data_t meta_data;
+	map<uint64_t, pair<pid_t, string> > tpc_maps;
 	map<int, string> mig_dictionary;
 	map<string, uint64_t> bsc_name_index_map;
 	map<string, uint64_t> msc_name_index_map;
+	
+	void load_tpc_maps(const string log_file, map<uint64_t, pair<pid_t, string> > &tpc_maps)
+	{
+		ifstream infile(log_file);
+		if (infile.fail())
+			return;
+		string line;
+		uint64_t tid;
+		pid_t pid;
+		string command;
+		while (getline(infile, line)) {
+			istringstream iss(line);
+			if (!(iss >> hex >> tid >> pid))
+				break;
+			if (!getline(iss >> ws, command) || !command.size())
+				break;
+			tpc_maps[tid] = make_pair(pid, command);
+		}
+		
+		map<uint64_t, pair<pid_t, string> >::iterator it;
+		for (it = tpc_maps.begin(); it != tpc_maps.end(); it++) {
+			tid = it->first;
+			pid = (it->second).first;
+			command = (it->second).second;
+			//cout << "tid " << hex << tid\
+			//<< "\tpid " << hex << pid\
+			//<<"\t" << command << endl;
+		}
+
+		infile.close();
+	}
 
 	void load_mig_dictionary(const struct mig_service table[], uint32_t size, map<int, string> &mig_dictionary)
 	{
@@ -27,6 +59,7 @@ namespace LoadData
 
 	void preload()
 	{
+		load_tpc_maps(meta_data.tpc_maps_file, tpc_maps);
 		load_mig_dictionary(mig_table, mig_size, mig_dictionary);
 		build_syscall_name_index_map(bsd_syscall_table, bsc_size, bsc_name_index_map);
 		build_syscall_name_index_map(mach_syscall_table, msc_size, msc_name_index_map);

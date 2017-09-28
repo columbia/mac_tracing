@@ -1,23 +1,26 @@
 #include "timercall_divider.hpp"
 
-TimerCallDivider::TimerCallDivider(list<event_t *> & _ev_list, list<event_t *> & _bt_list, uint32_t _divide_type, event_t * _divide_event)
+TimerCallDivider::TimerCallDivider(list<event_t *> &_ev_list,
+	list<event_t *> & _bt_list,
+	uint32_t _divide_type,
+	event_t *_divide_event)
 :ev_list(_ev_list)
 {
 	divide_type = _divide_type;
-	event_t * _divider = get_divider(_bt_list);
-	divide_event = _divider; // == NULL ? _divide_event : _divider;
+	event_t *_divider = get_divider(_bt_list);
+	divide_event = _divider;
 	sublists.clear();
 	cancel_counter = CANCELLED << SUB_BASE_SHIFT;
 	fired_counter = FIRED << SUB_BASE_SHIFT;
 }
 
-timercallout_ev_t* TimerCallDivider::get_divider(list<event_t *> &bt_list)
+timercallout_ev_t *TimerCallDivider::get_divider(list<event_t *> &bt_list)
 {
 	if (bt_list.size() == 0)
 		return NULL;
 
-	list<event_t*>::iterator it;
-	backtrace_ev_t * backtrace_event = NULL;
+	list<event_t *>::iterator it;
+	backtrace_ev_t *backtrace_event = NULL;
 	string nseventthread("_NSEventThread");
 
 	cerr << "try to get divider " << bt_list.size() << endl;

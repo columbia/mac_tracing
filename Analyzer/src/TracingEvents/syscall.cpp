@@ -1,11 +1,11 @@
 #include "syscall.hpp"
-
 SyscallEvent::SyscallEvent(double timestamp, string op, uint64_t tid, uint64_t sc_class, uint32_t event_core, string procname)
-:EventBase(timestamp, op, tid, event_core, procname)
+:EventBase(timestamp, SYSCALL_EVENT, op, tid, event_core, procname)
 {
+	ret_time = 0.0;
 	syscall_class = sc_class;
 	sc_entry = NULL;
-	memset(args, sizeof(uint64_t) * MAX_ARGC, 0);
+	memset(args, 0, sizeof(uint64_t) * MAX_ARGC);
 }
 
 void SyscallEvent::set_args(uint64_t *arg_array, uint64_t size)
@@ -35,26 +35,32 @@ const char *SyscallEvent::class_name()
 
 void SyscallEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
-	outfile << "\n*****" << endl;
-    outfile << "\n group_id = " << std::right << hex << get_group_id();
-	outfile << "\n\t" << get_procname() << "(" << hex << get_tid() << ")" << get_coreid();
-	outfile << "\n\t" << fixed << setprecision(2) << get_abstime();
-	outfile << "\n\t" << get_op() << "\t" << class_name();
-	if (sc_entry != NULL) {
-		outfile << "\n\t" << sc_entry->syscall_name;
-		for (int i = 0; i < MAX_ARGC; i++) {
-			if (sc_entry->args[i] != NULL)
-				outfile << "\n\t" << sc_entry->args[i] << " = " << args[i];
-		}
+	EventBase::decode_event(is_verbose, outfile);
+	outfile << "\n\t" << class_name();
+	if (!sc_entry) {
+		outfile << "\n\treturn = " << hex << ret << endl;
+		return;
 	}
-	outfile << "\n\treturn = " << hex << ret;
-	outfile << endl;
+	outfile << "\n\t" << sc_entry->syscall_name;
+	for (int i = 0; i < MAX_ARGC; i++)
+		if (sc_entry->args[i])
+			outfile << "\n\t" << sc_entry->args[i] << " = " << args[i];
+	outfile << "\n\treturn = " << hex << ret << endl;
 }
 
 void SyscallEvent::streamout_event(ofstream &outfile)
 {
-	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
-	outfile << "\t" << hex << get_tid() << "\t" << get_procname();
-	outfile << "\t" << get_op() << "\t" << hex << ret;
+	EventBase::streamout_event(outfile);
+	outfile << "\tret = " << hex << ret;
+
+	if (!sc_entry) {
+		outfile << endl;
+		return;
+	}
+
+	for (int i = 0; i < MAX_ARGC; i++) {
+		if (sc_entry->args[i] != NULL)
+			outfile << ",\t" << sc_entry->args[i] << " = " << args[i];
+	}
 	outfile << endl;
 }

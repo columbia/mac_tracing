@@ -1,3 +1,7 @@
 .DS_Store
-BUILD
-tags
+.DS_Store?
+
+bin/
+obj/
+*.log
+*.trace

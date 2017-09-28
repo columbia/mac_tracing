@@ -1,10 +1,6 @@
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#ifndef _LIB_MACH_INFO_H
+#define _LIB_MACH_INFO_H
 
-#ifndef _MYSYMBOLICATOR_LIB_MACH_INFO_H
-#define _MYSYMBOLICATOR_LIB_MACH_INFO_H
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -19,7 +15,6 @@ extern "C"
 #include <stdio.h>
 #include <mach/message.h>
 #include <mach/task_info.h>
-#include <mach/mach_traps.h>
 #include <mach/mach_vm.h>
 #include <libproc.h>
 #include <unistd.h>
@@ -28,23 +23,30 @@ typedef struct mach_header_64 * mach_header_64_t;
 typedef struct fat_header * fat_header_t;
 typedef struct fat_arch * fat_arch_t;
 
-struct vm_sym {
-	uint64_t vm_offset;
-	uint64_t str_index;
-};
-
 struct hack_handler {
+	void *file_address; 
 	void const *mach_address; 
 	char const *string_table;  
 	struct nlist_64 const *symbol_table;  
 	uint32_t nsyms;
-	uint32_t strsize;
-
-	char * strings;
-	struct vm_sym* symbol_arrays; 
-
+	
 	void const *library_address; 
-		int64_t vm_slide;
+	int64_t vm_slide;
+	
+	/*import table*/
+	uint32_t const *indirect_table;
+	uint32_t nindirectsyms; 
+	uint32_t nundefsym;
+	uint32_t iundefsym;
+
+	uint32_t iindirectsyms; 
+	uint64_t import_table_addr;  
+	uint64_t import_table_size;
+	
+	/*text section*/
+	uint64_t text_sect_addr;
+	uint64_t text_sect_offset;
+
 };
 
 struct hack_segments {
@@ -54,9 +56,4 @@ struct hack_segments {
 	struct dysymtab_command *dysymtab_ptr;
 };
 
-bool get_syms_for_libpath(pid_t pid, const char *path, struct hack_handler * hack_hlr_ptr);
-//uint64_t get_lib_load_addr(mach_port_t target_task, const char * path);
-#endif
-#ifdef __cplusplus
-}
 #endif

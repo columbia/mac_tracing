@@ -2179,6 +2179,14 @@
 0x2a200008	ATM_VALUE_ADDED
 0x2a300004	ATM_VALUE_UNREGISTERED
 0x2a300008	ATM_VALUE_DIFF_MAILBOX
+0x2bd80100	NSEvent
+0x2bd80104	EventRef
+0x2bd80108	NSAppGetEvent
+0x2bd80114	CALayerSet
+0x2bd80118	CALayerDisplay
+0x2bd8011C	NSViewSet
+0x2bd80120	HWBR_trap
+0x2bd80130	RL_Observer
 0xff000104	MSG_mach_notify_port_deleted
 0xff000114	MSG_mach_notify_port_destroyed
 0xff000118	MSG_mach_notify_no_senders

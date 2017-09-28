@@ -10,7 +10,7 @@ Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 	frame_symbols.clear();
 }
 
-string Frames::get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> & vm_sym_map)
+string Frames::get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> &vm_sym_map)
 {
 	map<uint64_t, string>::iterator next = vm_sym_map.upper_bound(vm_offset);
 	if (next != vm_sym_map.begin())
@@ -18,9 +18,9 @@ string Frames::get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> & vm_s
 	return next->second;
 }
 
-void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string path, map<string, map<uint64_t, string> >&image_vmsym_map)
+void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string path, map<string, map<uint64_t, string> >& image_vmsym_map, Images *cur_image)
 {
-	uint64_t load_addr = image->get_modules()[path];
+	uint64_t load_addr = cur_image->get_modules()[path];
 	uint64_t vm_offset = vm - load_addr;
 
 	//cerr << "symbol for checking " << symbol << "\t[" << hex << vm << "]\t" << path << endl;
@@ -30,8 +30,8 @@ void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, s
 	}
 
 	if (image_vmsym_map.find(path) == image_vmsym_map.end()) {
-		struct hack_handler mh;
-		memset(&mh, 0, sizeof(struct hack_handler));
+		struct mach_o_handler mh;
+		memset(&mh, 0, sizeof(struct mach_o_handler));
 		if (get_syms_for_libpath(LoadData::meta_data.pid, path.c_str(), &mh)) {
 			uint64_t vm_offset = 0, str_index = 0;
 			map<uint64_t, string> vm_syms_map;
@@ -55,7 +55,7 @@ void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, s
 	}
 	
 	if (image_vmsym_map.find(path) != image_vmsym_map.end()) {
-		symbol = get_sym_for_addr(vm_offset, image_vmsym_map[path]);
+		symbol = Frames::get_sym_for_addr(vm_offset, image_vmsym_map[path]);
 		//cerr << "symbol get checking " << symbol << endl;
 	}
 }
@@ -73,6 +73,7 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 
 		string filepath = "";
 		string symbol = "unknown";
+		
 		size_t pos = desc.find("file =");
 		size_t pos_1 = pos != string::npos ? desc.find("\"", pos) : string::npos;
 		size_t pos_2 = pos_1 != string::npos ? desc.find("\"", pos_1 + 1) : string::npos;
@@ -96,9 +97,9 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 			if (pos_2 != string::npos) {
 				pos_1++;
 				symbol = desc.substr(pos_1, pos_2 - pos_1);
-			} else
-				symbol = desc;
+			}
 		}
+			
 		cur_frame->symbol = symbol;
 		cur_frame->filepath = filepath;
 	}
@@ -107,32 +108,38 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 
 void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64_t, string> >&image_vmsym_map)
 {
-	if (proc_name.find(LoadData::meta_data.host) == string::npos
-		&& proc_name.find("WindowServer") == string::npos)
+	//if (proc_name.find(LoadData::meta_data.host) == string::npos
+	//	&& proc_name.find("WindowServer") == string::npos)
+	if (proc_name != LoadData::meta_data.host && proc_name != "WindowServer")
 		return;
 
 	vector<uint64_t>::iterator addr_it;
 	for (addr_it = frame_addrs.begin(); addr_it != frame_addrs.end(); addr_it++) {
-		frame_info_t cur_frame_info = {.addr = *addr_it};
+		frame_info_t cur_frame_info = {.addr = *addr_it, .symbol="", .filepath=""};
 
 		if (lookup_symbol_via_lldb(debugger_data, &cur_frame_info)) {
 			string pre_check_sym = cur_frame_info.symbol;
 
 			if (cur_frame_info.filepath.find("CoreGraphics") != string::npos)
-				checking_symbol_with_image_in_memory(cur_frame_info.symbol, *addr_it, cur_frame_info.filepath, image_vmsym_map);
-			//cerr << cur_frame_info.symbol + "\t" + cur_frame_info.filepath << endl;
-			frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
+				checking_symbol_with_image_in_memory(cur_frame_info.symbol, *addr_it, cur_frame_info.filepath, image_vmsym_map, this->image);
 		
+			if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos)
+				is_infected = true;
+
 			if (is_infected == true && cur_frame_info.symbol.find("NSEventThread") != string::npos) {
 				is_spin = true;	
 				cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
 			}
 
-			if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos) {
-				//cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
-				is_infected = true;
+			if (cur_frame_info.symbol.find("__lldb_unnamed_function") != string::npos && cur_frame_info.filepath.size() > 0) {
+				uint64_t vm_offset = *addr_it - image->get_modules()[cur_frame_info.filepath];
+				stringstream hex_offset_stream;
+				hex_offset_stream << "0x" << hex << vm_offset;
+				cur_frame_info.symbol = hex_offset_stream.str();
 			}
 
+			//cerr << cur_frame_info.symbol + "\t" + cur_frame_info.filepath << endl;
+			frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
 		} else {
 			string desc("unknown_frame");
 			frame_symbols.push_back(desc);
@@ -199,9 +206,9 @@ void Frames::streamout(ofstream & outfile)
 
 	for (it = frame_addrs.begin(), sit = frame_symbols.begin();
 			it != frame_addrs.end() && sit != frame_symbols.end(); it++, sit++) {
-		symbol = (*sit).substr(0, (*sit).find('\t'));
-		outfile << symbol << "\n";
-		//outfile << *sit << "\n";
+		//symbol = (*sit).substr(0, (*sit).find('\t'));
+		//outfile << symbol << "\n";
+		outfile << *sit << "\n";
 		i++;
 	}
 	outfile << endl;

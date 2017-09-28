@@ -1,6 +1,6 @@
 #include "workq_next.hpp"
 WqnextEvent::WqnextEvent(double timestamp, string op, uint64_t tid, uint64_t wq, uint64_t thread, uint64_t idl_n, uint64_t req_n, uint32_t coreid, string procname)
-:EventBase(timestamp, op, tid, coreid, procname)
+:EventBase(timestamp, WQNEXT_EVENT, op, tid, coreid, procname)
 {
 	workq = wq;
 	thr = thread;
@@ -21,20 +21,16 @@ void WqnextEvent::set_block_type(bool timer)
 
 void WqnextEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
-	outfile << "\n*****" << endl;
-	outfile << "\n group_id = " << std::right << hex << get_group_id();
-	outfile << "\n [" << dec << get_pid() <<"] " << get_procname() << "(" << hex << get_tid() << ")" << get_coreid();
-	outfile << "\n\t" << fixed << setprecision(2) << get_abstime();
-	outfile << "\n\t" << get_op();
-	outfile << "\n\t" << "next_work_thread = " << nextthr;
-	outfile << endl;
+	EventBase::decode_event(is_verbose, outfile);
+	outfile << "\n\t - " << fixed << setprecision(1) << get_finish_time();
+	outfile << "\n\t" << "next_work_thread = " << nextthr << endl;
 }
 
-void WqnextEvent::streamout_event(ofstream & outfile)
+void WqnextEvent::streamout_event(ofstream &outfile)
 {
-	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
-	outfile << "\t" << get_tid() << "\t" << get_procname();
-	outfile << "\t" << get_op();
+	EventBase::streamout_event(outfile);
+	outfile << "\t - " << fixed << setprecision(1) << get_finish_time();
+	outfile << "\t";
 	switch(wqnext_type) {
 		case 1 : outfile << "_exp_mkrun";
 				break;
@@ -51,7 +47,4 @@ void WqnextEvent::streamout_event(ofstream & outfile)
 				break;
 	}
 	outfile << endl;
-	/*
-	no need to appear
-	*/
 }

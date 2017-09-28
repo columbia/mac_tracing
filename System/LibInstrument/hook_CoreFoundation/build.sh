@@ -3,9 +3,11 @@ clang -arch x86_64 -arch i386 -Wall -I ../hack_lib -dynamiclib ../hack_lib/hack_
 
 otool -l HookCoreFoundation | grep -A2 LC_REEXPORT_DYLIB
 otool -l HookCoreFoundation | grep -A2 LC_LOAD_DYLIB
+
 install_name_tool -change libRatings.A.dylib /System/Library/Frameworks/CoreFoundation.framework/Versions/A/orig.CoreFoundation HookCoreFoundation
 install_name_tool -change /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation /System/Library/Frameworks/CoreFoundation.framework/Versions/A/orig.CoreFoundation HookCoreFoundation
+
 echo "After"
 otool -l HookCoreFoundation | grep -A2 LC_REEXPORT_DYLIB
-#/usr/local/lib/libRatings.B.dylib HookCoreFoundation
 otool -l HookCoreFoundation | grep -A2 LC_LOAD_DYLIB
+codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v HookCoreFoundation

@@ -94,7 +94,7 @@ size_t needed;
 char *logfile = (char *)0;      /* This file is trace format */
 char *RAW_file = (char *)0;
 char *output_filename = NULL;
-char tmp_filepath[80] = {0};
+char tail_output_filename[80] = {0};
 FILE *output_file;
 int   output_fd;
 
@@ -133,7 +133,7 @@ uint8_t* type_filter_bitmap;
 #define EMPTYSTRING ""
 #define UNKNOWN "unknown"
 
-char tmpcommand[MAXCOMLEN];
+char tmpcommand[MAXCOMLEN + 1];
 
 int total_threads = 0;
 int nthreads = 0;
@@ -576,7 +576,7 @@ int writetrace(int fd)
 	mib[1] = KERN_KDEBUG;
 	mib[2] = KERN_KDWRITETR;
 	mib[3] = fd;
-	mib[4] = 512; /* limited rawfile size in migabytes */
+	mib[4] = 1024; /* limited rawfile size in migabytes */
 	mib[5] = 0;
 
 	if (sysctl(mib, 5, NULL, &needed, NULL, 0) < 0)
@@ -1324,17 +1324,20 @@ void read_trace()
 				y = x;
 			
 #ifndef ORIGINAL
-			if (y < 0) {
+			if (y < 0) { //ring buffer wrapper happend, use the .tail file to record the older event records, by wlm
 				if (output_fd != 1) {
 					fcntl(output_fd, F_FLUSH_DATA, 0);
 					io_lines = 0;
 					fclose(output_file);
 					close(output_fd);
-
-					if (((output_fd = open(output_filename, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0644)) < 0 ) ||
+					
+					char tail_output_filename[80] = {0};
+					strncpy(tail_output_filename, output_filename, 64);
+					strcat(tail_output_filename, ".tail");
+					if (((output_fd = open(tail_output_filename, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0644)) < 0 ) ||
 		    			!(output_file = fdopen(output_fd, "w")))
 					{
-						fprintf(stderr, "Cannot open file \"%s\" for writing.\n", output_filename);
+						fprintf(stderr, "Cannot open file \"%s\" for writing.\n", tail_output_filename);
 						usage(SHORT_HELP);
 					}
 
@@ -1343,7 +1346,7 @@ void read_trace()
 					if (fcntl(output_fd, F_NOCACHE, 1) < 0)
 					{
 						/* Not fatal */
-						fprintf(stderr, "Warning: setting F_NOCACHE on %s, failed\n", output_filename);
+						fprintf(stderr, "Warning: setting F_NOCACHE on %s, failed\n", tail_output_filename);
 					}
 					fprintf(output_file, "Begin the next line\n");
 				} else {
@@ -1367,7 +1370,7 @@ void read_trace()
 				if (!strcmp(command, EMPTYSTRING)) {
 					command = get_proc_comm(kdp->arg5);
 				} else {
-					update_pid_command(kdp->arg5, command);
+					update_tc_map(kdp->arg5, command);
 				}
 
 				if (!strcmp(command, EMPTYSTRING))
@@ -1513,6 +1516,7 @@ void read_trace()
 	}
 #ifndef ORIGINAL
 	checking_missing_maps();
+	sync_tpc_maps(RAW_file);
 #endif
 	
 	if (reenable == 1)
@@ -1892,15 +1896,8 @@ char **env;
 
 	if (output_filename)
 	{
-		#ifdef ORIGINAL
 		if (((output_fd = open(output_filename, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0644)) < 0 ) ||
 		    !(output_file = fdopen(output_fd, "w")))
-		#else
-		strncpy(tmp_filepath, output_filename, 64);
-		strcat(tmp_filepath, ".tmp");
-		if (((output_fd = open(tmp_filepath, O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0644)) < 0 ) ||
-		    !(output_file = fdopen(output_fd, "w")))
-		#endif
 		{
 			fprintf(stderr, "Cannot open file \"%s\" for writing.\n", output_filename);
 			usage(SHORT_HELP);
