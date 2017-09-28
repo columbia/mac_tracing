@@ -18,6 +18,7 @@
 #define LAPIC_KICK_INTERRUPT		0x6
 #define LAPIC_NMI_INTERRUPT			0x2
 
+#if 1
 struct task_requested_policy {
 	/* Task and thread policy (inherited) */
 	uint64_t        int_darwinbg        :1,     /* marked as darwinbg via setpriority */
@@ -109,6 +110,7 @@ struct task_pended_policy {
 
 	                reserved            :60;
 };
+#endif
 
 #define AST_PREEMPT     0x01
 #define AST_QUANTUM     0x02
@@ -130,7 +132,6 @@ struct task_pended_policy {
 
 
 class IntrEvent : public EventBase {
-	double finish_time;
 	uint32_t interrupt_num;
 	int16_t sched_priority_pre;
 	int16_t sched_priority_post;
@@ -157,7 +158,6 @@ public:
 	void set_ast(uint64_t _ast) {ast = _ast;}
 	void set_effective_policy(uint64_t effect) {effective_policy = *(struct task_effective_policy *)(&effect);}
 	void set_request_policy(uint64_t request) {request_policy = *(struct task_requested_policy*)(&request);}
-	void set_finish_time(double timestamp) {finish_time = timestamp;}
 	uint32_t get_interrupt_num(void) {return interrupt_num;}
 	int16_t get_sched_priority_pre(void) {return sched_priority_pre;}
 	int16_t get_sched_priority_post(void) {return sched_priority_post;}
@@ -165,7 +165,6 @@ public:
 	string &get_rip_info(void) {return rip_info;}
 	uint64_t get_rip(void) {return rip;}
 	uint64_t get_user_mode(void) {return user_mode;}
-	double get_finish_time(void) {return finish_time;}
 	void add_invoke_thread(uint64_t tid) {invoke_threads.push_back(tid);}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);

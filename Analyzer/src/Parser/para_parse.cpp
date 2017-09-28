@@ -3,26 +3,63 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/filesystem.hpp>
 
 using namespace std;
 typedef std::unique_ptr<boost::asio::io_service::work> asio_worker;
 namespace Parse
 {
-	map<uint64_t, list<event_t*>> parse(map<uint64_t, string>& files)
+	static void extra_symbolization(map<uint64_t, Parser *> &parsers)
+	{
+		cerr << "Symbolize additional events with backtrace parser ... \n";
+		if (parsers.find(BACKTRACE) != parsers.end()) {
+			BacktraceParser *backtraceparser =
+				dynamic_cast<BacktraceParser*>(parsers[BACKTRACE]);
+			if (backtraceparser) {
+				if (parsers.find(INTR) != parsers.end()) {
+					IntrParser *intrparser =
+						dynamic_cast<IntrParser*>(parsers[INTR]);
+					intrparser->symbolize_intr_rip(backtraceparser);
+				}
+
+				if (parsers.find(DISP_EXE) != parsers.end()) {
+					DispatchParser *dispparser =
+						dynamic_cast<DispatchParser *>(parsers[DISP_EXE]);
+					dispparser->symbolize_dispatch_event(backtraceparser);
+				}
+
+				if (parsers.find(DISP_DEQ) != parsers.end()) {
+					DispatchParser *dispparser =
+						dynamic_cast<DispatchParser *>(parsers[DISP_DEQ]);
+					dispparser->symbolize_dispatch_event(backtraceparser);
+				}
+			
+				if (parsers.find(BREAKPOINT_TRAP) != parsers.end()) {
+					BreakpointTrapParser *hwbrparser =
+						dynamic_cast<BreakpointTrapParser *>(parsers[BREAKPOINT_TRAP]);
+					hwbrparser->symbolize_hwbrtrap(backtraceparser);
+				}
+			}
+		}
+		cerr << "Finished parsing!\n";
+	}
+
+	map<uint64_t, list<event_t *>> parse(map<uint64_t, string>& files)
 	{
 		map<uint64_t, string>::iterator it;
-		map<uint64_t, Parser*> parsers;
-		map<uint64_t, Parser*>::iterator th_it;
+		map<uint64_t, Parser *> parsers;
+		map<uint64_t, Parser *>::iterator th_it;
 		Parser *parser;
-		map<uint64_t, list<event_t*>> ret_lists;
-		list<event_t*> result;
+		map<uint64_t, list<event_t *>> ret_lists;
+		list<event_t *> result;
 
 		boost::asio::io_service ioService;
 		boost::thread_group threadpool;
 		asio_worker work(new asio_worker::element_type(ioService));
 
 		for (int i = 0 ; i < LoadData::meta_data.nthreads; i++)
-			threadpool.create_thread( boost::bind(&boost::asio::io_service::run, &ioService));
+			threadpool.create_thread( boost::bind(&boost::asio::io_service::run,
+				&ioService));
 
 		for (it = files.begin(); it != files.end(); it++) {
 			parser = NULL;
@@ -63,14 +100,28 @@ namespace Parse
 					parser = new TimercallParser(it->second);
 					break;
 				case BACKTRACE:
-					parser = new BacktraceParser(it->second, LoadData::meta_data.libinfo_file); // "./libinfo.log");
+					parser = new BacktraceParser(it->second,
+						LoadData::meta_data.libinfo_file);
 					break;
-					
 				case MACH_SYS:
-					parser = new SyscallParser(it->second);
-					break;
 				case BSD_SYS:
 					parser = new SyscallParser(it->second);
+					break;
+				case CA_SET:
+				case CA_DISPLAY:
+					parser = new CAParser(it->second);
+					break;
+				case BREAKPOINT_TRAP:
+					parser = new BreakpointTrapParser(it->second);
+					break;
+				case RL_OBSERVER:
+					parser = new RLObserverParser(it->second);
+					break;
+				case EVENTREF:
+					parser = new EventRefParser(it->second);
+					break;
+				case NSAPPEVENT:
+					parser = new NSAppEventParser(it->second);
 					break;
 				default:
 					break;
@@ -81,63 +132,47 @@ namespace Parse
 				//ioService.post(boost::bind([parser] {parser->process();}));
 				ioService.post(boost::bind(&Parser::process, parser));
 			} else {
-				cerr << "Error : fail to begin parser " << it->first << endl;
+				cerr << "Check : fail to begin parser " << it->first << endl;
 			}
 		}
 		work.reset();
 		threadpool.join_all();
 		//ioService.stop();
-		
-		if (parsers.find(BACKTRACE) != parsers.end()) {
-			cerr << "Symbolize intr rips / blockinvoke with backtrace parser ... \n";
-			BacktraceParser * backtraceparser = dynamic_cast<BacktraceParser*>(parsers[BACKTRACE]);
-			if (backtraceparser) {
 
-				if (parsers.find(INTR) != parsers.end()) {
-					IntrParser * intrparser = dynamic_cast<IntrParser*>(parsers[INTR]);
-					intrparser->symbolize_rips(backtraceparser);
-				}
+		extra_symbolization(parsers);
 
-				if (parsers.find(DISP_EXE) != parsers.end()) {
-					DispatchParser * dispparser = dynamic_cast<DispatchParser *>(parsers[DISP_EXE]);
-					dispparser->symbolize_ctxt_and_func(backtraceparser);
-				}
-
-				if (parsers.find(DISP_DEQ) != parsers.end()) {
-					DispatchParser * dispparser = dynamic_cast<DispatchParser *>(parsers[DISP_DEQ]);
-					dispparser->symbolize_invoke_func(backtraceparser);
-				}
-				/* move to destructor
-				 * backtraceparser->clear();
-				 */
-			}
-		}
-
-		cerr << "Finished parsing now collection events ... \n";
 		for (th_it = parsers.begin(); th_it != parsers.end(); th_it++) {
-			result.insert(result.end(), (th_it->second)->collect().begin(), (th_it->second)->collect().end());
+			result.insert(result.end(), (th_it->second)->collect().begin(),
+				(th_it->second)->collect().end());
 			ret_lists[th_it->first] = (th_it->second)->collect();
 			delete th_it->second;
 		}
+		parsers.clear();
 
 		EventListOp::sort_event_list(result);
 		assert(ret_lists.find(0) == ret_lists.end());
 		ret_lists[0] = result;
-		
-		parsers.clear();
 		return ret_lists;
 	}
-
+	
 	static string get_prefix(string &input_path)
 	{
 		string filename;
 		size_t dir_pos = input_path.find_last_of("/");
-		if (dir_pos != string::npos) {
+		if (dir_pos != string::npos)
 			filename = input_path.substr(dir_pos + 1);
-		} else {
+		else
 			filename = input_path;
-		}
 
+		boost::filesystem::path dir("temp");
+		if (!(boost::filesystem::exists(dir)))  
+			boost::filesystem::create_directory(dir);
+
+		if ((boost::filesystem::exists(dir))) {
+			string prefix("temp/");
+			filename = prefix + filename;
+		}
+		
 		size_t pos = filename.find(".");
 		if (pos != string::npos)
 			return filename.substr(0, pos);
@@ -145,10 +180,12 @@ namespace Parse
 			return filename;
 	}
 
-	map<uint64_t, string> divide_files(string filename, uint64_t (*hash_func)(uint64_t, string))
+	map<uint64_t, string> divide_files(string filename,
+		uint64_t (*hash_func)(uint64_t, string))
 	{
 		map<uint64_t, string> div_files;
 		ifstream infile(filename);
+
 		if (infile.fail()) {
 			cerr << "Error: faild to open file: " << filename << endl;
 			exit(EXIT_FAILURE);
@@ -157,27 +194,39 @@ namespace Parse
 		map<uint64_t, ofstream*> filep;
 		string line, abstime, deltatime, opname;
 		uint64_t arg1, arg2, arg3, arg4, tid, hashval; 
+		
 		while (getline(infile, line)) {
 			istringstream iss(line);
-			if (!(iss >> abstime >> deltatime >> opname >> hex >> arg1 >> arg2 >> arg3 >> arg4 >> tid))
+			if (!(iss >> abstime >> deltatime >> opname >> hex >> arg1 \
+				>> arg2 >> arg3 >> arg4 >> tid))
 				break;
+
 			hashval = hash_func(tid, opname);
-			if (hashval == 0) /*0 is reserved for irrelated tracing points*/
+			// 0 is reserved for irrelated tracing points
+			if (hashval == 0) 
 				continue;
+
 			if (filep.find(hashval) == filep.end()) {
-				filep[hashval] = new ofstream(get_prefix(filename) + "." + to_string(hashval) + ".tmp");
+				filep[hashval] = new ofstream(get_prefix(filename)
+					+ "." + to_string(hashval) + ".tmp");
+
 				if (!filep[hashval] || !*filep[hashval]) {
-					cerr << "Error: unable to create ofstream for " << hashval << endl;
+					cerr << "Error: unable to create ofstream for ";
+					if (filep[hashval])
+						cerr << "file ";
+					cerr << hashval << endl;
 					exit(EXIT_FAILURE);
 				}
 			}
+
 			*(filep[hashval]) << line.c_str() << endl;		
 		}
 		infile.close();
 	
 		map<uint64_t, ofstream*>::iterator it;
 		for (it = filep.begin(); it != filep.end(); ++it) {
-			div_files[it->first] = get_prefix(filename) + "." + to_string(it->first) + ".tmp";
+			div_files[it->first] = get_prefix(filename)
+				+ "." + to_string(it->first) + ".tmp";
 			(it->second)->close();
 			delete it->second;
 		}
@@ -186,7 +235,8 @@ namespace Parse
 
 	map<uint64_t, list<event_t *>> divide_and_parse()
 	{
-		map<uint64_t, string> files = divide_files(LoadData::meta_data.datafile, LoadData::map_op_code);
+		map<uint64_t, string> files = divide_files(LoadData::meta_data.datafile,
+			LoadData::map_op_code);
 		map<uint64_t, list<event_t*>> lists = parse(files);
 		return lists;
 	}

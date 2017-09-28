@@ -24,9 +24,11 @@ struct handler {
 	struct nlist_64 const *symbol_table;  
 	uint32_t nsyms;
 	int64_t vm_slide;
+	void *data_base;
     
 	struct segment_command_64 *seg_linkedit_ptr;
 	struct segment_command_64 *seg_text_ptr;
+	struct segment_command_64 *seg_data_ptr;
 	struct symtab_command *symtab_ptr;
 };
 

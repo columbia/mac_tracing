@@ -9,7 +9,8 @@ namespace Parse
 		mkrun_events.clear();
 	}
 
-	bool MkrunParser::set_info(mkrun_ev_t *mr_event, uint64_t peer_prio, uint64_t wait_result, uint64_t run_info)
+	bool MkrunParser::set_info(mkrun_ev_t *mr_event, uint64_t peer_prio,
+		uint64_t wait_result, uint64_t run_info)
 	{
 		mr_event->set_peer_prio(peer_prio);
 		mr_event->set_peer_wait_result(wait_result);
@@ -18,28 +19,34 @@ namespace Parse
 		return true;
 	}
 
-	bool MkrunParser::process_finish_wakeup(mkrun_ev_t * mr_event, double abstime, istringstream &iss)
+	bool MkrunParser::process_finish_wakeup(mkrun_ev_t *mr_event,
+		double abstime, istringstream &iss)
 	{
 		string procname;
 		uint64_t peer_prio, wait_result, run_info, tid, coreid;
-		if (!(iss >> hex >> peer_prio >> wait_result >> run_info >> tid >> coreid))
+		if (!(iss >> hex >> peer_prio >> wait_result >> run_info \
+			>> tid >> coreid))
 			return false;
+
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
 		if (tid != mr_event->get_tid()) {
-			outfile << "Error : try to maching wake up that begins at " << fixed << setprecision(2) << mr_event->get_abstime() << endl;
-			outfile << "Error : in different threads" << hex << tid << " " << hex << mr_event->get_tid() << endl;
+			outfile << "Error : try to maching wake up that begins at ";
+			outfile << fixed << setprecision(1) << mr_event->get_abstime();
+			outfile << " in different threads ";
+			outfile << hex << tid << " " << hex << mr_event->get_tid() << endl;
 			return false;
 		}
-		//assert(tid == mr_event->get_tid());
+
 		set_info(mr_event, peer_prio, wait_result, run_info);
 		mr_event->override_timestamp(abstime);
 		mr_event->set_complete();
 		return true;
 	}
 
-	bool MkrunParser::process_new_wakeup(uint64_t peer_tid, double abstime, istringstream &iss)
+	bool MkrunParser::process_new_wakeup(uint64_t peer_tid, double abstime,
+		istringstream &iss)
 	{
 		string procname;
 		uint64_t wake_event, wakeup_type, pid, tid, coreid;
@@ -49,17 +56,15 @@ namespace Parse
 			procname = "";
 		mkrun_ev_t *new_mr = new mkrun_ev_t(abstime, "Wakeup", tid, peer_tid,
 			wake_event, wakeup_type, lo(pid), hi(pid), coreid, procname);
-		if (new_mr == NULL)
-			return false;
+		if (!new_mr) {
+			cerr << "OOM " << __func__ << endl;
+			exit(EXIT_FAILURE);
+		}
 		mkrun_events[peer_tid] = new_mr;
 		local_event_list.push_back(new_mr);
 		return true;	
 	}
 
-	/*
-	 * target thread is locked,
-	 * so take taget thread id as key is safe
-	 */
 	void MkrunParser::process()
 	{
 		string line, deltatime, opname;

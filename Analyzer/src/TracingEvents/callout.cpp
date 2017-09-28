@@ -1,7 +1,7 @@
 #include "timer_callout.hpp"
 TimerCalloutEvent::TimerCalloutEvent(double timestamp, string op, uint64_t _tid, uint32_t event_core, 
 	void * funcptr, uint64_t p0, uint64_t p1, void * qptr, string procname)
-: EventBase(timestamp, op, _tid, event_core, procname)
+:EventBase(timestamp, TMCALL_CALLOUT_EVENT, op, _tid, event_core, procname)
 {
 	create_event = NULL;
 	func_ptr = funcptr;

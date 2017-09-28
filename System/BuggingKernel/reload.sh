@@ -1,5 +1,6 @@
 #!/bin/sh -ex
-
+xcodebuild -target PeekMsr
+xcodebuild -target ClientPeekMsr
 FILE=PeekMsr.kext
 sudo kextunload -b com.columbia.PeekMsr || true
 sudo rm -rf ${FILE}

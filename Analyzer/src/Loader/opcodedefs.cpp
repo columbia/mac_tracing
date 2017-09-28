@@ -60,11 +60,17 @@ namespace LoadData
 		make_pair("MACH_CALLCREATE", MACH_CALLCREATE),
 		make_pair("MACH_CALLOUT", MACH_CALLOUT),
 		make_pair("MACH_CALLCANCEL", MACH_CALLCANCEL),
-		//make_pair("MSG_Pathinfo", BT_PATH),
-		//make_pair("MSG_Backtrace", BT_FRAME),
 		make_pair("MSG_Pathinfo", BACKTRACE),
 		make_pair("MSG_Backtrace", BACKTRACE),
 		make_pair("MACH_SYSCALL", MACH_SYS),
-		make_pair("BSD_SYSCALL", BSD_SYS)
+		make_pair("BSD_SYSCALL", BSD_SYS),
+		make_pair("CALayerSet", CA_SET),
+		make_pair("NSViewSet", CA_SET),
+		make_pair("CALayerDisplay", CA_DISPLAY),
+		make_pair("HWBR_trap", BREAKPOINT_TRAP),
+		make_pair("RL_Observer", RL_OBSERVER),
+		make_pair("EventRef", EVENTREF),
+		make_pair("NSAppGetEvent", NSAPPEVENT),
+		make_pair("NSEvent", NSAPPEVENT)
 	};
 }

@@ -7,7 +7,6 @@
 #define NO_TIMER	1
 #define NON_BLOCK  -1
 class WqnextEvent : public EventBase {
-	double finish_timestamp;
 	uint64_t workq;
 	uint64_t thr;
 	uint64_t thidlecount;
@@ -23,7 +22,6 @@ public:
 	void set_reuse(void) {is_reuse = true; nextthr = get_tid();}
 	void set_run_mode(bool over_commit) {is_over_commit = over_commit;}
 	void set_block_type(bool timer);
-	void set_finish_time(double time) {finish_timestamp = time;}
 	void set_wqnext_type(uint32_t type) {wqnext_type = type;}
 	uint64_t get_nextthr(void) {return nextthr;}
 	bool check_reuse(void) {return is_reuse;}
@@ -31,7 +29,6 @@ public:
 	uint32_t check_block_type(void) {return block_type;}
 	uint32_t get_wqnext_type(void) {return wqnext_type;}
 	uint64_t get_workq(void) {return workq;}
-	double get_finish_time(void) {return finish_timestamp;}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
 };

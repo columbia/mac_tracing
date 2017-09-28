@@ -1,6 +1,7 @@
 #include "msg_pattern.hpp"
 #include "parse_helper.hpp"
-//#define MSG_PATTERN_DEBUG
+
+#define MSG_PATTERN_DEBUG 1
 
 MsgPattern::MsgPattern(list<event_t*> & list)
 :ev_list(list)
@@ -52,6 +53,10 @@ void MsgPattern::collect_patterned_ipcs(void)
 	}
 	memset(mark_visit, 0, size * sizeof(bool));
 
+	#ifdef MSG_PATTERN_DEBUG
+	cerr << "begin msg pattern searching ... list size " << dec << ev_list.size() << endl; 
+	#endif
+	
 	for (it = ev_list.begin(); it != ev_list.end(); ++it, ++i) {
 		msg_ev_t * cur_msg = dynamic_cast<msg_ev_t*>(*it);
 

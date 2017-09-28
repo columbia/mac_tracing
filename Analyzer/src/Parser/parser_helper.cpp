@@ -8,7 +8,8 @@ namespace Parse
 		{
 			double timestamp1 = event_1->get_abstime();
 			double timestamp2 = event_2->get_abstime();
-			if (timestamp1 - timestamp2 <= 10e-8 && timestamp1-timestamp2 >= -10e-8)
+			if (timestamp1 - timestamp2 <= 10e-8
+				&& timestamp1-timestamp2 >= -10e-8)
 				return (event_1->get_tid() < event_2->get_tid());
 			else 
 				return (timestamp1 < timestamp2);
@@ -25,7 +26,7 @@ namespace Parse
 			code[2] = (char)((word & 0x0000ff00) >> 8);
 			code[3] = (char)(word & 0x000000ff);
 			for (int i = 3; i >= 0; i--) {
-				info[*index] = (code[i] >= 32 && code[i] < 127)? (code[i]) : pad;
+				info[*index] = (code[i] >= 32 && code[i] < 127) ? code[i] : pad;
 				*index = (*index) + 1;
 			}
 			info[*index] = '\0';
@@ -43,7 +44,7 @@ namespace Parse
 			code[6] = (char)((word & 0x00ff000000000000) >> 48);
 			code[7] = (char)((word & 0xff00000000000000) >> 56);
 			for (int i = 0; i < 8; i++) {
-				info[*index] = (code[i] >= 32 && code[i] < 127) ? (code[i]) : pad;
+				info[*index] = (code[i] >= 32 && code[i] < 127) ? code[i] : pad;
 				*index = (*index) + 1;	
 			}
 			info[*index] = '\0';
@@ -66,7 +67,8 @@ namespace Parse
 			swap(q, drain);
 		}
 	
-		void triple_enqueue(queue<uint64_t> &q, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+		void triple_enqueue(queue<uint64_t> &q, uint64_t arg1, uint64_t arg2,
+			uint64_t arg3)
 		{
 			q.push(arg1);
 			q.push(arg2);

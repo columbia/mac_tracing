@@ -25,6 +25,24 @@
 //#define BT_FRAME					
 #define MACH_SYS					20
 #define BSD_SYS						21
+#define CA_SET						22
+#define CA_DISPLAY					23
+#define BREAKPOINT_TRAP					24
+#define RL_OBSERVER					25
+#define EVENTREF					26
+#define NSAPPEVENT					27
+
+#define MAX_ARGC 16
+struct syscall_entry {
+	int64_t syscall_number;
+	const char *syscall_name;
+	const char *args[MAX_ARGC];
+};
+
+struct mig_service {
+	int mig_num;
+	const char *mig_name;
+};
 
 namespace LoadData
 {
@@ -33,7 +51,9 @@ namespace LoadData
 		string libinfo_file;
 		string procs_file;
 		string intersectfile;
+		string tpc_maps_file;
 		string host;
+		string host_arch;
 		pid_t pid;
 		string suspicious_api;
 		double spin_timestamp;
@@ -41,17 +61,15 @@ namespace LoadData
 	} meta_data_t;
 	extern meta_data_t meta_data;
 
+	extern map<uint64_t, pair<pid_t, string> > tpc_maps;
 	extern map<int, string> mig_dictionary;
-	struct mig_service {
-		int mig_num;
-		const char * mig_name;
-	};
 	extern const struct mig_service mig_table[];
 	extern const uint64_t mig_size;
 
 	extern map<string, uint64_t> msc_name_index_map;
 	extern const struct syscall_entry mach_syscall_table[];
 	extern const uint64_t msc_size;
+
 	extern map<string, uint64_t> bsc_name_index_map;
 	extern const struct syscall_entry bsd_syscall_table[];
 	extern const uint64_t bsc_size;

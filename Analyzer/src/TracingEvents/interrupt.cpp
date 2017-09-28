@@ -1,10 +1,9 @@
 #include "interrupt.hpp"
 
 IntrEvent::IntrEvent(double timestamp, string op, uint64_t _tid, uint64_t intr_no, uint64_t _rip, uint64_t _user_mode, uint32_t _core_id, string procname)
-:EventBase(timestamp, op, _tid, _core_id, procname)
+:EventBase(timestamp, INTR_EVENT, op, _tid, _core_id, procname)
 {
 	invoke_threads.clear();
-	finish_time = 0;
 	dup = NULL;
 	interrupt_num = (uint32_t)intr_no;
 	sched_priority_pre = (int16_t)(intr_no >> 32);
@@ -105,14 +104,10 @@ string IntrEvent::decode_ast(uint64_t ast)
 	return "thr_ast: " + ast_desc(thr_ast) + "\tblock_reason: " + ast_desc(thr_reason);
 }
 
-void IntrEvent::decode_event(bool is_verbose, ofstream & outfile)
+void IntrEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
-	outfile << "\n*****" << endl;
-	outfile << "\n group_id = " << std::right << hex << get_group_id();
-	outfile << "\n\t" << get_procname() << "(" << hex << get_tid() << ")" << get_coreid();
-	outfile << "\n\t" << fixed << setprecision(1) << get_abstime();
-	outfile << " - " << fixed << setprecision(1) << finish_time;
-	outfile << "\n\t" << get_op();
+	EventBase::decode_event(is_verbose, outfile);
+	outfile << "\n\t - " << fixed << setprecision(1) << get_finish_time();
 
 	const char * intr_desc = decode_interrupt_num(interrupt_num);
 	if (strcmp(intr_desc, "unknown"))
@@ -129,34 +124,21 @@ void IntrEvent::decode_event(bool is_verbose, ofstream & outfile)
 	outfile << "\n\t" << hex << rip << endl;
 	if (rip_info.size())
 		outfile << "\n\t" << rip_info;
-
 	outfile << endl;
 }
 
-void IntrEvent::streamout_event(ofstream & outfile)
+void IntrEvent::streamout_event(ofstream &outfile)
 {
-	outfile << std::right << hex << get_group_id();
-	outfile << "\t" << fixed << setprecision(1) << get_abstime();
-	outfile << "\t" << hex << get_tid();
-	outfile << "\t" << get_procname();
-
+	EventBase::streamout_event(outfile);
 	const char * intr_desc = decode_interrupt_num(interrupt_num);
 	if (strcmp(intr_desc, "unknown"))
 		outfile << "\t" << intr_desc << "_INTR";
 	else
 		outfile << "\t" << interrupt_num << "_INTR";
 
-	outfile << "\t" << hex << rip;
+	outfile << "\t - " << fixed << setprecision(1) << get_finish_time();
+
 	if (rip_info.size())
 		outfile << "\t" << rip_info;
-	/*
-	outfile << "\n(";
-	outfile  << "priority " << hex << sched_priority_pre << "->" << hex << sched_priority_post;
-	outfile << "\t" << "thread_qos: " << hex << get_thep_qos();
-	outfile << "\t" << "thread_ast: " << ast_desc(ast >> 32);
-	outfile << "\t" << "block_reason: " << ast_desc((uint32_t)ast);
-	outfile << ")";
-	*/
-	
 	outfile << endl;
 }

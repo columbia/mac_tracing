@@ -18,3 +18,4 @@ clang++ -arch x86_64 -isysroot $SDKPATH -L$SRCPATH/build/Release -F$SRCPATH/buil
 
 mkdir -p ~/trace_logs/
 cp build/Release/trace ~/trace_logs/ring_trace
+cp build/Release/trace ../util/ring_trace

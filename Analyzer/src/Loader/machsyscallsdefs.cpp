@@ -1,3 +1,4 @@
+/* automatically generated with script */
 #include "loader.hpp"
 namespace LoadData
 {

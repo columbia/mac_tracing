@@ -16,9 +16,9 @@ class BankEvent: public EventBase {
 public:
 	BankEvent(double timestamp, string op, uint64_t tid, uint64_t merchant, uint64_t holder, uint32_t coreid, string procname = "");
 	pid_t get_bank_holder(void) { return bank_holder;}
-	void set_bank_holder_name(string &name) { bank_holder_name = name;}
+	void set_bank_holder_name(string name) { bank_holder_name = name;}
 	pid_t get_bank_merchant(void) { return bank_merchant;}
-	void set_bank_merchant_name(string &name) {bank_merchant_name = name;}
+	void set_bank_merchant_name(string name) {bank_merchant_name = name;}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
 };
@@ -44,14 +44,14 @@ public:
 	uint64_t get_voucher_addr(void) {return voucher_addr;}
 	void set_bank_holder(pid_t pid) {bank_holder = pid;}
 	pid_t get_bank_holder(void) { return bank_holder;}
-	void set_bank_holder_name(string &name) {bank_holder_name = name;}
+	void set_bank_holder_name(string name) {bank_holder_name = name;}
 	void set_bank_merchant(pid_t pid) {bank_merchant = pid;}
 	pid_t get_bank_merchant(void) { return bank_merchant;}
-	void set_bank_merchant_name(string &name) {bank_merchant_name = name;}
+	void set_bank_merchant_name(string name) {bank_merchant_name = name;}
 	pid_t get_bank_orig(void) {return bank_orig;}
-	void set_bank_orig_name(string &name) {bank_orig_name = name;}
+	void set_bank_orig_name(string name) {bank_orig_name = name;}
 	pid_t get_bank_prox(void) {return bank_prox;}
-	void set_bank_prox_name(string &name) {bank_prox_name = name;}
+	void set_bank_prox_name(string name) {bank_prox_name = name;}
 	bool hook_msg(msg_ev_t * msg_event);
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);

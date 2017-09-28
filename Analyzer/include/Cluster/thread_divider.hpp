@@ -8,83 +8,59 @@
 #define THD_TIMERCALL	4
 
 class ThreadDivider {
+protected:
+	bool is_ground;
+	uint64_t gid_base;
+	group_t *cur_group;
+	map<uint64_t, group_t *> ret_map;
+	intr_ev_t *potential_root;
+	backtrace_ev_t *backtrace_for_hook;
+	voucher_ev_t *voucher_for_hook;
+	syscall_ev_t *msg_link;
+	msg_ev_t *pending_msg_sent;
+
+	list<event_t *> tid_list;
+	uint64_t index;
+	vector<map<uint64_t, group_t *> > &submit_result;
+
 public:
-	ThreadDivider();
-	group_t * create_group(uint64_t id, event_t * root_event);
+	ThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
+
+	pid_t tid2pid(uint64_t tid);
+	string tid2comm(uint64_t tid);
+	string pid2comm(pid_t pid);
+
+	group_t *create_group(uint64_t id, event_t *root_event);
+	void delete_group(group_t *del_group);
+	void add_general_event_to_group(event_t *event);
+	void store_event_to_group_handler(event_t *event);
+	void add_tsm_event_to_group(event_t *event);
+	void add_mr_event_to_group(event_t *event);
+	void add_wait_event_to_group(event_t *event);
+	void add_timercallout_event_to_group(event_t *event);
+	void add_disp_invoke_event_to_group(event_t *event);
+	bool check_group_with_voucher(voucher_ev_t *voucher, group_t *cur_group, pid_t msg_peer);
+	void add_msg_event_into_group(event_t *event);
+	void add_hwbr_event_into_group(event_t *event);
+
 	void decode_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);
 	void streamout_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);
-	virtual void divide() {}
+	virtual void divide();
 };
 
-class MainThreadDivider : public ThreadDivider{
-	list<event_t *> main_thread_ev_list;
-	uint64_t gid_base;
-	map<uint64_t, group_t *> uievent_groups;
-	int index;
-	vector<map<uint64_t, group_t *> > &submit_result;
-	string state;
-	string get_state(backtrace_ev_t * backtrace_event);
-
+class RLThreadDivider : public ThreadDivider {
+	bool no_entry_observer;
 public:
-	MainThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
-	~MainThreadDivider();
-	void decode_groups(string filepath) {ThreadDivider::decode_groups(uievent_groups, filepath);}
-	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(uievent_groups, filepath);}
-	void divide();
-};
+	RLThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list, bool no_observer_entry);
+	~RLThreadDivider();
+	void add_observer_event_to_group(event_t *event);
+	void add_nsappevent_event_to_group(event_t *event);
+	void add_disp_invoke_event_to_group(event_t *event);
+	void add_msg_event_into_group(event_t *event);
 
-//static string _cfRunLoopServiceMachPort("CFRunLoopServiceMachPort");
-//static string _cfRunLoopDoSource1("__CFRunLoopDoSource1");
-//static string _cancelTimer("cancelTimer");
-//static string _reArmTimer("reArmTimer");
-//static string _createTimer("createTimer");
-//static string _pullEventFromWindowServer("PullEventsFromWindowServerOnConnection(unsigned int, unsigned char, __CFMachPortBoost*)");
-//static string _cfRunLoopWakeUp("CFRunLoopWakeUp");
-//static string _None("_None");
-//static string _Init("_Init");
-
-class NSEventThreadDivider : public ThreadDivider {
-	list<event_t *> nsevent_thread_ev_list;
-	uint64_t gid_base;
-	map<uint64_t, group_t *> uievent_groups;
-	int index;
-	vector<map<uint64_t, group_t *> > &submit_result;
-
-	//uint64_t group_num;
-	string state;
-	struct {
-		void * func_ptr;
-		uint64_t param0;
-	} spinning_timer;
-	typedef struct {
-		backtrace_ev_t * backtrace_event;
-		timercreate_ev_t * timercreate_event;
-		timercancel_ev_t * timercancel_event;
-		timercallout_ev_t * timercallout_event;
-	} ptrs_t;
-
-	uint32_t update_ptrs(ptrs_t *ptrs, event_t * event);
-	void set_spinning_timer_func();
-	string get_state(backtrace_ev_t * backtrace_event);
-	string get_state(timercreate_ev_t *);
-	string get_state(timercancel_ev_t *);
-	string get_state(timercallout_ev_t *);
-	bool create_timer(timercreate_ev_t *);
-	bool cancel_timer(timercancel_ev_t *);
-	bool callout_timer(timercallout_ev_t *);
-
-	group_t * add_backtrace_to_group(backtrace_ev_t * backtrace_event, group_t * cur_group);
-	group_t * add_timercreate_to_group(timercreate_ev_t * timercreate_event, group_t * cur_group);
-	group_t * add_timercancel_to_group(timercancel_ev_t * timercancel_event, group_t * cur_group);
-	group_t * add_timercallout_to_group(timercallout_ev_t * timercallout_event, group_t * cur_group);
-	
-public:
-	NSEventThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
-	//(list<event_t *> ev_list);
-	~NSEventThreadDivider();
-	void decode_groups(string filepath) {ThreadDivider::decode_groups(uievent_groups, filepath);}
-	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(uievent_groups, filepath);}
-	void divide();
+	void decode_groups(string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
+	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
+	virtual void divide();
 };
 
 #endif
