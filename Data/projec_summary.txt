@@ -1,0 +1,76 @@
+=======
+ Add tracing points
+#1. from kernel, on mach message
+	"MACH_IPC_msg_" \
+	"MACH_IPC_kmsg_free" \
+	"MACH_IPC_voucher_info" \
+	"MACH_IPC_voucher_"\
+	"Bank_Account_redeem" \
+
+#2. from kernel, thread scheduling
+	"INTERRUPT" \
+	"MACH_TS_MAINTENANCE" \
+	"MACH_MKRUNNABLE" \
+	"MACH_WAKEUP_REASON" \
+	"MACH_WAIT" \
+	"MACH_WAIT_REASON" \
+
+#3. from libdispatch, worker thread operations
+	"wq__run_nextitem" \
+	"dispatch_enqueue" \
+	"dispatch_dequeue" \
+	"dispatch_execute" \
+
+#4. from kernel, timer operations
+	"MACH_CALLCREATE" \
+	"MACH_CALLOUT" \
+	"MACH_CALLCANCEL" \
+
+#5. from kernel. systemcall
+	"MSC_" \
+	"BSC_" \
+
+#6. hooked to any libs, backtrace info
+	"MSG_Pathinfo" \
+	"MSG_Backtrace" \
+
+#7. from Frameworks
+	#7,1 QuartzCore
+	"CALayerSet" \
+	"CALayerDisplay" \
+	#7.2 CoreFoundation
+	"RL_Observer" \
+	#7.3 HIToolbox
+	"EventRef" \
+	#7.4 AppKit
+	"NSAppGetEvent" \ 
+	"NSEvent" \ 
+
+#8. external set for shared variables, eg, isDispatchToMainThread, isMainThreadSpinning
+	"HWBR_trap" \
+
+=======
+analysis:
+1. identify the execution segment boundary
+ 1.1 Execution segments in Thread with RunLoop object: RL_Observer
+ 1.2 Others:
+	1.2.1. dispatch_execution(block_callout) always in one execution segment
+	1.2.2. mach_msg to a different application with out corresponding voucher
+	1.2.3. wait event, not conflict with 1 
+	1.2.4. thread scheduling, mkrunnable event follows Interrupt or TimeshareMaintainance
+	1.2.5, kernel thread timer callout and wakeup different threads
+
+2. Connect execution segments into dependancy graph
+ 2.1 Init execution segements in the main thread, which is not connected, as root
+ 2.2 Connectors:
+	2.2.1. mach_msg sent-recv, mach_msg carrying reply port in kernel
+	2.2.2. dispatch operations
+	2.2.3. timer arm/callouts
+	2.2.4. CALayerSet / CALayerDisplay
+	2.2.5. shared variable set / clear
+	repeat 1 to 5 until no threads are added. then
+	2.2.6. connect make runnable if not from worker thread "wq__run_nextitem"
+
+======
+applications:
+
