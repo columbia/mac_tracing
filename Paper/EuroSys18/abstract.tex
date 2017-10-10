@@ -1,1 +1,23 @@
-Abstract
+MacOS is well known for its friendly user experience.
+However, performance bugs still exists, which annoys users.
+For instance, spinning cursors are threw out from time to time.
+Although the reason why it appears is straightforward based on its mechanism that the main UI thread is too busy to process user input, its root cause is still hard to diagnose.
+%dependancy graph is useful to diagnose performance bugs
+Tracking the performance bug where the lagging or unresponsiveness of applications stem, is hard due to the massive interactions among threads.
+Without instruments in the source code, it is challenging to detangle the user transactions running concurrently in the system, as well as the background heartbeat threads.
+\par
+Fortunately, instruments in low level libraries and system could help developers to recognize interations of threads,
+by generating a dependancy graph over the tracing data.
+A tracing point, the statement where the instrument resides, contains the name of an event and attributes correlated to the event. 
+Each of them either represents the execution boundary of a particular request/user input or reflects the potential connections with other events. 
+With events inside the boundary of particular request/user input as node, and connections as edges, a dependancy graph can be generated for each user transaction.
+The dynamically generated dependancy graph is useful, in that it helps developers to figure out the critial path of user transations and enlight them to improve their code.
+%short-commings of dynamic generated dependancy graph
+\par
+However, without the in-depth understanding of a system, especially when it is not open source, the integrity and completeness of the generated dependancy graph is hard to gurantee.
+The incorrect graph becomes less useful, event misleading, for the developers to figure out the root cause of performance bugs.
+%how to address
+In this paper, we focus on Apple's Mac system and address the challenges by inspecting the over connections and under connections in the dependancy graph, which is generated with well-known programing paradigms.
+Revealing the problematic edges or nodes caused by specific programming paradigms provides hints to the developers.
+With these hints, the developers can further explore pragraming paradigms in various levels, including kernel, dynamic libraies and middle-ware frameworks.
+As a result, the dependancy graph gets improved cumulatively and becomes more helpful to figure out the root cause of the performance bugs.
