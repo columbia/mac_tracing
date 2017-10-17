@@ -92,4 +92,10 @@ INPUT /usr/local/texlive/2017/texmf-dist/tex/generic/oberdiek/se-ascii-print.def
 INPUT ./introduction.tex
 INPUT ./introduction.tex
 OUTPUT out/eurosys18.xdv
+INPUT ./design_and_implementation.tex
+INPUT ./design_and_implementation.tex
+INPUT ./instrumentation.tex
+INPUT ./instrumentation.tex
+INPUT ./analysis.tex
+INPUT ./analysis.tex
 INPUT out/eurosys18.aux

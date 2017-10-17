@@ -1,0 +1,29 @@
+%Goals and Design Overview
+The application running in MacOS system is compromised of various components.
+For propagating events to target application, WindowServer will be touched.
+An user input originated from the attached device will go through the I/O Kit to the WindowServer's event queue first.
+The WindowServer dispatches the event to the appropriate thread in target process.
+After that, the event will be passed the main UI thread and invok the corresponding event-handling routin. 
+The transition of event from Windowser to the main UI thread requires additional preprocessing in the Cocoa Framworks.
+The event-handling ususally act in asynchronous manner to prevent the block in the main thread.
+In this procedure, daemons such as fontd, md, mdstore, prefersd, notifyd and services like SandboxHelper and XPCService will get involved.
+As a result, an user input will trigger system wide thread activities.
+\par
+Similar scenarios happen in Windows and Android.
+Previous work on WindowServer from Microsoft Research use its own ETW(event tracing for windows) to record flow of control transfer between components in application and middleware system wide, leveraging their advantage of Windows design knowledge as well as developer input schema.
+AppInsight rewrites the app bytecode and instruments it leveraging the upcalls from the high-level framework into the app code for various reason like to handle user input, spawning of worker threads, sensor trigger and so on.
+It captures events including UI manipulation, thread execution, asynchronous calls, thread synchronizaiton, UI updates and unhandled exception, but limited to the app wide.
+The work on Android also collects limited event categories, with the trade off between the coverage and overhead, including user input, asynchronous calls (via its well known MessageQueue and ThreadPoolexecutor mechenisms), IPC (Binder RPC), selected synchronization mechnism, display update via view Class and recource counting system wide.
+\par
+We share the goals of the previuos work on helping developers understand the performance bugs in the wild, but we also help the developer to rectify the framework for special programming paradigms that they are not aware of. 
+\par
+The archtecture of XXX is shown in figure XXX.
+Three components are included: Instrumenter, Analyzer and Inspectors.
+The instrumenter is responsible to add tracing points in kernel, dynamic libraries and middleware frameworks.
+Tracing points in the kernel can be added by modifying the kernel directly, while as the dynamic libraries and middleware frameworks are only partially opensource, we need to leverage the reverse engine tools and instrument the binary code.
+We replace the library by hooking one exposed symbol which will call a detour function and reexporting all the rest symbols.
+Indise the detour function, tracing points can be added to any address by replacing instrutions with tempoline function.
+Analyzer will collecte attributes from tracing points for events, which help events to connect or to differentiate execution segments.
+With the identified execution boundary and connections, it generates dependancy graphs for user inputs.
+Inspectors are used to check the dynamic generatged dependancy graph with respect to the correctness and completeness.
+Although it is hare to achieve the goal of completeness, we are expected to achieve the certain degree where the dependancy graph becomes useful for disganosis purpose.

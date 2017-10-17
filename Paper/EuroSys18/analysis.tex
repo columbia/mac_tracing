@@ -1,0 +1,7 @@
+%Dependancy graph generation
+Unlike AppInsight which tracks the begin and end of function calls, like edge triggered tracing, we only track particular events and attributes in the states, which is level triggered tracing. 
+As worker threads can be reused on behalf of different user inputs or processsing different requests from various applications in the system concurrently,
+identifying the execution boundaries is important.
+In addition to the known events that can indicated the boundaries, some potential boundaries may be covered by the unknown programming paradigms.
+
+

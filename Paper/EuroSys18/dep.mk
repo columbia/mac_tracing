@@ -45,7 +45,10 @@ out/eurosys18.pdf dep.mk :\
     /usr/local/texlive/2017/texmf-var/web2c/xetex/xelatex.fmt\
     /usr/local/texlive/2017/texmf.cnf\
     abstract.tex\
+    analysis.tex\
+    design_and_implementation.tex\
     eurosys18.tex\
+    instrumentation.tex\
     introduction.tex\
     sigplanconf-eurosys.cls
 #===End dependents for eurosys18.tex:
