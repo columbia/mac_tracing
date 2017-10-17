@@ -39,31 +39,36 @@ One simple way is to audit the path between every two processes in the graph.
 If two irrelevant applications appear in the same graph, there must be some over connections in their connecting path.
 Further exploring and fixing can be done by checking the nodes in the path.
 To improve the completeness of the dependancy graph, we need to inspect the under connections.
-%Resource accounting can be utilized for this purpose.
+%
+%(1)Resource accounting can be utilized for this purpose.
 %Take CPU usage as an example.
 %If the total CPU usage for an application in the given time window is known, we can check the proportion of CPU usage reflected in the dependancy graph.
-%how to add tracing points, hook dynamic library or add watch points
+%(2)
+%statistical method
+%
+
+%%how to add tracing points, hook dynamic library or add watch points
 To prevent the dependancy graph from over-connection and under-connection, tracing points can be added either by hooking dynamic libraries or by setting hardware watch pointers.
 \par
 %%our result
 We apply the method on the application running on MacOS and figure out both false negtive(under-connection) and false positive(over-connection) with the tranditional tracking technique.
 \par
-There are missing thread asynchronous mechanisms. False negatives we detected:
+There are missing thread asynchronization mechanisms. False negatives we detected:
 \begin{itemize}
 \item Timers can be armed to delay the event processing.
 \item Grand Central Dispatcher is frequently referred by the high level frameworks to schedule tasks.
-\item Daemons like WindowServer may postpond event processing via shared variable.
+\item Daemons like WindowServer may postpone event processing via shared variable.
 \item Rendering with layer can be batched for later with flags in layer objects.
 \end{itemize}
 False positive we detected:
 \begin{itemize}
-\item Runloop is a more complicated programing modle than MessageQueue or ThreadExecutor.
+\item Runloop is a more complicated programing model than MessageQueue or ThreadExecutor.
 Dividing it merely depending on the user event would result in false connection of thread activities in temporal order.
 \item Some kernel\_task threads in MacOS running as heartbeat thread, can always introduce over connections.
 %One of the example is on the implementation of timer.
 %The kernel\_task thread is responsible to fire all the queued timers by sending messages to all the corresponding processes without a break.
 \item One block from dispatch queue, invoked with dispatch\_mig\_server, could serve for multiple unrelated work.
-\item Daemons like WindowServer will also serve for different work in interleave manner to support postponding processing of messages.
+\item Daemons like WindowServer will also serve for different work in interleave manner to support postponable requests.
 \end{itemize}
 \par
 %%contributions

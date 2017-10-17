@@ -1,0 +1,15 @@
+%Instumentation
+Considering the trade off between userfulness and overhead, we first choose the well known events that previous work chosen.
+We instrument the Cocoa Unbrella Framework for user input and display update.
+Ueser input: user inputs from the I/O kit to the target application will refer the Umbrealla Frameworks HIToolbox and AppKit.
+User inputs like key stroke and mouse move may get collapse in queues.
+We trace the user inputs in the AppKit framework as it was done in previous work.
+Display update: we not only record the updates but also trace the code locations where the need\_display flags are set. With this method, we track both the display updates with View class and CALayer class.
+Asynchrouns call: asynchrous calls in MacOS can be implemented via RunLoop object, Grand Central Dispatcher, timer and wait queue.
+IPC: Mach message is the main mechanism for IPC.
+Thread synchronization: We also trace the thread synchronization by tracking the thread scheduling event, including to wait and to be made runnable, which has better coverage.
+To provide hints for developers to exploring programming paradigms, we also add backtrace after every mach message and dispatched function execution.
+We also trace certain events to exclude the obvious background noise introduced by hearbeat threads. 
+The heartbeat threads in the system are identified with the interruption the running thread itermittently.
+We address the interrupts and time share maintanence by isolate the event and the thread activites that it triggers from the current running thread activities.
+Other potential heartbeat theread activities may relate to programing paradigms are left later for inspections.
