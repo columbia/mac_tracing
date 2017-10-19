@@ -23,6 +23,7 @@ CreateEventWithCGEvent(
   EventAttributes   inAttributes,
   EventRef *        outEvent)                                 AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER;
 */
+//referred by NSApplication Mainthread
 OSStatus shell_CreateAndPostEventWithCGEvent(CFAllocatorRef inAllocator, CGEventRef inEvent, EventAttributes inAttributes, EventRef *outEvent, OSStatus ret)
 {
 	save_registers
@@ -94,6 +95,7 @@ void shell_CreateAndPostEventWithCGEvent(EventRef inEvent)
 * 0000000000062d02	e8a5a52300      	callq	0x29d2ac
 * 0000000000062d07	89c3            	movl	%eax, %ebx
 */
+//referred by nsevent thread
 uint64_t shell_PushToCGEventQueue(EventRef inEvent)
 {
 	save_registers
@@ -101,6 +103,7 @@ uint64_t shell_PushToCGEventQueue(EventRef inEvent)
 	restore_registers
 	return CGEventGetType((CGEventRef)inEvent);
 }
+
 
 #elif __i386__
 #endif

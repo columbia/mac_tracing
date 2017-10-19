@@ -1,5 +1,4 @@
 #include "lib_mach_info.h"
-//#include <CoreFoundation/CFRunLoop.h>
 #include <CoreFoundation/CFMachPort.h>
 #include <signal.h>
 #include <pthread.h>
@@ -20,7 +19,6 @@ static CFMachPortRef (*orig_CFMachPortCreate)(CFAllocatorRef allocator, CFMachPo
 static void (*appkit_hook_entry)() = NULL;
 static void (*hitoolbox_hook_entry)() = NULL;
 static void (*ca_hook_entry)() = NULL;
-//static void (*cgs_hook_entry)() = NULL;
 
 static uint32_t read_regval(void *addr, int rw, int len)
 {
@@ -107,7 +105,7 @@ static kern_return_t read_monitored_addr(uint64_t *addrs, uint32_t *array, int s
 static void hwbr_handler(int sig, siginfo_t *info, void *ucontext)
 {
 	if (info->si_code == TRAP_BRKPT) {
-		#if 0 /*si_addr is the caller_adddr*/
+#if 0 /*si_addr is the caller_adddr*/
 		ucontext_t *uc = (ucontext_t *)ucontext;
 		void *caller_addr;
 #if __x86_64__
@@ -115,7 +113,7 @@ static void hwbr_handler(int sig, siginfo_t *info, void *ucontext)
 #elif __i386__
 		caller_addr = uc->uc_mcontext->__ss.__eip;
 #endif
-		#endif
+#endif
 		// get the addr in break registers that set in current thread
 		// read the value and put them in the tracing points
 		uint64_t monitored_addr[4] = {0};
@@ -157,7 +155,6 @@ CFMachPortRef CFMachPortCreate(CFAllocatorRef allocator, CFMachPortCallBack call
 {
 	if (orig_CFMachPortCreate == NULL) {
 		orig_CFMachPortCreate = get_func_ptr_from_lib(CFGetAllocator, "CFMachPortCreate", detour);
-		//kdebug_trace(DEBUG_INIT, (uint64_t)orig_CFMachPortCreate, 0ULL, 0ULL, 0ULL, 0);
 
 		void * handle = dlopen("/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit", RTLD_LAZY);
 		if (handle != NULL) {

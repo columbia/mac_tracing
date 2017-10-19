@@ -111,10 +111,14 @@ void detour(struct mach_o_handler *handler_ptr)
 		shell_CALayer_setNeedsDisplay, 0x1a, 5);
 	detour_function(handler_ptr, "_ZN2CA5Layer17display_if_neededEPNS_11TransactionE",
 		shell_display_if_needed, 0x1b9, 5);
+	//detour_function(handler_ptr, "_ZN2CA5Layer17display_if_neededEPNS_11TransactionE",
+		//shell_display_if_needed, 0x24a, 5);
 #elif __i386__
 	detour_function(handler_ptr, "[CALayer setNeedsDisplay]",
 		shell_CALayer_setNeedsDisplay, 0xf, 6);
 	detour_function(handler_ptr, "_ZN2CA5Layer17display_if_neededEPNS_11TransactionE", 
 		shell_display_if_needed, 0x1bb, 5);
+	//detour_function(handler_ptr, "_ZN2CA5Layer17display_if_neededEPNS_11TransactionE", 
+		//shell_display_if_needed, 0x299, 5);
 #endif
 }
