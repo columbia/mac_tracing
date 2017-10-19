@@ -7,7 +7,7 @@ class TimercallPattern {
 	list<event_t *> &timercancel_list;
 public:
 	TimercallPattern(list<event_t*> &_timercreate_list, list<event_t *> &_timercallout_list, list<event_t*> &_timercancel_list);
-	void connect_timercall_patterns(void) {connect_create_and_cancel(); connect_create_and_timercallout();}
+	void connect_timercall_patterns(void);
 	void connect_create_and_cancel(void);
 	void connect_create_and_timercallout(void);
 	bool connect_timercreate_for_timercallout(list<timercreate_ev_t*> &tmp_create_list, timercallout_ev_t *timercallout_event);

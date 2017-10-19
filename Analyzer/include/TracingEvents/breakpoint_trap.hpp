@@ -3,10 +3,6 @@
 #include "base.hpp"
 using namespace std;
 
-//#define ReadPendingMsg_0	"CGXRunOneServicesPass"
-//#define ReadPendingMsg_1	"push_out_message"
-//#define WritePendingMsg		"CGXPostReplyMessage"
-
 class BreakpointTrapEvent : public EventBase {
 	bool is_read;
 	uint64_t caller_eip;
@@ -17,6 +13,7 @@ class BreakpointTrapEvent : public EventBase {
 	vector<uint64_t> addrs;
 	vector<uint32_t> vals;
 	map<string, uint32_t> targets;
+	string trigger_var;
 
 public:
 	BreakpointTrapEvent(double timestamp, string op, uint64_t tid, uint64_t eip, uint32_t coreid, string procname = "");
@@ -28,7 +25,10 @@ public:
 	vector<uint64_t> &get_addrs(void) {return addrs;}
 
 	void set_backtrace(backtrace_ev_t *bt) {backtrace = bt;}
-	void set_pending_msg(msg_ev_t *msg) {pending_message = msg;}
+	//void set_pending_msg(msg_ev_t *msg) {pending_message = msg;}
+	void set_trigger_var(string _var);
+	string get_trigger_var(void) {return trigger_var;}
+	uint32_t get_trigger_val(void) {return trigger_var.size() > 0 ? targets[trigger_var] : -1;}
 
 	// referred by breakpoint connection
 	map<string, uint32_t> &get_targets(void) {return targets;}

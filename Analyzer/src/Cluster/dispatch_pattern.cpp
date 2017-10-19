@@ -1,11 +1,23 @@
 #include "dispatch_pattern.hpp"
 #include "eventlistop.hpp"
 
-//#define DISP_PATTERN_DEBUG
+#define DISP_PATTERN_DEBUG 0
 
 DispatchPattern::DispatchPattern(list<event_t*> &_enq_list, list<event_t *> &_deq_list, list<event_t*> &_exe_list)
 :enqueue_list(_enq_list), dequeue_list(_deq_list), execute_list(_exe_list)
 {
+}
+
+void DispatchPattern::connect_dispatch_patterns(void)
+{
+#ifdef DISP_PATTERN_DEBUG
+	cerr << "begin matching dispatch... " << endl;
+#endif
+	connect_enq_and_deq();
+	connect_deq_and_exe();
+#ifdef DISP_PATTERN_DEBUG
+	cerr << "finished matching dispatch. " << endl;
+#endif
 }
 
 void DispatchPattern::connect_enq_and_deq(void)
@@ -29,8 +41,7 @@ void DispatchPattern::connect_enq_and_deq(void)
 			connect_dispatch_enqueue_for_dequeue(tmp_enq_list, deq_event);
 		}
 	}
-	#ifdef DISP_PATTERN_DEBUG
-
+#if DISP_PATTERN_DEBUG
 	//TODO: check the rest events
 	for (it = enqueue_list.begin(); it != enqueue_list.end(); it++) {
 		enq_event = dynamic_cast<enqueue_ev_t*>(*it);
@@ -39,7 +50,7 @@ void DispatchPattern::connect_enq_and_deq(void)
 			cerr << "\t" << hex << enq_event->get_tid() << "\t" << enq_event->get_ref()<< endl;
 		}
 	}
-	#endif
+#endif
 }
 
 void DispatchPattern::connect_deq_and_exe(void)
@@ -81,12 +92,12 @@ bool DispatchPattern::connect_dispatch_enqueue_for_dequeue(list<enqueue_ev_t*> &
 			return true;;
 		}
 	}
-	#ifdef DISP_PATTERN_DEBUG
+#if DISP_PATTERN_DEBUG
 	cerr << "Warn: no enqueue found for dequeue " << fixed << setprecision(1) << dequeue_event->get_abstime();
 	cerr << "\t" << hex << dequeue_event->get_tid() << endl;
 	if (dequeue_event -> is_duplicate())
 		cerr << "Duplicate Dequeue at " << fixed << setprecision(1) << dequeue_event->get_abstime() << endl;
-	#endif
+#endif
 	return false;
 }
 
@@ -108,9 +119,9 @@ bool DispatchPattern::connect_dispatch_dequeue_for_execute(list<dequeue_ev_t*> &
 			return true;
 		} 
 	}
-	#ifdef DISP_PATTERN_DEBUG
+#if DISP_PATTERN_DEBUG
 	cerr << "Warn: no dequeue found for blockinvoke " << fixed << setprecision(1) << invoke_event->get_abstime();
 	cerr << "\t" << hex << invoke_event->get_tid() << endl;
-	#endif
+#endif
 	return false;
 }

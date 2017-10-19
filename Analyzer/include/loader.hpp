@@ -3,6 +3,7 @@
 #include "base.hpp"
 #include "syscall.hpp"
 
+// 0 is reserved
 #define MACH_IPC_MSG				1
 #define MACH_IPC_VOUCHER_INFO		2
 #define MACH_IPC_VOUCHER_CONN		3
@@ -21,8 +22,6 @@
 #define MACH_CALLOUT				17
 #define MACH_CALLCANCEL				18
 #define BACKTRACE					19
-//#define BT_PATH					
-//#define BT_FRAME					
 #define MACH_SYS					20
 #define BSD_SYS						21
 #define CA_SET						22
@@ -31,8 +30,10 @@
 #define RL_OBSERVER					25
 #define EVENTREF					26
 #define NSAPPEVENT					27
+#define DISP_MIG					28
 
-#define MAX_ARGC 16
+#define MAX_ARGC 12
+
 struct syscall_entry {
 	int64_t syscall_number;
 	const char *syscall_name;

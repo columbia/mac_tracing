@@ -76,8 +76,8 @@ namespace Parse
 	class MkrunParser: public Parser {
 		map<uint64_t, mkrun_ev_t *> mkrun_events;
 		bool set_info(mkrun_ev_t *mr_event, uint64_t peer_prio, uint64_t wait_result, uint64_t run_info);
-		bool process_finish_wakeup(mkrun_ev_t *mr_event, double abstime, istringstream &iss);
-		bool process_new_wakeup(uint64_t peer_tid, double abstime, istringstream &iss);
+		bool process_finish_wakeup(double abstime, istringstream &iss);
+		bool process_new_wakeup(double abstime, istringstream &iss);
 	public:
 		MkrunParser(string filename);
 		void process();
@@ -131,6 +131,7 @@ namespace Parse
 		bool process_enqueue(string opname, double abstime, istringstream &iss);
 		bool process_dequeue(string opname, double abstime, istringstream &iss);
 		bool process_blockinvoke(string opname, double abstime, istringstream &iss);
+		bool process_migservice(string opname, double abstime, istringstream &iss);
 	public:
 		DispatchParser(string filename);
 		void process();
@@ -187,7 +188,9 @@ namespace Parse
 	
 	class SyscallParser: public Parser {
 		map<uint64_t, syscall_ev_t *> syscall_events;
+		bool new_msc(syscall_ev_t *syscall_event, uint64_t tid, string opname, uint64_t *args, int size);
 		bool process_msc(string opname, double abstime, bool is_begin, istringstream &iss);
+		bool new_bsc(syscall_ev_t *syscall_event, uint64_t tid, string opname, uint64_t *args, int size);
 		bool process_bsc(string opname, double abstime, bool is_begin, istringstream &iss);
 	public:
 		SyscallParser(string filename);

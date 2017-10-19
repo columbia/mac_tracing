@@ -9,6 +9,7 @@ BreakpointTrapEvent::BreakpointTrapEvent(double abstime, string _op, uint64_t _t
 	addrs.clear();
 	vals.clear();
 	targets.clear();
+	trigger_var = "";
 }
 
 void BreakpointTrapEvent::update_target(int index, string key)
@@ -19,10 +20,19 @@ void BreakpointTrapEvent::update_target(int index, string key)
 		cerr << __func__ << ": Key - value are not matched" << endl;
 }
 
+void BreakpointTrapEvent::set_trigger_var(string _var)
+{
+	if (trigger_var.size() == 0)
+		trigger_var = _var;
+	else
+		cerr << __func__ << "duplicate trigger var " << trigger_var << " and " << _var << endl;
+}
+
 void BreakpointTrapEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
 	EventBase::decode_event(is_verbose, outfile);
 	outfile << "\n\tcaller " << caller << endl;
+	outfile << "\n\ttrigger " << trigger_var << endl;
 	
 	map<string, uint32_t>::iterator it;
 	for (it = targets.begin(); it != targets.end(); it++) {
@@ -33,7 +43,8 @@ void BreakpointTrapEvent::decode_event(bool is_verbose, ofstream &outfile)
 void BreakpointTrapEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
-	outfile << "\t" << caller;
+	outfile << "\tcaller " << caller;
+	outfile << "\ttrigger " << trigger_var << endl;
 	
 	vector<uint64_t>::iterator addr_it;
 	for (addr_it = addrs.begin(); addr_it != addrs.end(); addr_it++) {
@@ -44,5 +55,9 @@ void BreakpointTrapEvent::streamout_event(ofstream &outfile)
 	for (it = targets.begin(); it != targets.end(); it++) {
 		outfile << "\t" << it->first << " = " << it->second;
 	}
+
+	if (rw_peer)
+		outfile << "\trw_peer at: " << fixed << setprecision(1) << rw_peer->get_abstime();
+
 	outfile << endl;
 }

@@ -49,9 +49,10 @@ namespace Parse
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		assert(wqnext_events.find(tid) != wqnext_events.end());
+		if (wqnext_events.find(tid) == wqnext_events.end())
+			return false;
+	
 		wqnext_ev_t *wqnext_event = wqnext_events[tid];
-
 		assert(wq == wqnext_event->get_workq());	
 		assert(set_info(wqnext_event, wqnext_type, next_thread, arg3));
 		wqnext_event->set_finish_time(abstime);
@@ -72,7 +73,11 @@ namespace Parse
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		assert(wqnext_events.find(tid) == wqnext_events.end());
+		if (wqnext_events.find(tid) != wqnext_events.end()) {
+			outfile << "Already exist at " << fixed << setprecision(1) << wqnext_events[tid]->get_abstime() << endl;
+			return false;
+		}
+
 		wqnext_ev_t *new_wqnext = new wqnext_ev_t(abstime, opname, tid,
 			wq, next_thread, idle_count, req_count, coreid, procname);
 

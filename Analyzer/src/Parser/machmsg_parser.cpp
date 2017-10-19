@@ -127,11 +127,12 @@ namespace Parse
 				/* Check if current msg is kern_service recv,
 				 * if yes, match corresponding send to recv
 				 */
-				mig_send = check_mig_recv_by_send(cur_msg,
-					cur_msg->get_header()->get_msgh_id());
+				uint64_t msgh_id = cur_msg->get_header()->get_msgh_id();
+				mig_send = check_mig_recv_by_send(cur_msg, msgh_id);
+					//cur_msg->get_header()->get_msgh_id());
 
-				if (cur_msg->get_header()->set_msgh_id(
-					cur_msg->get_header()->get_msgh_id(), mig_send) == false
+				if (cur_msg->get_header()->set_msgh_id(msgh_id, mig_send) == false
+					//cur_msg->get_header()->get_msgh_id(), mig_send) == false
 					&& mig_send)
 					outfile << "Error: Incorrect mig number, not a recv ";
 					outfile << fixed << setprecision(1) << abstime << endl;

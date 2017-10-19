@@ -84,14 +84,15 @@ void RLThreadDivider::divide()
 			case VOUCHER_DEALLOC_EVENT:
 			case VOUCHER_TRANS_EVENT:
 				break;
+			case INTR_EVENT:
+				add_general_event_to_group(event);
 			case SYSCALL_EVENT:
 				if (event->get_op() != "MSC_mach_msg_trap"
-						&& event->get_op() != "MSC_mach_msg_overwrite_trap") {
+					&& event->get_op() != "MSC_mach_msg_overwrite_trap"
+					&& event->get_op() != "INTERRUPT") {
 					add_general_event_to_group(event);
 					break;
 				}
-			case INTR_EVENT:
-				add_general_event_to_group(event);
 			case BACKTRACE_EVENT:
 			case VOUCHER_EVENT:
 				store_event_to_group_handler(event);

@@ -1,7 +1,7 @@
 #include "dispatch.hpp"
 
 BlockinvokeEvent::BlockinvokeEvent(double abstime, string op, uint64_t _tid, uint64_t _func, uint64_t _ctxt, bool _not_begin, uint32_t _core, string procname)
-	: EventBase(abstime, DISP_INV_EVENT, op, _tid, _core, procname)
+:EventBase(abstime, DISP_INV_EVENT, op, _tid, _core, procname)
 {
 	func = _func;
 	ctxt = _ctxt;

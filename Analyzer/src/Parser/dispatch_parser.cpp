@@ -15,8 +15,8 @@ namespace Parse
 		uint64_t q_id, item, ref = 0, unused, tid, coreid;
 		string procname = "";
 		if (!(iss >> hex >> ref >> q_id >> item >> unused >> tid >> coreid))
-		//if (!(iss >> hex >> q_id >> item >> unused >> unused >> tid >> coreid))
 			return false;
+
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
@@ -68,29 +68,6 @@ namespace Parse
 		dequeue_event->set_complete();
 		dequeue_events.erase(tid);
 
-		/*
-		if (ref == 4) {
-			list<event_t *>::reverse_iterator rit = local_event_list.rbegin();
-			dequeue_ev_t *prev;
-
-			for (rit++; rit != local_event_list.rend(); rit++) {
-				prev = dynamic_cast<dequeue_ev_t *> (*rit);
-
-				if (prev->get_tid() != tid)
-					continue;
-
-				if (dequeue_event->get_abstime() - prev->get_abstime() > 50)
-					break;
-
-				if (is_duplicate_deq(prev, dequeue_event)) {
-					dequeue_event->set_duplicate();
-					local_event_list.erase(next(rit).base());
-				}
-
-				break;
-			}
-		}
-		*/
 		return true;
 	}
 	
@@ -263,7 +240,6 @@ namespace Parse
 		}
 	}
 
-
 	bool DispatchParser::process_blockinvoke(string opname, double abstime,
 		istringstream &iss)
 	{
@@ -274,7 +250,7 @@ namespace Parse
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		blockinvoke_ev_t *new_invoke = new blockinvoke_ev_t(abstime, opname, \
+		blockinvoke_ev_t *new_invoke = new blockinvoke_ev_t(abstime, opname,
 			tid, func, _ctxt, _begin, coreid, procname);
 		if (!new_invoke) {
 			cerr << "OOM: " << __func__ << endl;
@@ -283,13 +259,31 @@ namespace Parse
 
 		if (checking_blockinvoke_pair(new_invoke) == false) {
 			outfile << "Check: a blockinvoke end missing counterpart begin.";
-			outfile << "\nnormal if the invoke begins before tracing" << endl;
+			outfile << "It is normal if the invoke begins before tracing." << endl;
 			delete (new_invoke);
 			return false;
 		}
 
 		new_invoke->set_complete();
 		local_event_list.push_back(new_invoke);
+		return true;
+	}
+
+	bool DispatchParser::process_migservice(string opname, double abstime, istringstream &iss)
+	{
+		uint64_t unused, tid, coreid;
+		string procname = "";
+		if (!(iss >> hex >> unused >> unused >> unused >> unused >> tid >> coreid))
+			return false;
+		if (!getline(iss >> ws, procname) || !procname.size())
+			procname = "";
+		disp_mig_ev_t *mig_service = new disp_mig_ev_t(abstime, opname, tid, coreid, procname);
+		if (!mig_service) {
+			cerr << "OOM: " << __func__ << endl;
+			return false;
+		}
+		mig_service->set_complete();
+		local_event_list.push_back(mig_service);
 		return true;
 	}
 	
@@ -314,14 +308,16 @@ namespace Parse
 				case DISP_EXE:
 					ret = process_blockinvoke(opname, abstime, iss);
 					break;
+				case DISP_MIG:
+					ret = process_migservice(opname, abstime, iss);
+					break;
 				default:
 					ret = false;
 					outfile << "unknown operation" << endl;
 			}
-			if (ret == false) {
+			if (ret == false)
 				outfile << line << endl;
-			}
 		}
-		// check remaining maps
+		//TODO check remaining maps
 	}
 }

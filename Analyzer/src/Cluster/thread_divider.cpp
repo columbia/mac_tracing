@@ -1,4 +1,5 @@
 #include "thread_divider.hpp"
+#define DEBUG_THREAD_DIVIDER 0
 
 ThreadDivider::ThreadDivider(int _index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list)
 :submit_result(sub_results)
@@ -10,51 +11,25 @@ ThreadDivider::ThreadDivider(int _index, vector<map<uint64_t, group_t *> >&sub_r
 	voucher_for_hook = NULL;
 	msg_link = NULL;
 	pending_msg_sent = NULL;
+	dispatch_mig_server = NULL;
 	ret_map.clear();
-
 	tid_list = ev_list;
 	index = _index;
-}
-
-pid_t ThreadDivider::tid2pid(uint64_t tid)
-{
-	if (LoadData::tpc_maps.find(tid) != LoadData::tpc_maps.end()) {
-		return LoadData::tpc_maps[tid].first;
-	}
-	cerr << "No pid found for tid " << hex << tid << endl;
-	return (pid_t)-1;
-}
-
-string ThreadDivider::tid2comm(uint64_t tid)
-{
-	string proc_comm = "";
-	if (LoadData::tpc_maps.find(tid) != LoadData::tpc_maps.end()) {
-		return LoadData::tpc_maps[tid].second;
-	}
-	cerr << "No comm found for tid " << hex << tid << endl;
-	return proc_comm;
-}
-
-string ThreadDivider::pid2comm(pid_t pid)
-{
-	string proc_comm = "";
-	map<uint64_t, pair<pid_t, string> >::iterator it;
-	for (it = LoadData::tpc_maps.begin(); it !=  LoadData::tpc_maps.end(); it++) {
-		if ((it->second).first == pid) {
-			return (it->second).second;
-		}
-	}
-	cerr << "No comm found for pid " << hex << pid << endl;
-	return proc_comm;
 }
 
 group_t *ThreadDivider::create_group(uint64_t id, event_t *root_event)
 {
 	group_t *new_gptr = new group_t(id, root_event);
+
+	if (new_gptr == NULL) {
+#if DEBUG_THREAD_DIVIDER
+		cerr << "Error: OOM can not create a new group." << endl;
+#endif
+		exit(EXIT_FAILURE);
+	}
+
 	if (root_event) 
 		new_gptr->add_to_container(root_event);
-	if (new_gptr == NULL)
-		cerr << "Error : OOM can not create a new group." << endl;
 	return new_gptr;
 }
 
@@ -66,19 +41,11 @@ void ThreadDivider::delete_group(group_t *del_group)
 
 void ThreadDivider::add_general_event_to_group(event_t *event)
 {
-	if (cur_group)
-		cur_group->add_to_container(event);
-
- 	else if (ret_map.find(gid_base + ret_map.size()) == ret_map.end()) {
+	if (!cur_group) {
 		cur_group = create_group(gid_base + ret_map.size(), NULL);
 		ret_map[cur_group->get_group_id()] = cur_group;
-		cur_group->add_to_container(event);
 	}
-
-	else {
-		cerr << "Error: fail to create a new group" << endl;
-		exit(EXIT_FAILURE);
-	}
+	cur_group->add_to_container(event);
 }
 
 void ThreadDivider::store_event_to_group_handler(event_t *event)
@@ -95,14 +62,18 @@ void ThreadDivider::store_event_to_group_handler(event_t *event)
 			break;
 		case SYSCALL_EVENT:
 			msg_link = dynamic_cast<syscall_ev_t *>(event);
+			if (event->get_op() == "MSC_mach_msg_overwrite_trap")
+				pending_msg_sent = msg_link;
 			break;
+		/*
 		case MSG_EVENT: {
 			msg_ev_t *msg_event = dynamic_cast<msg_ev_t*>(event);
 			if (msg_event->get_header()->check_recv() == false && msg_event->get_user_addr()) {
 				pending_msg_sent = msg_event;
-			}	
+			}
 			break;
 		}
+		*/
 		default:
 			break;
 	}
@@ -182,8 +153,9 @@ void ThreadDivider::add_timercallout_event_to_group(event_t *event)
 
 void ThreadDivider::add_disp_invoke_event_to_group(event_t *event)
 {
-	/*1. processing the backtrace */
 	blockinvoke_ev_t *invoke_event = dynamic_cast<blockinvoke_ev_t *>(event);
+
+	/*1. processing the backtrace */
 	if (invoke_event->is_begin() && backtrace_for_hook) {
 		if (backtrace_for_hook->hook_to_event(event, DISP_INV_EVENT)){
 			add_general_event_to_group(backtrace_for_hook);
@@ -196,29 +168,31 @@ void ThreadDivider::add_disp_invoke_event_to_group(event_t *event)
 	add_general_event_to_group(event);
 	cur_group->add_group_tags(invoke_event->get_desc());
 
+	/*3. sanity check for block invoke event and restore group if dispatch_mig_server invoked*/
 	if (invoke_event->is_begin()) {
 		invoke_event->set_nested_level(cur_group->get_blockinvoke_level());
 		cur_group->blockinvoke_level_inc();
 	} else {
 		assert(invoke_event->get_root());
-		if (cur_group->get_blockinvoke_level() <= 0) {
-			cerr << "unbalanced invoke at " << fixed << setprecision(1) \
-				<< invoke_event->get_abstime() << endl;
-			assert(cur_group->get_first_event());
-			cerr << "group begins at " << fixed << setprecision(1) \
-				<< cur_group->get_first_event()->get_abstime() << endl;
+		if (dispatch_mig_server) {
+			cur_group = (group_t *)(dispatch_mig_server->restore_owner());
+			assert(cur_group);
+			dispatch_mig_server = NULL;
 		}
+
+#if DEBUG_THREAD_DIVIDER
+		if (cur_group->get_blockinvoke_level() <= 0) {
+			cerr << "unbalanced invoke at " << fixed << setprecision(1) << invoke_event->get_abstime() << endl;
+			assert(cur_group->get_first_event());
+			cerr << "group begins at " << fixed << setprecision(1) << cur_group->get_first_event()->get_abstime() << endl;
+		}
+#endif
 		assert(cur_group->get_blockinvoke_level() > 0);
 
 		cur_group->blockinvoke_level_dec();
 		invoke_event->set_nested_level(cur_group->get_blockinvoke_level());
-
-		if (cur_group->get_blockinvoke_level() == 0) { // end of invoke
-			//TODO : check corresponding dequeue event (invoke_event->get_root) is in the group
-			blockinvoke_ev_t *begin = dynamic_cast<blockinvoke_ev_t *>(invoke_event->get_root());
-			if (begin && dynamic_cast<dequeue_ev_t *>(begin->get_root()))
-				cur_group = NULL;
-		}
+		if (cur_group->get_blockinvoke_level() == 0)
+			cur_group = NULL;
 	}
 }
 
@@ -236,29 +210,35 @@ bool ThreadDivider::check_group_with_voucher(voucher_ev_t *voucher_event,
 	bool ret = false;
 	
 	if (cur_group_nested_level != 0) {
+#if DEBUG_THREAD_DIVIDER
 		cerr << "0. Connection introduced by block invoke at ";
 		cerr << fixed << setprecision(1) << voucher_event->get_abstime() << endl; 
+#endif
 		return true;
 	}
 
 	if (cur_group_bank_holder == -1) {
-		// first voucher appears in the group
+		//this is the first voucher in the group
 		if (cur_group_msg_peer == -1
 			|| msg_peer == -1
 			|| cur_group_msg_peer == msg_peer
 			|| cur_group_msg_peer == msg_bank_holder
 			|| cur_group_msg_peer == msg_bank_orig) {
+#if DEBUG_THREAD_DIVIDER
 			cerr << "1. Connection introduced by voucher at ";
 			cerr << fixed << setprecision(1) << voucher_event->get_abstime() << endl; 
+#endif
 			ret = true;
 		}
 	} else {
-		// voucher appears in the group
+		// one more voucher in the group
 		if (cur_group_bank_holder == msg_bank_holder
 			|| cur_group_bank_holder == msg_bank_orig) {
 			ret = true;
+#if DEBUG_THREAD_DIVIDER
 			cerr << "2. Connection introduced by voucher at ";
 			cerr << fixed << setprecision(1) << voucher_event->get_abstime() << endl; 
+#endif
 		}
 	}
 
@@ -288,7 +268,7 @@ void ThreadDivider::add_msg_event_into_group(event_t *event)
 	}
 
 	/*2. check if a new group needed*/
-	pid_t msg_peer = msg_event->get_peer() ? tid2pid(msg_event->get_peer()->get_tid()) : -1;
+	pid_t msg_peer = msg_event->get_peer() ? Groups::tid2pid(msg_event->get_peer()->get_tid()) : -1;
 	/* 2.1. hook voucher and make use of voucher to divide thread activity */
 	if (cur_group && voucher_for_hook
 		&& voucher_for_hook->hook_msg(msg_event)
@@ -316,7 +296,7 @@ void ThreadDivider::add_msg_event_into_group(event_t *event)
 	add_general_event_to_group(msg_event);
 	if (msg_event->get_header()->is_mig() == false && msg_peer != -1) {
 		cur_group->set_group_msg_peer(msg_peer);
-		cur_group->add_group_peer(pid2comm(msg_peer));
+		cur_group->add_group_peer(Groups::pid2comm(msg_peer));
 	}
 
 	/* 3. hook backtrace to mach msg*/
@@ -336,31 +316,33 @@ void ThreadDivider::add_msg_event_into_group(event_t *event)
 void ThreadDivider::add_hwbr_event_into_group(event_t *event)
 {
 	breakpoint_trap_ev_t *hwtrap_event = dynamic_cast<breakpoint_trap_ev_t *>(event);
-	assert(hwtrap_event && event->get_procname() == "WindowServer");
-	if (hwtrap_event->check_read() == true
-			&& pending_msg_sent && pending_msg_sent->get_group_id() >= gid_base) {
-		//TODO : nearest msg send with MSC_mach_msg_overwrite_trap
+	if (hwtrap_event->get_trigger_var() == "gOutMsgPending"
+		&& hwtrap_event->check_read() && pending_msg_sent) {
+		//nearest msg send with MSC_mach_msg_overwrite_trap
+#if DEBUG_THREAD_DIVIDER
+		cerr << "Add msg pending event at " << fixed << setprecision(1) << hwtrap_event->get_abstime() << endl;
+		cerr << "Event val " << hwtrap_event->get_trigger_var() << " = " << hwtrap_event->get_trigger_val() << endl;  
+#endif
 		group_t *save_cur_group = cur_group;
 		cur_group = ret_map[pending_msg_sent->get_group_id()];
 		add_general_event_to_group(event);
 		cur_group = save_cur_group;
 		pending_msg_sent = NULL;
-	} else {
-		add_general_event_to_group(event);
-	}
+		return;
+	} 
+	
+	add_general_event_to_group(event);
+}
 
-	/*
-	if (msg_link && msg_link->get_group_id() != -1 && msg_link->get_group_id() >= gid_base) {
-		group_t *save_cur_group = cur_group;
-		cur_group = ret_map[msg_link->get_group_id()];
-		add_general_event_to_group(event);
-		cur_group = save_cur_group;
-	} else {
-		add_general_event_to_group(event);
-		cur_group = NULL; //check if it is reasonable
-	}
-	*/
-
+void ThreadDivider::add_disp_mig_event_to_group(event_t *event)
+{
+	assert(cur_group);
+	event_t *last_event = cur_group->get_last_event();
+	if (last_event->get_event_id() != DISP_INV_EVENT)
+		cerr << "dispatch_mig_server called outside block invoke" << endl;
+	add_general_event_to_group(event);
+	dispatch_mig_server->save_owner(cur_group);
+	cur_group = NULL;
 }
 
 /* general group generation per thread */
@@ -368,16 +350,19 @@ void ThreadDivider::divide()
 {
 	/* per list data init */
 	uint64_t tid = (tid_list.front())->get_tid();
-	pid_t pid = tid2pid(tid);
+	pid_t pid = Groups::tid2pid(tid);
+	string proc_comm = (tid_list.front())->get_procname();
+
+#if DEBUG_THREAD_DIVIDER
 	if (pid == -1)
 		cerr << "Error : missing pid, tid = " << hex << tid << endl;
 
-	string proc_comm = (tid_list.front())->get_procname();
 	if (proc_comm.size() == 0) {
 		cerr << "Error : missing proc_comm, pid = " << dec << pid\
 			<< " tid = " << hex << tid << endl; 
 		proc_comm = "proc_" + to_string(pid);
 	}
+#endif
 	
 	/* checking all events in the same thread */
 	list<event_t *>::iterator it;
@@ -429,6 +414,10 @@ void ThreadDivider::divide()
 			}
 			case DISP_INV_EVENT:
 				add_disp_invoke_event_to_group(event);
+				break;
+			case DISP_MIG_EVENT:
+				dispatch_mig_server = dynamic_cast<disp_mig_ev_t *>(event);
+				add_disp_mig_event_to_group(event);
 				break;
 			case MSG_EVENT:
 				add_msg_event_into_group(event);
@@ -483,4 +472,3 @@ void ThreadDivider::streamout_groups(map<uint64_t, group_t *> & uievent_groups, 
 	}
 	output.close();
 }
-

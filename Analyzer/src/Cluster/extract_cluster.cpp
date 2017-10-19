@@ -1,6 +1,8 @@
 #include "parser.hpp"
 #include "cluster.hpp"
 
+#define DEBUG_EXTRACT_CLUSTER 1
+
 ClusterGen::ClusterGen(groups_t *groups)
 {
 	spin_cluster = NULL;
@@ -66,13 +68,15 @@ void ClusterGen::merge_by_mach_msg(cluster_t *cluster, msg_ev_t *curr_msg)
 				next_msg,
 				MSGP_REL);
 		} else if (next_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< curr_msg->get_abstime() << endl;
 			cerr << "group " << hex << next_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				 << next_msg->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< next_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			cluster->add_edge(groups_ptr->group_of(curr_msg),
 				next_group,
@@ -88,8 +92,10 @@ void ClusterGen::merge_by_mach_msg(cluster_t *cluster, msg_ev_t *curr_msg)
 	if (peer_msg) {
 		group_t *peer_group = groups_ptr->group_of(peer_msg);
 		if (peer_group == NULL) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": event at " << fixed << setprecision(1) \
 				<< peer_msg->get_abstime() << "is not in group properly" << endl;
+#endif
 		}
 		assert(peer_group);
 		if (peer_group->get_cluster_idx() == cluster->get_cluster_id()) {
@@ -106,13 +112,15 @@ void ClusterGen::merge_by_mach_msg(cluster_t *cluster, msg_ev_t *curr_msg)
 					curr_msg,
 					MSGP_REL);
 		} else if (peer_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< curr_msg->get_abstime() << endl;
 			cerr << "group " << hex << peer_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				<< peer_msg->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< peer_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			if (peer_msg->get_abstime() > curr_msg->get_abstime())
 				cluster->add_edge(groups_ptr->group_of(curr_msg),
@@ -148,13 +156,15 @@ void ClusterGen::merge_by_dispatch_ops(cluster_t *cluster,
 				deq,
 				DISP_DEQ_REL);
 		} else if (deq_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< enqueue->get_abstime() << endl;
 			cerr << "group " << hex << deq_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				<< deq->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< deq_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			cluster->add_edge(groups_ptr->group_of(enqueue),
 				deq_group,
@@ -165,8 +175,9 @@ void ClusterGen::merge_by_dispatch_ops(cluster_t *cluster,
 			cluster->push_connectors(deq_group, deq);
 		}
 	} else {
-		cerr << "Error: no dequeue event for enqueue but with comsume flag set";
-		cerr << endl;
+#if DEBUG_EXTRACT_CLUSTER
+		cerr << "Error: no dequeue event for enqueue but with comsume flag set\n";
+#endif
 	}
 }
 
@@ -183,13 +194,15 @@ void ClusterGen::merge_by_dispatch_ops(cluster_t *cluster,
 				invoke,
 				DISP_EXE_REL);
 		} else if (invoke_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< dequeue->get_abstime() << endl;
 			cerr << "group " << hex << invoke_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				<< invoke->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< invoke_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			cluster->add_edge(groups_ptr->group_of(dequeue),
 				invoke_group,
@@ -217,13 +230,15 @@ void ClusterGen::merge_by_timercallout(cluster_t *cluster,
 				timercallout_event,
 				CALLOUT_REL);
 		} else if (timercallout_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< timercreate_event->get_abstime() << endl;
 			cerr << "group " << hex << timercallout_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				<< timercallout_event->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< timercallout_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			cluster->add_edge(groups_ptr->group_of(timercreate_event),
 				timercallout_group,
@@ -253,13 +268,15 @@ void ClusterGen::merge_by_coreanimation(cluster_t *cluster,
 				cadisplay_event,
 				CA_REL);
 	} else if (cadisplay_group->get_cluster_idx() != -1) {
-		cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+		cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 			<< caset_event->get_abstime() << endl;
 		cerr << "group " << hex << cadisplay_group->get_group_id();
 		cerr << " with event at " << fixed << setprecision(1) \
 			<< cadisplay_event->get_abstime();
 		cerr << " was added into cluster " << hex \
 			<< cadisplay_group->get_cluster_idx() << endl;
+#endif
 	} else {
 		cluster->add_edge(caset_group,
 				cadisplay_group,
@@ -275,33 +292,48 @@ void ClusterGen::merge_by_sharevariables(cluster_t *cluster,
 		breakpoint_trap_ev_t *breakpoint_event)
 {
 	breakpoint_trap_ev_t *peer_event = breakpoint_event->get_peer();
+	group_t *read_group,  *write_group, *peer_group;
 
-	if (peer_event && peer_event->check_read()) {
-		group_t *read_group = groups_ptr->group_of(peer_event);
-		group_t *write_group = groups_ptr->group_of(breakpoint_event);
-		if (read_group->get_cluster_idx() == cluster->get_cluster_id()) {
-			cluster->add_edge(write_group,
-					read_group,
-					breakpoint_event,
-					peer_event,
-					BRTRAP_REL);
-		} else if (read_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
-				<< peer_event->get_abstime() << endl;
-			cerr << "group " << hex << write_group->get_group_id();
-			cerr << " with event at " << fixed << setprecision(1) \
-				<< breakpoint_event->get_abstime();
-			cerr << " was added into cluster " << hex \
-				<< write_group->get_cluster_idx() << endl;
-		} else {
-			cluster->add_edge(write_group,
-					read_group,
-					breakpoint_event,
-					peer_event,
-					BRTRAP_REL);
-			cluster->add_node(read_group);
-			cluster->push_connectors(read_group, peer_event);
-		}
+	if (!peer_event)
+		return;
+	
+	if (peer_event->check_read()) {
+		peer_group = read_group = groups_ptr->group_of(peer_event);
+		write_group = groups_ptr->group_of(breakpoint_event);
+	} else {
+		peer_group = write_group = groups_ptr->group_of(peer_event);
+		read_group = groups_ptr->group_of(breakpoint_event);
+	}
+	assert(read_group && write_group);
+	//if (peer_event->check_read()) {
+	//group_t *read_group = groups_ptr->group_of(peer_event);
+	//group_t *write_group = groups_ptr->group_of(breakpoint_event);
+
+	if (read_group->get_cluster_idx() == write_group->get_cluster_idx()) {
+		cluster->add_edge(write_group,
+				read_group,
+				breakpoint_event,
+				peer_event,
+				BRTRAP_REL);
+	} else if (write_group->get_cluster_idx() != -1 && read_group->get_cluster_idx() != -1) {
+#if DEBUG_EXTRACT_CLUSTER
+		cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1)\
+			<< breakpoint_event->get_abstime();
+		cerr << "group " << hex << groups_ptr->group_of(breakpoint_event)->get_group_id(); //write_group->get_group_id();
+		cerr << " with event at " << fixed << setprecision(1) \
+			<< peer_event->get_abstime() << endl;
+		cerr << " was added into cluster " << hex \
+			<< groups_ptr->group_of(peer_event)->get_cluster_idx() << endl;
+			//<< read_group->get_cluster_idx() << endl;
+#endif
+	} else {
+		cluster->add_edge(write_group,
+				read_group,
+				breakpoint_event,
+				peer_event,
+				BRTRAP_REL);
+		cluster->add_node(peer_group);
+		cluster->push_connectors(peer_group, peer_event);
 	}
 }
 
@@ -323,7 +355,6 @@ void ClusterGen::augment_cluster(cluster_t *cur_cluster)
 			case DISP_ENQ_EVENT:
 				merge_by_dispatch_ops(cur_cluster, dynamic_cast<enqueue_ev_t *>(event));
 				break;
-
 			case DISP_DEQ_EVENT:
 				merge_by_dispatch_ops(cur_cluster, dynamic_cast<dequeue_ev_t *>(event));
 				break;
@@ -337,7 +368,9 @@ void ClusterGen::augment_cluster(cluster_t *cur_cluster)
 				merge_by_sharevariables(cur_cluster, dynamic_cast<breakpoint_trap_ev_t *>(event));
 				break;
 			default:
+#if DEBUG_EXTRACT_CLUSTER
 				cerr << "unknown connector " << event->get_event_id() << endl;
+#endif
 				break;
 		}
 	}
@@ -354,9 +387,10 @@ void ClusterGen::merge_by_waitsync(cluster_t *cluster, wait_ev_t *wait_event)
 		if (!groups_ptr->group_of(peer)
 			|| groups_ptr->group_of(peer)->get_cluster_idx() \
 			!= cluster->get_cluster_id()) {
+#if DEBUG_EXTRACT_CLUSTER
 			cerr << "No succesive execution inside cluster after wait at ";
-			cerr << fixed << setprecision(1) << wait_event->get_abstime();
-			cerr << endl;
+			cerr << fixed << setprecision(1) << wait_event->get_abstime() << endl;
+#endif
 			return;
 		}
 
@@ -368,13 +402,15 @@ void ClusterGen::merge_by_waitsync(cluster_t *cluster, wait_ev_t *wait_event)
 				wait_event,
 				MKRUN_REL);
 		} else if (wakeup_group->get_cluster_idx() != -1) {
-			cerr << "event at " << fixed << setprecision(1) \
+#if DEBUG_EXTRACT_CLUSTER
+			cerr << __func__ <<": cluster " << hex << cluster->get_cluster_id() << " event at " << fixed << setprecision(1) \
 				<< wakeup_event->get_abstime() << endl;
 			cerr << "group " << hex << wakeup_group->get_group_id();
 			cerr << " with event at " << fixed << setprecision(1) \
 				<< wakeup_event->get_abstime();
 			cerr << " was added into cluster " << hex \
 				<< wakeup_group->get_cluster_idx() << endl;
+#endif
 		} else {
 			cluster->add_edge(wakeup_group,
 				groups_ptr->group_of(wait_event),
@@ -388,21 +424,19 @@ void ClusterGen::merge_by_waitsync(cluster_t *cluster, wait_ev_t *wait_event)
 
 void ClusterGen::add_waitsync(cluster_t *cluster)
 {
-	cerr << "Begin add wait sync into cluster" << endl;
 	list<wait_ev_t *>::iterator it;
 	list<wait_ev_t *> wait_events = cluster->get_wait_events();
 	for (it = wait_events.begin(); it != wait_events.end(); it++) {
 		merge_by_waitsync(cluster, *it);
 	}
-	cerr << "End add wait sync into cluster" << endl;
 }
 
-void ClusterGen::pic_clusters(string & output_path)
+void ClusterGen::js_clusters(string &output_path)
 {
 	ofstream output(output_path);
 	/*
 	if (spin_cluster)
-		spin_cluster->pic_cluster(output);
+		spin_cluster->js_cluster(output);
 	*/
 
 	map<uint64_t, cluster_t*>::iterator it;
@@ -416,7 +450,7 @@ void ClusterGen::pic_clusters(string & output_path)
 		index = cur_cluster->get_cluster_id();
 		output << "#Cluster " << hex << cur_cluster->get_cluster_id();
 		output << "(num of groups = " << hex << (cur_cluster->get_nodes()).size() << ")\n";
-		cur_cluster->pic_cluster(output);
+		cur_cluster->js_cluster(output);
 	}
 
 	output.close();
@@ -437,7 +471,8 @@ void ClusterGen::streamout_clusters(string &output_path)
 	for (it = clusters.begin(); it != clusters.end(); it++) {
 		cur_cluster = it->second;
 		assert(cur_cluster != NULL);
-
+		if (cur_cluster->get_nodes().size() < 10)
+			continue;
 		output << "#Cluster " << hex << cur_cluster->get_cluster_id();
 		output << "(num of groups = " << hex << (cur_cluster->get_nodes()).size() << ")\n";
 
@@ -445,5 +480,21 @@ void ClusterGen::streamout_clusters(string &output_path)
 		cur_cluster->streamout_cluster(output);
 	}
 
+	output.close();
+}
+
+void ClusterGen::inspect_clusters(string &output_path)
+{
+	ofstream output(output_path);
+	map<uint64_t, cluster_t*>::iterator it;
+	cluster_t * cur_cluster;
+	cerr << "Total number of Clusters = " << hex << clusters.size() << endl;
+	for (it = clusters.begin(); it != clusters.end(); it++) {
+		cur_cluster = it->second;
+		if (cur_cluster->get_nodes().size() < 10)
+			continue;
+		output << "#Cluster " << hex << cur_cluster->get_cluster_id() << endl;
+		cur_cluster->inspect_procs_irrelevance(output);
+	}
 	output.close();
 }

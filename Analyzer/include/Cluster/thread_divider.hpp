@@ -13,11 +13,14 @@ protected:
 	uint64_t gid_base;
 	group_t *cur_group;
 	map<uint64_t, group_t *> ret_map;
+
 	intr_ev_t *potential_root;
 	backtrace_ev_t *backtrace_for_hook;
 	voucher_ev_t *voucher_for_hook;
 	syscall_ev_t *msg_link;
-	msg_ev_t *pending_msg_sent;
+	syscall_ev_t *pending_msg_sent;
+	//msg_ev_t *pending_msg_sent;
+	disp_mig_ev_t *dispatch_mig_server;
 
 	list<event_t *> tid_list;
 	uint64_t index;
@@ -26,12 +29,9 @@ protected:
 public:
 	ThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
 
-	pid_t tid2pid(uint64_t tid);
-	string tid2comm(uint64_t tid);
-	string pid2comm(pid_t pid);
-
 	group_t *create_group(uint64_t id, event_t *root_event);
 	void delete_group(group_t *del_group);
+
 	void add_general_event_to_group(event_t *event);
 	void store_event_to_group_handler(event_t *event);
 	void add_tsm_event_to_group(event_t *event);
@@ -42,6 +42,7 @@ public:
 	bool check_group_with_voucher(voucher_ev_t *voucher, group_t *cur_group, pid_t msg_peer);
 	void add_msg_event_into_group(event_t *event);
 	void add_hwbr_event_into_group(event_t *event);
+	void add_disp_mig_event_to_group(event_t *event);
 
 	void decode_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);
 	void streamout_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);

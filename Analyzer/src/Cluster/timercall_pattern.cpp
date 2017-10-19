@@ -1,11 +1,23 @@
 #include "timercall_pattern.hpp"
 #include "eventlistop.hpp"
 
-//#define  TIMERCALL_DEBUG
+#define TIMERCALL_DEBUG 0
 
 TimercallPattern::TimercallPattern(list<event_t*> &_timercreate_list, list<event_t *> &_timercallout_list, list<event_t*> &_timercancel_list)
 :timercreate_list(_timercreate_list), timercallout_list(_timercallout_list), timercancel_list(_timercancel_list)
 {
+}
+
+void TimercallPattern::connect_timercall_patterns(void)
+{
+#ifdef TIMERCALL_DEBUG
+	cerr << "begin matching timercall pattern ... " << endl;
+#endif
+	connect_create_and_cancel();
+	connect_create_and_timercallout();
+#ifdef TIMERCALL_DEBUG
+	cerr << "finish matching timercall pattern. " << endl;
+#endif
 }
 
 void TimercallPattern::connect_create_and_cancel(void)
@@ -44,9 +56,9 @@ bool TimercallPattern::connect_timercreate_for_timercancel(list<timercreate_ev_t
 			return true;
 		}
 	}
-	#ifdef TIMERCALL_DEBUG
+#if TIMERCALL_DEBUG
 	cerr << "Warn: no timercreate for timercancel " << fixed << setprecision(1) << timercancel_event->get_abstime() << endl; 
-	#endif
+#endif
 	return false;
 }
 
@@ -85,8 +97,8 @@ bool TimercallPattern::connect_timercreate_for_timercallout(list<timercreate_ev_
 		}
 	}
 
-	#ifdef TIMERCALL_DEBUG
+#if TIMERCALL_DEBUG
 	cerr << "Warn: no timercreate for timercallout " << fixed << setprecision(1) << timercallout_event->get_abstime() << endl; 
-	#endif
+#endif
 	return false;
 }

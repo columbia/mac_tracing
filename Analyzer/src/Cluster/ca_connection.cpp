@@ -1,7 +1,7 @@
 #include "ca_connection.hpp"
 #include "eventlistop.hpp"
 
-#define DEBUG_CA_CONN 1
+#define DEBUG_CA_CONN 0
 CAConnection::CAConnection(list<event_t *> &_caset_list, list<event_t *> &_cadisplay_list)
 :caset_list(_caset_list), cadisplay_list(_cadisplay_list)
 {
@@ -17,6 +17,9 @@ void CAConnection::ca_connection(void)
 	list<event_t *>::iterator it;
 	list<event_t *>::reverse_iterator rit;
 	
+#ifdef DEBUG_CA_CONN
+	cerr << "begin core animation matching... " << endl;
+#endif
 	for (it = mix_list.begin(); it != mix_list.end(); it++) {
 		ca_disp_ev_t * display_event = dynamic_cast<ca_disp_ev_t *>(*it);
 		if (!display_event)
@@ -42,7 +45,7 @@ void CAConnection::ca_connection(void)
 			
 		if (display_event->ca_set_event_size() == 0) {
 #if DEBUG_CA_CONN
-			cerr << "Error: unable to find corresponding set events for display"\
+			cerr << "Unable to find corresponding set events for display CALayer "\
 				<< hex << object_addr << " at "\
 				<< fixed << setprecision(1) << display_event->get_abstime() << endl; 
 #endif
@@ -50,4 +53,7 @@ void CAConnection::ca_connection(void)
 
 	}
 	mix_list.clear();
+#ifdef DEBUG_CA_CONN
+	cerr << "finished core animation matching... " << endl;
+#endif
 }

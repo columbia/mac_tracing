@@ -5,6 +5,13 @@
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
 
+#define DEBUG_GROUP	1
+
+#if DEBUG_GROUP
+#include <time.h>
+static time_t time_begin, time_end;
+#endif
+
 typedef std::unique_ptr<boost::asio::io_service::work> asio_worker;
 
 Groups::Groups(op_events_t &_op_lists)
@@ -16,12 +23,22 @@ Groups::Groups(op_events_t &_op_lists)
 	categories.clear();
 	main_thread = nsevent_thread = -1;
 
+#if DEBUG_GROUP
+	time(&time_begin);
+	cerr << "Begin to sort eventlists..." << endl;
+#endif
+
 	EventListOp::sort_event_list(op_lists[0]);
 	tid_lists = divide_eventlist_and_mapping(op_lists[0]);
 
 	/* recognize uimain thread and other thread with runloop object*/
 	check_host_uithreads(get_list_of_op(BACKTRACE));
 	check_rlthreads(get_list_of_op(RL_OBSERVER));
+
+#if DEBUG_GROUP
+	time(&time_end);
+	cerr << "Finish thread sort. Time cost is " << fixed << setprecision(2) << difftime(time_end, time_begin) << " seconds" << endl;
+#endif
 
 	/* para-processing-per-list's result template in vector */
 	tid_evlist_t::iterator it;
@@ -30,8 +47,17 @@ Groups::Groups(op_events_t &_op_lists)
 		temp.clear();
 		sub_results.push_back(temp);
 	}
+
+#if DEBUG_GROUP
+	time(&time_begin);
+	cerr << "Begin to generate connector..." << endl;
+#endif
 	/* para-processing connectors */
 	para_connector_generate();
+#if DEBUG_GROUP
+	time(&time_end);
+	cerr << "Finish connection. Time cost is "  << fixed << setprecision(2) << difftime(time_end, time_begin) << " seconds" << endl;
+#endif
 }
 
 Groups::~Groups(void)
@@ -86,11 +112,32 @@ string Groups::pid2comm(pid_t pid)
 bool Groups::interrupt_mkrun_pair(event_t *cur, list<event_t*>::reverse_iterator rit)
 {
 	event_t *pre = *(++rit);
-	if (cur->get_event_id() != MR_EVENT || pre->get_event_id() != INTR_EVENT)
+
+	if (cur->get_event_id() != MR_EVENT)
 		return false;
-	intr_ev_t *interrupt = dynamic_cast<intr_ev_t *>(pre);
-	mkrun_ev_t *mkrun = dynamic_cast<mkrun_ev_t *>(cur);
-	return mkrun->check_interrupt(interrupt);
+	
+	switch (pre->get_event_id()) {
+		case INTR_EVENT: {
+			mkrun_ev_t *mkrun = dynamic_cast<mkrun_ev_t *>(cur);
+			intr_ev_t *interrupt = dynamic_cast<intr_ev_t *>(pre);
+			return mkrun->check_interrupt(interrupt);
+		}
+		case TSM_EVENT:
+			return true;
+		default:
+			return false;
+	}
+}
+
+void Groups::sync_mkrun_map(list<event_t *>::iterator remove_pos)
+{
+	mkrun_pos_t::reverse_iterator rit;
+	for (rit = mkrun_map.rbegin(); rit != mkrun_map.rend(); rit++) {
+		if (rit->second == remove_pos) {
+			mkrun_map.erase(next(rit).base());
+			break;
+		}				
+	}
 }
 
 bool Groups::remove_sigprocessing_events(list<event_t *> &event_list)
@@ -106,35 +153,57 @@ bool Groups::remove_sigprocessing_events(list<event_t *> &event_list)
 		rit++;
 
 	for (;rit != event_list.rend() && i < n; i++) {
-		while (rit != event_list.rend()
-				&& ((*rit)->get_event_id() == INTR_EVENT || interrupt_mkrun_pair((*rit), rit)))
-			rit++;
+		while (rit != event_list.rend()) {
+			if ((*rit)->get_event_id() == INTR_EVENT)
+				rit++;
+			else if (interrupt_mkrun_pair((*rit), rit)) {
+				rit++;
+				if (rit == event_list.rend()) 
+					return true;
+				rit++;
+			} else {
+				break;
+			}
+		}
 		
 		if (rit == event_list.rend()) 
 			return true;
 
 		if (sigprocessing_seq_reverse[i] == WAIT_EVENT) {
-			cerr << "check wait event" << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
 			if ((*rit)->get_event_id() == MR_EVENT 
 				&& interrupt_mkrun_pair((*rit), rit) == false) {
 				cerr << "skip wait event at " << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
 				continue;
+			} else if ((*rit)->get_op() == "MSC_mach_reply_port") {
+				//cerr << "remove event at " << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
+				remove_pos = next(rit).base();
+				sync_mkrun_map(remove_pos);
+				event_list.erase(remove_pos);
+				if (rit == event_list.rend()) 
+					return true;
 			}
 		}
 
 		if ((*rit)->get_event_id() == sigprocessing_seq_reverse[i]) {
 			//cerr << "remove event at " << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
 			remove_pos = next(rit).base();
-			mkrun_pos_t::reverse_iterator it;
-			for (it = mkrun_map.rbegin(); it != mkrun_map.rend(); it++) {
-				if (it->second == remove_pos) {
-					mkrun_map.erase(next(it).base());
-					break;
-				}				
-			}
+			sync_mkrun_map(remove_pos);
 			event_list.erase(remove_pos);
 		} else {
+#if DEBUG_GROUP
 			cerr << "no matching event " << i << " at " << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
+#endif
+			if (sigprocessing_seq_reverse[i] == MR_EVENT && (*rit)->get_event_id() == MSG_EVENT) {
+				msg_ev_t * msg_event = dynamic_cast<msg_ev_t *>(*rit);
+				if (msg_event->get_header()->check_recv() == false && msg_event->is_freed_before_deliver()) {
+#if DEBUG_GROUP
+					cerr << "remove event at " << fixed << setprecision(1) << (*rit)->get_abstime() << endl;
+#endif
+					remove_pos = next(rit).base();
+					sync_mkrun_map(remove_pos);
+					event_list.erase(remove_pos);
+				}
+			}
 			return false;
 		}
 	}
@@ -161,10 +230,8 @@ Groups::tid_evlist_t Groups::divide_eventlist_and_mapping(list<event_t *> &ev_li
 		}
 		
 		/* remove events related to bsc_signal processing */
-		if ((*it)->get_event_id() == BREAKPOINT_TRAP_EVENT) {
-			cerr << "Begin remove sig processing related events" << endl;
+		if ((*it)->get_event_id() == BREAKPOINT_TRAP_EVENT)
 			remove_sigprocessing_events(tid_list_map[tid]);
-		}
 		
 		tid_list_map[tid].push_back(*it);
 		
@@ -176,10 +243,12 @@ Groups::tid_evlist_t Groups::divide_eventlist_and_mapping(list<event_t *> &ev_li
 
 		if ((mr_event = dynamic_cast<mkrun_ev_t *>(*it))) {
 			peer_tid = mr_event->get_peer_tid();
+#if DEBUG_GROUP
 			if (peertid_map.find(peer_tid) != peertid_map.end())
 				cerr << "Error: multiple make runnable " \
 					<< fixed << setprecision(1) \
 					<< mr_event->get_abstime() << endl;
+#endif
 			peertid_map[peer_tid] = mr_event;
 		}
 	}
@@ -258,8 +327,10 @@ void Groups::check_host_uithreads(list<event_t *> &backtrace_list)
 			continue;
 		}
 	}
+#if DEBUG_GROUP
 	cerr << "Mainthread " << hex << main_thread << endl;
 	cerr << "Eventthread " << hex << nsevent_thread << endl;
+#endif
 }
 
 
@@ -348,26 +419,21 @@ void Groups::para_group(void)
 	boost::asio::io_service ioService;
 	boost::thread_group threadpool;
 	asio_worker work(new asio_worker::element_type(ioService));
-
 	for (int i = 0 ; i < LoadData::meta_data.nthreads; i++)
-		threadpool.create_thread(boost::bind(&boost::asio::io_service::run, \
-			&ioService));
+		threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &ioService));
 	
 	tid_evlist_t::iterator it;
 	int idx = 0;
 	int main_idx = -1;
 
+#if DEBUG_GROUP
+	time(&time_begin);
+	cerr << "Begin para-grouping ... " << endl;
+#endif
+
 	for (it = tid_lists.begin(); it != tid_lists.end(); it++) {
 		if (it->first == 0 || (it->second).size() == 0)
 			continue;
-		/*
-		if (it->first == main_thread) {
-			// rename to runloop dividers
-			RLThreadDivider main_thread_divider(idx, sub_results, it->second, false);
-			ioService.post(boost::bind(&RLThreadDivider::divide, main_thread_divider));
-			main_idx = idx;
-		} else
-		*/
 		if (categories[RLTHR_WITH_OBSERVER_ENTRY].find(it->first) != categories[RLTHR_WITH_OBSERVER_ENTRY].end())  {
 			RLThreadDivider rl_thread_divider(idx, sub_results, it->second, false);
 			ioService.post(boost::bind(&RLThreadDivider::divide, rl_thread_divider));
@@ -393,7 +459,10 @@ void Groups::para_group(void)
 	}
 	if (main_idx != -1)
 		main_groups = sub_results[main_idx];
-	cerr << "Finished group collection" << endl;
+#if DEBUG_GROUP
+	time(&time_end);
+	cerr << "Finished para-grouping. Time cost is " << fixed << setprecision(2) << difftime(time_end, time_begin) << endl;
+#endif
 }
 
 group_t * Groups::group_of(event_t *event)
@@ -441,7 +510,6 @@ int Groups::streamout_groups(string &output_path)
 	output.close();
 	return 0;
 }
-
 
 bool Groups::check_interleaved_pattern(list<event_t *> &ev_list,
 	list<event_t *>::iterator &it)

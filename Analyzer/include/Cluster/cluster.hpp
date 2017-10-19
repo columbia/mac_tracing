@@ -12,10 +12,10 @@
 #define BRTRAP_REL	7
 
 struct rel_t {
-	group_t * g_from;
-	group_t * g_to;
-	event_t * e_from;
-	event_t * e_to;
+	group_t *g_from;
+	group_t *g_to;
+	event_t *e_from;
+	event_t *e_to;
 	uint32_t rel_type;
 	bool operator==(const rel_t & rhs) const
 	{
@@ -26,27 +26,40 @@ struct rel_t {
 };
 
 typedef map<mkrun_ev_t*, list<event_t *>::iterator> mkrun_pos_t;
+typedef multimap<group_t *, rel_t> node_edges_map_t;
+typedef pair<multimap<group_t *, rel_t>::iterator, multimap<group_t *, rel_t>::iterator> multimap_range_t;
 
 class Cluster {
 	uint64_t cluster_id;
 	vector<rel_t> edges;
 	vector<group_t *> nodes;
+
 	bool is_ground;
 	bool is_infected;
 	vector<group_t *> infected_groups;
 	vector<group_t *> gt_groups;
+
 	group_t * root;
 	list<event_t *>connectors;
 	list<wait_ev_t *>wait_events;
+
+	void js_edge(ofstream &outfile, event_t *host, const char *action, event_t *peer, bool *comma);
+	void message_edge(ofstream &outfile, event_t *event, bool *);
+	void dispatch_edge(ofstream &outfile, event_t *event, bool *);
+	void timercall_edge(ofstream &outfile, event_t *event, bool *);
+	void mkrun_edge(ofstream &outfile, event_t *event, bool *);
+	void wait_label(ofstream &outfile, event_t *event, bool *);
+	void coreannimation_edge(ofstream &outfile, event_t *event, bool *);
+
+	void js_arrows(ofstream &outfile);
+	void js_lanes(ofstream &outfile);
+	void js_groups(ofstream &outfile);
 
 public:
 	Cluster(void);
 	Cluster(group_t *);
 	~Cluster();
 
-	void push_connectors(group_t *, event_t *);
-	list<event_t *> pop_cur_connectors();
-	list<wait_ev_t *> &get_wait_events();
 	void add_edge(group_t*, group_t*, event_t *, event_t *, uint32_t);
 	void add_node(group_t*);
 	vector<group_t*>& get_nodes(void) {return nodes;}
@@ -62,17 +75,27 @@ public:
 	bool check_infected(void) {return is_infected;}
 	vector<group_t *> &get_infected_groups(void) {return infected_groups;}
 	vector<group_t *> &get_gt_groups(void) {return gt_groups;}
-	static bool compare_time(group_t *, group_t *);
-	void sort_nodes();
-	static bool compare_edge_from(rel_t edge1, rel_t edge2);
-	void sort_edges();
 
-	void decode_cluster(ofstream &outfile);
+	void push_connectors(group_t *, event_t *);
+	list<event_t *> pop_cur_connectors();
+	list<wait_ev_t *> &get_wait_events();
+
+	static bool compare_time(group_t *, group_t *);
+	static bool compare_edge_from(rel_t edge1, rel_t edge2);
+	void sort_nodes();
+	void sort_edges();
+	void classify_cluster_edges(node_edges_map_t &to_edges, node_edges_map_t &from_edges);
+	int get_node_idx_in_cluster(group_t *node);
+	rel_t direct_edge(string from_proc, string to_proc);
+	bool traverse(string to_proc, group_t *cur_node, bool *visited, node_edges_map_t &from_edges,
+			node_edges_map_t &to_edges, vector<rel_t> &paths, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
+	void search_paths(string from_proc, string to_proc, ofstream &outfile, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
+	void inspect_procs_irrelevance(ofstream &outfile);
+
+
+	void js_cluster(ofstream &outfile);
 	void decode_edges(ofstream &outfile);
-	void pic_edge(ofstream &outfile, event_t * host, const char * action, event_t * peer, bool * comma);
-	void pic_lanes(ofstream &outfile);
-	void pic_groups(ofstream &outfile);
-	void pic_cluster(ofstream &outfile);
+	void decode_cluster(ofstream &outfile);
 	void streamout_cluster(ofstream &outfile);
 };
 typedef Cluster cluster_t;
@@ -130,7 +153,8 @@ public:
 	ClusterGen(groups_t *groups_ptr);
 	~ClusterGen(void);
 	void streamout_clusters(string & output_path);
-	void pic_clusters(string & output_path);
+	void js_clusters(string & output_path);
+	void inspect_clusters(string &output_path);
 };
 
 #endif
