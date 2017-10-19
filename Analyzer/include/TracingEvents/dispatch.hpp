@@ -1,9 +1,10 @@
 #ifndef DISPATCH_HPP
 #define DISPATCH_HPP
 #include "base.hpp"
+
 using namespace std;
 
-class EnqueueEvent : public EventBase {
+class EnqueueEvent: public EventBase {
 	uint64_t q_id;
 	uint64_t item;
 	uint32_t ref;
@@ -29,7 +30,7 @@ public:
 #define MAINQ_CB		21
 #define RLQ_PF			23
 
-class DequeueEvent : public EventBase {
+class DequeueEvent: public EventBase {
 	uint64_t q_id;
 	uint64_t item;
 	uint64_t ctxt;
@@ -66,7 +67,7 @@ public:
 	void streamout_event(ofstream &outfile);
 };
 
-class BlockinvokeEvent : public EventBase {
+class BlockinvokeEvent: public EventBase {
 	uint64_t func;
 	uint64_t ctxt;
 	string desc;
@@ -89,5 +90,13 @@ public:
 	void set_nested_level(uint64_t level) {nested_level = level;}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
+};
+
+class DispMigEvent: public EventBase {
+	void *owner;
+public:
+	DispMigEvent(double abstime, string op, uint64_t tid, uint32_t core_id, string procname);
+	void save_owner(void *_owner);
+	void *restore_owner(void);
 };
 #endif

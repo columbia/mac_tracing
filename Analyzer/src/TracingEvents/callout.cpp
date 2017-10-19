@@ -37,11 +37,8 @@ bool TimerCalloutEvent::check_root(timercreate_ev_t * event)
 
 void TimerCalloutEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
-	outfile << "\n*****" << endl;
-    outfile << "\n group_id = " << std::right << hex << get_group_id();
-	outfile << "\n\t" << get_procname() << "(" << hex << get_tid() << ")" << get_coreid();
-	outfile << "\n\t" << fixed << setprecision(2) << get_abstime();
-	outfile << "\n\t" << get_op() << "\t" << hex << q_ptr << endl;
+	EventBase::decode_event(is_verbose, outfile);
+	outfile << "\n\tqueue" << hex << q_ptr << endl;
 	outfile << "\n\tfunc_" << hex << func_ptr << "(" << hex << param0 << ",";
 	outfile << hex << param1 << ")" << endl;
 	if (create_event != NULL) {
@@ -52,9 +49,13 @@ void TimerCalloutEvent::decode_event(bool is_verbose, ofstream &outfile)
 
 void TimerCalloutEvent::streamout_event(ofstream &outfile)
 {
-	outfile << std::right << hex << get_group_id() << "\t" << fixed << setprecision(1) << get_abstime();
-	outfile << "\t" << get_tid() << "\t" << get_procname();
+	EventBase::streamout_event(outfile);
 	outfile << "\tkern_timercallout_";
 	outfile << "func_" << hex << func_ptr << "(" << hex << param0 << ",";
-	outfile << hex << param1 << ")" << endl;
+	outfile << hex << param1 << ")";
+	if (create_event != NULL) {
+		outfile << "\n\ttimer armed at: ";
+		outfile << "\t" << fixed << setprecision(2) << create_event->get_abstime();
+	}
+	outfile << endl;
 }

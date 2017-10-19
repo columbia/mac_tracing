@@ -35,6 +35,8 @@ void MsgEvent::decode_event(bool is_verbose, ofstream &outfile)
 		outfile  << "\n\tbacktrace at: " << fixed << setprecision(2) << bt->get_abstime() << endl;
 	if (voucher)
 		outfile << "\n\tvoucher at: " << fixed << setprecision(2) << voucher->get_abstime() << endl;
+
+	outfile << "\n\tmsgh_id: " << hex << header->get_msgh_id() << endl;
 	outfile << endl;
 }
 
@@ -58,5 +60,6 @@ void MsgEvent::streamout_event(ofstream &outfile)
 	if (is_freed_before_deliver())
 		outfile << "\tfreed before deliver";
 
+	outfile << "\tmsgh_id " << hex << header->get_msgh_id();
 	outfile << endl;
 }

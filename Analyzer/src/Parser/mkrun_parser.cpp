@@ -19,50 +19,58 @@ namespace Parse
 		return true;
 	}
 
-	bool MkrunParser::process_finish_wakeup(mkrun_ev_t *mr_event,
-		double abstime, istringstream &iss)
+	bool MkrunParser::process_finish_wakeup(double abstime, istringstream &iss)
 	{
 		string procname;
-		uint64_t peer_prio, wait_result, run_info, tid, coreid;
-		if (!(iss >> hex >> peer_prio >> wait_result >> run_info \
+		uint64_t peer_tid, peer_prio, wait_result, run_info, tid, coreid;
+		if (!(iss >> hex >> peer_tid >> peer_prio >> wait_result >> run_info \
 			>> tid >> coreid))
 			return false;
 
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		if (tid != mr_event->get_tid()) {
+		if (mkrun_events.find(tid) == mkrun_events.end()) {
+			outfile << "Error: fail to matching wake up at " << fixed << setprecision(1) << abstime << endl;
+			return false;
+		}
+		mkrun_ev_t * mr_event = mkrun_events[tid];
+
+		if (peer_tid != mr_event->get_peer_tid()) {
 			outfile << "Error : try to maching wake up that begins at ";
 			outfile << fixed << setprecision(1) << mr_event->get_abstime();
 			outfile << " in different threads ";
-			outfile << hex << tid << " " << hex << mr_event->get_tid() << endl;
+			outfile << hex << peer_tid << " " << hex << mr_event->get_peer_tid() << endl;
 			return false;
 		}
 
 		set_info(mr_event, peer_prio, wait_result, run_info);
 		mr_event->override_timestamp(abstime);
 		mr_event->set_complete();
+		mkrun_events.erase(tid);
 		return true;
 	}
 
-	bool MkrunParser::process_new_wakeup(uint64_t peer_tid, double abstime,
-		istringstream &iss)
+	bool MkrunParser::process_new_wakeup(double abstime, istringstream &iss)
 	{
 		string procname;
-		uint64_t wake_event, wakeup_type, pid, tid, coreid;
-		if (!(iss >> hex >> wake_event >> wakeup_type >> pid >> tid >> coreid))
-			return false;
+		uint64_t peer_tid, wake_event, wakeup_type, pids, tid, coreid;
+		if (!(iss >> hex >> peer_tid >> wake_event >> wakeup_type >> pids >> tid >> coreid))
+			return false;	
+
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
+
 		mkrun_ev_t *new_mr = new mkrun_ev_t(abstime, "Wakeup", tid, peer_tid,
-			wake_event, wakeup_type, lo(pid), hi(pid), coreid, procname);
+			wake_event, wakeup_type, lo(pids), hi(pids), coreid, procname);
+
 		if (!new_mr) {
 			cerr << "OOM " << __func__ << endl;
 			exit(EXIT_FAILURE);
 		}
-		mkrun_events[peer_tid] = new_mr;
+		mkrun_events[tid] = new_mr;
 		local_event_list.push_back(new_mr);
-		return true;	
+		return true;
 	}
 
 	void MkrunParser::process()
@@ -75,20 +83,15 @@ namespace Parse
 		while(getline(infile, line)) {
 			istringstream iss(line);
 			ret = false;
-			if (!(iss >> abstime >> deltatime >> opname >> hex >> peer_tid)) {
+			if (!(iss >> abstime >> deltatime >> opname)) {
 				outfile << line << endl;
 				continue;
 			}
 			
-			if (opname == "MACH_WAKEUP_REASON") {
-				assert(mkrun_events.find(peer_tid) == mkrun_events.end());
-				ret = process_new_wakeup(peer_tid, abstime, iss);
-			} else {
-				assert(opname == "MACH_MKRUNNABLE");
-				mkrun_ev_t * mr_event = mkrun_events[peer_tid];
-				ret = process_finish_wakeup(mr_event, abstime, iss);
-				mkrun_events.erase(peer_tid);
-			}
+			if (opname == "MACH_WAKEUP_REASON")
+				ret = process_new_wakeup(abstime, iss);
+			else
+				ret = process_finish_wakeup(abstime, iss);
 
 			if (ret == false)
 				outfile << line << endl;

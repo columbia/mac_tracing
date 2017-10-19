@@ -40,6 +40,7 @@ using namespace std;
 #define RL_OBSERVER_EVENT		23
 #define EVENTREF_EVENT			24
 #define NSAPPEVENT_EVENT		25
+#define DISP_MIG_EVENT			26
 
 class EventBase;
 class MsgHeader;
@@ -68,6 +69,7 @@ class BreakpointTrapEvent;
 class RLObserverEvent;
 class EventRefEvent;
 class NSAppEventEvent;
+class DispMigEvent;
 
 typedef EventBase event_t;
 typedef MsgHeader msgh_t;
@@ -96,6 +98,7 @@ typedef BreakpointTrapEvent breakpoint_trap_ev_t;
 typedef	RLObserverEvent	rl_observer_ev_t;
 typedef	EventRefEvent	event_ref_ev_t;
 typedef	NSAppEventEvent	nsapp_event_ev_t;
+typedef DispMigEvent	disp_mig_ev_t;
 
 typedef uint64_t tid_t;
 class EventBase {
@@ -113,7 +116,7 @@ class EventBase {
 	bool infected;
 
 public:
-	EventBase(double _timestamp, int _event_id, string _op, tid_t _tid, uint32_t _core_id, string _procname= "");
+	EventBase(double _timestamp, int _event_id, string _op, tid_t _tid, uint32_t _core_id, string _procname = "");
 	EventBase(EventBase *);
 	virtual ~EventBase() {}
 	void override_timestamp(double new_timestamp) {timestamp = new_timestamp;}

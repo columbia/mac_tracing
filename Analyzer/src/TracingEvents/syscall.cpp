@@ -6,18 +6,34 @@ SyscallEvent::SyscallEvent(double timestamp, string op, uint64_t tid, uint64_t s
 	syscall_class = sc_class;
 	sc_entry = NULL;
 	memset(args, 0, sizeof(uint64_t) * MAX_ARGC);
+	nargs = 0;
 }
 
-void SyscallEvent::set_args(uint64_t *arg_array, uint64_t size)
+bool SyscallEvent::audit_args_num(int size)
 {
-	assert(size == 4);
+	if (!sc_entry)
+		cerr << "sc is null at " << fixed << setprecision(1) << get_abstime() << endl;
+	if (nargs + size >= MAX_ARGC || !sc_entry || !sc_entry->args[nargs])
+		return false;
+	return true;
+}
+
+bool SyscallEvent::set_args(uint64_t *arg_array, int size)
+{
+	//assert(audit_args_num(size));
+	if (audit_args_num(size) == false)
+		return false;
 	copy(arg_array, arg_array + size, args);
+	nargs += size;
+	return true;
 }
 
 uint64_t SyscallEvent::get_arg(int idx)
 {
-	if (idx < MAX_ARGC)
+	if (idx < nargs && sc_entry->args[idx] != NULL)
 		return args[idx];
+	cerr << "get arg fails" << endl;
+	assert(idx < nargs && sc_entry->args[idx] != NULL);
 	return 0;
 }
 

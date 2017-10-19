@@ -94,7 +94,6 @@ class Groups {
 	typedef map<uint64_t, set<uint64_t> > thread_category_t;
 	typedef map<uint64_t, group_t *> gid_group_map_t;
 	typedef map<mkrun_ev_t *, list<event_t *>::iterator> mkrun_pos_t;
-	
 
 	op_events_t &op_lists;
 	gid_group_map_t groups;
@@ -107,26 +106,26 @@ class Groups {
 	gid_group_map_t main_groups;
 	mkrun_pos_t mkrun_map; // for marking mkrun position
 
-	pid_t tid2pid(uint64_t tid);
-	string tid2comm(uint64_t tid);
-	string pid2comm(pid_t pid);
 	bool interrupt_mkrun_pair(event_t *cur, list<event_t*>::reverse_iterator rit);
+	void sync_mkrun_map(list<event_t *>::iterator remove_pos);
 	bool remove_sigprocessing_events(list<event_t *> &event_list);
 	tid_evlist_t divide_eventlist_and_mapping(list<event_t *> &_list);
 	void check_host_uithreads(list<event_t *> &);
 	void check_rlthreads(list<event_t *> &);
-	void para_connector_generate(void);	// connect events for later clustering
-	void mr_connector_generate(void);	// connect mr events cross thread and event types
+	void para_connector_generate(void);
+	void mr_connector_generate(void);
 
 public:
 	Groups(op_events_t &_op_lists);
 	~Groups(void);
+	static pid_t tid2pid(uint64_t tid);
+	static string tid2comm(uint64_t tid);
+	static string pid2comm(pid_t pid);
 	map<uint64_t, list<event_t *> > &get_tid_lists(void) {return tid_lists;}
 	list<event_t *> &get_list_of_tid(uint64_t tid) {return tid_lists[tid];}
 	list<event_t *> &get_list_of_op(uint64_t op) {return op_lists[op];}
 
-	//void divide(int idx , list<event_t*> &tid_list); /* per-thread grouping */
-	void para_group(void); /* parallelly grouping */
+	void para_group(void); 
 	group_t *group_of(event_t *event);
 	void collect_groups(map<uint64_t, group_t *> &sub_groups);
 	map<uint64_t, group_t *> &get_main_groups() {return main_groups;}

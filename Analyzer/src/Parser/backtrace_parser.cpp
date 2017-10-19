@@ -47,7 +47,6 @@ namespace Parse
 
 	bool BacktraceParser::collect_image_for_proc(images_t *cur_image)
 	{
-		// dealwith xpcprocy and mdworker, verify all their copies are identical
 		string procname = cur_image->get_procname();
 		pid_t pid = cur_image->get_pid();
 		pair<pid_t, string> key = make_pair(pid, procname);
@@ -57,19 +56,6 @@ namespace Parse
 		}
 		outfile << "Check reload image for " << procname << "\tpid=" << hex << pid << endl;
 		return false;
-		/*
-		if (proc_images_map.find(procname) == proc_images_map.end()) {
-			proc_images_map[procname] = cur_image;
-			//proc_images_map[procname]->decode_images(outfile);
-			return true;
-		} else {
-			//proc_images_map[procname]->decode_images(outfile);
-			outfile << "Check: reload image for the same proc ";
-			outfile << procname << endl;
-			//TODO: do checking here
-			return false;
-		}
-		*/
 	}
 
 	bool BacktraceParser::process_path(string opname, double abstime,
@@ -178,17 +164,6 @@ namespace Parse
 			proc_backtraces_map[key] = l;
 		}
 		proc_backtraces_map[key].push_back(backtrace_event);
-
-		/*
-		if (proc_backtraces_map.find(procname) != proc_backtraces_map.end()) {
-			proc_backtraces_map[procname].push_back(backtrace_event);
-		} else {
-			list<backtrace_ev_t*> l;
-			l.clear();
-			proc_backtraces_map[procname] = l;
-			proc_backtraces_map[procname].push_back(backtrace_event);
-		}
-		*/
 	}
 
 	bool BacktraceParser::process_frame(string opname, double abstime,
@@ -201,7 +176,7 @@ namespace Parse
 			>> tid >> coreid))
 			return false;
 		if (!getline(iss >> ws, procname) || !procname.size()) {
-			outfile << "Error: procname for frame should not be empty" << endl;
+			outfile << "Error: procname for frame should not be empty at";
 			outfile << fixed << setprecision(1) << abstime << endl;
 			procname = "";
 			//procname = LoadData::meta_data.host;
@@ -220,9 +195,9 @@ namespace Parse
 				exit(EXIT_FAILURE);
 			}
 
-			backtrace_ev_t * backtrace_event = new backtrace_ev_t(abstime, \
-				opname, tid, frame_container, frame[0],
-				host_tag, /*MSG_EVENT, */coreid, procname);
+			backtrace_ev_t * backtrace_event = new backtrace_ev_t(abstime,
+					opname, tid, frame_container, frame[0],
+					host_tag, /*MSG_EVENT, */coreid, procname);
 			if (!backtrace_event) {
 				cerr << "OOM " << __func__ << endl;
 				exit(EXIT_FAILURE);
@@ -303,13 +278,6 @@ namespace Parse
 	// made used of by other classes for symbolication
 	images_t *BacktraceParser::get_host_image()
 	{
-		/*
-		if (proc_images_map.find(LoadData::meta_data.host)
-			!= proc_images_map.end())
-			return proc_images_map[LoadData::meta_data.host];
-		else
-			return NULL;
-		*/
 		map<pair<pid_t, string>, images_t *>::iterator it;
 		for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
 			if ((it->first).second == LoadData::meta_data.host)
@@ -348,8 +316,7 @@ namespace Parse
 		for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
 			cur_proc = (it->first).second;
 			cerr << "proc_images for " << cur_proc << endl;
-			if (cur_proc.find(LoadData::meta_data.host) == string::npos
-				&& cur_proc.find("WindowServer") == string::npos)
+			if (cur_proc != "WindowServer" && cur_proc != LoadData::meta_data.host)
 				continue;
 
 			cerr << "Decodeing backtrace for " << cur_proc << endl;
@@ -361,12 +328,14 @@ namespace Parse
 			cerr << "back trace list of " << (it->first).second << "\tpid = " << (it->first).first;
 			cerr << ", size = " << cur_list.size() << endl;
 
-			assert(cur_list.size() > 0);
+			if (!cur_list.size())
+				goto clear_debugger;
+
 			for (lit = cur_list.begin(); lit != cur_list.end(); lit++) {
 				(*lit)->connect_frame_with_image(it->second);
 				(*lit)->symbolize_frame(&cur_debugger, image_vmsymbol_map);
 			}
-			cerr << "Finished decodeing backtrace for " << cur_proc << endl;
+			cerr << "Finished decodeing backtrace for " << cur_proc << " [" << (it->first).first << "]" << endl;
 
 		clear_debugger:	
 			if (cur_debugger.debugger.IsValid()) {

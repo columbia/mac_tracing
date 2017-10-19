@@ -157,6 +157,7 @@ const char *EventRefEvent::decode_keykind(int keykind)
 void EventRefEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
 	EventBase::decode_event(is_verbose, outfile);
+	outfile << "\t" << event_addr;
 	char event_class_desc[5] = {0};
 	strncpy(event_class_desc, (const char *)&event_class, 4);
 	reverse(event_class_desc, event_class_desc + 4);
@@ -166,6 +167,7 @@ void EventRefEvent::decode_event(bool is_verbose, ofstream &outfile)
 void EventRefEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
+	outfile << "\t" << event_addr;
 	char event_class_desc[5] = {0};
 	strncpy(event_class_desc, (const char *)&event_class, 4);
 	reverse(event_class_desc, event_class_desc + 4);

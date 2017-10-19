@@ -35,18 +35,6 @@ namespace Parse
 						frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
 			//string rip_symbol = frame_info.symbol;// + "\t" + frame_info.filepath;
 			breakpoint_trap_event->set_caller_info(frame_info.symbol);
-
-			/*
-			if (breakpoint_trap_event->get_procname() == "WindowServer") {
-				if (frame_info.symbol == ReadPendingMsg_0 || frame_info.symbol == ReadPendingMsg_1)
-					breakpoint_trap_event->set_read(true);
-				else if (frame_info.symbol == WritePendingMsg)
-					breakpoint_trap_event->set_read(false);
-				else 
-					outfile << "untracked API for WindowServer pending message read/write: "\
-						<< frame_info.symbol <<endl;
-			}
-			*/
 	}
 
 	void BreakpointTrapParser::symbolize_hwbrtrap_for_proc(BacktraceParser *backtrace_parser, string procname)

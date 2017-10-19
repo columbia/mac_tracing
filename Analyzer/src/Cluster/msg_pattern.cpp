@@ -53,9 +53,9 @@ void MsgPattern::collect_patterned_ipcs(void)
 	}
 	memset(mark_visit, 0, size * sizeof(bool));
 
-	#ifdef MSG_PATTERN_DEBUG
+#ifdef MSG_PATTERN_DEBUG
 	cerr << "begin msg pattern searching ... list size " << dec << ev_list.size() << endl; 
-	#endif
+#endif
 	
 	for (it = ev_list.begin(); it != ev_list.end(); ++it, ++i) {
 		msg_ev_t * cur_msg = dynamic_cast<msg_ev_t*>(*it);
@@ -79,9 +79,9 @@ void MsgPattern::collect_patterned_ipcs(void)
 			
 			reply_recv_offset = search_mig_msg(req_send_offset, &reply_recv_idx, mark_visit);
 			if (reply_recv_offset == ev_list.end()) {
-			#ifdef MSG_PATTERN_DEBUG
+#if MSG_PATTERN_DEBUG
 				cerr << "Check: a mig missing reply from kernel " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-			#endif
+#endif
 			} else {
 				mark_visit[i] = true;
 				mark_visit[reply_recv_idx] = true;
@@ -185,7 +185,9 @@ void MsgPattern::collect_patterned_ipcs(void)
 		}
 	}
 
+#ifdef MSG_PATTERN_DEBUG
 	cerr << "Total number of msg patterns:\n*************" << patterned_ipcs.size() << "**************" << endl;
+#endif
 	free(mark_visit);
 }
 
@@ -231,10 +233,10 @@ list<event_t*>::iterator MsgPattern::search_ipc_msg(
 				*pid = cur_ipc->get_pid();
 			} else {
 				if (*pid != cur_ipc->get_pid()) {
-			#ifdef MSG_PATTERN_DEBUG
+#if MSG_PATTERN_DEBUG
 					cerr << "Kernel Reply send/recv with incorrect pid " << fixed << setprecision(1) << cur_ipc->get_abstime();
 					cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-			#endif
+#endif
 					continue;
 				}
 			}
@@ -245,18 +247,18 @@ list<event_t*>::iterator MsgPattern::search_ipc_msg(
 			} else {
 				if (is_recv == false && header->is_from_kernel()) {
 					if (header->get_rport_name() != reply_recver_port_name)	{
-			#ifdef MSG_PATTERN_DEBUG
+#if MSG_PATTERN_DEBUG
 						cerr << "Kernel Reply send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
 						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-			#endif
+#endif
 						continue;
 					}
 				} else { //recv == true || not from kernel
 					if (*port_name != header->get_rport_name()) {
-			#ifdef MSG_PATTERN_DEBUG
+#if MSG_PATTERN_DEBUG
 						cerr << "Reply Send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
 						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-			#endif
+#endif
 						continue;
 					}
 				}

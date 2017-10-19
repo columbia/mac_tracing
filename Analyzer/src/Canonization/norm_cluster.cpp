@@ -291,6 +291,9 @@ bool NormCluster::operator!=(NormCluster & other)
 
 void NormCluster::decode_cluster(ofstream &output)
 {
+	//cluster->decode_cluster(output);
+	//cluster->streamout_cluster(output);
+
 	vector<norm_group_t *>::iterator it;
 	for (it = norm_nodes.begin(); it != norm_nodes.end(); it++) {
 		if ((*it)->check_norm() == false)
