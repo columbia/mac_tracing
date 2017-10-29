@@ -46,9 +46,13 @@ out/eurosys18.pdf dep.mk :\
     /usr/local/texlive/2017/texmf.cnf\
     abstract.tex\
     analysis.tex\
+    case_study.tex\
+    case_study_spinning_beachball.tex\
     design_and_implementation.tex\
     eurosys18.tex\
+    inspect.tex\
     instrumentation.tex\
     introduction.tex\
+    related_work.tex\
     sigplanconf-eurosys.cls
 #===End dependents for eurosys18.tex:

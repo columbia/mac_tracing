@@ -1,7 +1,114 @@
 %Dependancy graph generation
-Unlike AppInsight which tracks the begin and end of function calls, like edge triggered tracing, we only track particular events and attributes in the states, which is level triggered tracing. 
-As worker threads can be reused on behalf of different user inputs or processsing different requests from various applications in the system concurrently,
-identifying the execution boundaries is important.
-In addition to the known events that can indicated the boundaries, some potential boundaries may be covered by the unknown programming paradigms.
+We expect to generate a dependency graph, containing the process from user input, event handling, to screen rendering with the analyzer.
+Traced events in a thread are divided into execution segments which is an atomic unit in a thread belonging to one user request.
+Execution segments can be connected by the event pairs, for instance, mach message send and corresponding receive.
+The dependancy graph is defined with the execution segments as nodes, and the connections of the segments as edges.
+To achieve the goal of sound dependency graphs for user transactions, we have to identify the boundaries of execution segments and recognize connections of them if they are on the behalf of the same user transaction.
+However, both steps are knotty. 
+\par
+It is triky to define events that represent the end of a user request in a thread.
+Although the execution segment looks straightforward if we track every entry and exit of function calls like what AppInsight did,
+it is too expensive in system wide and impossible if system components are closed source.
+One may argue to divie the thread execution with as few events as possible. 
+However, dividing the thread execution into too fine granularity probihits following connections and therefore hurts the completeness of dependency graph.
+Identifying execution segments with thread synchronization(wait event) is misleading in some situation.
+We notice that the execution of a function can be interrupted by the wait event, and one thread can be resused by different requests without any wait event.
+One concrete example is from kernel thread.
+It will wake up all threads whose timers get fired at the same time continuouly without any transitional event.
+As a result, not only the thread synchronization but also programming paradigms should be considered when identifying the boundary of execution segments.
+\par
+Connection recognition also relies on the knowledge of thread synchronization and programming paradigms, but it is more complex.
+It becomes ambiguous for similar event sequences given different circumstance.
+Consider the scenario that thread A blocks on certain resource, thread B wakes up thread A later, and thread A resumes execution.
+Three execution segments are gnerated because of thread synchronization.
+We call them segment1, segment2 and segment3.
+If we assume thread A is from a daemon and it blocks to wait for more requests, segment1 and segment3 should not be connected in that they may be from different processes, while segment2 and segment3 should be connected.
+On the other hand, if thread A is waiting for I/O, we expect segment1 and segment3 from thread A should be connected while segment2 should be excluded from the connection.
+\par
+There is no uniform rules to divide and connect execution segments considering different roles a thread may play.
+To make things practical, we need a general algorithm to identify the thread segements and their connections, and also a mechanism to figure out what is not reasonable and how to improve it, which we will disscuss in next section.
+Studying thread patterns provides hints for us to figure out the general algorithm.
+We recognize that some threads in the system are associated with RunLoop which is an event processing loop used to schedule work and cooordinate the receipt of incoming events.
+It will keep the thread busy when there is work to do and put it to sleep when there is none.
+The order how events get processed is very specific in the runloop according to the description on Apple official site.
+\begin{itemize}
+\item Notify observers that the run loop has been entered.
+\item Notify observers that any ready timers are about to fire.
+\item Notify observers that any input sources that are not port based are about to fire.
+\item Fire any non-port-based input sources that are ready to fire.
+\item If a port-based input source is ready and waiting to fire, process the event immediately. Go to step 9.
+\item Notify observers that the thread is about to sleep.
+\item Put the thread to sleep until one of the following events occurs:
+\subitem An event arrives for a port-based input source.
+\subitem A timer fires.
+\subitem The timeout value set for the run loop expires.
+\subitem The run loop is explicitly woken up.
+\item Notify observers that the thread just woke up.
+\item Process the pending event.
+\subitem If a user-defined timer fired, process the timer event and restart the loop. Go to step 2.
+\subitem If an input source fired, deliver the event.
+\subitem If the run loop was explicitly woken up but has not yet timed out, restart the loop. Go to step 2.
+\item Notify observers that the run loop has exited.
+\end{itemize}
+RunLoop is driven by an exteranl while or for loop provided by developers.
+The event processing handlers for them are also installed by developers. 
+%%TODO: more detail on how sendEvent connected to event handler written by developers. 
+The well defined pattern helps us to identify execution boundary in threads.
+\par
+To identify execution segment boundaries, we first classify thread into two categories: thread with RunLoop object and others.
+As thread with runloop infrastructure processes pending events and generates notifications for any attached observers, 
+we can trace the thread execution stage by tracking the observers, including RunLoopEntry, RunLoopBeforeTimers, RunLoopBeforeSources, RunLoopBeforeWaiting, RunLoopAfterWaiting and RunLoopExit.
+Every RunLoopEntry is the beginning of an execution segment and others helps us to identifying what adhoc requests are going to process.
+For threads which are not equipped with runloop, we first apply rules extracted from the traditional programming paradigms.
+There are six rules generalized:
+\begin{itemize}
+\item dispatcher: GCD(grand central dispatcher) are widely applied in Apple, threads activity can be divided every time it dequeues a block from dispatch queue and executes it.
+\item thread synchronization: wait event means blocking for resource. We recoganize it as the end of execution segments in most case, except that the execution of a dispatched block has not yet finished.
+\item heartbeat thread isolation: thread execution can be interruptted by the heartbeat thread intermittently. We will isolate the interrupt and the activity it triggers into a new execution segment and come back to the original thread. The triggered activity is identified via the make\_runnable event inside the interrupt event. Another periodically executed thread is time share maintainance. We apply the similar method to isolate it from the original thread.
+\item kernel thread for timers: kernel thread could interact with multiple user processes continuously. Timer management is one example. If a timer is fired, the kernel thread will send mach message to the processes who aremed the timer. As a result, every timer will be in a new group.
+\item IPC and vouchers: mach message is the main IPC mechanism in MacOS. Some message carries voucher, which means the message is on the behalf of a third party. For example, process A sends a message to Daemon B, and Daemon B sends a message on behalf of the received message from Process A with the voucher that records infomation on A. Mach messges that send/receive in the one thread do not always serve for the same request. Some daemons like WindowServer will pack the pending out message and currently message receipt into one system call. We check every mach message for its receiver or sender. If two continuous messages are sent/received to/from different processes, we first check if they carried vouchers that connect them together. If so, they go into the same execution segments, otherwise, a new segment is create for the later one. 
+\item other special programming paradigms: If errors detect in the later process, we will examine the execution segments with callstacks, and add tracing poings to identify the new boundary introduced by the unrealized programming paradigms. 
 
-
+\end{itemize}
+Part of those rules are also applied to thread with runLoop object as we also realize that the runloop is not dedicated to UI event processing.
+The draining of the main dispatch queue in runloop utilizes CGD to process requests submitted by other threads.
+Observers also provide a general means to receive callbacks, which developers can install if needed, at different points within a running run loop.
+Besides, scheduled asynchronous blocks on other threads is implemented by inserting blocks into an array.
+These blocks are processed in FIFO the next time the runloop calls out to blocks.
+\par
+The second step towards the dependency graph generation is to discover the connections between execution segments.
+Execution segments that contain pairs of events representing known programming paradigms will be connected.
+We check
+\begin{itemize}
+\item Mach IPC, segments with messages that send and receive respectively will get connected.
+Besides, if a mach message requires a reply, it will carry a port in its message header.
+However, the reply message is not always sent by the thread that received the message.
+As a result, we also connect the message receipt and the following reply message sent.
+Messages are paired mainly on the slided kernel addresses of the ports.
+\item GCD, for asynchronous function calls, we observe blocks get enqueued, dequeued and executed by different threads in most cases.
+They are scatted in different execution segments.
+We connected them with the block address captured when they are enqueued, dequeued and executed.
+\item Timer, timer is another asynchronous means to delay function execution.
+We will record the address of timer item in kernel when it get push to a queue, fired and cancelled.
+The segment that push the timer to q queue and segment that get woken because it get fired are connected.
+\item Screen updates, we will record the object address when the view get touched and set need\_display and when the display update happens, and connecte them together.
+\item Shared variables, variables can be used to synchronize the threads.
+The event thread that pulls events from WindowServer and the main thread that dispatches event to event handler coordinate with variable.
+By recording every time the variable written, we can pair when the event is put by the event thread and when it is fetched by the main thread.
+Besides, we also track the variable related to the postponed message ready and sent in WindowServer and variable related to the spinning beachcall mechanism.
+\item Thread schedule, we record the relationship between two threads that one thread wakes up the other threads.
+However, the two threads are not always get connected depending on the wake up reason.
+For example, if two threads are all worker threads, and the former finished a task from dispatch queue and wake up the later thread to process the next item, we will not connected them together because the two tasks in the same dispatch queue are not neccesarily correlated.
+We picked a conservertive way to connect two segments that have the wake-up relationship and put it after all other connections are finished.
+\end{itemize}
+All of the necessary connections are recorded in the data structures of traced event, so that the peers of the connection can be easily reached from one to the other.
+\par
+The final step is to pick a root segment and augment it into a dependency graph.
+The dependency graph begins from the user input according to our goal and definition.
+We first check the main UI thread, and initiate the graph with the execution segment containing user input as a root.
+Then we check all of the connections except wake-up connector in the execution segment, and add execution segments where the peers resides until there is no more can be added.
+After this process, we will check all the segments that contain wait event.
+If a segment has following segments in time order from the same thread in the cluster, we will include the execution segment from another thread that contains the wake-up event to make the former thread runnable.
+Compared with a more aggresive method to augment the cluster with the wake-up events, this method will exclude the case that a thread try to wake up multiple processes that are not related to each other for timeout reason.
+However, the risk is if a daemon is used to process a request but no reply is need to send back, the execution segment from the daemon may be ignored.
+Althougt it will affect the completeness of the dependency graph, it may not interrupt the diagnosis of performance bug as the current request will not block by the daemon.

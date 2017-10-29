@@ -1,9 +1,9 @@
 # Fdb version 3
-["xdvipdfmx"] 1508252478 "out/eurosys18.xdv" "out/eurosys18.pdf" "out/eurosys18" 1508252479
-  "out/eurosys18.xdv" 1508252478 143216 b321b6008d2d8a125f13b96612874b09 "xelatex"
+["xdvipdfmx"] 1509261978 "out/eurosys18.xdv" "out/eurosys18.pdf" "out/eurosys18" 1509261979
+  "out/eurosys18.xdv" 1509261978 375216 97be0f76f4342cedb60f3d8053ba21ac "xelatex"
   (generated)
   "out/eurosys18.pdf"
-["xelatex"] 1508252478 "eurosys18.tex" "out/eurosys18.xdv" "eurosys18" 1508252479
+["xelatex"] 1509261978 "eurosys18.tex" "out/eurosys18.xdv" "eurosys18" 1509261979
   "/usr/local/texlive/2017/texmf-dist/fonts/map/fontname/texfonts.map" 1480098670 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/local/texlive/2017/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1480098689 1528 f853c4d1b4e0550255e02831fdc8496f ""
   "/usr/local/texlive/2017/texmf-dist/tex/generic/ifxetex/ifxetex.sty" 1480098815 1458 43ab4710dc82f3edeabecd0d099626b2 ""
@@ -48,17 +48,21 @@
   "/usr/local/texlive/2017/texmf-dist/web2c/texmf.cnf" 1494087824 32646 eadc4ca26cdbe7105ac7c593aa8c4f72 ""
   "/usr/local/texlive/2017/texmf-var/web2c/xetex/xelatex.fmt" 1495593504 3678517 cf88ab0d543b48a512d7ba85d215fe58 ""
   "/usr/local/texlive/2017/texmf.cnf" 1495593465 577 2b71d4d888f9e5560b2e99985915a9fa ""
-  "abstract.tex" 1508251855 2396 45499028b027af54a756710b8eceee69 ""
-  "analysis.tex" 1508252106 577 b1ea271432095d508ae75cbbde678cd5 ""
-  "design_and_implementation.tex" 1508252449 3473 81cb72c2019efd68ce38bfdc9c95b60e ""
-  "eurosys18.tex" 1508252226 1820 ec6cfa2766237977fb2a90e3f6374c45 ""
-  "instrumentation.tex" 1508252123 1692 69ec4b606a0acda0912fb305ab05b8e4 ""
-  "introduction.tex" 1507744683 6681 44e0662c0683849930911f508faf6021 ""
-  "out/eurosys18.aux" 1508252478 1338 cd479e51ff64f0b4cbbe04e20ff5b41c ""
-  "out/eurosys18.out" 1508252478 385 a901bf496429d5a9f24e816db0115f6c ""
-  "sigplanconf-eurosys.cls" 1507662344 38665 f0b016971d133330339346d69ab07e5a ""
+  "abstract.tex" 1509261959 3182 5dbeb8ddade15b9e3a39d8366721dc85 ""
+  "analysis.tex" 1509261959 12633 e1fd111ebfb53b4d1beb4672384d2cf7 ""
+  "case_study.tex" 1509261959 740 06090115efa5e56cff3d43c48065a7da ""
+  "case_study_spinning_beachball.tex" 1509261959 5267 599b4fcaad64c8a1d6716b49c66f0aa4 ""
+  "design_and_implementation.tex" 1509261959 4194 b6f8fe32c560d3e63ee4c2ae1bbb08d3 ""
+  "eurosys18.tex" 1509261959 1867 bec17015de2cc99086734825f6edc2f8 ""
+  "inspect.tex" 1509261959 1223 5a1ab03c3ff587ad028584bed27bca65 ""
+  "instrumentation.tex" 1509261959 3581 dffa448a56bfa65ac59e78a47b813675 ""
+  "introduction.tex" 1509261959 7580 a31e1981812a06246dba852c333aec4b ""
+  "out/eurosys18.aux" 1509261978 2057 2ad0d067fe84979ddffb9b12a02234ed ""
+  "out/eurosys18.out" 1509261978 880 e6763495f37c16208ab911974d44e8ca ""
+  "related_work.tex" 1509261959 745 ca2bd84a38bfcf8595ab31218dbc4648 ""
+  "sigplanconf-eurosys.cls" 1509261959 38665 f0b016971d133330339346d69ab07e5a ""
   (generated)
   "out/eurosys18.log"
   "out/eurosys18.out"
-  "out/eurosys18.xdv"
   "out/eurosys18.aux"
+  "out/eurosys18.xdv"
