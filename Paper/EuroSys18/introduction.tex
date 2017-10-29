@@ -1,74 +1,79 @@
 %%Problem
-Performance bugs, usually cause significant performance degration, have vital impact on user experience.
-However, it is hard to diagnose for a knowledge gap between the symptom and the inefficient code for app developers.
-To identify causes of performance degreadation, the general idea shared by multiple previous work is to track the system activity and extract dependancy graphs for individual user transaction for further analysis.
-However, multithread programming are widely applied in modern systems.
-Under these circumstances, massive thread activities emerge in the system, from kernel, daemons, various applications and even the interleaved user transactions from the same application.
-Those activities in interleaved manner make it difficult to extract a correct and complete dependancy graph for a corresponding user input.
+Performance bugs, usually cause significant performance degradation, have vital impact on user experience.
+However, it is hard to diagnose because of the knowledge gap between the symptom and the inefficient code for app developers.
+To identify causes of performance degreadation, the general idea shared by multiple previous work is to track thread  activities and extract dependency graphs for individual user transaction for further analysis.
+However, with multithread programming widely applied in modern systems, massive thread activities emerge in the system, from kernel, daemons, various applications and even interleaved user transactions from the same application.
+Those activities in interleaved manner make it difficult to extract a correct and complete dependency graph for an individual user input.
 \par
-%%previous work, why they does not work well
+%%previous work, why they do not work well
 To address the challenge, some previous works in the area depend on the input from developers.
 Magpie is designed for distributed system to extract control path and resource demand of workloads from system wide traced events.
 It adds necessary tracing points in application, middleware and kernel by extending the tracing tool (Event Trace for Windows).
 A user provided event schema is used to correlate events from the same request.
-While Pip is an infrastructure developed to compare the expectation of an application with the actual behavior so as to reveal bugs of applications in distributed system.
+Pip is an infrastructure developed to compare the expectation of an application with the actual behavior collected in system so as to reveal bugs of applications in distributed system.
 It designs a language for developers to describe their expectations of application behavior.
-An annotation library and a set of tools for gathering and checking the traced events.
-However, either the schema or the source code abstraction can be error prone.
-In that different components in a system, for example libraries, are usually developed by different developers,
-and even the worse, some of them can be closed source.
+An annotation library and a set of tools are provided for gathering and checking the traced events.
+However, either the schema or the source code abstraction can be error prone, in that different components in a system, for example libraries, are usually developed by different developers, and even worse, some of them can be closed source.
 Without the help from system authors, it is hard for the app developers to construct a complete and sound schema or expected application behavior.
 \par
 There also exist works that do not need developers' inputs.
-AppInsight minimize the noise by only concentrating on the activities from the Application.
+AppInsight minimizes the noise by only concentrating on the activities from the Application.
 It tracks an user transaction from the begin of user input to the end of UI update to diagnose performance bottlenecks and failures of apps on Windows Phone, including UI manipulation, Layout update, Asynchronous function call, begin and end of callback functions from framework into the app code (upcalls), thread synchronization and exception data.
-Without tracking daemons or system level activity, the dependancy graph may be less useful in pinpoint bugs residing in daemons or underlying frameworks.
+Without tracking daemons or system level activities, the dependency graph may be less useful on pinpointing bugs related to daemons or underlying frameworks.
 Panappticon instruments system wide with fine-grained tracing points and captures the correlations and causality of events across thread/process boundaries.
-Its usefulness highly depends upon the knowledge of Android property and the understanding of the whole system to define the correlations of temperally ordered events and the causality of events between threads.
-Hueristics that the locking primitive in the background thread indicated the producer/consumer of a task queue and no unrelated work will be performed while processing a particular task from a queue may be not true for other systems.
-The causality, deduced from asychronous call of MessageQueue and ThreadPoolExecutor, inter-process communication via Binder, and sychronization mechanisms, may be not complete either.
-To sum up, the integrity and completeness of dependancy graph is hard to guarantee without in-depth understanding of the whole system.
+Its usefulness highly depends upon the knowledge of Android property and the understanding of the whole system to define the correlations of temporally ordered events and the causality of events between threads.
+Heuristics that the locking primitive in the background thread indicated the producer/consumer of a task queue and no unrelated work will be performed while processing a particular task from a queue may be not true for other systems.
+The causality, deduced from asynchronous call of MessageQueue and ThreadPoolExecutor, inter-process communication via Binder, and synchronization mechanisms, may be not complete either.
+To sum up, the integrity and completeness of dependency graph is hard to guarantee without in-depth understanding of the whole system.
 Previous work from various platforms, such as Windows, Android and etc, could hardly directly applied to a new system, especially one with different design of programming paradigms.
 \par
 %%goal: assist the developer to figure out errors (false positive and false negative)
-Our work is a complementary part to the previous work.
-We proposed XXX to help the developer to detect the under-connection and over-connection in a dynamically generated dependancy graph, discover and explore the potentially missing vital tracing points to rectify the errors. 
-%%what to detect
-To justify the integrity of the dependancy graph, we need to rule out the over connections.
+Base on previous work, we proposed XXX to help the developer to detect the over-connection and under-connection in a dynamically generated dependency graph, discover and explore the potentially missing vital tracing points to rectify the errors. 
+%%detect over-connection
+To justify the integrity of the dependency graph, we need to rule out the over connections.
 One simple way is to audit the path between every two processes in the graph.
 If two irrelevant applications appear in the same graph, there must be some over connections in their connecting path.
 Further exploring and fixing can be done by checking the nodes in the path.
-To improve the completeness of the dependancy graph, we need to inspect the under connections.
-%
+%%detect under-connection
+To improve the completeness of the dependency graph, we need to inspect the under connections.
+%TODO:
 %(1)Resource accounting can be utilized for this purpose.
 %Take CPU usage as an example.
-%If the total CPU usage for an application in the given time window is known, we can check the proportion of CPU usage reflected in the dependancy graph.
+%If the total CPU usage for an application in the given time window is known, we can check the proportion of CPU usage reflected in the dependency graph.
 %(2)
 %statistical method
 %
 
 %%how to add tracing points, hook dynamic library or add watch points
-To prevent the dependancy graph from over-connection and under-connection, tracing points can be added either by hooking dynamic libraries or by setting hardware watch pointers.
+To fix the over-connection and under-connection in dependency graphs, tracing points can be added by hooking dynamic libraries or setting hardware watch pointers.
 \par
 %%our result
-We apply the method on the application running on MacOS and figure out both false negtive(under-connection) and false positive(over-connection) with the tranditional tracking technique.
-\par
-There are missing thread asynchronization mechanisms. False negatives we detected:
+We apply the method on the application running on MacOS and figure out both false positive(over-connection) and false negative(under-connection) compared to the traditional tracking techniques. Most of them are caused by programming paradigms from the middleware.
+\par \noindent
+False positive cases we detected:
+\begin{itemize}
+%Port, representing kernel object like task and thread in MacOS, which is mach ipc channel, is another source of over-connections.
+\item Loops are widely used when kernel or daemons process requests from different applications for the same service without transition events traced.
+For example, kernel thread will continuously wake up all the armed timers if they get fired at the same time.
+Another example is on MIG(Mach Interface Gnereator), which is used to compile procedural interfaces to the message-based APIs.
+The API dispatch\_mig\_service is designed to processing all the requests for the same service in a loop.
+\item Runloop is a more complicated programing model than MessageQueue or ThreadExecutor.
+Sources, observers, timers, dispatch queue and blocks are all checked inside one loop iteration.
+Dividing it into execution segments merely based on the user event would result in over connection.
+\item Mach messages send and receive from different applications can be packed inside one mach\_msg\_trap system call.
+For example, WindowServer will send out the pending message from one applicationa and try to receive message from another application in one mach\_msg\_trap system call.
+\item Some kernel\_task threads in MacOS running as heartbeat thread, can always introduce over connections.
+\end{itemize}
+False negative cases we detected:
 \begin{itemize}
 \item Timers can be armed to delay the event processing.
-\item Grand Central Dispatcher is frequently referred by the high level frameworks to schedule tasks.
-\item Daemons like WindowServer may postpone event processing via shared variable.
-\item Rendering with layer can be batched for later with flags in layer objects.
-\end{itemize}
-False positive we detected:
-\begin{itemize}
-\item Runloop is a more complicated programing model than MessageQueue or ThreadExecutor.
-Dividing it merely depending on the user event would result in false connection of thread activities in temporal order.
-\item Some kernel\_task threads in MacOS running as heartbeat thread, can always introduce over connections.
-%One of the example is on the implementation of timer.
-%The kernel\_task thread is responsible to fire all the queued timers by sending messages to all the corresponding processes without a break.
-\item One block from dispatch queue, invoked with dispatch\_mig\_server, could serve for multiple unrelated work.
-\item Daemons like WindowServer will also serve for different work in interleave manner to support postponable requests.
+In previous work, a timer is treated as an individual transaction.
+\item Data dependency is hard and rarely tracked before, such as:
+\subitem WindowServer may postpone message sending via shared variable.
+\subitem On screen rendering, changes from multiple layers can be commited independently and rendered in a batch later with need\_display flag.
+\subitem User inputs pulled from the WindowServer are pushed into the event queue of the main UI thread for later processing.
+\subitem When a spining beachball should be drawn also depend on shared variable.
 \end{itemize}
 \par
 %%contributions
+%TODO

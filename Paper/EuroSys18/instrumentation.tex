@@ -1,15 +1,36 @@
 %Instumentation
-Considering the trade off between userfulness and overhead, we first choose the well known events that previous work chosen.
-We instrument the Cocoa Unbrella Framework for user input and display update.
-Ueser input: user inputs from the I/O kit to the target application will refer the Umbrealla Frameworks HIToolbox and AppKit.
-User inputs like key stroke and mouse move may get collapse in queues.
-We trace the user inputs in the AppKit framework as it was done in previous work.
-Display update: we not only record the updates but also trace the code locations where the need\_display flags are set. With this method, we track both the display updates with View class and CALayer class.
-Asynchrouns call: asynchrous calls in MacOS can be implemented via RunLoop object, Grand Central Dispatcher, timer and wait queue.
-IPC: Mach message is the main mechanism for IPC.
-Thread synchronization: We also trace the thread synchronization by tracking the thread scheduling event, including to wait and to be made runnable, which has better coverage.
-To provide hints for developers to exploring programming paradigms, we also add backtrace after every mach message and dispatched function execution.
-We also trace certain events to exclude the obvious background noise introduced by hearbeat threads. 
-The heartbeat threads in the system are identified with the interruption the running thread itermittently.
-We address the interrupts and time share maintanence by isolate the event and the thread activites that it triggers from the current running thread activities.
-Other potential heartbeat theread activities may relate to programing paradigms are left later for inspections.
+%what to instrument initially
+Considering the trade off between userfulness and overhead, we first instrument and collect the well known events that previous work chosen.
+\par \noindent
+\begin{itemize}
+\item User input: user inputs to the target application will access the Umbrealla Frameworks includeing HIToolbox and AppKit.
+The data transfering from low-level device, I/O kit to WindowServer are ignored with the consideration of userfulness and overhead.
+Instead, how the user input events are fetched by the target application and dispatched to main thread are tracked in our framework.
+\item Display update: screen rendering has two ways in Mac OS, One is managed by the NSView object and the other is through the CALayer.
+The common part the two methods share is to set the flag need\_display in object, and call the method display in the object later.
+We track the object when its need\_display flag is set and when its display method is called.
+\item Asynchrouns call: asynchrous calls in MacOS can be implemented via RunLoop object, Grand Central Dispatcher, timer and wait queue.
+\item IPC: Mach message is the main mechanism.
+Mach message send and receive are tracked in the kernel.
+\item Share variables: shared variables are hard to explore.
+We only track the detected ones in our framework with hardware breakpoint registers.
+Inspector helps further to add more if necessary.
+\item Thread synchronization: We trace thread synchronization by tracking the thread scheduling events, wait event and wake-up event.
+Wait event is recorded before the thread blocking, and a wake-up event is added when a thread tries to make another thread runnable.
+Compared to previous work that tracks only semaphores and condition variables, this method has a better coverage.
+\item Heartbeat thread related noise: We find timeshare maintainance and certain interrupts happens peoriodically in the system.
+To exclude those noise, we need to trace them, isolate the event as well as the thread activites that it triggers and discard them.
+Other potential heartbeat thread activities that may be related to programing paradigms are left later for inspections.
+\item Other information: To provide hints for developers to explore programming paradigms, we also add backtrace tracing points, recording necessay memory mapping infomation once and making use of lldb for offline symbolization.
+\end{itemize}
+
+%how to trace them
+All the tracing points are recorded by extending the usage of Kernel Event Tracing (kdebug) facility provided by Apple.
+Tracing points can be added into the library, as mentioned in previous section, by replacing the original library and reexporting its symbols.
+They can also be added via hardware breakpointer register.
+Once the breakpoint traps in the particular memory location, the tracing point will be record inside the signal processing handler.
+We install the handler for hardware breakpoint in CoreFoundation which will be linked by all applications.
+Tracing data from the tracing points is written to memory buffer first and then get dumped to file system in kernel, and a trace tool in the user space is shipped to control the begin and end of tracing.
+By limiting the file size and treating file as a ring buffer for flushing data, we are able to run the trace tool in the background 24X7.
+Also, we record memory mapping of images for all running processes in the trace tool for later symbolication.
+Once the performance problem rises, we can disable the trace and analyze the tracing data collected in the file for problem diagnosis.

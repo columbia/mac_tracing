@@ -1,4 +1,4 @@
-PWD /Users/weng/Documents/mac_tracing/Paper/EuroSys18
+PWD /Users/weng/mac_tracing/Paper/EuroSys18
 INPUT /usr/local/texlive/2017/texmf.cnf
 INPUT /usr/local/texlive/2017/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2017/texmf-var/web2c/xetex/xelatex.fmt
@@ -98,4 +98,12 @@ INPUT ./instrumentation.tex
 INPUT ./instrumentation.tex
 INPUT ./analysis.tex
 INPUT ./analysis.tex
+INPUT ./inspect.tex
+INPUT ./inspect.tex
+INPUT ./case_study.tex
+INPUT ./case_study.tex
+INPUT ./case_study_spinning_beachball.tex
+INPUT ./case_study_spinning_beachball.tex
+INPUT ./related_work.tex
+INPUT ./related_work.tex
 INPUT out/eurosys18.aux

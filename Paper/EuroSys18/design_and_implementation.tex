@@ -1,29 +1,37 @@
 %Goals and Design Overview
-The application running in MacOS system is compromised of various components.
-For propagating events to target application, WindowServer will be touched.
-An user input originated from the attached device will go through the I/O Kit to the WindowServer's event queue first.
-The WindowServer dispatches the event to the appropriate thread in target process.
-After that, the event will be passed the main UI thread and invok the corresponding event-handling routin. 
-The transition of event from Windowser to the main UI thread requires additional preprocessing in the Cocoa Framworks.
-The event-handling ususally act in asynchronous manner to prevent the block in the main thread.
-In this procedure, daemons such as fontd, md, mdstore, prefersd, notifyd and services like SandboxHelper and XPCService will get involved.
-As a result, an user input will trigger system wide thread activities.
+The application running in Mac OS system is comprised of various components.
+As an example, consider what happens when a user action is routed to target application.
+An user input originated from the attached device will go through the I/O Kit to the WindowServer event queue first.
+I/O Kit creates a low-level event and puts it in the WindowServer event queue.
+WindowServe processes it in various ways, time-stamps it, annotates it with the associated window and process port, and so on.
+After that the event manager thread from the target process will pull the event and pass it to the main thread's event queue.
+The main thread fetches the topmost event from the queue and dispatches it forward to the corresponding event-handling routine. 
+The event-handling usually act in asynchronous manner to prevent the block in the main thread.
+In this procedure, daemons such as fontd, md, mdstore, cfprefsd, syslogd, notifyd and services like SandboxHelper and XPCService will get involved.
+As such, a user action will trigger system wide thread activities.
 \par
 Similar scenarios happen in Windows and Android.
-Previous work on WindowServer from Microsoft Research use its own ETW(event tracing for windows) to record flow of control transfer between components in application and middleware system wide, leveraging their advantage of Windows design knowledge as well as developer input schema.
-AppInsight rewrites the app bytecode and instruments it leveraging the upcalls from the high-level framework into the app code for various reason like to handle user input, spawning of worker threads, sensor trigger and so on.
-It captures events including UI manipulation, thread execution, asynchronous calls, thread synchronizaiton, UI updates and unhandled exception, but limited to the app wide.
-The work on Android also collects limited event categories, with the trade off between the coverage and overhead, including user input, asynchronous calls (via its well known MessageQueue and ThreadPoolexecutor mechenisms), IPC (Binder RPC), selected synchronization mechnism, display update via view Class and recource counting system wide.
+Tools upon these system are developed to help developers to diagnose bugs by analyzing dependency graphs or critical paths.
+Magpie from Microsoft Research uses ETW(event tracing for windows) to record flow of control transfer system wide, between components in application and middleware, leveraging their advantages of Windows design knowledge as well as developer input schema.
+AppInsight rewrites the app bytecode for instrumentation leveraging the upcalls from the high-level framework into the app code for various reason, such as to handle user input, spawning of worker threads, sensor trigger inside the app.
+Panappticon on Android collects limited event categories based on its knowledge on Android property. It divides thread activities into execution segments based on the java thread pattern and heuristics for background thread to generate dependancy graphs.
+It is not trival to convert a tracking method in one system to the other though.
+We share the goals of these works on helping developers understand the performance bugs in the wild.
+What is more, our wok will help the developer to rectify the dependency graph generating framework for special programming paradigms that they are not even aware of when developing an application. 
 \par
-We share the goals of the previuos work on helping developers understand the performance bugs in the wild, but we also help the developer to rectify the framework for special programming paradigms that they are not aware of. 
-\par
-The archtecture of XXX is shown in figure XXX.
-Three components are included: Instrumenter, Analyzer and Inspectors.
-The instrumenter is responsible to add tracing points in kernel, dynamic libraries and middleware frameworks.
-Tracing points in the kernel can be added by modifying the kernel directly, while as the dynamic libraries and middleware frameworks are only partially opensource, we need to leverage the reverse engine tools and instrument the binary code.
-We replace the library by hooking one exposed symbol which will call a detour function and reexporting all the rest symbols.
-Indise the detour function, tracing points can be added to any address by replacing instrutions with tempoline function.
-Analyzer will collecte attributes from tracing points for events, which help events to connect or to differentiate execution segments.
-With the identified execution boundary and connections, it generates dependancy graphs for user inputs.
-Inspectors are used to check the dynamic generatged dependancy graph with respect to the correctness and completeness.
-Although it is hare to achieve the goal of completeness, we are expected to achieve the certain degree where the dependancy graph becomes useful for disganosis purpose.
+The architecture of XXX is shown in figure XXX.
+It contains instrumenter, analyzer, inspector and diagnosis tools.
+Instrumenter is responsible for adding tracing points in the correction location in kernel, dynamic libraries and middleware frameworks.
+For kernel, as it is open source, tracing points can be added into the source code directly,
+while dynamic libraries and middleware frameworks requires the help of reverse engineering tools and instrumenting the binary code because of close source.
+We reexport the symbols in the original library and hook the location where intrumentation is necessary by replacing the original instruction with a tempoline function, where tracing points reside and original instruction is sumilated.
+
+Three steps are taken by Analyzer. First it will collect attributes for events as some event requires multiple tracing points to record its attributes.
+Second, the event list for a thread will be divided into execution segments with identified events as boundary.
+Third, execution segments from the second step are connected into a cluster with particular event pairs as connectors.
+So far, connectors in our frameworks includes Mach message send/receipt, timer armed/fired, dispatche blocks enqueue/dequeue, CALayer set\_need\_display/display, and selected wake\_up and the first traced event in the woken thread.
+The generated cluster is expected to represent the dependancy graph for a user transaction and used for diagnosis.
+As is it hard to guarantee the integrity and completeness of dynamically genrated dependancy graphs, inspector is added for checking and improvement.
+The graph is expected to be correct and complete to some degree and becomes useful for disganosis purpose.
+
+Finally, utils can be built to assist the developers for diagnosis purpose.
