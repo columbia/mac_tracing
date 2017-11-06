@@ -30,5 +30,6 @@ namespace Parse
 	
 	map<uint64_t, list<event_t *>> parse(map<uint64_t, string> &files);
 	map<uint64_t, list<event_t *>> divide_and_parse();
+	list<event_t *> parse_backtrace();
 }
 #endif

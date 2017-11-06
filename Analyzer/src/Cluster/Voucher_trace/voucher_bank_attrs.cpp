@@ -23,12 +23,12 @@ string VoucherBankAttrs::pid2comm(pid_t pid)
 			return (it->second).second;
 		}
 	}
+	mtx.lock();
 	cerr << "No comm found for pid " << hex << pid << endl;
+	mtx.unlock();
 	return proc_comm;
 }
 
-
-//TODO : checking unknown proc name
 void VoucherBankAttrs::update_voucher_list()
 {
 	list<event_t *>::iterator it;

@@ -92,6 +92,7 @@ namespace Parse
 				case DISP_ENQ:
 				case DISP_DEQ:
 				case DISP_EXE:
+				case DISP_MIG:
 					parser = new DispatchParser(it->second);
 					break;
 				case MACH_CALLCREATE:
@@ -239,5 +240,13 @@ namespace Parse
 			LoadData::map_op_code);
 		map<uint64_t, list<event_t*>> lists = parse(files);
 		return lists;
+	}
+
+	list<event_t *> parse_backtrace()
+	{
+		map<uint64_t, string> files = divide_files(LoadData::meta_data.datafile, LoadData::map_op_code);
+		BacktraceParser parser(files[BACKTRACE], LoadData::meta_data.libinfo_file);
+		parser.process();
+		return parser.collect();
 	}
 }

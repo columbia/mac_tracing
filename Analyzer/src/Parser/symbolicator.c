@@ -194,7 +194,7 @@ static bool load_segments_64(mach_port_t target_task,
 				if (handler->should_swap)
 					swap_segment_command_64(&dup_segcmd, 0);
 #if DEBUG
-				printf("\n%s segment %p:", dup_segcmd.segname, cmd);
+				printf("\n%s segment64 %p:", dup_segcmd.segname, cmd);
 				printf("\n\tvm_addr %p", dup_segcmd.vmaddr);
 				printf("\n\tfile_off %p", dup_segcmd.fileoff);
 				printf("\n\tvm_size %p", dup_segcmd.vmsize);
@@ -232,7 +232,7 @@ static bool load_segments_64(mach_port_t target_task,
 #if DEBUG
 	printf("mach-o info:\
 			\n\t\tlibrary loaded[vm] = %p;\
-			\n\t\tmach-o mapped[vm] = %p;\
+			\n\t\tmach-o64 mapped[vm] = %p;\
 			\n\t\tvm_slide = %p;\
 			\n\t\tsymtab = %p;\
 			\n\t\tdysymtab = %p;\
@@ -292,7 +292,7 @@ static bool load_segments_32(mach_port_t target_task,
 				if (handler->should_swap)
 					swap_segment_command(&dup_segcmd, 0);
 #if DEBUG
-				printf("\n%s segment 0x%x:", dup_segcmd.segname, cmd);
+				printf("\n%s segment32 0x%x:", dup_segcmd.segname, cmd);
 				printf("\n\tvm_addr 0x%x", dup_segcmd.vmaddr);
 				printf("\n\tfile_off 0x%x", dup_segcmd.fileoff);
 				printf("\n\tvm_size 0x%x", dup_segcmd.vmsize);
@@ -330,7 +330,7 @@ static bool load_segments_32(mach_port_t target_task,
 #if DEBUG
 	printf("mach-o info:\
 			\n\t\tlibrary loaded[vm] = 0x%x;\
-			\n\t\tmach-o mapped[vm] = 0x%x;\
+			\n\t\tmach-o32 mapped[vm] = 0x%x;\
 			\n\t\tvm_slide = 0x%x;\
 			\n\t\tsymtab = 0x%x;\
 			\n\t\tdysymtab = 0x%x;\
@@ -425,8 +425,10 @@ static bool get_symbol_tables(mach_port_t target_task,
 
 #if DEBUG
 	printf("\n\nsymble table info:\n");
-	printf("\t\tsymbol_table = %p\n", handler->symbol_table.symbol_table_32);
-	printf("\t\tsymbol_table = %p\n", handler->symbol_table.symbol_table_64);
+	if (handler->is_32bit)
+		printf("\t\tsymbol_table32 = %p\n", handler->symbol_table.symbol_table_32);
+	else
+		printf("\t\tsymbol_table64 = %p\n", handler->symbol_table.symbol_table_64);
 	printf("\t\tstring_table = %p\n", handler->string_table);
 	printf("\t\tnumbers of symbols = %x\n", handler->nsyms);
 	printf("\t\tsize of sym string = %x\n", handler->strsize);
@@ -504,7 +506,7 @@ static int get_local_syms_in_vm32(mach_port_t target_task,
 		handler_ptr->symbol_arrays[index].vm_offset = cur_vm_offset;
 		handler_ptr->symbol_arrays[index].str_index = cur_str_index;
 #if DEBUG
-		printf("sym: %s \n", handler_ptr->strings + cur_str_index);
+		printf("sym: %llx\t%s\n", cur_vm_offset, handler_ptr->strings + cur_str_index);
 #endif
 		if (cur_vm_offset == handler_ptr->vm_slide
 			- (uint64_t)handler_ptr->mach_address)
@@ -561,7 +563,7 @@ static int get_local_syms_in_vm64(mach_port_t target_task,
 		handler_ptr->symbol_arrays[index].vm_offset = cur_vm_offset;
 		handler_ptr->symbol_arrays[index].str_index = cur_str_index;
 #if DEBUG
-		printf("sym: %s \n", handler_ptr->strings + cur_str_index);
+		printf("sym: %llx\t%s\n", cur_vm_offset, handler_ptr->strings + cur_str_index);
 #endif
 		
 		if (cur_vm_offset == handler_ptr->vm_slide

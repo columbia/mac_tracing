@@ -1,6 +1,7 @@
 #ifndef BASE_EVENT_HPP
 #define BASE_EVENT_HPP
 
+#include <mutex>
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -16,8 +17,11 @@
 #include <stack>
 using namespace std;
 
+extern mutex mtx;
+
 #define MSG_EVENT				0
 #define MR_EVENT				1		
+#define FAKED_WOKEN_EVENT		27
 #define INTR_EVENT				2
 #define WQNEXT_EVENT			3
 #define TSM_EVENT				4
@@ -50,6 +54,7 @@ class IntrEvent;
 class WqnextEvent;
 class TsmaintenanceEvent;
 class MkrunEvent;
+class FakedwokenEvent;
 class TimerCreateEvent;
 class TimerCalloutEvent;
 class TimerCancelEvent;
@@ -79,6 +84,7 @@ typedef IntrEvent intr_ev_t;
 typedef WqnextEvent	wqnext_ev_t;
 typedef TsmaintenanceEvent tsm_ev_t;
 typedef MkrunEvent mkrun_ev_t;
+typedef FakedwokenEvent fakedwoken_ev_t;
 typedef TimerCreateEvent timercreate_ev_t;
 typedef TimerCalloutEvent timercallout_ev_t;
 typedef TimerCancelEvent timercancel_ev_t;

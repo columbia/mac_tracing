@@ -15,11 +15,11 @@ namespace Parse
 		for (int i = 0; i < addrs.size(); i++) {
 			frame_info.addr = addrs[i];
 			frame_info.symbol = "";
-			if (frame_info.filepath = image->search_path(frame_info.addr), frame_info.filepath.size() > 0)
+			if (frame_info.filepath = image->search_path(frame_info.addr), frame_info.filepath.size() > 0) {
 				Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
 						frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
+			}
 			breakpoint_trap_event->update_target(i, frame_info.symbol);
-			
 		}
 	}
 
@@ -53,7 +53,7 @@ namespace Parse
 		if (ret == false)
 			goto clear_debugger;
 
-		cerr << "load lldb for symbolize hwbr caller" << endl;
+		cerr << "load lldb for symbolize hwbr caller..." << endl;
 		for (it = local_event_list.begin(); it != local_event_list.end(); it++) {
 			breakpoint_trap_ev_t *breakpoint_trap_event = dynamic_cast<breakpoint_trap_ev_t *>(*it);
 			if (breakpoint_trap_event->get_procname() != procname)
@@ -62,7 +62,7 @@ namespace Parse
 			symbolize_eip(backtrace_parser, image, breakpoint_trap_event, &cur_debugger);
 			symbolize_addr(backtrace_parser, image, breakpoint_trap_event, &cur_debugger);
 		}
-		cerr << "finished hwbr caller symbolization" << endl;
+		cerr << "finish hwbr caller symbolization." << endl;
 		
 	clear_debugger:
 		if (cur_debugger.debugger.IsValid()) {

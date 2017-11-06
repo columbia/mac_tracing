@@ -11,7 +11,7 @@
 #define CA_REL		6
 #define BRTRAP_REL	7
 
-struct rel_t {
+struct rel_t{
 	group_t *g_from;
 	group_t *g_to;
 	event_t *e_from;
@@ -24,8 +24,6 @@ struct rel_t {
 			&& rel_type == rhs.rel_type);
 	}
 };
-
-typedef map<mkrun_ev_t*, list<event_t *>::iterator> mkrun_pos_t;
 typedef multimap<group_t *, rel_t> node_edges_map_t;
 typedef pair<multimap<group_t *, rel_t>::iterator, multimap<group_t *, rel_t>::iterator> multimap_range_t;
 
@@ -43,6 +41,7 @@ class Cluster {
 	list<event_t *>connectors;
 	list<wait_ev_t *>wait_events;
 
+	/* dump cluster info to java script */
 	void js_edge(ofstream &outfile, event_t *host, const char *action, event_t *peer, bool *comma);
 	void message_edge(ofstream &outfile, event_t *event, bool *);
 	void dispatch_edge(ofstream &outfile, event_t *event, bool *);
@@ -50,10 +49,15 @@ class Cluster {
 	void mkrun_edge(ofstream &outfile, event_t *event, bool *);
 	void wait_label(ofstream &outfile, event_t *event, bool *);
 	void coreannimation_edge(ofstream &outfile, event_t *event, bool *);
-
 	void js_arrows(ofstream &outfile);
 	void js_lanes(ofstream &outfile);
 	void js_groups(ofstream &outfile);
+
+	/* inspect cluster */
+	rel_t direct_edge(string from_proc, string to_proc);
+	bool traverse(string to_proc, group_t *cur_node, bool *visited, node_edges_map_t &from_edges,
+			node_edges_map_t &to_edges, vector<rel_t> &paths, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
+	void search_paths(string from_proc, string to_proc, ofstream &outfile, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
 
 public:
 	Cluster(void);
@@ -61,21 +65,22 @@ public:
 	~Cluster();
 
 	void add_edge(group_t*, group_t*, event_t *, event_t *, uint32_t);
-	void add_node(group_t*);
-	vector<group_t*>& get_nodes(void) {return nodes;}
-	vector<rel_t>& get_edges(void) {return edges;}
+	bool add_node(group_t*);
 	bool remove_edge(const rel_t edge);
 	bool remove_node(group_t * node);
-	void set_cluster_id(uint64_t _cluster_id) {cluster_id = _cluster_id; }
-	uint64_t get_cluster_id() {return cluster_id;}
+	vector<group_t*> &get_nodes(void) {return nodes;}
+	vector<rel_t>& get_edges(void) {return edges;}
 	void append_nodes(vector<group_t *> &);
 	void append_edges(vector<rel_t> &);
 
+	void set_cluster_id(uint64_t _cluster_id) {cluster_id = _cluster_id; }
+	uint64_t get_cluster_id() {return cluster_id;}
 	bool check_ground(void) {return is_ground;}
 	bool check_infected(void) {return is_infected;}
 	vector<group_t *> &get_infected_groups(void) {return infected_groups;}
 	vector<group_t *> &get_gt_groups(void) {return gt_groups;}
 
+	/* augment cluster */
 	void push_connectors(group_t *, event_t *);
 	list<event_t *> pop_cur_connectors();
 	list<wait_ev_t *> &get_wait_events();
@@ -86,12 +91,8 @@ public:
 	void sort_edges();
 	void classify_cluster_edges(node_edges_map_t &to_edges, node_edges_map_t &from_edges);
 	int get_node_idx_in_cluster(group_t *node);
-	rel_t direct_edge(string from_proc, string to_proc);
-	bool traverse(string to_proc, group_t *cur_node, bool *visited, node_edges_map_t &from_edges,
-			node_edges_map_t &to_edges, vector<rel_t> &paths, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
-	void search_paths(string from_proc, string to_proc, ofstream &outfile, map<pair<group_t *, string>, vector<rel_t> > &sub_result);
+	
 	void inspect_procs_irrelevance(ofstream &outfile);
-
 
 	void js_cluster(ofstream &outfile);
 	void decode_edges(ofstream &outfile);
@@ -100,7 +101,8 @@ public:
 };
 typedef Cluster cluster_t;
 
-class Clusters {
+/* version0: init clusters then apply filters to trim noise */
+class ClusterInit {
 	list<event_t*> evlist;
 	groups_t *groups_ptr;
 	map<uint64_t, cluster_t *> clusters;
@@ -110,13 +112,8 @@ class Clusters {
 	bool del_cluster(cluster_t *);
 	cluster_t *cluster_of(group_t *);
 
-	cluster_t *merge(cluster_t*, cluster_t*);
+	cluster_t *merge(cluster_t *, cluster_t *);
 	void merge_clusters_of_events(event_t *, event_t *, uint32_t);
-
-public:
-	Clusters(groups_t *groups_ptr);
-	~Clusters(void);
-
 	void merge_by_mach_msg(void);
 	void merge_by_dispatch_ops(void);
 	void merge_by_mkrun(void);
@@ -124,14 +121,22 @@ public:
 	void merge_by_ca(void);
 	void merge_by_breakpoint_trap(void);
 
+public:
+	ClusterInit(groups_t *groups_ptr);
+	~ClusterInit(void);
+
 	uint64_t get_size(void) { return clusters.size();}
 	map<uint64_t, cluster_t *>& get_clusters() {return clusters;}
+
 	void decode_clusters(string & output_path);
 	void streamout_clusters(string & output_path);
 	void decode_dangle_groups(string & output_path);
 };
-typedef Clusters clusters_t;
+//typedef ClusterInit clusters_t;
 
+/*version1: directly checking the relationships among processes
+ *			using inspector to correct falses
+ */
 class ClusterGen {
 	groups_t *groups_ptr;
 	map<uint64_t, cluster_t *> clusters;
@@ -145,16 +150,23 @@ class ClusterGen {
 	void merge_by_dispatch_ops(cluster_t *, dequeue_ev_t *);
 	void merge_by_timercallout(cluster_t *, timercreate_ev_t *);
 	void merge_by_coreanimation(cluster_t *cluster, ca_set_ev_t *cadisplay_event);
-	void merge_by_sharevariables(cluster_t *cluster, breakpoint_trap_ev_t *breakpoint_event);
+	void merge_by_sharevariables(cluster_t *cluster, breakpoint_trap_ev_t *hwbr_event);
+	void merge_by_mkrunnable(cluster_t *cur_cluster, mkrun_ev_t *wakeup_event);
 	void merge_by_waitsync(cluster_t *cluster, wait_ev_t *wait_event);
 	void add_waitsync(cluster_t *cluster);
 
 public:
 	ClusterGen(groups_t *groups_ptr);
 	~ClusterGen(void);
+
+	uint64_t get_size(void) { return clusters.size();}
+	map<uint64_t, cluster_t *>& get_clusters() {return clusters;}
+	groups_t *get_groups_ptr() {return groups_ptr;}
+
 	void streamout_clusters(string & output_path);
 	void js_clusters(string & output_path);
 	void inspect_clusters(string &output_path);
 };
+typedef ClusterGen clusters_t;
 
 #endif

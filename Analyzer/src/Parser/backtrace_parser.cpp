@@ -179,7 +179,6 @@ namespace Parse
 			outfile << "Error: procname for frame should not be empty at";
 			outfile << fixed << setprecision(1) << abstime << endl;
 			procname = "";
-			//procname = LoadData::meta_data.host;
 		}
 
 	retry:
@@ -226,8 +225,7 @@ namespace Parse
 		if (images == NULL)
 			return false;
 
-		debugger_data->debugger =
-			lldb::SBDebugger::Create(true, nullptr, nullptr);
+		debugger_data->debugger = lldb::SBDebugger::Create(true, nullptr, nullptr);
 
 		if (!debugger_data->debugger.IsValid()) {
 			cerr << "Error: fail to create a debugger object" << endl;
@@ -315,9 +313,10 @@ namespace Parse
 
 		for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
 			cur_proc = (it->first).second;
-			cerr << "proc_images for " << cur_proc << endl;
-			if (cur_proc != "WindowServer" && cur_proc != LoadData::meta_data.host)
-				continue;
+			cerr << "Get proc_images for " << cur_proc << endl;
+			
+			//if (cur_proc != "WindowServer" && cur_proc != LoadData::meta_data.host)
+			//	continue;
 
 			cerr << "Decodeing backtrace for " << cur_proc << endl;
 			ret = setup_lldb(&cur_debugger, it->second);
@@ -349,7 +348,7 @@ namespace Parse
 	void BacktraceParser::process_path_from_log(void)
 	{
 		if(!path_log.size()) {
-			cerr << "NO libinfo file for parsing" << endl;
+			cerr << "No libinfo file for parsing" << endl;
 			return;
 		}
 
@@ -359,7 +358,8 @@ namespace Parse
 			return;
 		}
 
-		cerr << "Process backtrace log" << endl;
+		cerr << "Process backtrace log " << path_log  << endl;
+
 		string line, procname, path, arch, unused;
 		images_t *cur_image = NULL;
 		bool nextline_is_main = false;
@@ -379,6 +379,8 @@ namespace Parse
 					outfile  << "Error from path log : " << line << endl;
 					continue;
 				}
+
+				cerr << "create image for proc " << procname << endl;
 
 				if (arch.find("i386") != string::npos)
 					LoadData::meta_data.host_arch = "i386";
@@ -432,7 +434,6 @@ namespace Parse
 				outfile << line << endl;
 				continue;
 			}
-
 			if (opname == "MSG_Pathinfo") {
 				ret = process_path(opname, abstime, iss);
 			} else if (opname == "MSG_Backtrace") {

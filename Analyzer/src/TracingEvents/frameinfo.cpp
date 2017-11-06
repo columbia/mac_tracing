@@ -1,4 +1,5 @@
 #include "backtraceinfo.hpp"
+#define DEBUG_SYMB 0
 
 Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 {
@@ -9,9 +10,22 @@ Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 	frame_addrs.clear();
 	frame_symbols.clear();
 }
+#if DEBUG_SYM
+int32_t Frames::check_symtable = 0;
+#endif
 
 string Frames::get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> &vm_sym_map)
 {
+#if DEBUG_SYM
+	if (Frames::check_symtable == 0) {
+		Frames::check_symtable = 1;
+		map<uint64_t, string>::iterator it;
+		for (it = vm_sym_map.begin(); it != vm_sym_map.end(); it++) {
+			cerr << "[" << hex << it->first << "]\t" << it->second << endl;
+		}
+	}
+#endif
+
 	map<uint64_t, string>::iterator next = vm_sym_map.upper_bound(vm_offset);
 	if (next != vm_sym_map.begin())
 		next--;
@@ -23,9 +37,8 @@ void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, s
 	uint64_t load_addr = cur_image->get_modules()[path];
 	uint64_t vm_offset = vm - load_addr;
 
-	//cerr << "symbol for checking " << symbol << "\t[" << hex << vm << "]\t" << path << endl;
 	if (LoadData::meta_data.pid == 0) {
-		//cerr << "No Symbol checking " << endl;
+		cerr << "No live process used for symbol checking in memory" << endl;
 		return;
 	}
 
@@ -54,10 +67,8 @@ void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, s
 		}
 	}
 	
-	if (image_vmsym_map.find(path) != image_vmsym_map.end()) {
+	if (image_vmsym_map.find(path) != image_vmsym_map.end())
 		symbol = Frames::get_sym_for_addr(vm_offset, image_vmsym_map[path]);
-		//cerr << "symbol get checking " << symbol << endl;
-	}
 }
 
 bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t * cur_frame)
@@ -108,10 +119,8 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 
 void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64_t, string> >&image_vmsym_map)
 {
-	//if (proc_name.find(LoadData::meta_data.host) == string::npos
-	//	&& proc_name.find("WindowServer") == string::npos)
-	if (proc_name != LoadData::meta_data.host && proc_name != "WindowServer")
-		return;
+	//if (proc_name != LoadData::meta_data.host && proc_name != "WindowServer")
+		//return;
 
 	vector<uint64_t>::iterator addr_it;
 	for (addr_it = frame_addrs.begin(); addr_it != frame_addrs.end(); addr_it++) {
@@ -138,7 +147,6 @@ void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64
 				cur_frame_info.symbol = hex_offset_stream.str();
 			}
 
-			//cerr << cur_frame_info.symbol + "\t" + cur_frame_info.filepath << endl;
 			frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
 		} else {
 			string desc("unknown_frame");
@@ -158,13 +166,12 @@ void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64
 
 void Frames::decode_frames(ofstream & outfile)
 {
-	if (proc_name.find(LoadData::meta_data.host) == string::npos
-		&& proc_name.find("WindowServer") == string::npos)
-		return;
+//	if (proc_name.find(LoadData::meta_data.host) == string::npos
+//		&& proc_name.find("WindowServer") == string::npos)
+//		return;
 
 	if (frame_addrs.size() != frame_symbols.size())
 		return;
-		//cerr << "Error: Not symbolicated " << proc_name << endl;
 
 	uint32_t i = 0;
 	vector<uint64_t>::iterator it;
@@ -194,11 +201,13 @@ bool Frames::check_symbol(string &func)
 
 void Frames::streamout(ofstream & outfile)
 {
-	if (proc_name.find(LoadData::meta_data.host) == string::npos
-		&& proc_name.find("WindowServer") == string::npos)
+//	if (proc_name.find(LoadData::meta_data.host) == string::npos
+//		&& proc_name.find("WindowServer") == string::npos)
+//		return;
+
+	if (frame_addrs.size() != frame_symbols.size())
 		return;
 
-	assert(frame_addrs.size() == frame_symbols.size());
 	uint32_t i = 0;
 	vector<uint64_t>::iterator it;
 	vector<string>::iterator sit;

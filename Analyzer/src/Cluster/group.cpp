@@ -7,7 +7,9 @@ Group::Group(uint64_t _group_id, event_t * _root)
 	cluster_id = msg_peer = msg_bank_holder = -1;
 	blockinvoke_level = 0;
 	is_ground = is_infected = false;
+	nsapp_event = NULL;
 	infected_event = NULL;
+	time_span = 0.0;
 	container.clear();
 }
 
@@ -48,10 +50,12 @@ void Group::add_group_tags(string desc)
 	group_tags[desc] = group_tags[desc] + 1;
 }
 
-void Group::set_root(event_t * r)
+void Group::set_root(event_t *r)
 {
+	mtx.lock();
 	if (root != NULL)
 		cerr << "Warning: change root for group " << hex << group_id << endl;
+	mtx.unlock();
 	root = r;
 }
 
@@ -59,6 +63,9 @@ void Group::add_to_container(event_t *event)
 {
 	event->set_group_id(group_id);
 	container.push_back(event);
+
+	if (event->get_event_id() == NSAPPEVENT_EVENT)
+		nsapp_event = event;
 
 	if (is_ground == false && event->check_ground() == true)
 		is_ground = true;
@@ -88,6 +95,15 @@ void Group::empty_container()
 	container.clear();
 }
 
+double Group::calculate_time_span()
+{
+	if (container.size()) {
+		sort_container();
+		time_span = get_last_event()->get_abstime() - get_first_event()->get_abstime();
+	}
+	return time_span;
+}
+
 void Group::decode_group(ofstream & output)
 {	
 	list<event_t*>::iterator it;
@@ -108,8 +124,10 @@ void Group::streamout_group(ofstream & output)
 
 void Group::pic_group(ofstream & output)
 {
+	mtx.lock();
 	if (container.size() == 0)
 		cerr << "Group " << hex << group_id << " is of size zero" << endl;
+	mtx.unlock();
 	output << hex << group_id << "\t" << get_first_event()->get_procname() << "_" << get_first_event()->get_tid() << endl;
 	output << "Time " << fixed << setprecision(1) << get_first_event()->get_abstime();
 	output << " ~ " << fixed << setprecision(1) << get_last_event()->get_abstime() << endl;

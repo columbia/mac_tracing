@@ -9,7 +9,6 @@
 
 class ThreadDivider {
 protected:
-	bool is_ground;
 	uint64_t gid_base;
 	group_t *cur_group;
 	map<uint64_t, group_t *> ret_map;
@@ -17,10 +16,10 @@ protected:
 	intr_ev_t *potential_root;
 	backtrace_ev_t *backtrace_for_hook;
 	voucher_ev_t *voucher_for_hook;
-	syscall_ev_t *msg_link;
+	syscall_ev_t *syscall_event;
 	syscall_ev_t *pending_msg_sent;
-	//msg_ev_t *pending_msg_sent;
 	disp_mig_ev_t *dispatch_mig_server;
+	blockinvoke_ev_t *mig_server_invoker;
 
 	list<event_t *> tid_list;
 	uint64_t index;
@@ -36,21 +35,24 @@ public:
 	void store_event_to_group_handler(event_t *event);
 	void add_tsm_event_to_group(event_t *event);
 	void add_mr_event_to_group(event_t *event);
+	bool matching_wait_syscall(wait_ev_t *wait);
 	void add_wait_event_to_group(event_t *event);
 	void add_timercallout_event_to_group(event_t *event);
 	void add_disp_invoke_event_to_group(event_t *event);
 	bool check_group_with_voucher(voucher_ev_t *voucher, group_t *cur_group, pid_t msg_peer);
 	void add_msg_event_into_group(event_t *event);
 	void add_hwbr_event_into_group(event_t *event);
-	void add_disp_mig_event_to_group(event_t *event);
+	void add_disp_mig_event_to_group(event_t *event, list<event_t *>::reverse_iterator rit);
 
-	void decode_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);
-	void streamout_groups(map<uint64_t, group_t *> & uievent_groups, string filepath);
+	void decode_groups(map<uint64_t, group_t *> &uievent_groups, string filepath);
+	void streamout_groups(map<uint64_t, group_t *>& uievent_groups, string filepath);
 	virtual void divide();
 };
 
-class RLThreadDivider : public ThreadDivider {
+class RLThreadDivider: public ThreadDivider {
 	bool no_entry_observer;
+	group_t *save_cur_rl_group_for_invoke;
+	blockinvoke_ev_t *invoke_in_rl;
 public:
 	RLThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list, bool no_observer_entry);
 	~RLThreadDivider();
@@ -63,5 +65,14 @@ public:
 	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
 	virtual void divide();
 };
+
+class WQThreadDivider: public ThreadDivider {
+	
+public:
+	WQThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
+	void decode_groups(string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
+	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
+	virtual void divide();
+}; 
 
 #endif

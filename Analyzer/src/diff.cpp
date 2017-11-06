@@ -1,14 +1,4 @@
 #include "parser.hpp"
-#include "mach_msg.hpp"
-#include "mkrun.hpp"
-#include "interrupt.hpp"
-#include "workq_next.hpp"
-#include "tsmaintenance.hpp"
-#include "syscall.hpp"
-#include "dispatch.hpp"
-#include "timer_callout.hpp"
-#include "voucher.hpp"
-#include "backtraceinfo.hpp"
 #include "eventlistop.hpp"
 #include "group.hpp"
 #include "cluster.hpp"
@@ -17,6 +7,7 @@
 #include "timercall_divider.hpp"
 #include <time.h>
 
+mutex mtx;
 static string get_prefix(string &input_path)
 {
 	string filename;
@@ -124,7 +115,7 @@ int	main(int argc, char* argv[]) {
 	c_ptr->merge_by_mkrun();
 	c_ptr->merge_by_timercallout();
 	
-	clusters_t * norm_c_ptr = new clusters_t(norm_g_ptr);
+	clusters_t *norm_c_ptr = new clusters_t(norm_g_ptr);
 	norm_c_ptr->merge_by_mach_msg();
 	norm_c_ptr->merge_by_dispatch_ops();
 	norm_c_ptr->merge_by_mkrun();

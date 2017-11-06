@@ -18,7 +18,9 @@ void CAConnection::ca_connection(void)
 	list<event_t *>::reverse_iterator rit;
 	
 #ifdef DEBUG_CA_CONN
+	mtx.lock();
 	cerr << "begin core animation matching... " << endl;
+	mtx.unlock();
 #endif
 	for (it = mix_list.begin(); it != mix_list.end(); it++) {
 		ca_disp_ev_t * display_event = dynamic_cast<ca_disp_ev_t *>(*it);
@@ -45,15 +47,19 @@ void CAConnection::ca_connection(void)
 			
 		if (display_event->ca_set_event_size() == 0) {
 #if DEBUG_CA_CONN
+			mtx.lock();
 			cerr << "Unable to find corresponding set events for display CALayer "\
 				<< hex << object_addr << " at "\
 				<< fixed << setprecision(1) << display_event->get_abstime() << endl; 
+			mtx.unlock();
 #endif
 		}
 
 	}
 	mix_list.clear();
 #ifdef DEBUG_CA_CONN
-	cerr << "finished core animation matching... " << endl;
+	mtx.lock();
+	cerr << "finish core animation matching." << endl;
+	mtx.unlock();
 #endif
 }

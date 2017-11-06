@@ -1,22 +1,15 @@
 #include "parser.hpp"
-#include "mach_msg.hpp"
-#include "mkrun.hpp"
-#include "interrupt.hpp"
-#include "workq_next.hpp"
-#include "tsmaintenance.hpp"
-#include "syscall.hpp"
-#include "dispatch.hpp"
-#include "timer_callout.hpp"
-#include "voucher.hpp"
-#include "backtraceinfo.hpp"
-#include "eventlistop.hpp"
 #include "group.hpp"
 #include "cluster.hpp"
 #include "cluster_filter.hpp"
-#include "thread_divider.hpp"
+#include "search_engine.hpp"
 #include <time.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <cstdio>
+#include <unistd.h>
+
+mutex mtx;
 
 static string get_prefix(string &input_path)
 {
@@ -39,7 +32,9 @@ void handler(int sig)
 {
 	void *btarray[10];
 	size_t size = backtrace(btarray, 10);
+	mtx.lock();
 	backtrace_symbols_fd(btarray, size, STDERR_FILENO);
+	mtx.unlock();
 	exit(1);
 }
 
@@ -57,6 +52,7 @@ int	main(int argc, char* argv[]) {
 
 	/* load */
 	LoadData::meta_data = {.datafile = logfile,
+						   .libs_dir = "./input/libs", /*optional*/
 						   .libinfo_file = "./input/libinfo.log", /*optional*/
 						   .procs_file = "./input/current_procs.log", /*optional*/
 						   .intersectfile = "./input/process_intersection.log", /*optional*/
@@ -66,8 +62,19 @@ int	main(int argc, char* argv[]) {
 						   .suspicious_api = "CGSConnectionSetSpinning",
 						   .nthreads = 6};
 
-	LoadData::preload();
+	/*regnerate lib info */
+	cerr << "Regnerate lib info" << endl;
+	if (LoadData::meta_data.libs_dir.size() && access(LoadData::meta_data.libs_dir.c_str(), R_OK) == 0) {
+		if (remove(LoadData::meta_data.libinfo_file.c_str()))
+			perror("Error in deleting file");
+		if (!LoadData::load_lib(LoadData::meta_data.host))
+			cerr << "Fail to load lib for " << LoadData::meta_data.host << endl;
+		if (!LoadData::load_lib("WindowServer"))
+			cerr << "Fail to load lib for WindowServer" << endl;
+	}
+	cerr << "Regnerated lib info" << endl;
 	
+	LoadData::preload();
 	/* output files */
 	string streamout_file = get_prefix(logfile) + "_allevent.stream";
 	string eventdump_file = get_prefix(logfile) + "_allevent.decode";
@@ -97,30 +104,13 @@ int	main(int argc, char* argv[]) {
 	time(&time_begin);
 	cout << "Begin grouping ... " << endl;
 	groups_t * g_ptr = new groups_t(event_lists);
-	g_ptr->para_group();
 	cout << "Decode groups ... " << endl;
-	g_ptr->decode_groups(decode_groups);
+	//g_ptr->decode_groups(decode_groups);
 	g_ptr->streamout_groups(stream_groups);
 	time(&time_end);
 	cout << "Time cost for grouping " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds" << endl;
 
 	/*clustering*/
-#if 0
-	cout << "begin merge groups into clusters..." << endl;
-	time(&time_begin);
-	clusters_t *c_ptr = new clusters_t(g_ptr);
-	c_ptr->merge_by_mach_msg();
-	c_ptr->merge_by_dispatch_ops();
-	c_ptr->merge_by_mkrun();
-	c_ptr->merge_by_timercallout();
-	c_ptr->merge_by_ca();
-	c_ptr->merge_by_breakpoint_trap();
-	cout << "Decode clusters ... " << endl;
-	c_ptr->streamout_clusters(stream_clusters);
-	time(&time_end);
-	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-#endif
-
 	cout << "begin merge groups into clusters..." << endl;
 	time(&time_begin);
 	ClusterGen *c_ptr = new ClusterGen(g_ptr);
@@ -132,9 +122,26 @@ int	main(int argc, char* argv[]) {
 	//c_ptr->pic_clusters(pic_cluster);
 	time(&time_end);
 	cout << "Time cost for clustering " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-	
 
-	#if FILTER
+	BugSearcher search_engine(c_ptr);
+	cluster_t *cluster = search_engine.report_spinning_cluster();
+	group_t *suspicious_group = NULL;
+	event_t *suspicious_block_event = NULL;
+	
+	if (cluster) {
+		cerr << "Get suspicious cluster" << endl;
+		suspicious_group = search_engine.suspicious_segment(cluster);
+		suspicious_block_event = search_engine.suspicious_blocking(cluster);
+		if (suspicious_group)
+			cout << "Suspicious group " << hex << suspicious_group->get_group_id() << endl;
+		if (suspicious_block_event)
+			cout << "Suspicious wait " << fixed << setprecision(1) << suspicious_block_event->get_abstime() << endl;
+	}
+
+	if (!suspicious_group && !suspicious_block_event)
+		cout << "Fail to diagnose" << endl;
+
+#if FILTER
 	cout << "Time cost for decodeing original cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 	cout << "begin filter cluster" << endl;
 	Filter * filter_ptr = new Filter(c_ptr);
@@ -147,13 +154,13 @@ int	main(int argc, char* argv[]) {
 	filter_ptr->streamout_filtered_clusters(stream_filtered_clusters);
 	time(&time_end);
 	cout << "Time cost for decodeing filted cluster" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-	#endif
+#endif
 
 	/* decoding */
 	time(&time_begin);
 	cout << "Decode event list... " << endl;
 	EventListOp::streamout_all_event(event_lists[0], streamout_file.c_str());
-	EventListOp::dump_all_event(event_lists[0], eventdump_file.c_str());
+	//EventListOp::dump_all_event(event_lists[0], eventdump_file.c_str());
 	time(&time_end);
 	cout << "Time cost for decodeing event list" << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 	

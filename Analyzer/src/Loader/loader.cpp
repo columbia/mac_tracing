@@ -30,9 +30,6 @@ namespace LoadData
 			tid = it->first;
 			pid = (it->second).first;
 			command = (it->second).second;
-			//cout << "tid " << hex << tid\
-			//<< "\tpid " << hex << pid\
-			//<<"\t" << command << endl;
 		}
 
 		infile.close();
@@ -78,5 +75,121 @@ namespace LoadData
 		else if (LoadData::op_code_map.find(opname) != op_code_map.end())
 			code = LoadData::op_code_map.at(opname);
 		return code;
+	}
+
+	bool find_proc_in_procs(string proc_name)
+	{
+		ifstream infile(meta_data.procs_file);	
+		if (infile.fail()) {
+			cerr << "Error: fail to open file " << meta_data.procs_file << endl;
+			exit(EXIT_FAILURE);
+		}
+		string line, procname;
+		pid_t pid = 0;
+		while (getline(infile, line)) {
+			istringstream iss(line);
+			if (!(iss >> pid))
+				goto out;
+			if (!getline(iss >> ws, procname) || !procname.size())
+				goto out;
+			if (procname == proc_name) {
+				infile.close();
+				return true;
+			}
+		}
+	out:
+		infile.close();
+		cerr << "Fail to read procname " << proc_name << " from " << meta_data.procs_file << endl;
+		return false;
+	}
+
+#include <dirent.h>
+	bool load_lib(string proc_name) 
+	{
+		if (!meta_data.libs_dir.size())
+			return false;
+		DIR *dir;
+		struct dirent *entry;
+		dir = opendir(meta_data.libs_dir.c_str());
+
+		if (!dir) {
+			cerr << "Error: missing libraries info directory" << endl;
+			return false;
+		}
+
+		while ((entry = readdir(dir))) {
+			if (!(entry->d_name)) {
+				cerr << "Error: fail to read file name from entry " << endl;
+				goto out;
+			}
+
+			if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+				continue;
+			string filename(meta_data.libs_dir + "/" + entry->d_name);
+			ifstream infile(filename);
+			if (infile.fail()) {
+				cerr << "Error: fail to open file " << entry->d_name << endl;
+				goto out;
+			}
+
+			{
+				string line;
+				if (!getline(infile, line)) {
+					infile.close();
+					cerr << "fail 0" << endl;
+					goto out;
+				}
+
+				istringstream iss(line);
+				string procname, arch, unused;
+				pid_t pid;
+				if (!(iss >> unused >> hex >> pid >> arch) || !(getline(iss >> ws, procname)) || !procname.size()) {
+					infile.close();
+					cerr << "fail 1" << endl;
+					goto out;
+				}
+
+				if (procname == proc_name) {
+					//append file to lib file
+					ofstream outfile(meta_data.libinfo_file, ios::out | ios::app);
+					infile.seekg(0);
+					outfile << infile.rdbuf();
+					outfile.close();
+					infile.close();
+					closedir(dir);
+					return true;
+				}
+			}
+		}
+	out:
+		closedir(dir);
+		cerr << "Error: missing memory layout info for proc" << proc_name << endl;
+		return false;
+	}
+	
+	bool load_all_libs(void)
+	{
+		if (!meta_data.libs_dir.size() || !meta_data.procs_file.size())
+			return false;
+		ifstream infile(meta_data.procs_file);	
+		if (infile.fail()) {
+			cerr << "Error: fail to open file " << meta_data.procs_file << endl;
+			exit(EXIT_FAILURE);
+		}
+		string line, procname;
+		pid_t pid;
+		while (getline(infile, line)) {
+			istringstream iss(line);
+			if (!(iss >> pid) || !getline(iss >> ws, procname) || !procname.size())
+				goto out;
+
+			if (!load_lib(procname)) {
+				cerr << "Fail to load lib for proc " << procname  << "[" << pid << "]" << endl;
+				continue;
+			}
+		}
+	out:
+		infile.close();
+		return false;
 	}
 }
