@@ -111,24 +111,22 @@ uint8_t* type_filter_bitmap;
 
 #define CSC_MASK		0xffff0000
 
-#define VFS_LOOKUP		0x03010090
+//#define VFS_LOOKUP		0x03010090
 #define BSC_exit		0x040c0004
 #define BSC_thread_terminate	0x040c05a4
 #define TRACE_DATA_NEWTHREAD	0x07000004
 #define TRACE_STRING_NEWTHREAD	0x07010004
 #define TRACE_STRING_EXEC	0x07010008
 #define TRACE_LOST_EVENTS	0x07020008
-#define TRACE_INFO_STRING	0x07020010
+//#define TRACE_INFO_STRING	0x07020010
 #define MACH_SCHEDULED		0x01400000
-
 #define MACH_MAKERUNNABLE	0x01400018
+#define MACH_STKHANDOFF		0x01400008
 
 #ifndef ORIGINAL
-#define MACH_WAIT_DEBUGID	 0x1400040
+#define MACH_WAIT_DEBUGID	0x01400040
 #define MACH_WAKEUP_REASON	0x01400108
 #endif
-
-#define MACH_STKHANDOFF		0x01400008
 
 #define EMPTYSTRING ""
 #define UNKNOWN "unknown"
@@ -960,14 +958,14 @@ Log_trace()
 void
 Log_trace()
 {
-	int	size;
+	//int	size;
 	kd_buf  kd_tmp;
 	size_t	len;
 	int	num_cpus;
 	int	try_writetrace = 1;
 	int	fd;
-        char		*buffer;
-        kd_buf		*kd;
+	char		*buffer;
+	kd_buf		*kd;
 	uint64_t sample_window_abs;
 	uint64_t next_window_begins;
 	uint64_t current_abs;
@@ -1131,7 +1129,9 @@ void read_trace()
 	int 		firsttime = 1;
 	int		lines = 0;
 	int		io_lines = 0;
+#ifdef ORIGINAL
 	uint64_t	bias = 0;
+#endif
 	uint32_t	count_of_names;
 	double		last_event_time = 0.0;
 	time_t		trace_time;
@@ -1208,7 +1208,9 @@ void read_trace()
 		uint32_t count;
 		uint64_t now = 0;
 		uint64_t prev;
+#ifdef ORIGINAL
 		uint64_t prevdelta;
+#endif
 		uint32_t cpunum;
 		uintptr_t thread;
 		double	x = 0.0;
@@ -1373,8 +1375,10 @@ void read_trace()
 					update_tc_map(kdp->arg5, command);
 				}
 
+				/*
 				if (!strcmp(command, EMPTYSTRING))
 					printf("trace : unknown command for thread 0x%lx\n", kdp->arg5);
+				*/
 #endif
 			}
 
@@ -1465,6 +1469,7 @@ void read_trace()
 					}
 				}
 			}
+
 			if (match_debugid(debugid_base, dbgmessge, &dmsgindex)) {
 				if (ending_event)
 					fprintf(output_file, "%13.1f %10.1f%s %-28x  ", x, y, outbuf, debugid_base);
@@ -1476,6 +1481,7 @@ void read_trace()
 				else
 					fprintf(output_file, "%13.1f %10.1f             %-28.28s  ", x, y, dbgmessge);
 			}
+
 			if (lkp) {
 				char *strptr;
 				int	len;
@@ -1490,6 +1496,7 @@ void read_trace()
 					len -= 51;
 				else
 					len = 0;
+
 #ifdef __LP64__
 
 				fprintf(output_file, "%-16lx %-51s %-16lx  %-2d %s\n", lkp->lk_dvp, &strptr[len], thread, cpunum, command);
@@ -1551,8 +1558,10 @@ char **env;
 	extern int optind;
 	int ch;
 	int i;
-	//char *output_filename = NULL;
+#ifdef ORIGINAL
+	char *output_filename = NULL;
 	char *filter_filename = NULL;
+#endif
 	unsigned int parsed_arg;
 
 	for (i = 1; i < argc; i++) {
@@ -2549,12 +2558,15 @@ static int binary_search(list, lowbound, highbound, code)
 	} 
 }
 
-
 static int
 parse_codefile(const char *filename)
 {
 	int fd;
+#ifdef ORIGINAL
 	int i, j, line;
+#else
+	int j, line;
+#endif
 	size_t count;
 	struct stat stat_buf;
 	unsigned long file_size;

@@ -53,18 +53,12 @@ $1: $(PWD)/obj/$(notdir $1).o $(CXX_OBJECTS) $(C_OBJECTS)
 	$(CXX) $(INCLUDES) $(CXX_OBJECTS) $(C_OBJECTS) $(LDFLAGS) $$< -o $$@ 
 	install_name_tool -change @rpath/LLDB.framework/LLDB \
 	/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/LLDB $$@
-	cp $$@ ../util/
+	cp $$@ ../utils/
 endef
 
 $(foreach target, $(EXECUTABLE), $(eval $(call make-target, $(target))))
 $(foreach bdir, $(OBJ_DIR), $(eval $(call make-goal-cxx, $(bdir))))
 $(foreach bdir, $(OBJ_DIR), $(eval $(call make-goal-c, $(bdir))))
-
-#$(PWD)/obj/Parser/symbolicator.o:$(PWD)/src/Parser/symbolicator.c
-	#$(CC) $(INCLUDES) $(CFLAGS) $< -o $@
-
-#$(OBJ_DIR)%.o:$(SRC_DIR)%.cpp
-	#$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@
 
 clean:
 	rm -rf obj
