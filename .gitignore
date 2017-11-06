@@ -3,4 +3,8 @@
 
 bin/
 obj/
+*.log
 *.trace
+*.swp
+/EuroSys18/out/*
+/EuroSys18/dep.mk
