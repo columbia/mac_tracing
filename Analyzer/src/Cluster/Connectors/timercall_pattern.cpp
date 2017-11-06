@@ -11,12 +11,16 @@ TimercallPattern::TimercallPattern(list<event_t*> &_timercreate_list, list<event
 void TimercallPattern::connect_timercall_patterns(void)
 {
 #ifdef TIMERCALL_DEBUG
+	mtx.lock();
 	cerr << "begin matching timercall pattern ... " << endl;
+	mtx.unlock();
 #endif
 	connect_create_and_cancel();
 	connect_create_and_timercallout();
 #ifdef TIMERCALL_DEBUG
+	mtx.lock();
 	cerr << "finish matching timercall pattern. " << endl;
+	mtx.unlock();
 #endif
 }
 
@@ -57,7 +61,9 @@ bool TimercallPattern::connect_timercreate_for_timercancel(list<timercreate_ev_t
 		}
 	}
 #if TIMERCALL_DEBUG
+	mtx.lock();
 	cerr << "Warn: no timercreate for timercancel " << fixed << setprecision(1) << timercancel_event->get_abstime() << endl; 
+	mtx.unlock();
 #endif
 	return false;
 }
@@ -98,7 +104,9 @@ bool TimercallPattern::connect_timercreate_for_timercallout(list<timercreate_ev_
 	}
 
 #if TIMERCALL_DEBUG
+	mtx.lock();
 	cerr << "Warn: no timercreate for timercallout " << fixed << setprecision(1) << timercallout_event->get_abstime() << endl; 
+	mtx.unlock();
 #endif
 	return false;
 }

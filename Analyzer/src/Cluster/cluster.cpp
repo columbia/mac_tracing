@@ -60,6 +60,9 @@ void Cluster::push_connectors(group_t *group, event_t *exclude)
 			case BREAKPOINT_TRAP_EVENT:
 				connectors.push_back(dynamic_cast<breakpoint_trap_ev_t *>(event));
 				break;
+			case MR_EVENT:
+				connectors.push_back(dynamic_cast<mkrun_ev_t *>(event));
+				break;
 			case WAIT_EVENT:
 				wait_events.push_back(dynamic_cast<wait_ev_t *>(event));
 				break;
@@ -93,8 +96,11 @@ void Cluster::add_edge(group_t *g1, group_t *g2, event_t *t1, event_t *t2, uint3
 		edges.push_back(edge);
 }
 
-void Cluster::add_node(group_t *g)
+bool Cluster::add_node(group_t *g)
 {
+	if (find(nodes.begin(), nodes.end(), g) != nodes.end())
+		return false;
+	
 	if (g->check_ground() == true) {
 		is_ground = true;
 		gt_groups.push_back(g);
@@ -107,6 +113,7 @@ void Cluster::add_node(group_t *g)
 
 	g->set_cluster_idx(cluster_id);
 	nodes.push_back(g);
+	return true;
 }
 
 bool Cluster::remove_edge(const rel_t edge)
@@ -290,7 +297,9 @@ void Cluster::search_paths(string from_proc, string to_proc, ofstream &outfile,
 	bool *visited = (bool *)malloc(sizeof(bool) * nodes.size());
 	vector<rel_t> paths;
 	if (visited == NULL) {
+		mtx.lock();
 		cerr << "Error: OOM " << __func__ << endl;
+		mtx.unlock();
 		return;
 	}
 	set<group_t *>::iterator node_it;
@@ -314,6 +323,7 @@ void Cluster::search_paths(string from_proc, string to_proc, ofstream &outfile,
 
 			pair<group_t *, string> key = make_pair(*node_it, to_proc);
 			sub_result[key] = paths;
+			break;
 		}
 	}
 	free(visited);
@@ -621,7 +631,7 @@ void Cluster::streamout_cluster(ofstream &outfile)
 		cluster_events.insert(cluster_events.end(), container.begin(), container.end());
 	}
 
-	outfile << "#Events in cluster " << cluster_events.size() << endl;
+	outfile << "#Events in cluster" << cluster_events.size() << endl;
 	cluster_events.sort(Parse::EventComparator::compare_time);
 	list<event_t *>::iterator jt;
 	for (jt = cluster_events.begin(); jt != cluster_events.end(); jt++)

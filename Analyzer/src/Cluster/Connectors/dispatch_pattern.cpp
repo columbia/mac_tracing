@@ -11,12 +11,16 @@ DispatchPattern::DispatchPattern(list<event_t*> &_enq_list, list<event_t *> &_de
 void DispatchPattern::connect_dispatch_patterns(void)
 {
 #ifdef DISP_PATTERN_DEBUG
+	mtx.lock();
 	cerr << "begin matching dispatch... " << endl;
+	mtx.unlock();
 #endif
 	connect_enq_and_deq();
 	connect_deq_and_exe();
 #ifdef DISP_PATTERN_DEBUG
-	cerr << "finished matching dispatch. " << endl;
+	mtx.lock();
+	cerr << "finish matching dispatch. " << endl;
+	mtx.unlock();
 #endif
 }
 
@@ -46,8 +50,10 @@ void DispatchPattern::connect_enq_and_deq(void)
 	for (it = enqueue_list.begin(); it != enqueue_list.end(); it++) {
 		enq_event = dynamic_cast<enqueue_ev_t*>(*it);
 		if (enq_event->is_consumed() == false) {
+			mtx.lock();
 			cerr << "Warn: Not matched enqueue " << fixed << setprecision(1) << enq_event->get_abstime();
 			cerr << "\t" << hex << enq_event->get_tid() << "\t" << enq_event->get_ref()<< endl;
+			mtx.unlock();
 		}
 	}
 #endif
@@ -93,10 +99,12 @@ bool DispatchPattern::connect_dispatch_enqueue_for_dequeue(list<enqueue_ev_t*> &
 		}
 	}
 #if DISP_PATTERN_DEBUG
+	mtx.lock();
 	cerr << "Warn: no enqueue found for dequeue " << fixed << setprecision(1) << dequeue_event->get_abstime();
 	cerr << "\t" << hex << dequeue_event->get_tid() << endl;
 	if (dequeue_event -> is_duplicate())
 		cerr << "Duplicate Dequeue at " << fixed << setprecision(1) << dequeue_event->get_abstime() << endl;
+	mtx.unlock();
 #endif
 	return false;
 }
@@ -120,8 +128,10 @@ bool DispatchPattern::connect_dispatch_dequeue_for_execute(list<dequeue_ev_t*> &
 		} 
 	}
 #if DISP_PATTERN_DEBUG
+	mtx.lock();
 	cerr << "Warn: no dequeue found for blockinvoke " << fixed << setprecision(1) << invoke_event->get_abstime();
 	cerr << "\t" << hex << invoke_event->get_tid() << endl;
+	mtx.unlock();
 #endif
 	return false;
 }

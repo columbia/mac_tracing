@@ -64,7 +64,6 @@ function parse_raw_trace_file()
 	[ -e $2 ] && echo "File processing done successfully"
 }
 
-
 function prepare()
 {
 	mkdir -p $1/input/raw_parse

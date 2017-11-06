@@ -5,8 +5,9 @@ SyscallEvent::SyscallEvent(double timestamp, string op, uint64_t tid, uint64_t s
 	ret_time = 0.0;
 	syscall_class = sc_class;
 	sc_entry = NULL;
-	memset(args, 0, sizeof(uint64_t) * MAX_ARGC);
+	memset(args, -1, sizeof(uint64_t) * MAX_ARGC);
 	nargs = 0;
+	ret = -1;
 }
 
 bool SyscallEvent::audit_args_num(int size)
@@ -53,30 +54,32 @@ void SyscallEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
 	EventBase::decode_event(is_verbose, outfile);
 	outfile << "\n\t" << class_name();
-	if (!sc_entry) {
+	if (ret_time > 0)
 		outfile << "\n\treturn = " << hex << ret << endl;
+	if (!sc_entry)
 		return;
-	}
+
 	outfile << "\n\t" << sc_entry->syscall_name;
 	for (int i = 0; i < MAX_ARGC; i++)
 		if (sc_entry->args[i])
 			outfile << "\n\t" << sc_entry->args[i] << " = " << args[i];
-	outfile << "\n\treturn = " << hex << ret << endl;
 }
 
 void SyscallEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
-	outfile << "\tret = " << hex << ret;
-
+	if (ret_time > 0) {
+		outfile << "\t" << fixed << setprecision(1) << ret_time;
+		outfile << "\tret = " << hex << ret;
+	}
 	if (!sc_entry) {
 		outfile << endl;
 		return;
 	}
 
-	for (int i = 0; i < MAX_ARGC; i++) {
+	for (int i = 0; i < MAX_ARGC; i++)
 		if (sc_entry->args[i] != NULL)
 			outfile << ",\t" << sc_entry->args[i] << " = " << args[i];
-	}
+
 	outfile << endl;
 }

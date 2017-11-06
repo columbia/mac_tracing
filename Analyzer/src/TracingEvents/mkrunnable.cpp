@@ -74,6 +74,7 @@ void MkrunEvent::decode_event(bool is_verbose, ofstream &outfile)
 	} else {
 		outfile << "\n\t[missing wait event]" << endl;
 	}
+	outfile << "\n\t" << mr_type << endl;
 	outfile << endl;
 }
 
@@ -89,6 +90,7 @@ void MkrunEvent::streamout_event(ofstream &outfile)
 			outfile << wait->get_wait_resource();
 		else
 			outfile << "x";
-		outfile << "\t" << hex << peer_tid << endl;
+		outfile << "\t" << hex << peer_tid;
 	}
+	outfile << "\tmr_type " << mr_type << endl;
 }

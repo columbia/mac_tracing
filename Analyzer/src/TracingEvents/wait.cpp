@@ -5,6 +5,7 @@ WaitEvent::WaitEvent(double timestamp, string op, uint64_t tid, uint64_t _wait_e
 {
 	wait_event = _wait_event;
 	mkrun_event = NULL;
+	syscall_event = NULL;
 }
 
 const char * WaitEvent::decode_wait_result(void) 
@@ -42,5 +43,11 @@ void WaitEvent::decode_event(bool is_verbose, ofstream &outfile)
 void WaitEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
-	outfile << "\twait_" << wait_resource << endl;
+	outfile << "\twait_" << wait_resource;
+	if (syscall_event) {
+		outfile << "\twait from " << fixed << setprecision(1) << syscall_event->get_abstime();
+		if (syscall_event->get_ret_time() > 0)
+			outfile << "\tsyscall cost " << fixed << setprecision(1) << syscall_event->get_ret_time() - syscall_event->get_abstime() << endl;
+	}
+	outfile << endl;
 }

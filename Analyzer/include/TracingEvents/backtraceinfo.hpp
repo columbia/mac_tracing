@@ -68,6 +68,8 @@ class Frames {
 	bool is_infected;
 	bool is_spin;
 	Images *image;
+	static int32_t check_symtable;
+
 public:
 	Frames(uint64_t tag, string procname, uint64_t _tid);
 	~Frames() {frame_addrs.clear(); frame_symbols.clear();}

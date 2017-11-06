@@ -1,6 +1,6 @@
 #include "parser.hpp"
+#include "backtraceinfo.hpp"
 #include "group.hpp"
-#include "cluster.hpp"
 #include <time.h>
 
 mutex mtx;
@@ -23,56 +23,51 @@ static string get_prefix(string &input_path)
 }
 
 int	main(int argc, char* argv[]) {
-	if (argc < 4) {
-		cerr << "[usage]: " << argv[0] << "log_file_recorded  APP_name  pid_of_app_current_running" << endl;
+	if (argc < 5) {
+		cerr << "[usage]: " << argv[0] << "log_file_recorded libs_dir app pid" << endl;
 		exit(EXIT_FAILURE);
 	}
 	string logfile = argv[1];
-	string appname	= argv[2];
-	pid_t pid = atoi(argv[3]);
-	cout << "Analyzing " << appname << "[" << dec << pid << "] spinning for " << logfile << endl;
+	string libsdir = argv[2];
+	string appname = argv[3];
+	pid_t pid = atoi(argv[4]);
+
+	cout << "Checking spinning application from " << logfile << endl;
 
 	/* load */
 	LoadData::meta_data = {.datafile = logfile,
+						   .libs_dir = libsdir,
 						   .libinfo_file = "./input/libinfo.log", /*optional*/
 						   .procs_file = "./input/current_procs.log", /*optional*/
 						   .intersectfile = "./input/process_intersection.log", /*optional*/
+						   .tpc_maps_file = "./input/tpcmap.log",
 						   .host = appname,
 						   .pid = pid,
 						   .suspicious_api = "CGSConnectionSetSpinning",
-						   .nthreads = 2};
+						   .nthreads = 6};
 
+	/*generate libinfo_file*/
+	if (LoadData::meta_data.libs_dir.size() || access(LoadData::meta_data.libs_dir.c_str(), R_OK)) {
+		cerr << "No lib info provided " << endl;
+		return -1;
+	}
+
+	LoadData::load_all_libs();
 	LoadData::preload();
 	
-	/* output files */
-	string streamout_file = get_prefix(logfile) + "_allevent.stream";
-	string eventdump_file = get_prefix(logfile) + "_allevent.decode";
-	string check_result = get_prefix(logfile) + "_pattern";
-
 	time_t time_begin, time_end;
-
 	/* parser */
 	cout << "Begin parse..." << endl;
 	lldb::SBDebugger::Initialize();
 	time(&time_begin);
-	map<uint64_t, list<event_t *>> event_lists = Parse::divide_and_parse();
+	list<event_t *> event_list = Parse::parse_backtrace();
+	//map<uint64_t, list<event_t *>> event_lists = Parse::divide_and_parse();
 	lldb::SBDebugger::Terminate();
 	time(&time_end);
 	cout << "Time cost for parsing " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
 
-	/* grouping */
-	cout << "begin filling connectors ..." << endl;
-	time(&time_begin);
-	groups_t * g_ptr = new groups_t(event_lists);
-	cerr << "begin check pattern ... " << endl;
-	g_ptr->check_pattern(check_result);
-	time(&time_end);
-	cout << "Time cost for checking pattern " << fixed << setprecision(2) << difftime(time_end, time_begin) << "seconds"<< endl;
-
-	cout << "Clearing groups..." << endl;
-	delete(g_ptr);
 	cout << "Clearing events..." << endl;
-	EventListOp::clear_event_list(event_lists[0]);
+	EventListOp::clear_event_list(event_list);
 	cout << "Done!" << endl;
 	return 0;
 }

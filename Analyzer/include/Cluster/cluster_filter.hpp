@@ -9,9 +9,6 @@ class Filter {
 	map<uint64_t, cluster_t *> original_clusters;
 	map<uint64_t, cluster_t *> filtered_clusters;
 	set<string> process_set;
-	
-	//typedef multimap<group_t *, rel_t> node_edges_map_t;
-	//typedef pair<multimap<group_t *, rel_t>::iterator, multimap<group_t *, rel_t>::iterator> multimap_range_t;
 
 	void select_clusters(clusters_t * clusters);
 	void sort_cluster_edges(vector<rel_t> &cluster_edges, node_edges_map_t & to_edges, node_edges_map_t & from_edges);

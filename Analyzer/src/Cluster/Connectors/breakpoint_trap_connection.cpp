@@ -24,6 +24,7 @@ void BreakpointTrapConnection::flip_var_connection(string var, uint32_t prev_val
 		prev_writes[var].push_back(cur_event);
 		cur_event->set_trigger_var(var);
 #if DEBUG_BREAKPOINT_TRAP
+		mtx.lock();
 		if (var == "gOutMsgPending") {
 			cerr << "Set write ?";
 			if (cur_event->check_read())
@@ -32,6 +33,7 @@ void BreakpointTrapConnection::flip_var_connection(string var, uint32_t prev_val
 				cerr << "Y";
 			cerr << "\t val = " << cur_event->get_trigger_val() << endl;
 		}
+		mtx.unlock();
 #endif
 	} else if (prev_val == 1 && val == 0) {
 		cur_event->set_read(true);
@@ -43,6 +45,7 @@ void BreakpointTrapConnection::flip_var_connection(string var, uint32_t prev_val
 		}
 		cur_event->set_trigger_var(var);
 #if DEBUG_BREAKPOINT_TRAP
+		mtx.lock();
 		if (var == "gOutMsgPending") {
 			cerr << "Set read ?";
 			if (cur_event->check_read())
@@ -51,10 +54,13 @@ void BreakpointTrapConnection::flip_var_connection(string var, uint32_t prev_val
 				cerr << "N";
 			cerr << "\t val = " << cur_event->get_trigger_val() << endl;
 		}
+		mtx.unlock();
 #endif
 	} else {
 #if DEBUG_BREAKPOINT_TRAP
+		mtx.lock();
 		cerr << "No Flip expected at current event at " << fixed << setprecision(1) << cur_event->get_abstime() << endl; 
+		mtx.unlock();
 #endif
 	}
 }
@@ -94,6 +100,11 @@ void BreakpointTrapConnection::breakpoint_trap_connection(void)
 	prev_values.clear();
 	prev_writes.clear();
 	
+#ifdef DEBUG_BREAKPOINT_TRAP
+	mtx.lock();
+	cerr << "begin breakpoint trap (shared variable) connection... " << endl;
+	mtx.unlock();
+#endif
 	for (it = breakpoint_trap_list.begin(); it != breakpoint_trap_list.end(); it++) {
 		cur_event = dynamic_cast<breakpoint_trap_ev_t *>(*it);
 		map<string, uint32_t> cur_targets = cur_event->get_targets();
@@ -121,4 +132,9 @@ void BreakpointTrapConnection::breakpoint_trap_connection(void)
 		(vec_it->second).clear();
 	
 	prev_writes.clear();
+#ifdef DEBUG_BREAKPOINT_TRAP
+	mtx.lock();
+	cerr << "finish breakpoint trap connection." << endl;
+	mtx.unlock();
+#endif
 }

@@ -25,7 +25,7 @@ namespace Parse
 		if (ret == false)
 			goto clear_debugger;
 
-		cerr << "load lldb for symbolize rips " << endl;
+		cerr << "load lldb for symbolize rips ..." << endl;
 		for (it = local_event_list.begin(); it != local_event_list.end();
 			it++) {
 			intr_event = dynamic_cast<intr_ev_t *>(*it);
@@ -42,7 +42,7 @@ namespace Parse
 				intr_event->set_rip_info(rip_symbol);
 			}
 		}
-		cerr << "finished rip symbolization" << endl;
+		cerr << "finish rip symbolization." << endl;
 		
 	clear_debugger:
 		if (cur_debugger.debugger.IsValid()) {

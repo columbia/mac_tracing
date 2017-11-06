@@ -3,15 +3,21 @@
 
 typedef map<mkrun_ev_t *, list<event_t *>::iterator> mkrun_pos_t;
 
-Clusters::Clusters(groups_t *_groups_ptr)
+ClusterInit::ClusterInit(groups_t *_groups_ptr)
 :groups_ptr(_groups_ptr)
 {
 	clusters.clear();
 	index = 0;
 	assert(groups_ptr != NULL);
+	merge_by_mach_msg();
+	merge_by_dispatch_ops();
+	merge_by_mkrun();
+	merge_by_timercallout();
+	merge_by_ca();
+	merge_by_breakpoint_trap();
 }
 
-Clusters::~Clusters(void)
+ClusterInit::~ClusterInit(void)
 {
 	map<uint64_t, cluster_t *>::iterator it;
 	for (it = clusters.begin(); it != clusters.end(); it++) {
@@ -23,7 +29,7 @@ Clusters::~Clusters(void)
 	groups_ptr = NULL;
 }
 
-cluster_t *Clusters::cluster_of(group_t *g)
+cluster_t *ClusterInit::cluster_of(group_t *g)
 {
 	if (g->get_cluster_idx() == (uint64_t)-1)
 		return NULL;
@@ -31,13 +37,15 @@ cluster_t *Clusters::cluster_of(group_t *g)
 	if (clusters.find(g->get_cluster_idx()) != clusters.end())
 		return clusters[g->get_cluster_idx()];
 
+	mtx.lock();
 	cerr << "Error: cluster with index " << g->get_cluster_idx();
 	cerr << " not found." << endl;
+	mtx.unlock();
 
 	return NULL;
 }
 
-cluster_t *Clusters::create_cluster()
+cluster_t *ClusterInit::create_cluster()
 {
 	cluster_t *new_c = new cluster_t();
 
@@ -51,7 +59,7 @@ cluster_t *Clusters::create_cluster()
 	return new_c;
 }
 
-bool Clusters::del_cluster(cluster_t *c)
+bool ClusterInit::del_cluster(cluster_t *c)
 {
 	uint64_t index = c->get_cluster_id();
 	map<uint64_t, cluster_t *>::iterator it = clusters.find(index);
@@ -66,21 +74,23 @@ bool Clusters::del_cluster(cluster_t *c)
 	return true;
 }
 
-cluster_t * Clusters::merge(cluster_t *c1, cluster_t *c2)
+cluster_t * ClusterInit::merge(cluster_t *c1, cluster_t *c2)
 {
 	c1->append_nodes(c2->get_nodes());
 	c1->append_edges(c2->get_edges());
 	return c1;
 }
 
-void Clusters::merge_clusters_of_events(event_t *prev_e, event_t *cur_e,
+void ClusterInit::merge_clusters_of_events(event_t *prev_e, event_t *cur_e,
 	uint32_t rel_type)
 {
 	group_t *prev_g = groups_ptr->group_of(prev_e);
 	group_t *cur_g = groups_ptr->group_of(cur_e);
 
 	if (!prev_g || !cur_g) {
+		mtx.lock();
 		cerr << "Check: groups of events do not exist" << endl;
+		mtx.unlock();
 		return;
 	}
 
@@ -99,7 +109,9 @@ void Clusters::merge_clusters_of_events(event_t *prev_e, event_t *cur_e,
 		if (cur_c == NULL) {
 			new_c = create_cluster();
 			if (!new_c) {
+				mtx.lock();
 				cerr << "OOM " << __func__ << endl;
+				mtx.unlock();
 				return;
 			}
 
@@ -130,9 +142,11 @@ void Clusters::merge_clusters_of_events(event_t *prev_e, event_t *cur_e,
 	//TODO: set group root
 }
 
-void Clusters::merge_by_mach_msg()
+void ClusterInit::merge_by_mach_msg()
 {
+	mtx.lock();
 	cerr << "merge cluster via mach_msg pattern\n";
+	mtx.unlock();
 	list<event_t *>::iterator it;
 	list<event_t *> mach_msg_list = groups_ptr->get_list_of_op(MACH_IPC_MSG);
 	msg_ev_t *curr_msg = NULL;
@@ -151,18 +165,24 @@ void Clusters::merge_by_mach_msg()
 				if (peer_msg->get_abstime() >= curr_msg->get_abstime()) 
 					merge_clusters_of_events(curr_msg, peer_msg, MSGP_REL);
 			} else if (!curr_msg->is_freed_before_deliver()) {
+				mtx.lock();
 				cerr << "Check: no peer msg found for : ";
 				cerr << fixed << setprecision(2) \
 					<< curr_msg->get_abstime() << endl;
+				mtx.unlock();
 			}
 		}
 	}
+	mtx.lock();
 	cerr << "merge mach msg done\n";
+	mtx.unlock();
 }
 
-void Clusters::merge_by_dispatch_ops()
+void ClusterInit::merge_by_dispatch_ops()
 {
+	mtx.lock();
 	cerr << "merge cluster via dispatch-execute\n";
+	mtx.unlock();
 	list<event_t *>::iterator it;
 	list<event_t *> dispatch_exe_list = groups_ptr->get_list_of_op(DISP_EXE);
 
@@ -185,12 +205,16 @@ void Clusters::merge_by_dispatch_ops()
 		if (root)
 			merge_clusters_of_events(root, deq_event, DISP_EXE_REL);
 	}
+	mtx.lock();
 	cerr << "merge dispatch-execute done\n";
+	mtx.unlock();
 }
 
-void Clusters::merge_by_timercallout()
+void ClusterInit::merge_by_timercallout()
 {
+	mtx.lock();
 	cerr << "merge cluster via timercallout\n";
+	mtx.unlock();
 	list<event_t *>::iterator it;
 	list<event_t *> timercallout_list
 		= groups_ptr->get_list_of_op(MACH_CALLOUT);
@@ -227,10 +251,12 @@ void Clusters::merge_by_timercallout()
 				CALLOUTCANCEL_REL);
 	}
 
+	mtx.lock();
 	cerr << "merge timercallouts done\n";
+	mtx.unlock();
 }
 
-void Clusters::merge_by_ca()
+void ClusterInit::merge_by_ca()
 {
 	list<event_t *>::iterator it;
 	list<event_t *> ca_display_list = groups_ptr->get_list_of_op(CA_DISPLAY);
@@ -244,7 +270,7 @@ void Clusters::merge_by_ca()
 	}
 }
 
-void Clusters::merge_by_breakpoint_trap()
+void ClusterInit::merge_by_breakpoint_trap()
 {
 	list<event_t *>::iterator it;
 	list<event_t *> breakpoint_trap_list = groups_ptr->get_list_of_op(BREAKPOINT_TRAP);
@@ -256,53 +282,23 @@ void Clusters::merge_by_breakpoint_trap()
 	}
 }
 
-void Clusters::merge_by_mkrun()
+void ClusterInit::merge_by_mkrun()
 {
-	cerr << "merge cluster via mkrun : ";
-	cerr << groups_ptr->get_all_mkrun().size() << "\n";
-
-	mkrun_pos_t all_mkrun = groups_ptr->get_all_mkrun();
-	mkrun_pos_t::iterator mkrun_it;
-
-	for (mkrun_it = all_mkrun.begin(); mkrun_it != all_mkrun.end();
-		mkrun_it++) {
-		mkrun_ev_t *mr_event = mkrun_it->first;
-		list<event_t *> &tidlist
-			= groups_ptr->get_list_of_tid(mr_event->get_peer_tid());
-		list<event_t *>::iterator pos = mkrun_it->second;
-
-		if (pos == tidlist.end()) {
-			cerr << "invalid mkrun pair record for mkrunnable at ";
-			cerr << fixed << setprecision(1) << mr_event->get_abstime();
-			continue;
+	list<event_t *>::iterator it;
+	list<event_t *> mkrun_list = groups_ptr->get_list_of_op(MACH_MK_RUN);
+	for (it = mkrun_list.begin(); it != mkrun_list.end(); it++) {
+		mkrun_ev_t *mkrun_event = dynamic_cast<mkrun_ev_t *>(*it);
+		if (mkrun_event->get_group_id() != -1 && mkrun_event->get_peer_event()) {
+			//clear wait && run_nextreq
+			if (mkrun_event->get_mr_type() == CLEAR_WAIT || mkrun_event->get_mr_type() == WORKQ_MR)
+				continue;
+			merge_clusters_of_events(mkrun_event, mkrun_event->get_peer_event(), MKRUN_REL);
 		}
+	}
 
-		while (pos != tidlist.end()
-			&& (*pos)->get_group_id() == (uint64_t) -1) {
-			//TODO : check events that are not grouped
-			pos++; 
-		} 
-			
-		if (pos == tidlist.end()) {
-			cerr << "invalid mkrun pair record after skip ungrouped event;";
-			cerr << fixed << setprecision(1) << mr_event->get_abstime() << endl;
-			continue;
-		}
-
-		// timer timercallout
-		if (dynamic_cast<timercallout_ev_t *>(*pos))
-			continue;
-
-		// clear wait && run_nextreq
-		if (mr_event->get_mr_type() == WORKQ_MR)
-			continue;
-		
-		merge_clusters_of_events(mr_event, (*pos), MKRUN_REL);
-	}	
-	cerr << "merge make_run done\n";
 }
 
-void Clusters::decode_clusters(string & output_path)
+void ClusterInit::decode_clusters(string & output_path)
 {
 	ofstream output(output_path);
 	map<uint64_t, cluster_t *>::iterator it;
@@ -310,7 +306,9 @@ void Clusters::decode_clusters(string & output_path)
 	int ground = 0;
 	cluster_t *cur_cluster;
 
+	mtx.lock();
 	cerr << "Total number of Clusters = " << hex << clusters.size() << endl;
+	mtx.unlock();
 	for (it = clusters.begin(); it != clusters.end(); it++) {
 		cur_cluster = it->second;
 		assert(cur_cluster);
@@ -326,12 +324,14 @@ void Clusters::decode_clusters(string & output_path)
 		}
 	}
 	output.close();
+	mtx.lock();
 	cerr << "number of ground truth Clusters = ";
 	cerr << hex << ground << " over ";
 	cerr << hex << clusters.size() << "in total "<< endl;
+	mtx.unlock();
 }
 
-void Clusters::streamout_clusters(string & output_path)
+void ClusterInit::streamout_clusters(string & output_path)
 {
 	ofstream outfile(output_path);
 	map<uint64_t, cluster_t*>::iterator it;
@@ -349,7 +349,7 @@ void Clusters::streamout_clusters(string & output_path)
 	outfile.close();
 }
 
-void Clusters::decode_dangle_groups(string & output_path)
+void ClusterInit::decode_dangle_groups(string & output_path)
 {
 	ofstream output(output_path);
 	map<uint64_t, group_t *> &gs = groups_ptr->get_groups();
@@ -369,8 +369,10 @@ void Clusters::decode_dangle_groups(string & output_path)
 		}
 	}
 	output.close();
+	mtx.lock();
 	cerr << "dangle group num = " << hex << dangle_groups;
 	cerr << "(out of " << hex << total_groups << " total groups)\n";
 	cerr << "single group num = " << hex << single_groups;
 	cerr << "(out of " << hex << dangle_groups << " dangle groups)\n";
+	mtx.unlock();
 }

@@ -11,9 +11,11 @@ void IPCForest::construct_new_node(voucher_ev_t * voucher_info)
 	uint64_t cur_tid = voucher_info->get_tid();
 	
 	if (incomplete_nodes.find(cur_tid) != incomplete_nodes.end()) {
+		mtx.lock();
 		cerr << "Error : Missing ipc msg to carry voucher at ";
 		cerr << fixed << setprecision(1) << incomplete_nodes[cur_tid]->get_voucher()->get_abstime();
 		cerr << "\tthread_id = " << hex << cur_tid << endl;
+		mtx.unlock();
 		delete(incomplete_nodes[cur_tid]);
 	}
 	
@@ -35,8 +37,10 @@ bool IPCForest::update_voucher_and_connect_ipc(IPCNode *ipcnode)
 	
 	if (voucher_status.find(vchaddr) != voucher_status.end()) {
 		if (voucher_status[vchaddr].guarder == NULL) {
+			mtx.lock();
 			cerr << "Error : prev voucher status maintained without corresponding ipc activity ";
 			cerr << fixed << setprecision(1) << voucher_info->get_abstime() << endl;
+			mtx.unlock();
 			goto out;
 		}
 
@@ -80,8 +84,10 @@ bool IPCForest::update_voucher_and_connect_ipc(IPCNode *ipcnode)
 				break;
 
 			default:
+				mtx.lock();
 				cerr << "Error: unkown voucher status set by ";
 				cerr << fixed << setprecision(1) << prev->get_voucher()->get_abstime() << endl;
+				mtx.unlock();
 				
 		}
 	}
@@ -96,8 +102,10 @@ void IPCForest::construct_ipc_relation(msg_ev_t * mach_msg)
 	uint64_t cur_tid =  mach_msg->get_tid();
 	if (incomplete_nodes.find(cur_tid) == incomplete_nodes.end()) {
 		#if DEBUG_VOUCHER
+		mtx.lock();
 		cerr << "Check : msg without voucher ";
 		cerr  << fixed << setprecision(1) << mach_msg->get_abstime() << endl;
+		mtx.unlock();
 		#endif
 		return;
 	}
@@ -105,8 +113,11 @@ void IPCForest::construct_ipc_relation(msg_ev_t * mach_msg)
 	IPCNode * ipc_node = incomplete_nodes[cur_tid];
 	if (ipc_node->get_voucher()->get_carrier() == mach_msg)
 		ipc_node->set_msg(mach_msg);
-	else
-		cerr << "Incorrect voucher_msg pair" << endl;
+	else {
+		mtx.lock();
+		cerr << "Error: Incorrect voucher_msg pair" << endl;
+		mtx.unlock();
+	}
 
 	bool add_to_tree = update_voucher_and_connect_ipc(ipc_node);
 
@@ -124,22 +135,28 @@ void IPCForest::update_voucher_status(voucher_conn_ev_t * voucher_copy)
 	uint64_t voucher_new = voucher_copy->get_voucher_new();
 
 	if (voucher_status.find(voucher_ori) == voucher_status.end()) {
+		mtx.lock();
 		cerr << "Check: No corresponding original voucher found ";
 		cerr << fixed << setprecision(1) << voucher_copy->get_abstime() << endl;
+		mtx.unlock();
 		return;
 	}
 
 	if (voucher_status.find(voucher_new) != voucher_status.end()) {
 		if (voucher_status[voucher_new].status != IN_COPY
 			|| (uint64_t)(voucher_status[voucher_new].holder) != cur_tid) {
+			mtx.lock();
 			cerr << "Error: try to copy to a inuse voucher ";
 			cerr << fixed << setprecision(1) << voucher_copy->get_abstime() << endl;
+			mtx.unlock();
 		}
 
 		if (voucher_status[voucher_new].status == IN_COPY
 			&& voucher_status[voucher_new].voucher_copy_src != voucher_ori) {
+			mtx.lock();
 			cerr << "Check: copy voucher from different voucher src:";
 			cerr << fixed << setprecision(1) << voucher_copy->get_abstime() << endl;
+			mtx.unlock();
 			//There must be only one bank attr copied
 		}// otherwise ignore this copy
 	} else {
@@ -164,16 +181,20 @@ void IPCForest::update_voucher_status(voucher_transit_ev_t *voucher_transit)
 			//			  update the status of the new voucher
 			//
 			if (voucher_status.find(voucher_dst) == voucher_status.end()) {
-		#if DEBUG_VOUCHER
+#if DEBUG_VOUCHER
+				mtx.lock();
 				cerr << "Check : create voucher without attr copy ";
 				cerr << fixed << setprecision(1) << voucher_transit->get_abstime() << endl;
-		#endif
+				mtx.unlock();
+#endif
 			} else {
 				if (voucher_status[voucher_dst].holder != cur_tid) {
-		#if DEBUG_VOUCHER
+#if DEBUG_VOUCHER
+					mtx.lock();
 					cerr << "Check : create voucher other thread held ";
 					cerr << fixed << setprecision(1) << voucher_transit->get_abstime() << endl;
-		#endif
+					mtx.unlock();
+#endif
 				} else {
 					voucher_status[voucher_dst].status = IN_CREATE;
 				}
@@ -185,16 +206,20 @@ void IPCForest::update_voucher_status(voucher_transit_ev_t *voucher_transit)
 			//            update the status of the reused voucher, leave deletion of new voucher
 			//            to voucher_terminate events
 			if (voucher_status.find(voucher_src) == voucher_status.end()) {
-		 	#if DEBUG_VOUCHER
+#if DEBUG_VOUCHER
+				mtx.lock();
 				cerr << "Check : reuse voucher without attr copy procedure ";
 				cerr << fixed << setprecision(1) << voucher_transit->get_abstime() << endl;
-			#endif
+				mtx.unlock();
+#endif
 			} else {
 				if (voucher_status.find(voucher_dst) != voucher_status.end()) {
-				#if DEBUG_VOUCHER
+#if DEBUG_VOUCHER
+					mtx.lock();
 					cerr << "Check : reuse voucher held by other ipc_node ";
 					cerr << fixed << setprecision(1) << voucher_transit->get_abstime() << endl;
-				#endif
+					mtx.unlock();
+#endif
 				}
 				voucher_status[voucher_dst].holder = voucher_status[voucher_src].holder;
 				voucher_status[voucher_dst].status = IN_REUSE;
@@ -253,7 +278,9 @@ void IPCForest::check_remain_incomplete_nodes(void)
 		// print debug info for checking
 		map<uint64_t, IPCNode *>::iterator it;
 		for (it = incomplete_nodes.begin(); it != incomplete_nodes.end(); it++) {
+			mtx.lock();
 			cerr << "Incomplete IPCNode at " << fixed << setprecision(1) << (it->second)->get_voucher()->get_abstime() << endl;
+			mtx.unlock();
 			delete(it->second);
 		}
 	}
@@ -265,7 +292,9 @@ void IPCForest::decode_voucher_relations(const char * outfile)
 	uint64_t tree_index = 0;
 	ofstream output(outfile);
 	if (output.fail()) {
+		mtx.lock();
 		cerr << "unable to open file" << outfile << endl;
+		mtx.unlock();
 		return;
 	}
 

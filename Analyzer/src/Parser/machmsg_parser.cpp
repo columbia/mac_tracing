@@ -120,8 +120,7 @@ namespace Parse
 			procname = "";
 		
 		if (msg_events.find(tid) != msg_events.end()) {
-			if (msg_events[tid]->get_header()->check_recv() \
-				== bool(rcv_or_send - 1)) {
+			if (msg_events[tid]->get_header()->check_recv() == bool(rcv_or_send - 1)) {
 				msg_ev_t * cur_msg = msg_events[tid], *mig_send = NULL;
 			
 				/* Check if current msg is kern_service recv,
@@ -129,13 +128,11 @@ namespace Parse
 				 */
 				uint64_t msgh_id = cur_msg->get_header()->get_msgh_id();
 				mig_send = check_mig_recv_by_send(cur_msg, msgh_id);
-					//cur_msg->get_header()->get_msgh_id());
 
-				if (cur_msg->get_header()->set_msgh_id(msgh_id, mig_send) == false
-					//cur_msg->get_header()->get_msgh_id(), mig_send) == false
-					&& mig_send)
+				if (cur_msg->get_header()->set_msgh_id(msgh_id, mig_send) == false && mig_send) {
 					outfile << "Error: Incorrect mig number, not a recv ";
 					outfile << fixed << setprecision(1) << abstime << endl;
+				}
 
 				msg_events[tid]->set_user_addr(user_addr);
 				msg_events[tid]->set_complete();
@@ -306,7 +303,6 @@ namespace Parse
 				continue;
 			}
 
-			ret = false;
 			switch  (collector[opname]) {
 				case MACH_IPC_kmsg_free:
 					ret = process_kmsg_free(opname, abstime, iss);
@@ -326,6 +322,7 @@ namespace Parse
 					outfile << "Error: unknown opname " << endl;
 					ret = false;
 			}
+
 			if (ret == false) {
 				outfile << line << endl;
 			}

@@ -151,7 +151,7 @@ namespace Parse
 		else if (dynamic_cast<dequeue_ev_t *>(local_event_list.front()))
 			symbolize_dequeue(&cur_debugger);
 
-		cerr << "finished dispatch event symbolization" << endl;
+		cerr << "finish dispatch event symbolization." << endl;
 
 	clear_debugger:
 		if (cur_debugger.debugger.IsValid()) {
@@ -254,7 +254,7 @@ namespace Parse
 			tid, func, _ctxt, _begin, coreid, procname);
 		if (!new_invoke) {
 			cerr << "OOM: " << __func__ << endl;
-			return false;
+			exit(EXIT_FAILURE);
 		}
 
 		if (checking_blockinvoke_pair(new_invoke) == false) {
@@ -280,7 +280,7 @@ namespace Parse
 		disp_mig_ev_t *mig_service = new disp_mig_ev_t(abstime, opname, tid, coreid, procname);
 		if (!mig_service) {
 			cerr << "OOM: " << __func__ << endl;
-			return false;
+			exit(EXIT_FAILURE);
 		}
 		mig_service->set_complete();
 		local_event_list.push_back(mig_service);

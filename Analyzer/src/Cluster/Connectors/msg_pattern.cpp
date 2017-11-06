@@ -48,13 +48,17 @@ void MsgPattern::collect_patterned_ipcs(void)
 	bool * mark_visit = (bool*)malloc(size * sizeof(bool));
 
 	if (mark_visit == NULL) {
+		mtx.lock();
 		cerr << "Error: OOM in msg pattern analysis\n";
+		mtx.unlock();
 		exit(EXIT_FAILURE);
 	}
 	memset(mark_visit, 0, size * sizeof(bool));
 
 #ifdef MSG_PATTERN_DEBUG
-	cerr << "begin msg pattern searching ... list size " << dec << ev_list.size() << endl; 
+	mtx.lock();
+	cerr << "begin msg pattern searching (" << dec << ev_list.size()  << ")... " << endl; 
+	mtx.unlock();
 #endif
 	
 	for (it = ev_list.begin(); it != ev_list.end(); ++it, ++i) {
@@ -80,7 +84,9 @@ void MsgPattern::collect_patterned_ipcs(void)
 			reply_recv_offset = search_mig_msg(req_send_offset, &reply_recv_idx, mark_visit);
 			if (reply_recv_offset == ev_list.end()) {
 #if MSG_PATTERN_DEBUG
+				mtx.lock();
 				cerr << "Check: a mig missing reply from kernel " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+				mtx.unlock();
 #endif
 			} else {
 				mark_visit[i] = true;
@@ -186,7 +192,10 @@ void MsgPattern::collect_patterned_ipcs(void)
 	}
 
 #ifdef MSG_PATTERN_DEBUG
-	cerr << "Total number of msg patterns:\n*************" << patterned_ipcs.size() << "**************" << endl;
+	mtx.lock();
+	cerr << "finish msg pattern search." << endl;
+	cerr << "total number of msg patterns: " << patterned_ipcs.size() << endl;
+	mtx.unlock();
 #endif
 	free(mark_visit);
 }
@@ -202,22 +211,22 @@ void MsgPattern::collect_patterned_ipcs(void)
  * REPLY (RECV/SEND):
  * (in)port_name : reply port name in reply-sender or reply-receiver(remote port in the reply)
  */
-list<event_t*>::iterator MsgPattern::search_ipc_msg(
-			uint32_t * port_name, pid_t * pid,
+list<event_t *>::iterator MsgPattern::search_ipc_msg(
+			uint32_t *port_name, pid_t *pid,
 			uint64_t remote_port, uint64_t local_port,
 			bool is_recv,
-			list<event_t*>::iterator begin_it,
-			int * i,
+			list<event_t *>::iterator begin_it,
+			int *i,
 			bool *mark_visit, uint32_t reply_recver_port_name)
 {
-	list<event_t*>::iterator cur_it = begin_it;
+	list<event_t *>::iterator cur_it = begin_it;
 
 	for(cur_it++, *i = *i + 1; *i < ev_list.size(); ++cur_it, *i = *i + 1) {
 		if (cur_it == ev_list.end())
 			return cur_it;
 
-		msg_ev_t * cur_ipc = dynamic_cast<msg_ev_t*>(*cur_it);
-		msgh_t * header = cur_ipc->get_header();
+		msg_ev_t *cur_ipc = dynamic_cast<msg_ev_t *>(*cur_it);
+		msgh_t *header = cur_ipc->get_header();
 
 		if (cur_ipc->is_freed_before_deliver() == true)
 			continue;
@@ -234,8 +243,11 @@ list<event_t*>::iterator MsgPattern::search_ipc_msg(
 			} else {
 				if (*pid != cur_ipc->get_pid()) {
 #if MSG_PATTERN_DEBUG
+					mtx.lock();
 					cerr << "Kernel Reply send/recv with incorrect pid " << fixed << setprecision(1) << cur_ipc->get_abstime();
 					cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
+					cerr << "\t" << cur_ipc->get_pid() << " != " << *pid << endl;
+					mtx.unlock();
 #endif
 					continue;
 				}
@@ -248,22 +260,34 @@ list<event_t*>::iterator MsgPattern::search_ipc_msg(
 				if (is_recv == false && header->is_from_kernel()) {
 					if (header->get_rport_name() != reply_recver_port_name)	{
 #if MSG_PATTERN_DEBUG
+						mtx.lock();
 						cerr << "Kernel Reply send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
 						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
+						cerr << "\t" << reply_recver_port_name << " != " << header->get_rport_name() << endl;
+						mtx.unlock();
 #endif
 						continue;
 					}
 				} else { //recv == true || not from kernel
 					if (*port_name != header->get_rport_name()) {
 #if MSG_PATTERN_DEBUG
+						mtx.lock();
 						cerr << "Reply Send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
 						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
+						cerr << "\t" << *port_name << " != " << header->get_rport_name() << endl;
+						mtx.unlock();
 #endif
 						continue;
 					}
 				}
 			}
 			/*meet requirment*/
+#if MSG_PATTERN_DEBIG
+			mtx.lock();
+			cerr << "Matched: " << fixed << setprecision(1) << cur_ipc->get_abstime();
+			cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
+			mtx.unlock();
+#endif
 			return cur_it;
 		}
 	}
@@ -286,8 +310,13 @@ list<event_t*>::iterator MsgPattern::search_mig_msg(list<event_t *>::iterator re
 		if (curr_header->is_mig() == false)
 			continue;
 
-		if (cur_msg->is_freed_before_deliver())
-			cerr << "Wrong setting for free_before_deliver" << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+#if MSG_PATTERN_DEBUG
+		if (cur_msg->is_freed_before_deliver()) {
+			mtx.lock();
+			cerr << "Error: wrong setting for free_before_deliver" << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
+			mtx.unlock();
+		}
+#endif
 
 		if (curr_header->get_remote_port() ==  mig_req_h->get_local_port()
 			&& curr_header->get_rport_name() == mig_req_h->get_lport_name()

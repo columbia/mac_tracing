@@ -1,4 +1,4 @@
-TARGET		:= pattern_check analyzer
+TARGET		:= pattern_check analyzer who_trigger_spinning
 #trace_voucher diff
 CXX			:= clang++
 CC			:= clang
@@ -7,13 +7,15 @@ CFLAGS		:= -c -Wall
 LDFLAGS		:= -Xlinker /Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/LLDB \
 			-L/usr/local/Cellar/boost/1.63.0/lib \
 			-lboost_regex-mt -lboost_filesystem-mt -lboost_thread-mt -lboost_system-mt
-INC_LLDB	:= /Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Headers/
-INC_BOOST	:= /usr/local/Cellar/boost/1.63.0/include/
-INC_DIR		:= $(PWD)/include/
-INC_EVENTS	:= $(PWD)/include/TracingEvents
-INC_CLUSTER	:= $(PWD)/include/Cluster
-INCLUDES	:= -I $(INC_LLDB) -I $(INC_BOOST) -I$(INC_DIR) -I$(INC_EVENTS) -I$(INC_CLUSTER)
-MODULES		:= TracingEvents Loader Parser Cluster Canonization
+
+INC_LLDB	:= -I/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Headers/
+INC_BOOST	:= -I/usr/local/Cellar/boost/1.63.0/include/
+INC_DIR		:= -I$(PWD)/include/
+INC_EVENTS	:= -I$(PWD)/include/TracingEvents
+INC_CLUSTER	:= -I$(PWD)/include/Cluster -I$(PWD)/include/Cluster/Connectors -I$(PWD)/include/Cluster/Voucher_trace
+INCLUDES	:= $(INC_LLDB) $(INC_BOOST) $(INC_DIR) $(INC_EVENTS) $(INC_CLUSTER)
+
+MODULES		:= TracingEvents Loader Parser Cluster Cluster/Connectors Cluster/Voucher_trace Canonization
 SRC_DIR		:= $(addprefix $(PWD)/src/, $(MODULES))
 OBJ_DIR		:= $(PWD)/obj $(addprefix $(PWD)/obj/, $(MODULES))
 BIN_DIR		:= $(PWD)/bin/
@@ -59,6 +61,12 @@ endef
 $(foreach target, $(EXECUTABLE), $(eval $(call make-target, $(target))))
 $(foreach bdir, $(OBJ_DIR), $(eval $(call make-goal-cxx, $(bdir))))
 $(foreach bdir, $(OBJ_DIR), $(eval $(call make-goal-c, $(bdir))))
+
+#$(PWD)/obj/Parser/symbolicator.o:$(PWD)/src/Parser/symbolicator.c
+	#$(CC) $(INCLUDES) $(CFLAGS) $< -o $@
+
+#$(OBJ_DIR)%.o:$(SRC_DIR)%.cpp
+	#$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@
 
 clean:
 	rm -rf obj

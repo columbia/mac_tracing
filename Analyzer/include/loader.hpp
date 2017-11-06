@@ -26,7 +26,7 @@
 #define BSD_SYS						21
 #define CA_SET						22
 #define CA_DISPLAY					23
-#define BREAKPOINT_TRAP					24
+#define BREAKPOINT_TRAP				24
 #define RL_OBSERVER					25
 #define EVENTREF					26
 #define NSAPPEVENT					27
@@ -49,6 +49,7 @@ namespace LoadData
 {
 	typedef struct Meta{
 		string datafile;
+		string libs_dir;
 		string libinfo_file;
 		string procs_file;
 		string intersectfile;
@@ -60,6 +61,7 @@ namespace LoadData
 		double spin_timestamp;
 		uint64_t nthreads;
 	} meta_data_t;
+
 	extern meta_data_t meta_data;
 
 	extern map<uint64_t, pair<pid_t, string> > tpc_maps;
@@ -78,5 +80,7 @@ namespace LoadData
 	extern const map<string, uint64_t> op_code_map;
 	uint64_t map_op_code(uint64_t unused, string opname);
 	void preload();
+	bool load_lib(string procname);
+	bool load_all_libs(void);
 }
 #endif

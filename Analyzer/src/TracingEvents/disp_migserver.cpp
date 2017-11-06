@@ -13,3 +13,15 @@ void *DispMigEvent::restore_owner(void)
 {
 	return owner;
 }
+
+void DispMigEvent::decode_event(bool is_verbose, ofstream &outfile)
+{
+	EventBase::decode_event(is_verbose, outfile);
+	outfile << endl;
+}
+
+void DispMigEvent::streamout_event(ofstream &outfile)
+{
+	EventBase::streamout_event(outfile);
+	outfile << endl;
+}
