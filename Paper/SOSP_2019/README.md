@@ -1,4 +1,3 @@
-#Wechat Overload Handling
 ### Step 1: Set up latex environment
 ```
 sudo apt-get install texlive-full lgrind
