@@ -1,10 +1,17 @@
 \section{Introduction} \label{sec:intro}
 %why we need the tool
-%challenge of debug with current tool
-%lldb
-%depandancy graph
-
+%Challenge of debug with current tools
 %Difference btw our tool and Magpie, AppInsight.etc
+%only lldb: directly apply to the whole execution is too slow
+%	 infeasible to run 24X7 to capture the bug log
+%only depandancy graph:
+%	false positive: timeout(long waiting thread is waken up by timeout, the waker is not the root cause)
+%	false negtive: bug can be caused by some missing execution, which would only appear in normal execution
+%
 
-
-%how to conqour the chanllenge
+%How to conqour the challenges
+%trace sysmtem wide, can be added in library and system
+%get the relationships of threads from the log
+%compare spin and normal case to narrow down the range in log
+%apply lldb on a small range of code to unveil root cause
+%
