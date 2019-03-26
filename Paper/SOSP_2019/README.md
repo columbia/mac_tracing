@@ -1,0 +1,20 @@
+#Wechat Overload Handling
+### Step 1: Set up latex environment
+```
+sudo apt-get install texlive-full lgrind
+```
+### Step 2: Build the project
+The following command will create paper.pdf under the source code folder.
+
+#### If you're using Linux, please run the following commands.
+```
+make clean all && make
+```
+
+#### If you're using Windows, please run the following commands.
+```
+pdflatex paper
+bibtex paper
+pdflatex paper
+pdflatex paper
+```
