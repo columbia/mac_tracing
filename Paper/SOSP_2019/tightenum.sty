@@ -1,0 +1,37 @@
+\newcounter{bean}
+\newenvironment{tightenum}%
+{
+\begin{list}%
+%% YJF: don't know how to add ``.'' after each number.  just use ``.'' directly
+{\arabic{bean}.}{\usecounter{bean}
+    \setlength{\topsep}{0in}
+    \setlength{\partopsep}{0in}
+    \setlength{\itemsep}{0in}
+    \setlength{\parsep}{0in}
+    \setlength{\leftmargin}{1.5em}
+    \setlength{\rightmargin}{0in}
+    \setlength{\itemindent}{0in}
+}
+}%
+{ \end{list}}
+
+\newcounter{beanmarg}
+\newenvironment{tightenummarg}%
+{
+\begin{list}%
+{\arabic{beanmarg}.}{\usecounter{beanmarg}
+    \setlength{\topsep}{0in}
+    \setlength{\partopsep}{0in}
+    \setlength{\itemsep}{0in}
+    \setlength{\parsep}{0in}
+    \setlength{\rightmargin}{1.5in}
+}
+}%
+{ \end{list}}
+
+\newif\iftightitem
+\tightitemfalse
+\def\itemize{\ifnum \@itemdepth >3 \@toodeep\else \advance\@itemdepth \@ne
+\edef\@itemitem{labelitem\romannumeral\the\@itemdepth}%
+%%%\list{\csname\@itemitem\endcsname}{\def\makelabel##1{\hss\llap{##1}}}\fi}
+\list{\csname\@itemitem\endcsname}{\iftightitem\itemsep-\parsep\relax\topsep-\parsep\fi\def\makelabel##1{\hss\llap{##1}}}\fi}
