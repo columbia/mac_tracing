@@ -1,14 +1,14 @@
-Althought many efforts are made to eliminate performance bugs,
-optimizations in both software and hardware,
-they still exist every computing platforms. 
-Spinning beachball is an indicator used to imply performance bugs in Mac.
-However, debugging in such cases are still hard.
-The user should know where the app gets stuck and what exactly causes the hanging(root cause).
-Using lldb to reproduce such bug is impossible due to the high latency caused by the tool.
-It hard to tell if the showing beach ball indicates a performance bug or not.
-Moreover, multiple processing and multiple threading are common used in current system.
-The root cause of the hanging is not straitforward.
-The long latency in the UI thread may caused by a worker thread in the App, event due to the wait on daemons. 
-We proposed XXX which leverage the trace tool by Apple to monitor system wide events 24X7.
-After collecting the data we analyze and tell the user where the stuck redides.
-With the confined range, XXX also provide tools to further execute a conditional debugging.
+%Althought many efforts are made to eliminate performance bugs,
+%optimizations in both software and hardware,
+%they still exist every computing platforms. 
+%Spinning beachball is an indicator used to imply performance bugs in Mac.
+%However, debugging in such cases are still hard.
+%The user should know where the app gets stuck and what exactly causes the hanging(root cause).
+%Using lldb to reproduce such bug is impossible due to the high latency caused by the tool.
+%It hard to tell if the showing beach ball indicates a performance bug or not.
+%Moreover, multiple processing and multiple threading are common used in current system.
+%The root cause of the hanging is not straitforward.
+%The long latency in the UI thread may caused by a worker thread in the App, event due to the wait on daemons. 
+%We proposed XXX which leverage the trace tool by Apple to monitor system wide events 24X7.
+%After collecting the data we analyze and tell the user where the stuck redides.
+%With the confined range, XXX also provide tools to further execute a conditional debugging.
