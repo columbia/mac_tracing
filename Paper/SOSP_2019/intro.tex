@@ -22,9 +22,23 @@ In practice, when faced with code that deadlocks or may deadlock, many developer
 converting a show-stopping hang into a program that will eventually unfreeze itself.
 However, the root cause of the cyclic dependency may go unaddressed, leading to significant user-facing delays in applications.
 
-It is difficult for developers to diagnose livelocks with some debugging tools, \eg performance profiling or debugger single stepping,
-because these tools slow the code down and the problem only lasts for a certain period of time.
-One solution, explored briefly in this paper, is to increase timeouts on locks within the codebase,
-but it is difficult to do this systematically.
-Furthermore, the problem often results from interactions between many different applications,
-which the user may not have source code for.
+It is difficult for developers to diagnose livelocks with typical tracing or debugging tools (like \texttt{DTrace} or \texttt{lldb})
+in user-facing applications for a number of reasons.
+First, many function calls happen asynchronously through events or inter-process communication, especially in graphical programs.
+This means that control flow travels through the kernel, and the root cause can be far away from an observed hang.
+Many processes and threads may be involved, and it is unclear which ones to target.
+Secondly, there is a vast number of events being triggered constantly, and
+sifting through all the innocuous events to find relevant ones is a Herculean task.
+Deadlocks that can be deterministically triggered are challenging enough, but
+this problem is exacerbated by livelocks which by their nature have a continuous stream of operations being executed.
+
+In this work, we present our system \textit{\sys} which collects detailed tracing information across all processes on a Mac system.
+\sys collects relevant userspace and kernelspace events and messages, and automatically correlates them between processes.
+We allow trace points to be inserted at arbitrary locations in each process,
+allowing a developer to collect additional information as they hone in on the cause of a livelock or deadlock.
+
+One important aspect of analyzing livelocks is that timeouts typically use real wall time,
+and any performance overhead incurred by an analysis tool may cause timeouts to expire more quickly,
+affecting program behaviour. Our framework incurs minimal overhead of XXX\% in large-scale tests.
+We also present two case studies of \sys applied to real-world problems, including a livelock in Google Chrome.
+We believe that \sys represents an important step forward in debugging livelocks in user applications.
