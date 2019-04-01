@@ -1,0 +1,14 @@
+\section{Design} \label{sec:design}
+
+\begin{itemize}
+    \item record system state (userspace + kernel)
+    \item iteratively hone in on the problem
+    \begin{itemize}
+        \item thread relationships (improve linkage between logs)
+        \item find shared variables (pthread mutexes, and manually)
+        \item add new trace points for callstacks
+    \end{itemize}
+    \item find two distinct states (good, and buggy)
+    \item verify root cause by adjusting timeout values
+    \item patch the problem (in source, runtime, or at binary level)
+\end{itemize}

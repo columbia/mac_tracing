@@ -90,9 +90,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     macro
 
+% paper-specific definitions
+\newcommand{\sys}[0]{Argus\xspace}
+
 \newcommand{\xxx}{\mbox{\textsc{XXXXX}}\xspace}
 \newcommand{\wechat}{\mbox{\textsc{XXXXXX}}\xspace}
-\newcommand{\mytitle}[0]{\textbf {Paper Title}}
+\newcommand{\mytitle}[0]{\textbf {\sys: Understanding Livelocks Through Full-System Tracing}}
 
 \newcommand{\mykeywords}[0]{Performance debug}
 
@@ -180,9 +183,6 @@ pdfdisplaydoctitle=true,
 \newcommand{\proxy}{\mbox{\textsc{Proxy}}\xspace}
 \newcommand{\serviceA}{\mbox{\textsc{Service A}}\xspace}
 
-% paper-specific definitions
-\newcommand{\sys}[0]{Argus\xspace}
-
 \def\LGfsize{\footnotesize}
 %\pagestyle{empty}
 
@@ -193,8 +193,9 @@ pdfdisplaydoctitle=true,
 
 \date{}
 
-\title{\mytitle\\
-\rm \Large Title For Paper}
+%\title{\mytitle\\
+%\rm \Large Title For Paper}
+\title{\mytitle}
 
 \author[+]{\hspace{0 mm}\fontsize{10}{10}\selectfont SOSP
 2019 submission \#XX}
