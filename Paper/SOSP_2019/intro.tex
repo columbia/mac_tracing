@@ -15,3 +15,16 @@
 %compare spin and normal case to narrow down the range in log
 %apply lldb on a small range of code to unveil root cause
 %
+
+Deadlocks and livelocks are known to be significant challenges in developing distributed systems.
+A great deal of work has gone into formal analysis of call graphs to try to identify deadlocks.
+In practice, when faced with code that deadlocks or may deadlock, many developers will simply add timeouts to all code that obtains locks,
+converting a show-stopping hang into a program that will eventually unfreeze itself.
+However, the root cause of the cyclic dependency may go unaddressed, leading to significant user-facing delays in applications.
+
+It is difficult for developers to diagnose livelocks with some debugging tools, \eg performance profiling or debugger single stepping,
+because these tools slow the code down and the problem only lasts for a certain period of time.
+One solution, explored briefly in this paper, is to increase timeouts on locks within the codebase,
+but it is difficult to do this systematically.
+Furthermore, the problem often results from interactions between many different applications,
+which the user may not have source code for.
