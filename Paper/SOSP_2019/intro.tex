@@ -30,7 +30,7 @@ Many processes and threads may be involved, and it is unclear which ones to targ
 Secondly, there is a vast number of events being triggered constantly, and
 sifting through all the innocuous events to find relevant ones is a Herculean task.
 Deadlocks that can be deterministically triggered are challenging enough, but
-this problem is exacerbated by livelocks which by their nature have a continuous stream of operations being executed.
+this problem is exacerbated by livelock situations which by their nature involve the execution of a continuous stream of operations.
 
 In this work, we present our system \textit{\sys} which collects detailed tracing information across all processes on a Mac system.
 \sys collects relevant userspace and kernelspace events and messages, and automatically correlates them between processes.

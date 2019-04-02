@@ -1,0 +1,203 @@
+\section{Implementation}
+The XXX prototype consists of a set of tools: a tracing tool to collect system-wide events, an offline analyzer to identify event processing boundaries, reveal thread dependency with time information and narrow down the activities that correspond to the bug, and an online conditional debugging tool to verify our findings.
+\par
+\subsection{Tracing tool}
+Our tracing tool is built upon Apple's trace, a lightweight kernel debugging tool used to collect system-wide tracing data.
+%description of the trace tool
+It exposes API for adding tracing points in the system.
+Each tracing point has a type name to notate current activity in the system.
+Every time the tracing point gets invoked, data entry is generated.
+We call it a tracing event.
+Each event contains the timestamp and carries arbitrary attributes.
+The entries will be written to a memory buffer, and eventually printed to the standard output or dumped to the file in a batch.\par
+%modification of the tool
+In order to capture the performance anomaly now and then, the tracing tool should be able to run 24X7 without using up the storage.
+Therefore, the tracing tool is modified to dump data to file in a round-robin style, only storing the most recently recorded information.
+On our experiments, we set the file size 2GB to cover not only the perceived buggy case but also preceding normal execution for further comparison.\par
+\subsubsection{Tracing points}
+To make the data pithy, as few tracing points as possible are included in our tool.
+Meanwhile tracing points that helps to diagnose the root cause can be added on demand.
+%%table of apple tracing points
+\begin{table}[h]
+\begin{adjustbox}{width=\columnwidth, center}
+\begin{tabular}{|l|c|c|}
+\hline
+Tracing Points Category & Tracing points Location & Recoding Purpose\\
+\hline
+\hline
+IPC & mach\_msg\_send, mach\_msg\_recv & reveal connections\\
+\hline
+Thread Scheduling & wait, make\_runnable & reveal connections\\
+\hline
+System calls & system\_call & understanding\\
+\hline
+Interrupts & interrupts & identify boundaries\\
+\hline
+\end{tabular}
+\end{adjustbox}
+\caption{Tracing Points from Apple}
+\label{tab:Tracing Points from Apple}
+\end{table}
+
+%%table of newly added tracing points
+\begin{table*}[h]
+\begin{adjustbox}{width=\columnwidth * 2, center}
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+Tracing Points Category & Tracing points Location & Recoding Purpose\\
+\hline
+\hline
+IPC & mach\_msg\_send with ports name info & reveal connections\\
+\hline
+Thread Scheduling & code called assert\_wait with wait resource), code called make\_runnable with waken reason & reveal connection\\
+\hline
+System calls & system\_call arguments and return value & understanding\\
+\hline
+Batch processing & submit tasks to dipatch queue, kqueue, runloop, timer armed & identify execution boundaries\\
+\hline
+Asynchronous mechanism & drain tasks from dispatch queue, kqueue, runloop, timer fired& connecitons\\
+\hline
+Kernel interferes & timer interrupt processing, time share maintainance & identify execution boundaries\\
+\hline
+Deamon interferes & Windowsever message processing & identify execution boundaries\\
+\hline
+Shared varialbes & system\_calls with arguments & reveal connections, comparision\\
+	& NSEvents in CoreFoundations & reveal connections\\
+	& manually picked variables, like is\_main\_thread\_spinning & indicate GUI hangs, comparision\\
+	& pending message in WindowServer processing & identify execution boundaries\\
+\hline
+Lightweigt backtrace & mach\_msg\_trap & understanding, comparision\\
+\hline
+\end{tabular}
+\end{adjustbox}
+\caption{Augmented Tracing Points}
+\label{tab:Augmented Tracing Points}
+\end{table*}
+We take the tracing points in Table \ref{tab:Tracing Points from Apple} added by Apple, and augment the infrastructure with additional ones shown in Table \ref{tab:Augmented Tracing Points}, in order to reveal event boundaries in a single thread and catch the relationships among threads.
+As shown in Table \ref{tab:Tracing Points from Apple}, tracing points on mach\_msg are used to tracing the IPC in the system, to catch the relationships among the threads.
+Meanwhile, additional tracing points is needed to complete the connection of threads involved in the IPC,
+in that the mach msg is designed for uni-direction.
+The reply messages are not necessarily received by the same thread sending out request message, but a port name will be carried to receive reply.
+As is shown in Table \ref{tab:Augmented Tracing Points}, tracing points that carry the port name information are added in the invocation of mach\_msg\_send.\par
+Thread scheduling points are useful to identify the general correlations of threads.
+The scenario that thread A wakes up thread B usually indicates thread B depends on thread A.
+However, it is not always true.
+For example, the kernel may clear wait condition for specific threads, but they are not logically correlated.
+Another example can be that timer interrupt in any thread may wake up the kernel thread to process the timer.
+Therefore we augment the tracing points with the wait and wake up reason so that the false positive connections can be ruled out.\par
+It is noted that wait and wake-up often occur inside the system calls.
+Thus, we include the system call, with the user passed in arguments, to enrich the semantics of the tracing events.
+Moreover, the arguments in the synchronization system calls help to connect threads synchronized.\par
+As mentioned above, the interrupts will cause the kernel to post tracing event on the thread whose control is takenover.
+The interrupt processing handlers will be woken up.
+As a result, the tracing points added in the begin and end of interrupt helpe to isolate the execution boundaries of unrelated tasks.\par
+In addition to the existing tracing points, we also realized that userspace programming paradigms would mess up the dependency of threads with false positive and false negative connections.\par
+Asynchronous and batch processing are everywhere, especially in GUI apps.
+We add tracing points in the libraries that implement the mechanism to our best knowledge.
+The submission of the tasks and the drainage of them are recorded to reveal connections of threads,
+while the begin and end of each task are also recorded in order to identify the execution boundary in a worker thread.\par
+Continuously processing irrelevant tasks are common in kernel thread and daemons like WindowServer.
+In order to exclude the false positive correlation of threads, tracing points are required to identify the boundary.
+We apply the heuristic that if they are processing messages from different applications, they should be working for different tasks. \par
+Backtrace helps in understanding the semantics of the tracing data.
+As mach\_msg\_trap is the most widely used system calls to implement the communications among threads and processes, we add lightweight backtrace for it.
+Dump out the full call stack is costly.
+Subsequently, the lightweight backtrace only delivers the frames unwinded towards the valid rbps.\par
+\subsubsection{Instrumentation}
+The libraries as well as lots of the daily Apps on MacOS are closed source.
+Techniques, such as library preload with trampolines over the targeted functions, don't meet the requirements due to the two-layer namespace of dynamic libraries in Mac.
+If the instrumented target is invoked inside the same library,
+the function in the original library will be executed without going through the tracing point,
+which results in missing of tracing data.
+We hence implement the binary instrumentation lib for developers to add tracing points anywhere.\par
+To complete the instrumentation, the developer only needs to point out the address of instruction where the desired attributes are accessible from its thread state.
+Meanwhile, the length of the instruction is long enough to hold a function call, and it can be simulated in the callee.
+We call such instructions that meet the condition as victim instructions, and the function call as a shell function.
+The shell function is required to add tracing points and simulate the victim instruction.\par
+With the input of the address of victim instruction and its corresponding shell function, our tool will generate a new library, 
+ where the init function in Figure \ref{fig:psuedo code for init} is defined to calculate offsets and replace the victim instruction with the shell function.
+The shell function stores the return address 5 bytes after the victim instruction.
+If the victim instruction is more than 5 bytes, the rest bytes will be filled with nops.
+The replacement only happened once in the memory by calling the init externally with dispatch\_once.
+\begin{algorithm}
+\captionof{figure}[psuedo code for init]{psuedo code for init}
+\begin{algorithmic}[1]
+\Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
+\Procedure{init}{}
+\For {$i \gets 1$ to $N$}
+\State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
+\State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
+\State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
+\State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
+\State $memcpy(InstrVaddr,$ $CallqInstr)$
+\State $mprotect(page$ $of$ $InstrVaddr, R|E)$
+\EndFor
+\EndProcedure
+\end{algorithmic}
+\label {fig:psuedo code for init}
+\end{algorithm}
+
+Finally, the generated library will re-export all the symbols from the original library and replace the original one.
+% as shown in Figure\ref{fig: overview of binary instrument}.
+%\begin{figure}
+%\centering
+%\rule{5cm}{5cm}
+%\caption {overview of binary instrument}
+%\label {fig: overview of binary instrument}
+%\end{figure}
+Although one of the shortcomings is that only the short distance function call is supported in our implementation, as the new library and the original one are usually loaded close in memory, we do not need to take care of the failure.\par
+\subsection{Offline Analyzer}
+With the tracing data, previous works\cite{magpie, panappticon} generates dependency graphs for every user request.
+%\cite{magpie} applies statistics classification on the graphs and treat the outliners as anomaly.
+%\cite{panappticon}
+However, generating a perfect dependency graph for a request is not easy, especially for systems with closed source libraries, daemons, and apps and widely used asynchronous programming paradigms.
+Our offline analyzer is designed to extract a feasible dependency graph out of the large tracing data.
+The dependency graph is not necessarily complete and correct, but provides insight into the root cause of the problem.\par
+\subsubsection{Dependancy graph}
+%connections
+Tracing points in Table \ref{tab:Tracing Points from Apple} and Table \ref{tab:Augmented Tracing Points},
+such as IPC, thread scheduling, asynchronous programming and shared variables, reveal the thread relationships.
+For example, the receiver can only proceed after receiving the message from the sender. 
+Our analyzer explored the dependency among threads which send out a message, receive the message, send out the reply and receive the reply message respectively.
+The tracing data also cover the dependency of two threads that one thread submits an asynchronous work and the other thread executes it.
+Thread scheduling, that thread A wakes up thread B, usually reveals thread B depends thread A.
+However, under specific circumstance, the dependency may not hold.
+One example happens when a thread wakes up the kernel thread for interrupt processing. 
+Therefore we generate the dependency graph with the heuristic to exclude the false positive connection.
+\par
+On the other hand, not all dependency among threads can be revealed with current tracing data.
+Shared variables usually reflect the data dependency of two threads.
+Discover all of them is extremely hard, due to various style, such as arrays, flags in structure, and so on.
+Fortunately, it is not necessary to find all either, as long as it isn't related to the performance bug.
+Therefore, the missing connections can be added gradually if the developer believes it is a concern.
+Our tool can easily set the hardware watchpoints to tracing the operations on the variables.
+\par
+%%boundaries
+Moreover, to get a more concise dependency graph for the developer, execution boundaries should be identified.
+A worker thread can work for irrelevant requests continuously.
+As a result, it can expose temporal relationships with various threads.
+Without boundaries for individual requests, all of them will be included in the one sizeable graph.
+We make use of tracing points added before and after a request in the asynchronous work to divide the activities in a thread into execution segments.
+For threads that work for multiple requests, it is also common that the thread may wait for a new request.
+Therefore, we leverage the tracing point in wait as an execution boundary.
+\par
+However, no tracing points can be added to universally indicate an execution boundary.
+From our experience, those tracing points can only be added incrementally based on the observation and validation of the execution segments.\par
+\subsubsection{Heuristics for Discovery}
+Our offline analyzer leverages heuristics to discover the over-connection and missing-connection in our dependency graph.
+Tracing points can be further added make the dependency graph concise, and to cover as much information related to the buggy case as possible.\par
+To exclude irrelevant tracing data and make the graph concise, we need to discover false connections.
+Our analyzer will check every execution segments, and if one segment includes communications with two or more user space applications, it is likely not atomic for one request.
+The result will be reported to the developer, and tracing points can be added to identify the boundary.
+In our experiment, we discovered multiple programming paradigms in the libraries that are not realized before.
+WindowServer will compact the request of send and receive in a mach\_msg\_trap system call, althoug they are on behalf of different userspace applications.
+The function mig\_dispatch\_service, as well as the calling out functions in runloop, will finish works one by one in a loop without blocking between them.
+This procedure to discover such programming paradigm can be repeated on regular executions before tracing for the buggy case.\par
+On the contrary, the tracing data from the buggy case are needed to get the missing information for the bug diagnosis.
+Gathering the missing information is a time-consuming task in that some bugs could only be reproduced occasionally and such information usually required manually exploring.
+Checking the call stacks of the threads when the GUI app is stuck provides hints to find shared variables that are bug related.\par
+\subsubsection{Comparision}
+
+\subsection{Online Debugger}
+\subsubsection{Conditional debugging}
