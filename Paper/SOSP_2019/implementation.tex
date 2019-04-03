@@ -12,7 +12,8 @@ Each event contains the timestamp and carries arbitrary attributes.
 The entries will be written to a memory buffer, and eventually printed to the standard output or dumped to the file in a batch.\par
 %modification of the tool
 In order to capture the performance anomaly now and then, the tracing tool should be able to run 24X7 without using up the storage.
-Therefore, the tracing tool is modified to dump data to file in a round-robin style, only storing the most recently recorded information.
+Therefore, the tracing tool is modified to dump data to file in a round-robin style.
+Only the most recently tracing data is saved.
 On our experiments, we set the file size 2GB to cover not only the perceived buggy case but also preceding normal execution for further comparison.\par
 \subsubsection{Tracing points}
 To make the data pithy, as few tracing points as possible are included in our tool.
@@ -74,29 +75,28 @@ Lightweigt backtrace & mach\_msg\_trap & understanding, comparision\\
 \caption{Augmented Tracing Points}
 \label{tab:Augmented Tracing Points}
 \end{table*}
-We take the tracing points in Table \ref{tab:Tracing Points from Apple} added by Apple, and augment the infrastructure with additional ones shown in Table \ref{tab:Augmented Tracing Points}, in order to reveal event boundaries in a single thread and catch the relationships among threads.
+We take the tracing points in Table \ref{tab:Tracing Points from Apple} shipped by Apple, and augment the infrastructure with additional ones shown in Table \ref{tab:Augmented Tracing Points}, in order to reveal request boundaries in a single thread and catch the relationships among threads.
 As shown in Table \ref{tab:Tracing Points from Apple}, tracing points on mach\_msg are used to tracing the IPC in the system, to catch the relationships among the threads.
 Meanwhile, additional tracing points is needed to complete the connection of threads involved in the IPC,
 in that the mach msg is designed for uni-direction.
 The reply messages are not necessarily received by the same thread sending out request message, but a port name will be carried to receive reply.
-As is shown in Table \ref{tab:Augmented Tracing Points}, tracing points that carry the port name information are added in the invocation of mach\_msg\_send.\par
-Thread scheduling points are useful to identify the general correlations of threads.
+As is shown in Table \ref{tab:Augmented Tracing Points}, tracing points that carry the port name information are added in the mach\_msg\_send.\par
+Tracing points on thread scheduling are useful on identification of the general correlations among threads.
 The scenario that thread A wakes up thread B usually indicates thread B depends on thread A.
 However, it is not always true.
 For example, the kernel may clear wait condition for specific threads, but they are not logically correlated.
-Another example can be that timer interrupt in any thread may wake up the kernel thread to process the timer.
-Therefore we augment the tracing points with the wait and wake up reason so that the false positive connections can be ruled out.\par
+Another example is that timer interrupt in any thread may wake up the kernel thread to process the timer.
+Therefore we add tracing points with the scheduling reason in the assert\_wait and make runnable, which can rule out the false connections.\par
 It is noted that wait and wake-up often occur inside the system calls.
-Thus, we include the system call, with the user passed in arguments, to enrich the semantics of the tracing events.
+Thus, we include the tracing points on system calls, with the user passed in arguments, to make the tracing data more comprehensible.
 Moreover, the arguments in the synchronization system calls help to connect threads synchronized.\par
-As mentioned above, the interrupts will cause the kernel to post tracing event on the thread whose control is takenover.
-The interrupt processing handlers will be woken up.
-As a result, the tracing points added in the begin and end of interrupt helpe to isolate the execution boundaries of unrelated tasks.\par
+As mentioned above, the interrupts will cause the kernel to post tracing event on the thread whose control is taken over.
+As a result, the tracing points in the begin and end of interrupt help to isolate the unrelated task.\par
 In addition to the existing tracing points, we also realized that userspace programming paradigms would mess up the dependency of threads with false positive and false negative connections.\par
 Asynchronous and batch processing are everywhere, especially in GUI apps.
-We add tracing points in the libraries that implement the mechanism to our best knowledge.
-The submission of the tasks and the drainage of them are recorded to reveal connections of threads,
-while the begin and end of each task are also recorded in order to identify the execution boundary in a worker thread.\par
+We add tracing points in the libraries that implement such mechanisms to our best knowledge.
+The submission of the tasks and the drainage of them are traced to reveal connections of threads,
+while the begin and end of each task are also traced in order to identify the execution boundary in a worker thread.\par
 Continuously processing irrelevant tasks are common in kernel thread and daemons like WindowServer.
 In order to exclude the false positive correlation of threads, tracing points are required to identify the boundary.
 We apply the heuristic that if they are processing messages from different applications, they should be working for different tasks. \par
