@@ -5,8 +5,8 @@ sudo apt-get install texlive-full lgrind
 Or in mac
 ```
 brew cask install mactex
-add the path /Library/TeX/texbin in /etc/paths
-
+add the path /Library/TeX/texbin to file /etc/paths
+```
 
 ### Step 2: Build the project
 The following command will create paper.pdf under the source code folder.
