@@ -153,7 +153,7 @@ With the tracing data, previous works\cite{magpie, panappticon} generates depend
 %\cite{panappticon}
 However, generating a perfect dependency graph for a request is not easy, especially for systems with closed source libraries, daemons, and apps and widely used asynchronous programming paradigms.
 Our offline analyzer is designed to extract a feasible dependency graph out of the large tracing data.
-The dependency graph is not necessarily complete and correct, but provides insight into the root cause of the problem.\par
+The dependency graph is not necessarily complete and correct, event not neccessarily for exactly one user transaction, but provides insight into the root cause of the problem.\par
 \subsubsection{Dependancy graph}
 %connections
 Tracing points in Table \ref{tab:Tracing Points from Apple} and Table \ref{tab:Augmented Tracing Points},
@@ -174,7 +174,7 @@ Therefore, the missing connections can be added gradually if the developer belie
 Our tool can easily set the hardware watchpoints to tracing the operations on the variables.
 \par
 %%boundaries
-Moreover, to get a more concise dependency graph for the developer, execution boundaries should be identified.
+Moreover, to get a more concise dependency graph for the developer, execution boundaries should be identified to shrink the size of the graph.
 A worker thread can work for irrelevant requests continuously.
 As a result, it can expose temporal relationships with various threads.
 Without boundaries for individual requests, all of them will be included in the one sizeable graph.

@@ -1,0 +1,30 @@
+\subsection{System Preferences spin}
+System Preferences is the application in MacOS for users to mofidy various settings.
+The Preference Pane named Displays allows user to rearrange the position of displays, location of menu bar, and set parameters for display, such as the resolution, brightless and rotation,
+but to disable a monitor online is not supported in Mac.
+DisableMonitor is an app to easily disable/enable a monitor.
+It is implementd by calling to the API from Apple, CGSBeginDisplayConfiguration, CGSConfigureDisplayEnabled and CGSCompleteDisplayConfiguration.
+The bug appears when an external monitor is diabled with DisableMonitor, and the user drags the windows under the tab of arrangement in System Preference.
+It makes the System Preferences window freeze for a few seconds.\par
+%Without the source code, it is hard to tell the story behind.
+One straightforward method for the single process app is to attach lldb, resume the process until the system throw out the spinning cursor.
+However, in the very case, it only tell when the spinning cursor shows up, the main thread is busy calling thread\_switch from funcion CGSCompleteDisplayConfiguration in the call stack.
+Further static analysis, for example, reverse engineering on the binary, cast light on the programming paradigms of the repeating.
+In our case, it reveals the main thread is stuck in a loop repeating thread\_switch until a variable is set or time out.
+Nevertherless, it is still hard to answer the question why and how the variable get set or if it is cleared by mistake.
+\par
+Only the comparison of the buggy case and the normal execution can reveals what is not expected.
+One advantage of our tool is it is lightweight and does not impact the responsiveness of the thread,
+we can clearly identify the buggy case and normal case,
+compared to using lldb to trace through the whole API execution step by step.
+Another advantage is it records the activities system-wide,
+and the data covers from the beggining of the user input, which makes the case more explainable.
+By adding the hardware breakpoints with our instrumentation tool,
+we also record the whole history of the variable activity.
+The tracing on the varialbe helps to make alignment of the graphs produced in the normal execution and freeze case, which makes the further comparison feasible.
+It reveals datagram from the WindowServer will post notifications for the application.
+The particular datagram makes the application to finish reconfiguration and set the variable, while in the spinning case the reconfigureate get initiated but not finished.
+The handler display\_notify\_proc is not implemented properly to make the application exit the loop when there is exception in the reconfiguration.\par
+With the findings of our tool, as is shown in Figure \ref{fig: Thread communication graph with call stacks},
+we can now explain the root cause with the psuedo code in Figure \ref{fig:psuedo code for displaynotifyproc} and Figure \ref{fig:psuedo code for WaitReconfigurationCycle},
+which provides insight for the developer to fix the bug.
