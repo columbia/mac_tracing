@@ -43,17 +43,23 @@ void BreakpointTrapEvent::decode_event(bool is_verbose, ofstream &outfile)
 void BreakpointTrapEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
-	outfile << "\tcaller " << caller;
-	outfile << "\ttrigger " << trigger_var << endl;
+	//assert(caller.size());
+
+	if (caller.size())
+		outfile << "\tcaller " << caller;
+	//outfile << "\ttrigger " << trigger_var << endl;
 	
 	vector<uint64_t>::iterator addr_it;
 	for (addr_it = addrs.begin(); addr_it != addrs.end(); addr_it++) {
 		outfile << "\t" << *addr_it;
 	}
-	
+	vector<uint32_t>::iterator val_it;
+	for (val_it = vals.begin(); val_it != vals.end(); val_it++) {
+		outfile << "\t" << *val_it;
+	}
 	map<string, uint32_t>::iterator it;
 	for (it = targets.begin(); it != targets.end(); it++) {
-		outfile << "\t" << it->first << " = " << it->second;
+		outfile << "\t||" << it->first << " = " << it->second;
 	}
 
 	if (rw_peer)

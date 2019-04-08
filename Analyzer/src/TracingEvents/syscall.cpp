@@ -1,4 +1,6 @@
 #include "syscall.hpp"
+#define DEBUG_SYSCALL_EVT 0
+
 SyscallEvent::SyscallEvent(double timestamp, string op, uint64_t tid, uint64_t sc_class, uint32_t event_core, string procname)
 :EventBase(timestamp, SYSCALL_EVENT, op, tid, event_core, procname)
 {
@@ -12,19 +14,40 @@ SyscallEvent::SyscallEvent(double timestamp, string op, uint64_t tid, uint64_t s
 
 bool SyscallEvent::audit_args_num(int size)
 {
-	if (!sc_entry)
+	if (!sc_entry) {
+#if DEBUG_SYSCALL_EVT
 		cerr << "sc is null at " << fixed << setprecision(1) << get_abstime() << endl;
-	if (nargs + size >= MAX_ARGC || !sc_entry || !sc_entry->args[nargs])
+#endif
 		return false;
+	}
+	if (nargs + size > MAX_ARGC) { //|| !sc_entry || !sc_entry->args[nargs])
+#if DEBUG_SYSCALL_EVT
+		cerr << "args number " << nargs + size << " exceeds " << MAX_ARGC\
+			<< " at " << fixed << setprecision(1) << get_abstime() << endl;
+#endif
+		return false;
+	}
+	if (!sc_entry->args[nargs]) {
+#if DEBUG_SYSCALL_EVT
+		cerr << "args index " << nargs << " is invalid at "\
+			<< fixed << setprecision(1) << get_abstime() << endl;
+		cerr << "Prev syscall doesn't returned. Most possible a new syscall event begins." << endl;
+#endif
+		return false;
+	}
 	return true;
 }
 
 bool SyscallEvent::set_args(uint64_t *arg_array, int size)
 {
-	//assert(audit_args_num(size));
-	if (audit_args_num(size) == false)
+	if (audit_args_num(1) == false) {
+#if DEBUG_SYSCALL_EVT
+		cerr << "Argument audit failed at "\
+			<< fixed << setprecision(1) << get_abstime() << endl;
+#endif
 		return false;
-	copy(arg_array, arg_array + size, args);
+	}
+	copy(arg_array, arg_array + size, args + nargs);
 	nargs += size;
 	return true;
 }
@@ -33,7 +56,9 @@ uint64_t SyscallEvent::get_arg(int idx)
 {
 	if (idx < nargs && sc_entry->args[idx] != NULL)
 		return args[idx];
+#if DEBUG_SYSCALL_EVT
 	cerr << "get arg fails" << endl;
+#endif
 	assert(idx < nargs && sc_entry->args[idx] != NULL);
 	return 0;
 }

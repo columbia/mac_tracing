@@ -94,10 +94,13 @@ public:
 };
 
 class DispMigEvent: public EventBase {
+	blockinvoke_ev_t *invoker;
 	void *owner;
 public:
 	DispMigEvent(double abstime, string op, uint64_t tid, uint32_t core_id, string procname);
 	void save_owner(void *_owner);
+	void set_mig_invoker(blockinvoke_ev_t *_invoker) {invoker = _invoker;}
+	blockinvoke_ev_t *get_mig_invoker() {return invoker;}
 	void *restore_owner(void);
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);

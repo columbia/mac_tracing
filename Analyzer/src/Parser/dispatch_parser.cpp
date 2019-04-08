@@ -83,7 +83,11 @@ namespace Parse
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		assert(dequeue_events.find(tid) == dequeue_events.end());
+		if (dequeue_events.find(tid) != dequeue_events.end()) {
+			cerr << "dismatched dequeue event at ";
+			cerr << fixed << setprecision(1) << abstime << endl;
+		}
+		//assert(dequeue_events.find(tid) == dequeue_events.end());
 		dequeue_ev_t *new_dequeue = new dequeue_ev_t(abstime, opname, tid, \
 			q_id, item, ctxt, ref, coreid, procname);
 
@@ -171,9 +175,8 @@ namespace Parse
 		for (it = local_event_list.begin(); it != local_event_list.end();
 			it++) {
 			dequeue_event = dynamic_cast<dequeue_ev_t *>(*it);
-			if (!dequeue_event
-				|| dequeue_event->get_procname().\
-				find(LoadData::meta_data.host) == string::npos)
+			if (!dequeue_event || dequeue_event->get_procname() != LoadData::meta_data.host)
+				//dequeue_event->get_procname().find(LoadData::meta_data.host) == string::npos)
 				continue;
 
 			desc = "_func_";
@@ -212,9 +215,8 @@ namespace Parse
 		for (it = local_event_list.begin(); it != local_event_list.end();
 			it++) {
 			blockinvoke_event = dynamic_cast<blockinvoke_ev_t *>(*it);
-			if (!blockinvoke_event
-				|| blockinvoke_event->get_procname().\
-				find(LoadData::meta_data.host) == string::npos)
+			if (!blockinvoke_event || blockinvoke_event->get_procname() != LoadData::meta_data.host)
+				//blockinvoke_event->get_procname().find(LoadData::meta_data.host) == string::npos)
 				continue;
 
 			desc = "_func_";

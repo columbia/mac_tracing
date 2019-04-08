@@ -45,6 +45,7 @@ extern mutex mtx;
 #define EVENTREF_EVENT			24
 #define NSAPPEVENT_EVENT		25
 #define DISP_MIG_EVENT			26
+#define RL_BOUNDARY_EVENT		28
 
 class EventBase;
 class MsgHeader;
@@ -75,6 +76,7 @@ class RLObserverEvent;
 class EventRefEvent;
 class NSAppEventEvent;
 class DispMigEvent;
+class RLBoundaryEvent;
 
 typedef EventBase event_t;
 typedef MsgHeader msgh_t;
@@ -105,6 +107,7 @@ typedef	RLObserverEvent	rl_observer_ev_t;
 typedef	EventRefEvent	event_ref_ev_t;
 typedef	NSAppEventEvent	nsapp_event_ev_t;
 typedef DispMigEvent	disp_mig_ev_t;
+typedef RLBoundaryEvent	rl_boundary_ev_t;
 
 typedef uint64_t tid_t;
 class EventBase {
@@ -118,8 +121,6 @@ class EventBase {
 	string procname;
 	uint64_t group_id;
 	bool complete;
-	bool ground;
-	bool infected;
 
 public:
 	EventBase(double _timestamp, int _event_id, string _op, tid_t _tid, uint32_t _core_id, string _procname = "");
@@ -142,10 +143,6 @@ public:
 
 	void set_complete(void) {complete = true;}
 	bool is_complete(void) {return complete;}
-	void set_ground(bool _ground) {ground = _ground;}
-	bool check_ground(void) {return ground;}
-	void set_infected(void) {infected = true;}
-	bool check_infected(void) {return infected;}
 
 	virtual void decode_event(bool is_verbose, ofstream &outfile);
 	virtual void streamout_event(ofstream &outfile);

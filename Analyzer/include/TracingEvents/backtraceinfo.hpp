@@ -68,7 +68,7 @@ class Frames {
 	bool is_infected;
 	bool is_spin;
 	Images *image;
-	static int32_t check_symtable;
+	static int32_t check_symtable_once;
 
 public:
 	Frames(uint64_t tag, string procname, uint64_t _tid);
@@ -84,8 +84,9 @@ public:
 
 	/* below only referred when backtrace parser is valid */
 	void set_image(Images *img) {image = img;}
+	static string get_path_from_image(uint64_t addr, Images *);
 	static string get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> & vm_sym_map);
-	static void checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string path, map<string, map<uint64_t, string> >&, Images *);
+	static void checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string &path, map<string, map<uint64_t, string> >&, Images *);
 	static bool lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t * cur_frame);
 	void symbolication(debug_data_t * debugger, map<string, map<uint64_t, string> >&);
 };

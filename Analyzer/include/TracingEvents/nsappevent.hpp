@@ -35,6 +35,7 @@ class NSAppEventEvent:public EventBase {
 	bool begin;
 	uint64_t event_class;
 	uint64_t key_code;
+	event_ref_ev_t *event_ref;
 public:
 	NSAppEventEvent(double timestamp, string op, uint64_t tid, uint64_t begin, uint32_t event_core, string procname = "");
 	void set_event(uint64_t _event_class, uint64_t _key_code) {
@@ -42,6 +43,10 @@ public:
 		event_class = _event_class;
 		key_code = _key_code;
 	}
+
+	// pair to the nearest event_ref
+	void set_event_ref(event_ref_ev_t * _ref) {event_ref = _ref;}
+	event_ref_ev_t *get_event_ref(void) {return event_ref;}
 	bool is_begin(void) {return begin;}
 	const char *decode_event_type(int event_type);
 	const char *decode_keycode(int key_code);

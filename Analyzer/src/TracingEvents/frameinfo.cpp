@@ -1,5 +1,5 @@
 #include "backtraceinfo.hpp"
-#define DEBUG_SYMB 0
+#define DEBUG_SYM 0
 
 Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 {
@@ -11,36 +11,56 @@ Frames::Frames(uint64_t tag, string procname, uint64_t _tid)
 	frame_symbols.clear();
 }
 #if DEBUG_SYM
-int32_t Frames::check_symtable = 0;
+int32_t Frames::check_symtable_once = 0;
 #endif
 
 string Frames::get_sym_for_addr(uint64_t vm_offset, map<uint64_t, string> &vm_sym_map)
 {
+	if (vm_sym_map.size() == 0)
+		return "";
 #if DEBUG_SYM
-	if (Frames::check_symtable == 0) {
-		Frames::check_symtable = 1;
+	cerr << "Check symbols in " << __func__ << endl;
+	if (Frames::check_symtable_once == 0) {
+		Frames::check_symtable_once = 1;
 		map<uint64_t, string>::iterator it;
+		cerr << "symbol table size = " << vm_sym_map.size() << endl;
 		for (it = vm_sym_map.begin(); it != vm_sym_map.end(); it++) {
 			cerr << "[" << hex << it->first << "]\t" << it->second << endl;
 		}
 	}
 #endif
-
 	map<uint64_t, string>::iterator next = vm_sym_map.upper_bound(vm_offset);
 	if (next != vm_sym_map.begin())
 		next--;
 	return next->second;
 }
 
-void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string path, map<string, map<uint64_t, string> >& image_vmsym_map, Images *cur_image)
+string Frames::get_path_from_image(uint64_t addr, Images *cur_image)
 {
+	map<string, uint64_t> &modules = cur_image->get_modules();
+	map<string, uint64_t>::iterator it, ret;
+	uint64_t load_addr = addr + 8;
+	
+	for (it = modules.begin(); it != modules.end(); it++)
+		if (it->second <= addr && it->second < load_addr) {
+			load_addr = it->second;
+			ret = it;
+		}
+	if (load_addr <= addr)
+		return ret->first;
+	return "unfound_path";
+}
+
+void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, string &path, map<string, map<uint64_t, string> >& image_vmsym_map, Images *cur_image)
+{
+	if (path.size() == 0)
+		path = Frames::get_path_from_image(vm, cur_image);
+		
 	uint64_t load_addr = cur_image->get_modules()[path];
 	uint64_t vm_offset = vm - load_addr;
 
-	if (LoadData::meta_data.pid == 0) {
-		cerr << "No live process used for symbol checking in memory" << endl;
+	if (LoadData::meta_data.pid == 0)
 		return;
-	}
 
 	if (image_vmsym_map.find(path) == image_vmsym_map.end()) {
 		struct mach_o_handler mh;
@@ -64,11 +84,20 @@ void Frames::checking_symbol_with_image_in_memory(string &symbol, uint64_t vm, s
 
 			if (mh.symbol_arrays)
 				free((void *)mh.symbol_arrays);
+		} else {
+#if DEBUG_SYM
+			cerr << "Fail to get syms for libpath " << LoadData::meta_data.pid << " " << path << endl;
+#endif
 		}
 	}
 	
 	if (image_vmsym_map.find(path) != image_vmsym_map.end())
 		symbol = Frames::get_sym_for_addr(vm_offset, image_vmsym_map[path]);
+	else {
+#if DEBUG_SYM
+		cerr << "Unable to get sym for addr at " << __func__ << endl;
+#endif
+	}
 }
 
 bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t * cur_frame)
@@ -119,43 +148,35 @@ bool Frames::lookup_symbol_via_lldb(debug_data_t * debugger_data, frame_info_t *
 
 void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64_t, string> >&image_vmsym_map)
 {
-	//if (proc_name != LoadData::meta_data.host && proc_name != "WindowServer")
-		//return;
-
 	vector<uint64_t>::iterator addr_it;
 	for (addr_it = frame_addrs.begin(); addr_it != frame_addrs.end(); addr_it++) {
-		frame_info_t cur_frame_info = {.addr = *addr_it, .symbol="", .filepath=""};
-
-		if (lookup_symbol_via_lldb(debugger_data, &cur_frame_info)) {
-			string pre_check_sym = cur_frame_info.symbol;
-
-			if (cur_frame_info.filepath.find("CoreGraphics") != string::npos)
-				checking_symbol_with_image_in_memory(cur_frame_info.symbol, *addr_it, cur_frame_info.filepath, image_vmsym_map, this->image);
-		
-			if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos)
-				is_infected = true;
-
-			if (is_infected == true && cur_frame_info.symbol.find("NSEventThread") != string::npos) {
-				is_spin = true;	
-				cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
-			}
-
-			if (cur_frame_info.symbol.find("__lldb_unnamed_function") != string::npos && cur_frame_info.filepath.size() > 0) {
-				uint64_t vm_offset = *addr_it - image->get_modules()[cur_frame_info.filepath];
-				stringstream hex_offset_stream;
-				hex_offset_stream << "0x" << hex << vm_offset;
-				cur_frame_info.symbol = hex_offset_stream.str();
-			}
-
-			frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
-		} else {
-			string desc("unknown_frame");
-			frame_symbols.push_back(desc);
-			if (*addr_it < 0xffff) {
-				addr_it++;
-				break;
-			}
+		if (*addr_it < 0xffff) {
+			addr_it++;
+			break;
 		}
+		frame_info_t cur_frame_info = {.addr = *addr_it, .symbol = "", .filepath = ""};
+		bool lldb_ret = lookup_symbol_via_lldb(debugger_data, &cur_frame_info);
+
+		if (!lldb_ret || cur_frame_info.filepath.find("CoreGraphics") != string::npos)
+			checking_symbol_with_image_in_memory(cur_frame_info.symbol, *addr_it, cur_frame_info.filepath, image_vmsym_map, this->image);
+
+		if (cur_frame_info.symbol.find(LoadData::meta_data.suspicious_api) != string::npos)
+		    is_infected = true;
+
+		if (is_infected == true && cur_frame_info.symbol.find("NSEventThread") != string::npos) {
+		    is_spin = true;	
+		    cerr << "Infected [" << LoadData::meta_data.suspicious_api << "]:\t" << cur_frame_info.symbol << endl;
+		}
+
+		if (cur_frame_info.symbol.find("__lldb_unnamed_function") != string::npos 
+			||cur_frame_info.symbol.size() == 0) { // && cur_frame_info.filepath.size() > 0) {
+		    uint64_t vm_offset = *addr_it - image->get_modules()[cur_frame_info.filepath];
+		    stringstream hex_offset_stream;
+		    hex_offset_stream << "0x" << hex << vm_offset;
+		    cur_frame_info.symbol += hex_offset_stream.str();
+		}
+
+		frame_symbols.push_back(cur_frame_info.symbol + "\t" + cur_frame_info.filepath);
 	}
 
 	for (; addr_it != frame_addrs.end(); addr_it++) {
@@ -166,10 +187,6 @@ void Frames::symbolication(debug_data_t * debugger_data,  map<string, map<uint64
 
 void Frames::decode_frames(ofstream & outfile)
 {
-//	if (proc_name.find(LoadData::meta_data.host) == string::npos
-//		&& proc_name.find("WindowServer") == string::npos)
-//		return;
-
 	if (frame_addrs.size() != frame_symbols.size())
 		return;
 
@@ -201,10 +218,6 @@ bool Frames::check_symbol(string &func)
 
 void Frames::streamout(ofstream & outfile)
 {
-//	if (proc_name.find(LoadData::meta_data.host) == string::npos
-//		&& proc_name.find("WindowServer") == string::npos)
-//		return;
-
 	if (frame_addrs.size() != frame_symbols.size())
 		return;
 

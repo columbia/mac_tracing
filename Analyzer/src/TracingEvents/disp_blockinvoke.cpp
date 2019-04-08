@@ -37,7 +37,7 @@ void BlockinvokeEvent::decode_event(bool is_verbose, ofstream &outfile)
 void BlockinvokeEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
-	outfile << "\t_func_" << hex << func;
+	outfile << "_func_" << hex << func;
 	if (begin)
 		outfile << "_ctxt_" << hex << ctxt << "_Begin";
 	else 
