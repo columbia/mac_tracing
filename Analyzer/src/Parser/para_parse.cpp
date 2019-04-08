@@ -1,5 +1,4 @@
 #include "parser.hpp"
-#include "eventlistop.hpp"
 #include <boost/asio/io_service.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread/thread.hpp>
@@ -11,36 +10,49 @@ namespace Parse
 {
 	static void extra_symbolization(map<uint64_t, Parser *> &parsers)
 	{
-		cerr << "Symbolize additional events with backtrace parser ... \n";
-		if (parsers.find(BACKTRACE) != parsers.end()) {
-			BacktraceParser *backtraceparser =
-				dynamic_cast<BacktraceParser*>(parsers[BACKTRACE]);
-			if (backtraceparser) {
-				if (parsers.find(INTR) != parsers.end()) {
-					IntrParser *intrparser =
-						dynamic_cast<IntrParser*>(parsers[INTR]);
-					intrparser->symbolize_intr_rip(backtraceparser);
-				}
-
-				if (parsers.find(DISP_EXE) != parsers.end()) {
-					DispatchParser *dispparser =
-						dynamic_cast<DispatchParser *>(parsers[DISP_EXE]);
-					dispparser->symbolize_dispatch_event(backtraceparser);
-				}
-
-				if (parsers.find(DISP_DEQ) != parsers.end()) {
-					DispatchParser *dispparser =
-						dynamic_cast<DispatchParser *>(parsers[DISP_DEQ]);
-					dispparser->symbolize_dispatch_event(backtraceparser);
-				}
-			
-				if (parsers.find(BREAKPOINT_TRAP) != parsers.end()) {
-					BreakpointTrapParser *hwbrparser =
-						dynamic_cast<BreakpointTrapParser *>(parsers[BREAKPOINT_TRAP]);
-					hwbrparser->symbolize_hwbrtrap(backtraceparser);
-				}
-			}
+		cerr << "Symbolize additional events with backtrace parser ... " << endl;
+		if (parsers.find(BACKTRACE) == parsers.end()) {
+			cerr << "No backtrace infomation found for " << __func__ << endl;
+			return;
 		}
+		
+		BacktraceParser *backtraceparser =
+			dynamic_cast<BacktraceParser*>(parsers[BACKTRACE]);
+		if (!backtraceparser) {
+			cerr << "No backtrace parser found for " << __func__ << endl;
+			return;
+		}
+
+		if (parsers.find(INTR) != parsers.end()) {
+			IntrParser *intrparser =
+				dynamic_cast<IntrParser*>(parsers[INTR]);
+			intrparser->symbolize_intr_rip(backtraceparser);
+		}
+
+		if (parsers.find(DISP_EXE) != parsers.end()) {
+			DispatchParser *dispparser =
+				dynamic_cast<DispatchParser *>(parsers[DISP_EXE]);
+			dispparser->symbolize_dispatch_event(backtraceparser);
+		}
+
+		if (parsers.find(DISP_DEQ) != parsers.end()) {
+			DispatchParser *dispparser =
+				dynamic_cast<DispatchParser *>(parsers[DISP_DEQ]);
+			dispparser->symbolize_dispatch_event(backtraceparser);
+		}
+
+		if (parsers.find(BREAKPOINT_TRAP) != parsers.end()) {
+			BreakpointTrapParser *hwbrparser =
+				dynamic_cast<BreakpointTrapParser *>(parsers[BREAKPOINT_TRAP]);
+			hwbrparser->symbolize_hwbrtrap(backtraceparser);
+		}
+		
+		if (parsers.find(RL_BOUNDARY) != parsers.end()) {
+			RLBoundaryParser *rlboundaryparser =
+				dynamic_cast<RLBoundaryParser *>(parsers[RL_BOUNDARY]);
+			rlboundaryparser->symbolize_rlboundary_callbacks(backtraceparser);
+		}
+
 		cerr << "Finished parsing!\n";
 	}
 
@@ -124,6 +136,9 @@ namespace Parse
 				case NSAPPEVENT:
 					parser = new NSAppEventParser(it->second);
 					break;
+				case RL_BOUNDARY:
+					parser = new RLBoundaryParser(it->second);
+					break;
 				default:
 					break;
 			}		
@@ -150,7 +165,6 @@ namespace Parse
 		}
 		parsers.clear();
 
-		EventListOp::sort_event_list(result);
 		assert(ret_lists.find(0) == ret_lists.end());
 		ret_lists[0] = result;
 		return ret_lists;
@@ -236,7 +250,7 @@ namespace Parse
 
 	map<uint64_t, list<event_t *>> divide_and_parse()
 	{
-		map<uint64_t, string> files = divide_files(LoadData::meta_data.datafile,
+		map<uint64_t, string> files = divide_files(LoadData::meta_data.data,
 			LoadData::map_op_code);
 		map<uint64_t, list<event_t*>> lists = parse(files);
 		return lists;
@@ -244,7 +258,7 @@ namespace Parse
 
 	list<event_t *> parse_backtrace()
 	{
-		map<uint64_t, string> files = divide_files(LoadData::meta_data.datafile, LoadData::map_op_code);
+		map<uint64_t, string> files = divide_files(LoadData::meta_data.data, LoadData::map_op_code);
 		BacktraceParser parser(files[BACKTRACE], LoadData::meta_data.libinfo_file);
 		parser.process();
 		return parser.collect();

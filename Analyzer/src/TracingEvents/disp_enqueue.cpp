@@ -23,12 +23,11 @@ void EnqueueEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
 
-	outfile << "\t_ref" << hex << ref;
-	outfile << "\t_qid" << hex << q_id;
-	outfile << "\t_item" << hex << item;
-
+	outfile << "_ref" << hex << ref;
+	outfile << "_qid" << hex << q_id;
+	outfile << "_item" << hex << item;
 	if (consumed)
-		outfile << "\nDequeued by" << hex << consumer->get_tid() << " at " << fixed << setprecision(1) << consumer->get_abstime();
+		outfile << "\nDequeued by " << hex << consumer->get_tid() << " at " << fixed << setprecision(1) << consumer->get_abstime();
 
 	outfile << endl;
 }

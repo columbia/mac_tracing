@@ -46,6 +46,11 @@ namespace LoadData
 		make_pair("EventRef", EVENTREF),
 		make_pair("NSAppGetEvent", NSAPPEVENT),
 		make_pair("NSEvent", NSAPPEVENT),
-		make_pair("dispatch_mig_server", DISP_MIG)
+		make_pair("dispatch_mig_server", DISP_MIG),
+		make_pair("RL_DoSource0", RL_BOUNDARY),
+		make_pair("RL_DoSource1", RL_BOUNDARY),
+		make_pair("RL_DoBlocks", RL_BOUNDARY),
+		make_pair("RL_DoTimer", RL_BOUNDARY),
+		make_pair("RL_DoObserver", RL_BOUNDARY)
 	};
 }

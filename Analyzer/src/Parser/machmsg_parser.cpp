@@ -49,9 +49,9 @@ namespace Parse
 		uint64_t msgh_id)
 	{
 		if (cur_msg->get_header()->check_recv() == false
-			|| (LoadData::mig_dictionary.find(msgh_id - 100)\
-				 == LoadData::mig_dictionary.end()))
+			|| (LoadData::mig_dictionary.find(msgh_id - 100) == LoadData::mig_dictionary.end()))
 			return NULL;
+
 
 		list<event_t *>::reverse_iterator rit = local_event_list.rbegin();
 		while(rit != local_event_list.rend() && *rit != cur_msg)
@@ -82,7 +82,7 @@ namespace Parse
 		}
 
 		if (rit == local_event_list.rend()) {
-			outfile << "Error : No send for recv [list end] "; 
+			outfile << "Check mach_msg: No send for recv [list end] "; 
 			outfile << fixed << setprecision(1) << cur_msg->get_abstime();
 			outfile << endl;
 			return NULL;
@@ -90,14 +90,16 @@ namespace Parse
 
 		/* this is a recv msg with validate mig number and find the nearest prev msg */
 		if (msg->get_header()->is_mig() == false) {
-			outfile << "Error : No mig send for recv [is_mig] ";
+			outfile << "Check mach_msg: No mig send for recv [is_mig] ";
+			outfile << "current message is " << dec << msgh_id - 100 << "/" << hex << msgh_id;
+			outfile << "\t" << LoadData::mig_dictionary[msgh_id - 100] << endl;;
 			outfile << fixed << setprecision(1) << cur_msg->get_abstime();
 			outfile << endl;
 			return NULL;
 		}
 
 		if (msg->get_header()->check_recv()) {
-			outfile << "Error : No send for mig recv [recv] ";
+			outfile << "Check mach_msg : No send for mig recv [recv] ";
 			outfile << fixed << setprecision(1) << cur_msg->get_abstime();
 			outfile << endl;
 			return NULL;
@@ -139,11 +141,11 @@ namespace Parse
 				msg_events.erase(tid);
 				return true;
 			} else {
-				outfile << "msg type (send/rcv) does not match" << endl;
+				outfile << "Error: msg type (send/rcv) does not match" << endl;
 				return false;
 			}
 		}
-		outfile << "No msg found to collect info from MACH_IPC_trap" << endl;
+		outfile << "Error: No msg found to collect info from MACH_IPC_trap" << endl;
 		return false;
 	}
 
@@ -168,7 +170,7 @@ namespace Parse
 				local_port);
 			return true;
 		}
-		outfile << "No msg found to collect info from MACH_IPC_trap" << endl;
+		outfile << "Error: No msg found to collect info from MACH_IPC_trap" << endl;
 		return false;
 	}
 
@@ -203,6 +205,7 @@ namespace Parse
 		string procname;
 		msg_ev_t *new_msg_event;
 		msgh_t *header;
+		bool ret = true;
 
 		if (!(iss >> hex >> kmsg_addr >> msgh_bits >> msgh_id >> msg_voucher \
 			>> tid >> coreid))
@@ -210,8 +213,20 @@ namespace Parse
 
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
+		
+		if (msg_events.find(tid) != msg_events.end()) {
+			if (msg_events[tid]->get_tag() == kmsg_addr)
+				outfile << "Error: multiple msg operation on one kmsg_addr " \
+						<< hex << kmsg_addr << endl;
+			else
+				outfile << "Check mach_msg: one thread sends multiple kmsgs concurrently "\
+						<< hex << msg_events[tid]->get_tag() << "\t"\
+						<< fixed << setprecision(1) << msg_events[tid]->get_abstime() << endl;
+			ret = false;
+		}
 
-		if (msg_events.find(tid) == msg_events.end()) {
+		//if (msg_events.find(tid) == msg_events.end()) {
+		{
 			if (!(new_msg_event = new_msg(opname, kmsg_addr, abstime,
 				tid, coreid, procname))) {
 				cerr << "OOM " << __func__ << endl;
@@ -222,18 +237,9 @@ namespace Parse
 			header->set_msgh_id(msgh_id, NULL);
 			header->set_msgh_bits(msgh_bits);
 			header->set_carried_vport(msg_voucher);
-			return true;
-		} else {
-			if (msg_events[tid]->get_tag() == kmsg_addr)
-				outfile << "Error: multiple msg operation on one kmsg_addr " \
-						<< hex << kmsg_addr << endl;
-			else
-				outfile << "Error: one thread sends kmsgs concurrently "\
-						<< hex << msg_events[tid]->get_tag() << "\t"\
-						<< fixed << setprecision(1) << msg_events[tid]->get_abstime() << endl;
-		}
+		} 
 
-		return false;
+		return ret;
 	}
 	
 	bool MachmsgParser::process_kmsg_free(string opname, double abstime,

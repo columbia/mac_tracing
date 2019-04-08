@@ -47,19 +47,19 @@ void MsgEvent::streamout_event(ofstream &outfile)
 	if (header->is_mig()) {
 		assert(LoadData::mig_dictionary.find(header->get_msgh_id()) != 
 				LoadData::mig_dictionary.end());
-		outfile << LoadData::mig_dictionary[header->get_msgh_id()].c_str();
+		outfile << "\tmig " <<  LoadData::mig_dictionary[header->get_msgh_id()].c_str();
 	}
 	else
-		outfile << (uint32_t)(header->get_remote_port());
+		outfile <<"\tremote_port " << (uint32_t)(header->get_remote_port());
 	
 	outfile << "\tuser_addr " << hex << user_addr;
 
 	if (peer)
-		outfile << "\tpeer " << hex << peer->get_tid() << "\t" << fixed << setprecision(1) << peer->get_abstime();
+		outfile << "\tpeer " << hex << peer->get_tid() << "\t" << fixed << setprecision(1) << peer->get_abstime() << "\t" << LoadData::tpc_maps[peer->get_tid()].second;
 
 	if (is_freed_before_deliver())
 		outfile << "\tfreed before deliver";
 
-	outfile << "\tmsgh_id " << hex << header->get_msgh_id();
+	outfile << "\tmsgh_id " << dec << header->get_msgh_id();
 	outfile << endl;
 }

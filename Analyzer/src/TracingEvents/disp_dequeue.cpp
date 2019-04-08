@@ -35,7 +35,7 @@ void DequeueEvent::decode_event(bool is_verbose, ofstream &outfile)
 	if (root) 
 		outfile << "\n\tenqueue by " << hex << root->get_tid() << " at " << fixed << setprecision(1) << root->get_abstime() << endl;
 	if (invoke)
-		outfile << "\n\tinvoked by" << hex << invoke->get_tid() << " at " << fixed << setprecision(1) << invoke->get_abstime() << endl;
+		outfile << "\n\tinvoked by " << hex << invoke->get_tid() << " at " << fixed << setprecision(1) << invoke->get_abstime() << endl;
 
 	outfile << "\n\tnested " << nested_level;
 	outfile << endl;
@@ -56,10 +56,10 @@ void DequeueEvent::streamout_event(ofstream &outfile)
 		outfile << "_desc" << desc;
 
 	if (root) 
-		outfile << "\n\tEnqueued by " << hex << root->get_tid() << " at " << fixed << setprecision(1) << root->get_abstime() << endl;;
+		outfile << "\n\tEnqueued by " << hex << root->get_tid() << " at " << fixed << setprecision(1) << root->get_abstime();
 
 	if (invoke)
-		outfile << "\n\tInvoked by" << hex << invoke->get_tid() << " at " << fixed << setprecision(1) << invoke->get_abstime();
+		outfile << "\n\tInvoked by " << hex << invoke->get_tid() << " at " << fixed << setprecision(1) << invoke->get_abstime();
 
 	outfile << endl;
 }

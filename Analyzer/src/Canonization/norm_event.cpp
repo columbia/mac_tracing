@@ -27,3 +27,10 @@ event_t * NormEvent::get_real_event(void)
 {
 	return event;
 }
+
+void NormEvent::decode_event(ofstream &output)
+{
+	output << proc_name << "\t" << optype;
+	//event->decode_event(false, output);
+	output << endl;
+}

@@ -18,6 +18,7 @@ class BreakpointTrapEvent : public EventBase {
 public:
 	BreakpointTrapEvent(double timestamp, string op, uint64_t tid, uint64_t eip, uint32_t coreid, string procname = "");
 	void set_caller_info(string _caller) {caller = _caller;}
+	string get_caller(void) {return caller;}
 	void add_addr(uint64_t addr) {addrs.push_back(addr);}
 	void add_value(uint32_t val) {vals.push_back(val);}
 	void update_target(int index, string key);

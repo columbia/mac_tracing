@@ -1,32 +1,37 @@
-TARGET		:= pattern_check analyzer who_trigger_spinning
+TARGET		:= analyzer
+#pattern_check analyzer partial_compare who_trigger_spinning
 #trace_voucher diff
-CXX			:= clang++
-CC			:= clang
+CXX		:= clang++
+CC		:= clang
 CXXFLAGS	:= -c -Wall -std=c++11 -stdlib=libc++ 
 CFLAGS		:= -c -Wall
 LDFLAGS		:= -Xlinker /Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/LLDB \
 			-L/usr/local/Cellar/boost/1.63.0/lib \
 			-lboost_regex-mt -lboost_filesystem-mt -lboost_thread-mt -lboost_system-mt
 
+MODULES		:= TracingEvents Loader Parser GraphsGenerator Canonization
+MODULES		+= GraphsGenerator/Connectors GraphsGenerator/Voucher_trace GraphsGenerator/Dividers
 INC_LLDB	:= -I/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Headers/
 INC_BOOST	:= -I/usr/local/Cellar/boost/1.63.0/include/
-INC_DIR		:= -I$(PWD)/include/
-INC_EVENTS	:= -I$(PWD)/include/TracingEvents
-INC_CLUSTER	:= -I$(PWD)/include/Cluster -I$(PWD)/include/Cluster/Connectors -I$(PWD)/include/Cluster/Voucher_trace
-INCLUDES	:= $(INC_LLDB) $(INC_BOOST) $(INC_DIR) $(INC_EVENTS) $(INC_CLUSTER)
+INC_DIR		:= -I$(PWD)/include/ $(addprefix -I$(PWD)/include/, $(MODULES))
 
-MODULES		:= TracingEvents Loader Parser Cluster Cluster/Connectors Cluster/Voucher_trace Canonization
-SRC_DIR		:= $(addprefix $(PWD)/src/, $(MODULES))
-OBJ_DIR		:= $(PWD)/obj $(addprefix $(PWD)/obj/, $(MODULES))
+SRC_DIR		:= $(addprefix $(PWD)/src/, $(MODULES)) #$(PWD)/utils
+OBJ_DIR		:= $(PWD)/obj/utils $(addprefix $(PWD)/obj/, $(MODULES)) $(PWD)/obj
 BIN_DIR		:= $(PWD)/bin/
-CXX_SOURCES := $(foreach sdir, $(SRC_DIR), $(wildcard $(sdir)/*.cpp))
+CXX_SOURCES	:= $(foreach sdir, $(SRC_DIR), $(wildcard $(sdir)/*.cpp))
 C_SOURCES 	:= $(foreach sdir, $(SRC_DIR), $(wildcard $(sdir)/*.c))
-CXX_OBJECTS := $(patsubst $(PWD)/src/%.cpp, $(PWD)/obj/%.o, $(CXX_SOURCES))
+CXX_OBJECTS 	:= $(patsubst $(PWD)/src/%.cpp, $(PWD)/obj/%.o, $(CXX_SOURCES)) 
 C_OBJECTS 	:= $(patsubst $(PWD)/src/%.c, $(PWD)/obj/%.o, $(C_SOURCES))
 EXECUTABLE	:= $(addprefix $(BIN_DIR), $(TARGET))
 
-vpath %.cpp $(SRC_DIR) $(PWD)/src/
-vpath %.c $(SRC_DIR) $(PWD)/src/
+#build extra utils upon graphs
+CXX_OBJECTS += $(patsubst $(PWD)/utils/%.cpp, $(PWD)/obj/utils/%.o, $(wildcard $(PWD)/utils/*.cpp)) 
+INC_DIR	+= -I$(PWD)/utils/
+
+
+INCLUDES	:= $(INC_LLDB) $(INC_BOOST) $(INC_DIR)
+vpath %.cpp $(SRC_DIR) $(PWD)/src/ $(PWD)/utils/
+vpath %.c $(SRC_DIR) $(PWD)/src/ $(PWD)/utils/
 
 define make-goal-cxx
 $1/%.o: %.cpp

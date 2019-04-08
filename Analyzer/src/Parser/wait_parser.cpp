@@ -94,6 +94,13 @@ namespace Parse
 
 		//assert(wait_events.find(tid) != wait_events.end());
 		wait_ev_t * wait_evt = wait_events[tid];
+		if (wait_event != wait_evt->get_wait_event()) {
+			outfile << "Error : mismathed wait event at ";
+			outfile << fixed << setprecision(1) << abstime << endl;
+			wait_events.erase(tid);
+			return false;
+		}
+
 		assert(wait_event == wait_evt->get_wait_event());
 		wait_evt->override_timestamp(abstime);
 		set_info(wait_evt, pid, deadline, wait_result);

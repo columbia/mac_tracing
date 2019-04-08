@@ -11,8 +11,6 @@ EventBase::EventBase(double _timestamp, int _event_id, string _op, uint64_t _tid
 	procname = _procname;
 	group_id = (uint64_t)-1;
 	complete = false;
-	ground = false;
-	infected = false;
 }
 
 EventBase::EventBase(EventBase * base)

@@ -22,7 +22,8 @@ namespace Parse
 			return false;
 		}
 	
-		syscall_event->set_args(args, size);
+		if (syscall_event->set_args(args, size) == false)
+			cerr << "1. fail to set args for syscall at " << fixed << setprecision(1) << syscall_event->get_abstime() << endl;
 		local_event_list.push_back(syscall_event);
 		syscall_events[tid] = syscall_event;
 		return true;
@@ -32,6 +33,7 @@ namespace Parse
 	{
 		uint64_t args[4], tid, coreid;
 		string procname = "";
+		syscall_ev_t *syscall_event = NULL;
 
 		if (!(iss >> hex >> args[0] >> args[1] >> args[2] >> args[3] >> tid >> coreid))
 			return false;
@@ -39,42 +41,47 @@ namespace Parse
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		if (syscall_events.find(tid) == syscall_events.end()) {
-			if (is_end == true) {
-				outfile << "Error: syscall missing begin part at ";
-				return false;
-			}
-			syscall_ev_t *syscall_event = new syscall_ev_t(abstime, opname, 
-					tid, MSC_SYSCALL, coreid, procname);
-			if (!syscall_event) {
-				cerr << "OOM " << __func__ << endl;
-				exit(EXIT_FAILURE);
-			}
-			if (new_msc(syscall_event, tid, opname, args, 4) == false) {
-				delete(syscall_event);
-				return false;
-			}
-		} else {
-			syscall_ev_t *syscall_event = syscall_events[tid];
-
-			if (syscall_event->get_op() != opname) {
-				outfile << "Error : Try to match ";
-				outfile << fixed << setprecision(1) << syscall_event->get_abstime() << endl;
-				outfile << "Error : with different op ";
-				outfile << syscall_event->get_op() << " " << opname << endl;
-				return false;
-			}
-
-			if (!is_end) {
-				if (syscall_event->set_args(args, 4) == false)
-					cerr << "set args for syscall at " << fixed << setprecision(1) << abstime << endl;
-			} else {
-				syscall_event->set_ret(args[0]);
+		if (syscall_events.find(tid) != syscall_events.end()) {
+			syscall_event = syscall_events[tid];
+			if ((syscall_event->get_op() != opname) || (!is_end && !syscall_event->audit_args_num(1))) {
 				syscall_event->set_complete();
-				syscall_event->set_ret_time(abstime);
 				syscall_events.erase(tid);
+				outfile << "Check: when processing " << opname << " at " << fixed << setprecision(1) << abstime \
+				<<", " << syscall_event->get_op() << " at " << fixed << setprecision(1) << syscall_event->get_abstime()\
+				<< " doesn't return in kernel" << endl;
+			} else {
+				if (is_end) {
+					syscall_event->set_ret(args[0]);
+					syscall_event->set_complete();
+					syscall_event->set_ret_time(abstime);
+					syscall_events.erase(tid);
+				}
+				else if (syscall_event->set_args(args, 4) == false) {
+					cerr << "2. Error: fail to set args for syscall at " << fixed << setprecision(1) << abstime << endl;
+					exit(EXIT_FAILURE);
+				} 
+				return true;
 			}
 		}
+
+		syscall_event = new syscall_ev_t(abstime, opname, tid,
+				MSC_SYSCALL, coreid, procname);
+		if (!syscall_event) {
+			cerr << "OOM " << __func__ << endl;
+			exit(EXIT_FAILURE);
+		}
+		if (new_msc(syscall_event, tid, opname, args, 4) == false) {
+			delete(syscall_event);
+			return false;
+		}
+
+		if (is_end) {
+			syscall_event->set_ret(args[0]);
+			syscall_event->set_complete();
+			syscall_event->set_ret_time(abstime);
+			syscall_events.erase(tid);
+		}
+
 		return true;
 	}
 
@@ -91,7 +98,8 @@ namespace Parse
 			return false;
 		}
 
-		syscall_event->set_args(args, size);
+		if (syscall_event->set_args(args, size) == false)
+			cerr << "3. fail to set args for syscall at " << fixed << setprecision(1) << syscall_event->get_abstime() << endl;
 		local_event_list.push_back(syscall_event);
 		syscall_events[tid] = syscall_event;
 		return true;
@@ -101,51 +109,60 @@ namespace Parse
 	{
 		uint64_t args[4], tid, coreid;
 		string procname = "";
+		syscall_ev_t *syscall_event = NULL;
 
-		if (!(iss >> hex >> args[0] >> args[1] >> args[2] >> args[3] >> tid >> coreid))
+		if (!(iss >> hex >> args[0] >> args[1] >> args[2] >> args[3] >> tid >> coreid)) {
+			outfile << "Check: Input failed " << fixed << setprecision(1) << abstime << endl;
 			return false;
+		}
 
 		if (!getline(iss >> ws, procname) || !procname.size())
 			procname = "";
 
-		if (syscall_events.find(tid) == syscall_events.end()) {
-		retry:
-			syscall_ev_t *syscall_event = new syscall_ev_t(abstime, opname, tid,
-					BSC_SYSCALL, coreid, procname);
-			if (!syscall_event) {
-				cerr << "OOM " << __func__ << endl;
-				exit(EXIT_FAILURE);
-			}
-			if (new_bsc(syscall_event, tid, opname, args, 4) == false) {
-				delete(syscall_event);
-				return false;
-			}
-		} else {
-			syscall_ev_t *syscall_event = syscall_events[tid];
-			/* BSD syscall may return to user space directly,
-			 * according to log and code desc
-			 */
+		if (syscall_events.find(tid) != syscall_events.end()) {
+			syscall_event = syscall_events[tid];
 			if ((syscall_event->get_op() != opname) || (!is_end && !syscall_event->audit_args_num(1))) {
 				syscall_event->set_complete();
 				syscall_events.erase(tid);
-				outfile << "Check : " << syscall_event->get_op() << " " << opname;
-				outfile << " without return record " << endl;
-				outfile << fixed << setprecision(1) << syscall_event->get_abstime() << endl;
-				goto retry;
-			}
-
-			if (!is_end) {
-				if (syscall_event->set_args(args, 4) == false) {
-					cerr << "Error: fail to set args for syscall at " << fixed << setprecision(1) << abstime << endl;
-					exit(EXIT_FAILURE);
-				}
+				outfile << "Check: when processing " << opname << " at " << fixed << setprecision(1) << abstime \
+				<<", " << syscall_event->get_op() << " at " << fixed << setprecision(1) << syscall_event->get_abstime()\
+				<< " doesn't return in kernel" << endl;
 			} else {
-				syscall_event->set_ret(args[0]);
-				syscall_event->set_complete();
-				syscall_event->set_ret_time(abstime);
-				syscall_events.erase(tid);
+				if (is_end) {
+					syscall_event->set_ret(args[0]);
+					syscall_event->set_complete();
+					syscall_event->set_ret_time(abstime);
+					syscall_events.erase(tid);
+				}
+				else if (syscall_event->set_args(args, 4) == false) {
+					cerr << "4. Error: fail to set args for syscall at " << fixed << setprecision(1) << abstime << endl;
+					exit(EXIT_FAILURE);
+				} 
+				return true;
 			}
 		}
+
+		syscall_event = new syscall_ev_t(abstime, opname, tid,
+				BSC_SYSCALL, coreid, procname);
+
+		if (!syscall_event) {
+			cerr << "OOM " << __func__ << endl;
+			exit(EXIT_FAILURE);
+		}
+
+		if (new_bsc(syscall_event, tid, opname, args, 4) == false) {
+			delete(syscall_event);
+			outfile << "Fail to construct BSD syscall "<< fixed << setprecision(1) << abstime << endl;
+			return false;
+		}
+
+		if (is_end) {
+			syscall_event->set_ret(args[0]);
+			syscall_event->set_complete();
+			syscall_event->set_ret_time(abstime);
+			syscall_events.erase(tid);
+		}
+		
 		return true;
 	}
 	
@@ -172,6 +189,7 @@ namespace Parse
 					ret = process_bsc(opname, abstime, is_end, iss);
 					break;
 				default:
+					outfile << "Check : unknown input "  << fixed << setprecision(1) << abstime << endl;
 					ret = false;
 					break;
 			}

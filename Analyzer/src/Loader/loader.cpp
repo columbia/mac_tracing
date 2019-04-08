@@ -1,7 +1,15 @@
 #include "loader.hpp"
 namespace LoadData
 {
-	meta_data_t meta_data;
+	meta_data_t meta_data = {.libs_dir = "./input/libs", /*optional*/
+				.libs = "./input/required_libs",
+				.libinfo_file = "./input/libinfo.log", /*optional*/
+				.procs_file = "./input/current_procs.log", /*optional*/
+				.intersectfile = "./input/process_intersection.log", /*optional*/
+				.tpc_maps_file = "./input/tpcmap.log",
+				.suspicious_api = "CGSConnectionSetSpinning",
+				.nthreads = 6};
+
 	map<uint64_t, pair<pid_t, string> > tpc_maps;
 	map<int, string> mig_dictionary;
 	map<string, uint64_t> bsc_name_index_map;
@@ -117,6 +125,8 @@ namespace LoadData
 			return false;
 		}
 
+		ofstream outfile(meta_data.libinfo_file, ios::out | ios::app);
+		bool found = false;
 		while ((entry = readdir(dir))) {
 			if (!(entry->d_name)) {
 				cerr << "Error: fail to read file name from entry " << endl;
@@ -136,7 +146,7 @@ namespace LoadData
 				string line;
 				if (!getline(infile, line)) {
 					infile.close();
-					cerr << "fail 0" << endl;
+					cerr << "read from file " << filename << "fail 0" << endl;
 					goto out;
 				}
 
@@ -145,25 +155,43 @@ namespace LoadData
 				pid_t pid;
 				if (!(iss >> unused >> hex >> pid >> arch) || !(getline(iss >> ws, procname)) || !procname.size()) {
 					infile.close();
-					cerr << "fail 1" << endl;
+					cerr << "parse line from file " << filename << "fail 1" << endl;
+					cerr << "error line " << line << endl;
 					goto out;
 				}
 
 				if (procname == proc_name) {
+					/*
+					map<uint64_t, pair<pid_t, string> >::iterator it;
+					for (it = tpc_maps.begin(); it != tpc_maps.end(); it++) {
+						if ((it->second).second == proc_name && (it->second).first == pid) {
+							found = true;
+							break;
+						}
+					}
+					if (!found)
+						continue;
+					*/
+					found = true;
 					//append file to lib file
-					ofstream outfile(meta_data.libinfo_file, ios::out | ios::app);
 					infile.seekg(0);
 					outfile << infile.rdbuf();
-					outfile.close();
 					infile.close();
-					closedir(dir);
-					return true;
+					//goto exit;
 				}
 			}
 		}
+
+	exit:
+		outfile.close();
+		closedir(dir);
+		if (!found)
+			return false;
+		return true;
+		
 	out:
 		closedir(dir);
-		cerr << "Error: missing memory layout info for proc" << proc_name << endl;
+		cerr << "Error: missing memory layout info for proc " << proc_name << endl;
 		return false;
 	}
 	

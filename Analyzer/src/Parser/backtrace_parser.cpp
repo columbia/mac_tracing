@@ -1,6 +1,8 @@
 #include "parser.hpp"
 #include "backtraceinfo.hpp"
 
+#define DEBUG_PARSER 0
+
 namespace Parse
 {
 	BacktraceParser::BacktraceParser(string filename, string _path_log)
@@ -110,7 +112,6 @@ namespace Parse
 				delete(cur_path);
 				if (ret == false)
 					return ret;
-
 				ret = collect_image_for_proc(cur_image);
 				if (ret == false)
 					delete(cur_image);
@@ -126,19 +127,19 @@ namespace Parse
 	void BacktraceParser::collect_frames(backtrace_ev_t *backtrace_event,
 		double abstime, uint64_t *frames, uint64_t size)
 	{
-		bool is_last_frame = false;
-		int i = size;
-
+		int i = size - 1;
+		while(frames[i] == 0 && i > 0)
+			i--;
+		bool is_last_frame = i != size - 1 ? true : false;
+		/*
 		for (i = size - 1; i >= 0; i--) {
 			if (frames[i] == 0) {
 				is_last_frame = true;
 				break;
 			}
 		}
-		
-		if (is_last_frame)
-			size = i;
-
+		*/
+		size = frames[i] == 0 ? 0 : i + 1;
 		backtrace_event->add_frames(frames, size);
 		backtrace_event->override_timestamp(abstime - 0.5);
 		if (is_last_frame ||
@@ -153,11 +154,13 @@ namespace Parse
 	{
 		uint64_t tid = backtrace_event->get_tid();
 		if (LoadData::tpc_maps.find(tid) == LoadData::tpc_maps.end()) {
+#if DEBUG_PARSER
 			cerr << "unknown pid for tid " << hex << tid << " at " << __func__ << endl;
+#endif
 			return;
 		}
 
-		pair<pid_t, string> key = make_pair(LoadData::tpc_maps[tid].first, procname);
+		pair<pid_t, string> key = LoadData::tpc_maps[tid]; //make_pair(LoadData::tpc_maps[tid].first, procname);
 		if (proc_backtraces_map.find(key) == proc_backtraces_map.end()) {
 			list<backtrace_ev_t *> l;
 			l.clear();
@@ -180,7 +183,7 @@ namespace Parse
 			outfile << fixed << setprecision(1) << abstime << endl;
 			procname = "";
 		}
-
+		
 	retry:
 		if (backtrace_events.find(tid) == backtrace_events.end()) {
 			if (frame[0] > TRACE_MAX) {
@@ -228,6 +231,7 @@ namespace Parse
 		debugger_data->debugger = lldb::SBDebugger::Create(true, nullptr, nullptr);
 
 		if (!debugger_data->debugger.IsValid()) {
+
 			cerr << "Error: fail to create a debugger object" << endl;
 			return false;
 		}
@@ -269,6 +273,16 @@ namespace Parse
 				cerr << "Check: " << err.GetCString() << endl;
 				continue;
 			}
+			/* TODO : add DATA section to symbolicate watched variables
+			err = debugger_data->cur_target.SetSectionLoadAddress(
+				cur_module.FindSection("__DATA") , lldb::addr_t(it->second));	
+
+			if (!err.Success()) {
+				cerr << "Check: fail to load section for " << it->first << endl;
+				cerr << "Check: " << err.GetCString() << endl;
+				continue;
+			}
+			*/
 		}
 		return true;
 	}
@@ -299,7 +313,7 @@ namespace Parse
 		return image_vmsymbol_map;
 	}
 
-	/* TODO : speedup symbolication speed via
+	/* TODO : speedup symbolication via
 	 * saveing maps <addr, symbol> per process
 	 */
 	void BacktraceParser::symbolize_backtraces()
@@ -313,19 +327,17 @@ namespace Parse
 
 		for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
 			cur_proc = (it->first).second;
-			cerr << "Get proc_images for " << cur_proc << endl;
-			
-			//if (cur_proc != "WindowServer" && cur_proc != LoadData::meta_data.host)
-			//	continue;
-
-			cerr << "Decodeing backtrace for " << cur_proc << endl;
+#if DEBUG_PARSER
+			cerr << "Get proc_images and decode backtrace for " << cur_proc << endl;
+#endif
 			ret = setup_lldb(&cur_debugger, it->second);
 			if (ret == false)
 				goto clear_debugger;
 
 			cur_list = proc_backtraces_map[it->first];
-			cerr << "back trace list of " << (it->first).second << "\tpid = " << (it->first).first;
-			cerr << ", size = " << cur_list.size() << endl;
+#if DEBUG_PARSER
+			cerr << "backtrace list of " << (it->first).second << " pid = " << (it->first).first << ", size = " << cur_list.size() << endl;
+#endif
 
 			if (!cur_list.size())
 				goto clear_debugger;
@@ -334,7 +346,9 @@ namespace Parse
 				(*lit)->connect_frame_with_image(it->second);
 				(*lit)->symbolize_frame(&cur_debugger, image_vmsymbol_map);
 			}
+#if DEBUG_PARSER
 			cerr << "Finished decodeing backtrace for " << cur_proc << " [" << (it->first).first << "]" << endl;
+#endif
 
 		clear_debugger:	
 			if (cur_debugger.debugger.IsValid()) {
@@ -358,8 +372,9 @@ namespace Parse
 			return;
 		}
 
+#if DEBUG_PARSER
 		cerr << "Process backtrace log " << path_log  << endl;
-
+#endif
 		string line, procname, path, arch, unused;
 		images_t *cur_image = NULL;
 		bool nextline_is_main = false;

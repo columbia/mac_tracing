@@ -57,6 +57,7 @@ class FakedwokenEvent: public EventBase {
 	mkrun_ev_t *mkrun_peer;
 public:
 	FakedwokenEvent(double timestamp, string op, uint64_t tid, mkrun_ev_t *mkrun_peer, uint32_t coreid, string procname = "");
+	mkrun_ev_t *get_peer() {return mkrun_peer;}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
 };

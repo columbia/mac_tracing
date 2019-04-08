@@ -29,9 +29,8 @@ namespace Parse
 		for (it = local_event_list.begin(); it != local_event_list.end();
 			it++) {
 			intr_event = dynamic_cast<intr_ev_t *>(*it);
-			if (intr_event == NULL
-				|| intr_event->get_procname().\
-				find(LoadData::meta_data.host) == string::npos\
+			if (intr_event == NULL || intr_event->get_procname() != LoadData::meta_data.host
+				// intr_event->get_procname().find(LoadData::meta_data.host) == string::npos
 				|| intr_event->get_user_mode() == 0)
 				continue;
 			frame_info_t frame_info = {.addr = intr_event->get_rip()};

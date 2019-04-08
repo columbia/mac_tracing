@@ -13,9 +13,14 @@ namespace Parse
 		vector<uint64_t> addrs = breakpoint_trap_event->get_addrs();
 
 		for (int i = 0; i < addrs.size(); i++) {
+			if (addrs[i] == 0)
+				continue;
 			frame_info.addr = addrs[i];
 			frame_info.symbol = "";
 			if (frame_info.filepath = image->search_path(frame_info.addr), frame_info.filepath.size() > 0) {
+				cerr << "Parse hwbr event at " << fixed << setprecision(1) << breakpoint_trap_event->get_abstime() << endl;
+				cerr << "symbol path " << frame_info.filepath << endl;
+				cerr << "symbolize addr = " << hex << frame_info.addr << endl;
 				Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
 						frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
 			}
@@ -25,16 +30,19 @@ namespace Parse
 
 	void BreakpointTrapParser::symbolize_eip(BacktraceParser *backtrace_parser, images_t *image, breakpoint_trap_ev_t *breakpoint_trap_event, debug_data_t *cur_debugger)
 	{
-			bool ret;
-			frame_info_t frame_info = {.addr = breakpoint_trap_event->get_eip()};
-			ret = Frames::lookup_symbol_via_lldb(cur_debugger, &frame_info);
-			if (ret == false)
-				return;
-			if (frame_info.filepath.find("CoreGraphics") != string::npos)
-				Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
-						frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
-			//string rip_symbol = frame_info.symbol;// + "\t" + frame_info.filepath;
-			breakpoint_trap_event->set_caller_info(frame_info.symbol);
+		bool ret;
+		frame_info_t frame_info = {.addr = breakpoint_trap_event->get_eip()};
+		ret = Frames::lookup_symbol_via_lldb(cur_debugger, &frame_info);
+		if (ret == false)
+			return;
+		cerr << "Parse hwbr event at " << fixed << setprecision(1) << breakpoint_trap_event->get_abstime() << endl;
+		cerr << "symbol path " << frame_info.filepath << endl;
+		cerr << "symbolize eip = " << hex << frame_info.addr << endl;
+		if (frame_info.filepath.find("CoreGraphics") != string::npos)
+			Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
+					frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
+		//string rip_symbol = frame_info.symbol;// + "\t" + frame_info.filepath;
+		breakpoint_trap_event->set_caller_info(frame_info.symbol);
 	}
 
 	void BreakpointTrapParser::symbolize_hwbrtrap_for_proc(BacktraceParser *backtrace_parser, string procname)
@@ -43,26 +51,30 @@ namespace Parse
 			return;
 
 		images_t *image = backtrace_parser->get_image_for_proc(-1, procname);
-		if (image == NULL)
+		if (image == NULL) {
+			cerr << "warning: lldb fail to get image for " << procname << endl;
 			return;
+		}
 
 		list<event_t *>::iterator it;
 
 		debug_data_t cur_debugger;
 		bool ret = backtrace_parser->setup_lldb(&cur_debugger, image);
+		int event_count = 0;
 		if (ret == false)
 			goto clear_debugger;
 
-		cerr << "load lldb for symbolize hwbr caller..." << endl;
+		cerr << "load lldb for symbolize hwbr caller... in " << procname << endl;
 		for (it = local_event_list.begin(); it != local_event_list.end(); it++) {
 			breakpoint_trap_ev_t *breakpoint_trap_event = dynamic_cast<breakpoint_trap_ev_t *>(*it);
-			if (breakpoint_trap_event->get_procname() != procname)
+			if (breakpoint_trap_event->get_procname() != procname) {
 				continue;
-
+			}
+			event_count++;
 			symbolize_eip(backtrace_parser, image, breakpoint_trap_event, &cur_debugger);
 			symbolize_addr(backtrace_parser, image, breakpoint_trap_event, &cur_debugger);
 		}
-		cerr << "finish hwbr caller symbolization." << endl;
+		cerr << "size of hwbr event list for " << procname << " = " << event_count << endl; 
 		
 	clear_debugger:
 		if (cur_debugger.debugger.IsValid()) {
@@ -74,8 +86,23 @@ namespace Parse
 
 	void BreakpointTrapParser::symbolize_hwbrtrap(BacktraceParser *backtrace_parser)
 	{
-		symbolize_hwbrtrap_for_proc(backtrace_parser, "WindowServer");
-		symbolize_hwbrtrap_for_proc(backtrace_parser, LoadData::meta_data.host);
+		ifstream input(LoadData::meta_data.libs, ifstream::in);
+		if (!input.is_open()) {
+			cerr << "fail to open file " << LoadData::meta_data.libs << endl;
+			exit(1);
+		}
+		if (!input.good()) {
+			input.close();
+			cerr << LoadData::meta_data.libs << " file is broken" << endl;
+			exit(1);
+		}
+		string proc_name;
+		while(getline(input, proc_name)) {
+			symbolize_hwbrtrap_for_proc(backtrace_parser, proc_name);
+		}
+		input.close();
+		//symbolize_hwbrtrap_for_proc(backtrace_parser, "WindowServer");
+		//symbolize_hwbrtrap_for_proc(backtrace_parser, LoadData::meta_data.host);
 	}
 
 	void BreakpointTrapParser::process()

@@ -31,7 +31,7 @@ const char * WaitEvent::decode_wait_result(void)
 void WaitEvent::decode_event(bool is_verbose, ofstream &outfile)
 {
 	EventBase::decode_event(is_verbose, outfile);
-	const char * wait_result_name = decode_wait_result();
+	const char *wait_result_name = decode_wait_result();
 	outfile << "\n\t" << hex << wait_event;
 	outfile << "\n\t" << wait_result_name;
 
@@ -43,7 +43,9 @@ void WaitEvent::decode_event(bool is_verbose, ofstream &outfile)
 void WaitEvent::streamout_event(ofstream &outfile)
 {
 	EventBase::streamout_event(outfile);
+	const char *wait_result_name = decode_wait_result();
 	outfile << "\twait_" << wait_resource;
+	outfile << "\t" << wait_result_name;
 	if (syscall_event) {
 		outfile << "\twait from " << fixed << setprecision(1) << syscall_event->get_abstime();
 		if (syscall_event->get_ret_time() > 0)
