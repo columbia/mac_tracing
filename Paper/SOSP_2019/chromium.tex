@@ -20,16 +20,15 @@ However, it requires the message from the main thread of a renderer process to p
 Without the message from the renderer process, the worker thread is not able to signal the main thread.
 Thus, the main thread will always time out.
 
-Our trace tool will collect the data system-wide.
-Therefore, all the thread relationships are captured.
-With the trace log size, both the hanging case and non-hanging case are recorded.
-From the shared condition variable between threads, we are able to align the logs of the two cases,
-and discover the missing message in the hanging case.
-
-As we have known the unresponsive of the main thread in the renderer process,
-we further consult the analyzed trace log and observe that it is waiting on a semaphore,
-and eventually waken up by the main thread of the browser process.
-
-Our tool further explains the root cause of the livelock with conditional debugging.
+Our trace tool will collect the data system-wide.                                                                        
+Therefore, all the thread relationships are captured.                                                                    
+With the trace log size, both the hanging case and non-hanging case are recorded.                                           
+From the shared condition variable between threads, we are able to align the logs of the two cases and discover the missing message in the hanging case.                                                                    
+                                                                                                                            
+As we have known the unresponsive of the main thread in the renderer process,                                            
+we further consult the analyzed trace log and observe that it is waiting on a semaphore,                                 
+and eventually waken up by the main thread of the browser process.                                                       
+                                                                                                                         
+Our tool further explains the root cause of the livelock with conditional debugging.                                     
 We can either apply the binary instrument or modify the source code to make the renderer thread accept the attachment of lldb.
-The concrete call stacks from lldb disclose the task processing in the renderer thread is related to running javascript.
+The concrete call stacks from lldb disclose the task processing in the renderer thread is related to running javascript.   
