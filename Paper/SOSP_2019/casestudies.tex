@@ -1,0 +1,17 @@
+\section{Case Studies}                                                                                                       
+We apply our tools to study the design of spinning cursors in MacOS, and analyze real-world bugs.                            
+We illustrate two of the bugs in this section and leave more cases in section \ref{section:evaluation}.                  
+%TextEdit                                                                                                                   
+%Load Hopper file                                                                                                           
+%Launch of printer                                                                                                          
+Both of them are longlisted in public.                                                                                     
+The chromium bug has been reported multiple times in the chromium bug report.                                               
+It is initially a deadlock bug.                                                                                           
+Timeout was added, and it turned to a livelock bug.                                                                         
+Cache mechanism is added to alleviate but not solve it ultimately.                                                          
+The bug of the System Preferences is exposed by an app called DisableMonitor.                                               
+The app can change some system settings and eventually reveal the inappropriate displayer management in the Core Graphics.
+
+\input{spinningcursor}
+\input{chromium}
+\input{systempreferences}
