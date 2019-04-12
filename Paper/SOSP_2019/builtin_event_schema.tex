@@ -16,18 +16,20 @@ Libraries and Frameworks are instrumented only when it is necessary.
         \item Shared Variable: Last but not less important, variables are an important channel for thread synchronization. The synchronizations above are less or more making use of the shared variables in objects. It is hard to explore, for a reason enclosed in a structure.
 \end{itemize}
 
-\subsection{Split}
-Continuously processing independent tasks is not uncommon in worker threads, threads running runloop, kernel threads and threads from daemons like WindowServer.
-Tracing points are required to split the events in a thread with the request boundary to exclude the false linkage in the graph,
+\subsection{Split}                                                                                                       
+Continuously processing unrelated tasks is not uncommon in threads, from userspace, system services, and kernel threads.
+Tracing points are required to split the events in a thread with the request boundary to exclude the false linkage in the graph.
+With the boundary, the interleaving execution of requests on the same thread can be decomplexed, which benefit the following analysis when a comparison is required.
+Three main categories are covered in our built-in schema.
 \begin{itemize}
-        \item Kernel activities: interrupts, timeshare maintainance, timer processing.
-        \item Daemon activities: message sent and receive in WindowServer
-        \item Programming paradigms: batch processing in dispatch queue and runloops.
-        \item Heuristics:
+	\item System interference: User threads are randomly interrupted by the system activities, for example, interrupts, timeshare maintenance. We recognize the boundary of them and isolate them from activities triggered by a user application.
+	\item Batch processing: The second category is the batch processing in Daemons and Application Services. Boundaries in this category are usually implied by certain programming paradigms. A checking tool is created on our framework to unveil these programming paradigms. In our builtin schema, we cover not only the traditional programming model, dispatch queue and run loops, but also recognize special ones. For example, WindowServer sends out pending messages with the receiving of an unrelated message from kernel via one system call, due to Apple's design of the port set. Another example is the kernel thread. While processing the timer, the kernel thread sends out messages one by one to a list of user processes who armed timer before. The events of mach\_msg\_send are not separated with any indicator.
+	\item Heuristics: It is not always possible to manifest all programming paradigms before tracing. In our framework, more can be added with heuristics by iteratively checking on new data.
 \end{itemize}
 
-\subsection {Comprehension}
+\subsection{Comprehension}
+To make the output of our data more comprehensible, we add tracing points on system call and insert a lightweight call stack on demand.
 \begin{itemize}
-	\item system calls: we record the system call number and corresponing parameters.
-	\item Lightweight callstacks
+	\item system calls: we record the system call number and corresponding parameters. It helps to understand what system service is required by the execution.
+	\item Lightweight call stacks: the user stacks are unwinded with the valid rbp in the system without processing the complex jump instructions. It benefits the understanding of our data with rare overhead.
 \end{itemize}
