@@ -1,1 +1,14 @@
 \subsection{Spinning Cursor}
+The spinning cursor is a painful sight for Mac users, signifying that the application is non-responsive.
+It usually remains for munites, leaving the users at a loss .                    
+To understanding the design of the beachball can make the user more confident to take the next step, based on his expectation of the GUI apps.
+From the console in MacOS, we realize that every time the spinning wait cursor appears, the spindump would be triggered too.
+We first identify the execution segment where the spindump launched with the tool built on the graph.
+Then the tool does a path slicing backward to find out the control flows.                       
+By examing the path with the call stacks, we can figure out the processes involved inside the design.
+Every GUI app on MacOS contains the main UI thread and event thread.                           
+The event thread communicates with the WindowServer to fetch the events for the application, and place it in a queue for the main thread to process.
+When the queue does not proceed in a certain amount of time, with the timer set, the event thread would check the application state and send a message to WindowServer. 
+Finally, the WindowServer notifies the CoreGraphics to draw spinning cursor over the application window.                 
+While the spinning cursor is displayed, the main thread is still working and strive to eliminate the cursor once the current event processing is done, unless a deadlock happens there.
+With the understanding of the design, not only we can capture user input sequences that trigger the high processing to reproduce it for diagnosis, but also we can make use of it to identify the hanging execution in the graph for further design of analysis toolkits.
