@@ -1,20 +1,9 @@
-%Althought many efforts are made to eliminate performance bugs,
-%optimizations in both software and hardware,
-%they still exist every computing platforms. 
-%Spinning beachball is an indicator used to imply performance bugs in Mac.
-%However, debugging in such cases are still hard.
-%The user should know where the app gets stuck and what exactly causes the hanging(root cause).
-%Using lldb to reproduce such bug is impossible due to the high latency caused by the tool.
-%It hard to tell if the showing beach ball indicates a performance bug or not.
-%Moreover, multiple processing and multiple threading are common used in current system.
-%The root cause of the hanging is not straitforward.
-%The long latency in the UI thread may caused by a worker thread in the App, event due to the wait on daemons. 
-%We proposed XXX which leverage the trace tool by Apple to monitor system wide events 24X7.
-%After collecting the data we analyze and tell the user where the stuck redides.
-%With the confined range, XXX also provide tools to further execute a conditional debugging.
-Contribution of the paper
-\begin {itemize}
-\item make use of a lightweight trace tool to enable 24X7 recording for the full system, casual buas can also be captured
-\item discover and integrating various type of events incrementally to provide a builtin event schema for constructing graphs in the system, more comprehensible.
-\item the root cause revealed is more precise. The causality paths can across the process boundary.
-\end{itemize}
+Confusing behaviors are everywhere in GUI Apps, which is annoying.
+Spinning beachball is one of the examples from macOS to stop the user's input.
+Unveil the mystery of its design is hard due to the closed source and it is even hardly to figure out which process we should query.
+A tool to understand the complex behavior of GUI applications is essential for a third party user, who is neither a system expert nor the developer of the GUI app, to aid debugging, compile concise bug report, or even come up a temporary binary patch.
+Argus is the framework where system-wide activity is recorded when the mystery occurs on macOS, and further analysis tools can be built upon to explain the behavior. 
+It monitors the system with low-overhead instrumentation running 24X7, from kernel and libraries, constructs the relationship graph with builtin shema to identify different requests executed on threads and correlate them.
+Since the captured system activities always contain not only the problematic case but also the normal execution, a comparing tool is provided upon the relationhisp graph to figure out the root cause represented as abnormal control flow.
+Hence users can precisely capture the execution path leading to the current system state.
+In this paper we describe and study the usage of our Argus framework to reveil root causes for the impenetrable behaviors from realword applications.
