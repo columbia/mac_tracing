@@ -1,9 +1,14 @@
-Confusing behaviors are everywhere in GUI Apps, which is annoying.
-Spinning beachball is one of the examples from macOS to stop the user's input.
-Unveil the mystery of its design is hard due to the closed source and it is even hardly to figure out which process we should query.
-A tool to understand the complex behavior of GUI applications is essential for a third party user, who is neither a system expert nor the developer of the GUI app, to aid debugging, compile concise bug report, or even come up a temporary binary patch.
-Argus is the framework where system-wide activity is recorded when the mystery occurs on macOS, and further analysis tools can be built upon to explain the behavior. 
-It monitors the system with low-overhead instrumentation running 24X7, from kernel and libraries, constructs the relationship graph with builtin shema to identify different requests executed on threads and correlate them.
-Since the captured system activities always contain not only the problematic case but also the normal execution, a comparing tool is provided upon the relationhisp graph to figure out the root cause represented as abnormal control flow.
-Hence users can precisely capture the execution path leading to the current system state.
-In this paper we describe and study the usage of our Argus framework to reveil root causes for the impenetrable behaviors from realword applications.
+Confusing behaviors are everywhere in GUI Applications, which usually make the user feel annoying.
+Spinning beachball is one of them in macOS.
+However, even unveiling the mystery of its design is not easy due to the closed source.
+Consequently, it is difficult for users to begin the debugging task in the wild.
+A tool to understand the complex behavior of GUI Apps in MacOS is essential, especially for a user who is neither a system expert nor the developer of the applications, to aid debugging, compile concise bug report, or even come up a temporary binary patch.
+
+Argus is the framework where system-wide activity is recorded until the mystery occurs in macOS, and analysis tools are built to explain the behavior.
+It monitors the system with low-overhead instrumentation running 24X7, from kernel and libraries, and constructs the relationship graph with the schema defined in the framework.
+The schema identifies execution boundaries in threads and the causality among them.
+The graph usually contains not only the problematic case but also the normal execution.
+Upon the graph, analysis tool compares them to manifest the root cause of the anomaly.
+Results are represented with the suspicous control flows in anomaly case.
+Hence users can precisely point out the path leading to the performance anomaly.
+In this paper, we describe and study the usage of our Argus to reveal root causes for the impenetrable behaviors from the real world applications in macOS.
