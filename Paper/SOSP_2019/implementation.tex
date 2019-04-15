@@ -56,21 +56,15 @@ Only the process id, the name, and size of the variable, operation type, read, w
 \subsection{Incrmental Instrumentaion}
 Due to the transparent of programming paradigms designed by the developer, it does not always generate a complete and accurate dependency graph based on the builtin event schema.
 The graph should be incrementally improved with new tracing points somehow.
-Two steps are required.
-\begin{itemize}
-        \item Add tracing points
-        \item Parse and add event schemas on the link and split process if necessary.
-\end {itemize}
-
 
 %methodology
-We built the toolkit upon the currently generated graph to guild the exploration of the over-connections and miss- connections of thread temporally.
-We leverage the tracing points of voucher builtin in MacOS.
-Vouchers are propagated through the system to record if a process works on behalf of the other process.
-We check the over-connections in one execution segment by examing if multiple user applications connect to it but not in the vouchers.
-Checking the path of the connection, as well as the call stack provides hints on the graph improvements.
+We built the toolkit upon the currently generated graph to guide the exploration of the over-connections and miss-connections of thread temporally.
+Vouchers, which are propagated through the system to record if a process works on behalf of the other process, are also taken advantage of to check the false connections.
+Threads connecting to multiple process are allowed only if their are vouchers reflecting their relationships.
+Last but not least, checking the path of the connection, as well as the call stack provides hints on the graph improvements.
+
 %results
-In our experiment, we discovered multiple programming paradigms in the libraries that are not realized before.
+In our experiment, we discovered multiple programming paradigms in the libraries that are not realized from the initial composing of the schema.
 WindowServer will compact the request of send and receive in a mach\_msg\_overwrite\_trap system call, although they are on behalf of different userspace applications.
 The function dispatch\_mig\_service, as well as the calling out functions in runloop, will finish works one by one in a loop without blocking between them.
 This procedure to discover such programming paradigm can be repeated on regular executions before tracing for diagnosis.
