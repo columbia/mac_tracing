@@ -1,32 +1,36 @@
-\documentclass[sigplan,10pt,twocolumn,letterpaper]{article}
+\documentclass[sigplan,10pt]{acmart}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+\settopmatter{printfolios=true}
+
 %\settopmatter{printfolios=true}
 \special{papersize=8.5in,11in}
 \setlength{\pdfpagewidth}{8.5in}
 \setlength{\pdfpageheight}{11in}
-\usepackage[noheadfoot,
-            left=1in,right=1in,top=1in,bottom=1in,
-            columnsep=0.25in
-            ]{geometry}
-\usepackage[small,compact]{titlesec}
-\usepackage[font={small,bf}]{caption}
-\usepackage[nolineno,noindent,norules]{lgrind}
-\usepackage{tightenum}
-\usepackage{float}
-\usepackage{xspace}
-\usepackage{times,pifont}
-\usepackage{mathptmx}
-\usepackage{subfig,graphics,graphicx,color}
-\usepackage{multirow}
-\usepackage{dblfloatfix} %% correctly orders single- and double-col figures
-\usepackage{hyphenat}
-\usepackage{mathrsfs}
-\usepackage{subfig}
-\usepackage{amssymb,amsmath,centernot}
-\usepackage{lastpage}
-\usepackage{flushend}
-\usepackage{hhline}
-\usepackage{authblk}
-\usepackage[hyphens]{url}
+%\usepackage[noheadfoot,
+            %left=1in,right=1in,top=1in,bottom=1in,
+            %columnsep=0.25in
+            %]{geometry}
+%\usepackage[small,compact]{titlesec}
+%\usepackage[font={small,bf}]{caption}
+%\usepackage[nolineno,noindent,norules]{lgrind}
+%\usepackage{tightenum}
+%\usepackage{float}
+%\usepackage{xspace}
+%\usepackage{times,pifont}
+%\usepackage{mathptmx}
+%\usepackage{subfig,graphics,graphicx,color}
+%\usepackage{multirow}
+%\usepackage{dblfloatfix} %% correctly orders single- and double-col figures
+%\usepackage{hyphenat}
+%\usepackage{mathrsfs}
+%\usepackage{subfig}
+%\usepackage{amssymb,amsmath,centernot}
+%\usepackage{lastpage}
+%\usepackage{flushend}
+%\usepackage{hhline}
+%\usepackage{authblk}
+%\usepackage[hyphens]{url}
 \usepackage{adjustbox}
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
@@ -92,23 +96,17 @@
 %\doublespacing
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     macro
-
 % paper-specific definitions
-\newcommand{\sys}[0]{Argus\xspace}
-
-\newcommand{\xxx}{\mbox{\textsc{XXXXX}}\xspace}
-\newcommand{\wechat}{\mbox{\textsc{XXXXXX}}\xspace}
+%\newcommand{\sys}[0]{Argus\xspace}
 %\newcommand{\mytitle}[0]{\textbf {\sys: Understanding Livelocks Through Full-System Tracing}}
-\newcommand{\mytitle}[0]{\textbf {\sys: Understanding App Behavior Through Full-System Tracing}}
-
+\newcommand{\mytitle}[0]{\textbf {Argus : Understanding App Behavior Through Full-System Tracing}}
 \newcommand{\mykeywords}[0]{Performance debug}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % hyperref stuff
-
-\usepackage[square,comma,numbers,sort]{natbib}
-\usepackage{hypernat}
-\usepackage[draft]{hyperref}
+%\usepackage[square,comma,numbers,sort]{natbib}
+%\usepackage{hypernat}
+%\usepackage[draft]{hyperref}
 %\usepackage{hyperref}
 
 %% fill in pdf info here
@@ -191,6 +189,10 @@ pdfdisplaydoctitle=true,
 \def\LGfsize{\footnotesize}
 %\pagestyle{empty}
 
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
 \begin{document}
 
 % Hack for: Package caption Error: No float type 'copyrightbox' defined.
@@ -202,15 +204,9 @@ pdfdisplaydoctitle=true,
 %\rm \Large Title For Paper}
 \title{\mytitle}
 
-\author[+]{\hspace{0 mm}\fontsize{10}{10}\selectfont SOSP
-2019 submission \#XX}
+%\author[+]{\hspace{0 mm}\fontsize{10}{10}\selectfont SOSP
+%2019 submission \#XX}
 \maketitle
-
-\begin{sloppypar}
-\begin{abstract}
-\input{abstract}
-\end{abstract}
-\end{sloppypar}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Add page number.
