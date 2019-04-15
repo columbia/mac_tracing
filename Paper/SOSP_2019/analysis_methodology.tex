@@ -1,26 +1,30 @@
 \section{Analysis Methodology}
-Comparing to the user input schema and limited thread model from mobile apps, the purpose of the event sequence is not easy to generalize without the high-level semantics.
-Daemons and services make MacOS more like a distributed system with overwhelming IPCs. 
-Event handlers in the background threads are not straightforward to identify.                                         
-We first reveal the causalities among threads and then make use of the connected peers as a heuristic to infer the boundaries of different requests processed in the background threads.
-%Usually an individual request processing in the server does not result in causality to a third user process, but a third daemon or service can be requested.
-%Fortunately, vouchers  are adopted by Apple to record the resource usage in such case.
-%The voucher indicates the third daemon is work on behalf of the user request by passing it with the message from the first deamon.
+To fit the nodes into limited categories are widely utilized in previous work to represents the dependency graph and critical paths\cite{Magpie, AppInsight, Panaappticon}.
+However, compared to the work with user input schema and limited thread model from mobile apps, the purpose of the event sequence in Argus is not straightforward to generalize to a high-level semantics.
+Daemons and services make MacOS more like a distributed system with overwhelming IPCs.
+Handlers in these background threads are versatile and not straightforward to identify.
+Besides, it is not essential to recognize the programming paradigm for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with connections.
+
+\subsection{Generate the relationship graph}
+We first reveal the causalities among threads by matching the tracing events.
+The RPC implemented with mach\_msg does not necessarily have only two threads involved. 
+The thread that sends out the request is not the same thread that receives the reply message.
+As a result, we need to match the message patterns with both the ports and the process information.
+
+Secondly, we make use of the connected peers as a heuristic to infer the boundaries of different requests in the background threads.
+The heuristic is based on the truth that the request from an application processing in the daemon rarely has causality to another user application.
+We also correct the heuristic with the vouchers from Apple, which indicates how one process send message to a second process on behalf of a third process. 
+Also, we keep all events happen inside the callout of the asynchronous task from the dispatch queue in one execution segment unless dispath\_mig\_service is invoked.
+In the case, we isolate every service to an individual node.
+
 Finally, we generate a directed graph with the execution segments inside the boundary are mapped into nodes, and the causalities are mapped into edges.
-To fit the nodes into limited categories of operation summaries are widely adopted to improve the comprehension of graphs in the previous work\cite.
-However, it is hard for our system, which is similar to distributed systems.
-Execution segments for daemons are quite versatile.
-We do not need to recognize the programming paradigm for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with the edges.
-%We keep all events happens inside the callout of a task from dispatch queue in one execution segment unless dispath\_mig\_service is called inside.                                                                                      
-%In the case, we will isolate every service to an individual node. 
 
 Since the edges between nodes are of various types, the graph is not acyclic.
 For example, node A of the execution of callout from the dispatch queue has a wake-up edge to node B and node B has a message sent to node A later.
-The nodes and edges number for a real-world application is tremendous.
-As a result, we do not throw the whole graph to users.                
-Instead, we build a search tool to assist the user in digging into the suspicious part of the graph only.
-Users can also define their algorithm for different usage leveraging the rich information captured in the graph.     
-We now describe the typical use cases on our framework. 
+The numbers of nodes and edges for a real-world application are tremendous.
+As a result, we do not throw the whole graph to users.
+Instead, we build a search tool to assist the user in digging into the suspicious part of the graph only.                Users can also define their algorithm for different usage leveraging the rich information captured in the graph. 
+We now describe the typical use cases on our framework.
 
 %\subsection{Understanding of an API}
 %Large amount of APIs are available for constructing a sophisticated and complicated Applications.
@@ -29,10 +33,11 @@ We now describe the typical use cases on our framework.
 \subsection{Indentify root cause of anomaly}
 Our search algorithm will first identify the node in the graph corresponding to the anomaly. 
 For the non-responsive of UI thread, we will first search the graph to figure out when the event thread get a time out while waiting for the event queue get dequeued.
-With the timing information, our search algorithm finds the node.
-Mostly, the main thread is not get blocked. Instead, it will be waked up after a short timeout, or just in busy processing.
-To figure out why the anomaly happens, we need to make a comparison.
+With the timing information, our search algorithm finds the node in the main UI thread which makes itself non-responsive.
+Mostly, the main thread is not get blocked.
+Instead, it will be waked up after a short timeout, or just in busy processing.
 
+To figure out why the anomaly happens, we need to make a comparison.
 We first do a similarity searching.
 The first step is to figure out a similar node that has the same thread attribute before the anomaly happens.
 To find out the similarity, we need to normalize the node to preserve a subset of tracing events.
