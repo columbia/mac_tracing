@@ -23,7 +23,11 @@ With the boundary, the interleaving execution of requests on the same thread can
 Three main categories are covered in our built-in schema.
 \begin{itemize}
 	\item System interference: User threads are randomly interrupted by the system activities, for example, interrupts, timeshare maintenance. We recognize the boundary of them and isolate them from activities triggered by a user application.
-	\item Batch processing: The second category is the batch processing in Daemons and Application Services. Boundaries in this category are usually implied by certain programming paradigms. A checking tool is created on our framework to unveil these programming paradigms. In our builtin schema, we cover not only the traditional programming model, dispatch queue and run loops, but also recognize special ones. For example, WindowServer sends out pending messages with the receiving of an unrelated message from kernel via one system call, due to Apple's design of the port set. Another example is the kernel thread. While processing the timer, the kernel thread sends out messages one by one to a list of user processes who armed timer before. The events of mach\_msg\_send are not separated with any indicator.
+	\item Batch processing: The second category is the batch processing in Daemons and Application Services. Boundaries in this category are usually implied by certain programming paradigms. A checking tool is created on our framework to unveil these programming paradigms.
+
+In our builtin schema, we cover not only the traditional programming model, dispatch queue and run loops, but also recognize special ones. For example, WindowServer sends out pending messages with the receiving of an unrelated message from kernel via one system call, due to Apple's design of the port set.
+
+Kernel thread is a important one who processes requests without boundaries. While processing the timer, the kernel thread sends out messages one by one to a list of user processes who armed timer before.
 	\item Heuristics: It is not always possible to manifest all programming paradigms before tracing. In our framework, more can be added with heuristics by iteratively checking on new data.
 \end{itemize}
 

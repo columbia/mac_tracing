@@ -1,47 +1,56 @@
 \section{Analysis Methodology}
-Comparing to the user input schema and limited thread model from mobile apps, the purpose of the event sequence is not easy to generize without the high level semantics.
-Daemons and services make MacOS more like a distributed system with the owerwheming IPCs.
-Event handlers in the background threads are not explicted to identify.
-We first reveal the causalities among threads, and make use of the connected peers as heuristic to infer the boundaries of different requests processed in the background threads.
+Comparing to the user input schema and limited thread model from mobile apps, the purpose of the event sequence is not easy to generalize without the high-level semantics.
+Daemons and services make MacOS more like a distributed system with overwhelming IPCs. 
+Event handlers in the background threads are not straightforward to identify.                                         
+We first reveal the causalities among threads and then make use of the connected peers as a heuristic to infer the boundaries of different requests processed in the background threads.
 %Usually an individual request processing in the server does not result in causality to a third user process, but a third daemon or service can be requested.
 %Fortunately, vouchers  are adopted by Apple to record the resource usage in such case.
 %The voucher indicates the third daemon is work on behalf of the user request by passing it with the message from the first deamon.
 Finally, we generate a directed graph with the execution segments inside the boundary are mapped into nodes, and the causalities are mapped into edges.
-We do not need to recognize the programming paradigm for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, while the integrety of a request can be preserved with edges.
-We keep all events happens inside the callout of a task from dispatch queue in one execution segment, unless there is a dis dispath\_mig\_service called inside.
-In the case, we will isolate every service to a individual node.
+To fit the nodes into limited categories of operation summaries are widely adopted to improve the comprehension of graphs in the previous work\cite.
+However, it is hard for our system, which is similar to distributed systems.
+Execution segments for daemons are quite versatile.
+We do not need to recognize the programming paradigm for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with the edges.
+%We keep all events happens inside the callout of a task from dispatch queue in one execution segment unless dispath\_mig\_service is called inside.                                                                                      
+%In the case, we will isolate every service to an individual node. 
 
-As the edegs between nodes are of various types and the graph is not acyclic.
-For example, node A of the execution of callout from dispatch queue has an wake up edge to node B and node B has message send to node A later. 
-
-The nodes and edges number for a realworld aplication is tremendous.
-As a result, we do not throw the whole graph to users.
-Instead, we build search tool to assist the user to dig into the suspicious part of the graph only.
-Users can aslo define their own algorithm for different usage leveraging the rich information in the graph.
-We are now discribe the typical use cases on our framework.
+Since the edges between nodes are of various types, the graph is not acyclic.
+For example, node A of the execution of callout from the dispatch queue has a wake-up edge to node B and node B has a message sent to node A later.
+The nodes and edges number for a real-world application is tremendous.
+As a result, we do not throw the whole graph to users.                
+Instead, we build a search tool to assist the user in digging into the suspicious part of the graph only.
+Users can also define their algorithm for different usage leveraging the rich information captured in the graph.     
+We now describe the typical use cases on our framework. 
 
 %\subsection{Understanding of an API}
 %Large amount of APIs are available for constructing a sophisticated and complicated Applications.
 %It is unlikely that the users will be aware of side effects of the API they use.
 %Some api is defined to be invoke with lock hold while others dont
 \subsection{Indentify root cause of anomaly}
-Our search algorithm will fist identify the node in the graph corresponding to the anomaly.
-For the non-responsive of UI thread, we will first search the graph to figure our when the event thread get time out while waiting for the eventqueue get dequeueed.
+Our search algorithm will first identify the node in the graph corresponding to the anomaly. 
+For the non-responsive of UI thread, we will first search the graph to figure out when the event thread get a time out while waiting for the event queue get dequeued.
 With the timing information, our search algorithm finds the node.
-Mostly, the main thread is not get blocked, instead, it will be waked up after a short timeout, or just in busy processing.
-To figure out why the anomaly happens, we need to do comparison.
-The first step is to figure out a similar node that has the some thread attribute before the anomaly happens.
-In this step, we need to normalize the node to preserve part of attributes for a subset of tracing events.
-For the events that generate causality, we reserve the process of their peers, and disregard the details such as the message address or port names.
-System call names are reserved while the arguments and return value are disregard.
+Mostly, the main thread is not get blocked. Instead, it will be waked up after a short timeout, or just in busy processing.
+To figure out why the anomaly happens, we need to make a comparison.
 
-All the identified similar nodes will push into the queue, and we will chosse the ones that acts differently from our examined anomaly node.
-The difference contains the return value of system call, the wait intervals of wait event inside, and tiem cost of the node.
-These nodes are quite possible to reflect the expectation of normal executions.
-After this step, we apply the backward path slice on the graph with timing constraint to get a snapshot of the local execution causality path.
-With the normal execution path, we will carry out comparison.
+We first do a similarity searching.
+The first step is to figure out a similar node that has the same thread attribute before the anomaly happens.
+To find out the similarity, we need to normalize the node to preserve a subset of tracing events.
+For each type of events, only certain attributes are used for comparison.
+We reserve the peer process as an attribute for the event conneted to other threads with causality.
+System call names are reserved while the arguments and return value are disregard. 
+All the identified similar nodes will push into the queue, and we will choose the ones that act differently from our examined anomaly node.
+The difference contains the return value of the system call, the wait intervals of wait event inside, and the time cost of the node.
+These nodes are entirely possible to reflect the expectation of normal executions at the point.
+The second step of the similarity searching is to find out the causes of the difference in the two nodes.
+If it is from the wait time, we will get the nodes that wake up the blocking as the initial node for comparison.
 
+After the similarity searching process, the backward path slice from the node is carried out.                           
+The path stands for the regular control flow.                                                                 
+Each of the nodes is compared to the nodes afterward in the same thread respectively.
 
-
+The comparison algorithm is as shown in the figure \ref{Figure: comparison algorithm}
+%
+% picture for the algorithm
+%
 \subsection{Validation of bug fix}
-
