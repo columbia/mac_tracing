@@ -1,1 +1,35 @@
 \section{Introduction}
+%necessarity of tool
+Tools to understand behaviors of GUI Applications from system-wide tracing are essential for performance diagnosis.
+GUI Applications are widely installed in desktops.
+There usually exists complicated synchronizations to support the sophisticated graphical design, with the powerful libraries.
+Hundreds of daemons and services are running in the background in MacOS, for instance.
+A simple API can access multiple daemons, some of which the developers may be unaware of \cite{a file is not a file}.
+Performance anomaly, under the circumstance, happens with specific environment settings. 
+Logs either from the system or the software are often insufficient to reproduce, let alone figure out its root cause.
+To address the problem, we build Argus to understand the application behavior and causality with the system-wide tracing.
+
+%compared to other tools and previous works
+Statistic methods are widely proposed in the past years\cite{} to identify root causes for performance anomaly.
+Insights on the possible causes are presented in those work, which are too vague for the users to carry out debugging task.
+Event-based tracing is another preferred technique in debugging distributed systems.
+Previous works \cite{magpie, pip} try to model workloads in distributed systems to detect performance anomaly with the hints from the developer.
+\cite{magpie} relies on the event schema from developers to identify the boundary and dependency of the traced events, while \cite{pip} requires the correct specification of the workload from developers, and compare them with the real execution in the system.
+Mobile apps are much more straightforward.
+\cite{AppInsight} leverage the higher-level frameworks to overwritten the bytecode, which preserves the structure of the program, including types, methods, and inheritance information.
+With the instrumentation of the handlers, it captures the end to end control paths for user input transaction.
+\cite{Panappticon} instrument limited programming paradigms base on the assumption of two thread models in Android.
+The message queue thread and pool thread model are not general enough to cover all threads in the system though, even for the less complicated mobile apps.
+Correlating the user input and the display is still an open research problem.
+
+In our experience, the threads in MacOS are more complicated due to the widely used mach\_msg and batch processing, from the RunLoop sources, dispach\_mig\_service, to timers, kqueues in the kernel.
+The programming paradigm like the nested dispatch queue structure challenges the traditional assumption that the activities in a task from the task queue are always on behalf of the same request.
+Moreover, previous work overlooks the false causalities introduced by a daemon, kernel thread and programming tricks like timeouts.
+
+%contributions of our frame work
+Argus is unique in the following contributions.
+First, we come up built-in event schema for synchronizations between threads from kernel and libraries without user input and support the incremental instrumentation based on the tool built to explore the completeness of the schema.
+Seconds, a root cause searcher is constructed with path slicing and comparison algorithm.
+With the toolkit on Argus framework, users can assist debugging without the source code or system knowledge, compile a concrete and helpful bug report, and event make a binary patch for the applications.
+
+The remainder of this paper is organized as follows.
