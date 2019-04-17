@@ -1,61 +1,86 @@
 \section{Analysis Methodology}
-To fit the nodes into limited categories are widely utilized in previous work to represents the dependency graph and critical paths\cite{Magpie, AppInsight, Panaappticon}.
-However, compared to the work with user input schema and limited thread model from mobile apps, the purpose of the event sequence in Argus is not straightforward to generalize to a high-level semantics.
+To fit the nodes into limited categories are widely utilized in previous work to represent the dependency graphs and critical paths\cite{Magpie, AppInsight, Panaappticon}.
+However, compared to the work with user input schema and limited thread models for mobile apps, the purpose of the event sequence in Argus is not straightforward to generalize to a high-level semantics.
 Daemons and services make MacOS more like a distributed system with overwhelming IPCs.
-Handlers in these background threads are versatile and not straightforward to identify.
-Besides, it is not essential to recognize the programming paradigm for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with connections.
+Handlers in these background threads are versatile and not obvious to identify.
+Besides, it is not essential to recognize the semantics for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with connections.
 
 \subsection{Generate the relationship graph}
-We first reveal the causalities among threads by matching the tracing events.
-The RPC implemented with mach\_msg does not necessarily have only two threads involved. 
+We first reveal the causalities among threads by matching the patterns of tracing events with the built-in schema.
+For example, the RPC implemented with mach\_msg usually have more than two threads involved in MacOS. 
 The thread that sends out the request is not the same thread that receives the reply message.
-As a result, we need to match the message patterns with both the ports and the process information.
+As a result, both the ports and the process information are required to ensure the correct connections.
 
-Secondly, we make use of the connected peers as a heuristic to infer the boundaries of different requests in the background threads.
+Secondly, execution segments are produced by identifying the boundaried of different requests with the built-in schema.
+In addition to the boundaries for asynchronous tasks callout, we make use of the connected peers as a heuristic to infer the boundaries in the background threads.
 The heuristic is based on the truth that the request from an application processing in the daemon rarely has causality to another user application.
-We also correct the heuristic with the vouchers from Apple, which indicates how one process send message to a second process on behalf of a third process. 
-Also, we keep all events happen inside the callout of the asynchronous task from the dispatch queue in one execution segment unless dispath\_mig\_service is invoked.
+Only the daemons may constradict the heuristics.
+Therfore, we correct the heuristic with the vouchers from Apple, which indicates how one process send message to a second process on behalf of a third process. 
+Also, the traditional assumption that an asynchronous call is for one task is not true in MacOS.
+As a result, we keep all events happen inside the callout of the asynchronous task from the dispatch queue in one execution segment unless dispath\_mig\_service is invoked.
 In the case, we isolate every service to an individual node.
 
-Finally, we generate a directed graph with the execution segments inside the boundary are mapped into nodes, and the causalities are mapped into edges.
+Finally, we generate a directed graph with the execution segments mapped into nodes, and the causalities mapped into edges.
 
-Since the edges between nodes are of various types, the graph is not acyclic.
+Since the edges between nodes are of various types and not unique for each node, the graph is not acyclic.
 For example, node A of the execution of callout from the dispatch queue has a wake-up edge to node B and node B has a message sent to node A later.
 The numbers of nodes and edges for a real-world application are tremendous.
 As a result, we do not throw the whole graph to users.
 Instead, we build a search tool to assist the user in digging into the suspicious part of the graph only.                Users can also define their algorithm for different usage leveraging the rich information captured in the graph. 
 We now describe the typical use cases on our framework.
 
-%\subsection{Understanding of an API}
-%Large amount of APIs are available for constructing a sophisticated and complicated Applications.
-%It is unlikely that the users will be aware of side effects of the API they use.
-%Some api is defined to be invoke with lock hold while others dont
-\subsection{Indentify root cause of anomaly}
-Our search algorithm will first identify the node in the graph corresponding to the anomaly. 
-For the non-responsive of UI thread, we will first search the graph to figure out when the event thread get a time out while waiting for the event queue get dequeued.
-With the timing information, our search algorithm finds the node in the main UI thread which makes itself non-responsive.
-Mostly, the main thread is not get blocked.
-Instead, it will be waked up after a short timeout, or just in busy processing.
+\subsection{Extract control flow}
+Although overlapping user transactions are hard to separate in that hidden batch processing exists everywhere in background threads, display updates are always batched, and some event handlers require multiple user input events to trigger, the backward path slicing is helpful to extract a portion of control flow from a targeted node.
+We can check the incoming edges in the corresponding node to add the precedent node into the path. 
+Although one node can have multiple incoming edges,  it is likely that the sources of the edges are the same.
 
-To figure out why the anomaly happens, we need to make a comparison.
-We first do a similarity searching.
-The first step is to figure out a similar node that has the same thread attribute before the anomaly happens.
-To find out the similarity, we need to normalize the node to preserve a subset of tracing events.
-For each type of events, only certain attributes are used for comparison.
-We reserve the peer process as an attribute for the event conneted to other threads with causality.
-System call names are reserved while the arguments and return value are disregard. 
-All the identified similar nodes will push into the queue, and we will choose the ones that act differently from our examined anomaly node.
-The difference contains the return value of the system call, the wait intervals of wait event inside, and the time cost of the node.
-These nodes are entirely possible to reflect the expectation of normal executions at the point.
-The second step of the similarity searching is to find out the causes of the difference in the two nodes.
-If it is from the wait time, we will get the nodes that wake up the blocking as the initial node for comparison.
+For example, if a thread sends a request to dispatch queue and picks a worker thread to process, it will be likely to wake up the latter thread too.
+Therefore, edges of thread scheduling and asynchronous task causality appear between the same pair of nodes. 
+In addition to choose the precedent node that connects repeatedly, we can also make use of the human pattern recognition ability to choose the correct precedent node by allowing interference in this process,
 
-After the similarity searching process, the backward path slice from the node is carried out.                           
-The path stands for the regular control flow.                                                                 
-Each of the nodes is compared to the nodes afterward in the same thread respectively.
+Besides, the backward path helps to exclude false connections.
+The node containing two requests will finally encounter branches in the backward path.
+We can either check the node or only pick the more reasonable branch.                                   
+As we reserve the causality source information, it is not hard to discriminate them and make a decision.
+We show the example in Figure \ref{figure: false_connection_exclusion}.                                                  
+                                                                                                                         
+\subsection{Indentify root cause of anomaly} \label{subsec:rootcause}                                                    
+It is not limited to the spinning cursor showed up in the GUI application in MacOS.
+As long as an indicator of anomaly is found, the analysis method can be applied.
 
-The comparison algorithm is as shown in the figure \ref{Figure: comparison algorithm}
+For the cases of main thread non-responsive, three main steps are taken.
+It first identifies the node in the main thread corresponding to the anomaly in the graph.
+As we figured out the design of the spinning cursor in Section \ref{subsec:spinningcursor} with the control flow extracted, the timer that triggers spinning cursor in NSEvent thread can be identified along the path.
+With the timing information, it is not hard to get the anomaly node in the main thread.
+
+%Mostly, the main thread is not get blocked doing nothing.
+%Instead, it usually get waked up after a short timeout according to the developer direction to make the main thread responsive, or just in busy processing.
+It is quite common that the main thread is busy process or always waiting(with or without timeout) base on our studies.
+
+The second step is to get a control path for the normal case.                                       
+Correctly checking the similarity of a node is the key in this step.
+Normalization of nodes is applied in the step to exclude the noise from the minor difference of events.
+Only a subset of events and a subset of attributes are included in the normalized node. 
+By comparison, we figure out a corresponding normal node which has the same thread attribute as the anomaly one, while has difference on specific attributes.
+The attributs usually includes the return value of the system call, the wait intervals of wait event inside, and the time cost of the node.
+These nodes are quite possible to reflect the expectation of normal executions at the point.
+
+For the anomaly node waits for a long while, we will choose the node that wakes up the corresponding normal node to begin the backward slicing.
+As a  result, we get the path that represents the normal execution.
+On the other hand, anomaly nodes that have lengthy processing are likely to reveal the root causes by themselves.
+
+The third step aims to discover the root causes of the difference between the normal and anomaly paths. 
+The normal node is from the path sliced in the last step, while the anomaly node is from the same thread as the normal node.
+It is noted that the anomaly node must happen after the normal node.
+The comparison algorithm is as shown in the figure \ref{Figure: comparison algorithm} 
+
+%If the two nodes acts totally different, we will check the precedant node in the normal sliced path.
+%Other wise, the two nodes has similarity but with different values of attributes of our concern, we will print out the node for the user.
+%Since human has a better pattern recognize ability, we provide a interface for user to instruct the comparison in different stages.
 %
 % picture for the algorithm
 %
 \subsection{Validation of bug fix}
+With the root cause revealed, users can come up with a binary patch with our instrumentation tool by themselves if necessary.
+Argus also provides a way to check how the fix works either by comparing to the anomaly extract in section \ref{subsec:rootcause}. Alternatively, the user can add the tracing points in the binary patch for verification.
+For the case that has a timeout, we can narrow the timeout to check if the time interval when the main thread is non-responsive get reduced.
