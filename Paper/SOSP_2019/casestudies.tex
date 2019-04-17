@@ -1,16 +1,16 @@
-\section{Case Studies}                                                                                                       
-We apply our tools to study the design of spinning cursors in MacOS, and analyze real-world bugs.                            
-We illustrate two of the bugs in this section and leave more cases in section \ref{section:evaluation}.                  
-%TextEdit                                                                                                                   
-%Load Hopper file                                                                                                           
-%Launch of printer                                                                                                          
-Both of them are longlisted in public.                                                                                     
-The chromium bug has been reported multiple times in the chromium bug report.                                               
-It is initially a deadlock bug.                                                                                           
-Timeout was added, and it turned to a livelock bug.                                                                         
-Cache mechanism is added to alleviate but not solve it ultimately.                                                          
-The bug of the System Preferences is exposed by an app called DisableMonitor.                                               
-The app can change some system settings and eventually reveal the inappropriate displayer management in the Core Graphics.
+\section{Case Studies} \label{sec:casestudy}
+We apply our tools to study the design of spinning cursors in MacOS and analyze real-world bugs.
+We illustrate two of the bugs in this section and leave more cases in section \ref{section:evaluation}.
+Both of them are longlisted in public.
+
+The chromium bug has been reported multiple times in the chromium bug report.
+It was initially a deadlock bug in which the main thread in the browser is waiting on a condition variable.
+As no one knows how the deadlock triggered, timeout is added as a programming trick to eliminate the deadlock.
+However, the bug is not resolved, and the main thread would always timeout in some situation for a relatively long time.
+Hence, a further patch introduced cache mechanism to alleviate the non-responsive, which did not solve the problem from the root cause and the main thread still get hang from time to time.
+
+The bug of the System Preferences is exposed by an app called DisableMonitor.
+The app can change some system settings and eventually reveal the inappropriate displayer management in CoreGraphics Framework.
 
 \input{spinningcursor}
 \input{chromium}
