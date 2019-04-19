@@ -8,6 +8,15 @@ WaitEvent::WaitEvent(double timestamp, string op, uint64_t tid, uint64_t _wait_e
 	syscall_event = NULL;
 }
 
+double WaitEvent::get_time_cost(void)
+{
+	if (mkrun_event != NULL)
+		return mkrun_event->get_abstime() - get_abstime();
+	if (syscall_event != NULL)
+		return syscall_event->get_ret_time() - get_abstime();
+	return 0.0;
+}
+
 const char * WaitEvent::decode_wait_result(void) 
 {
 	switch(wait_result) {
@@ -48,8 +57,10 @@ void WaitEvent::streamout_event(ofstream &outfile)
 	outfile << "\t" << wait_result_name;
 	if (syscall_event) {
 		outfile << "\twait from " << fixed << setprecision(1) << syscall_event->get_abstime();
-		if (syscall_event->get_ret_time() > 0)
-			outfile << "\tsyscall cost " << fixed << setprecision(1) << syscall_event->get_ret_time() - syscall_event->get_abstime() << endl;
+
+//	if (syscall_event->get_ret_time() > 0)
+//	outfile << "\tsyscall cost " << fixed << setprecision(1) << syscall_event->get_ret_time() - syscall_event->get_abstime() << endl;
 	}
+	outfile << "\ttime cost " << fixed << setprecision(1) << get_time_cost() << endl;
 	outfile << endl;
 }

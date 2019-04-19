@@ -20,7 +20,7 @@ using namespace std;
 extern mutex mtx;
 
 #define MSG_EVENT				0
-#define MR_EVENT				1		
+#define MR_EVENT				1
 #define FAKED_WOKEN_EVENT		27
 #define INTR_EVENT				2
 #define WQNEXT_EVENT			3
@@ -109,14 +109,17 @@ typedef	NSAppEventEvent	nsapp_event_ev_t;
 typedef DispMigEvent	disp_mig_ev_t;
 typedef RLBoundaryEvent	rl_boundary_ev_t;
 
+typedef int event_id_t;
+
 typedef uint64_t tid_t;
 class EventBase {
 	double timestamp;
 	double finish_time;
-	int event_id;
+	event_id_t event_id;
 	string op;
 	tid_t tid;
 	pid_t pid;
+	event_t *event_peer;
 	uint32_t core_id;
 	string procname;
 	uint64_t group_id;
@@ -130,10 +133,12 @@ public:
 	double get_abstime(void) {return timestamp;}
 	void set_finish_time(double time) {finish_time = time;}
 	double get_finish_time(void) {return finish_time;}
-	int get_event_id() {return event_id;}
+	event_id_t get_event_id() {return event_id;}
 	string get_op(void) {return op;}
 	tid_t get_tid(void) {return tid;}
 	pid_t get_pid(void) {return pid;}
+	event_t *get_event_peer(void) {return event_peer;}
+	void set_event_peer(event_t *_peer) {event_peer = _peer;}
 	void set_pid(pid_t _pid) {pid = _pid;}
 	void override_procname(string _procname) {procname = _procname;}
 	string& get_procname(void) {return procname;}
@@ -146,5 +151,6 @@ public:
 
 	virtual void decode_event(bool is_verbose, ofstream &outfile);
 	virtual void streamout_event(ofstream &outfile);
+	void streamout_event(ostream &outfile);
 };
 #endif

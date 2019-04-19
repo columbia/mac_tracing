@@ -17,7 +17,10 @@ public:
 	void *get_func_ptr(void) {return func_ptr;}
 	uint64_t get_param0(void) {return param0;}
 	uint64_t get_param1(void) {return param1;}
-	void set_timercreate(timercreate_ev_t * call_create) {create_event = call_create;}
+	void set_timercreate(timercreate_ev_t * call_create) {
+		create_event = call_create;
+		set_event_peer((event_t *)create_event);
+	}
 	void unset_timercreate(void) {create_event = NULL;}
 	timercreate_ev_t *get_timercreate(void) {return create_event;}
 	bool check_root(timercreate_ev_t *);
@@ -37,7 +40,10 @@ public:
 	void *get_func_ptr(void) {return func_ptr;}
 	uint64_t get_param0(void) {return param0;}
 	uint64_t get_param1(void) {return param1;}
-	void set_timercreate(timercreate_ev_t *_create_event) {create_event = _create_event;}
+	void set_timercreate(timercreate_ev_t *_create_event) {
+		create_event = _create_event;
+		set_event_peer((event_t *)create_event);
+	}
 	void unset_timercreate(void) {create_event = NULL;}
 	timercreate_ev_t *get_timercreate(void) {return create_event;}
 	bool check_root(timercreate_ev_t *);
@@ -62,7 +68,11 @@ public:
 	uint64_t get_param0(void) {return param0;}
 	uint64_t get_param1(void) {return param1;}
 	void *get_q_ptr(void) {return q_ptr;}
-	void set_called_peer(timercallout_ev_t * timercallout) {is_called = true; timercallout_event = timercallout;}
+	void set_called_peer(timercallout_ev_t * timercallout) {
+		is_called = true;
+		timercallout_event = timercallout;
+		set_event_peer((event_t *)timercallout);
+	}
 	void unset_called_peer(void) {
 		is_called = false;
 		if (timercallout_event != NULL)
@@ -71,7 +81,12 @@ public:
 	}
 	bool check_called(void) {return is_called;}
 	timercallout_ev_t *get_called_peer(void) {return timercallout_event;}
-	void cancel_call(timercancel_ev_t * timercancel) {is_cancelled = true; cancel_event = timercancel;}
+	void cancel_call(timercancel_ev_t * timercancel) {
+		is_cancelled = true;
+		cancel_event = timercancel;
+		if (get_event_peer() == NULL)
+			set_event_peer((event_t *)timercancel);
+	}
 	void unset_cancel_call(void) {
 		is_cancelled = false;
 		if (cancel_event != NULL)

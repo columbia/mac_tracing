@@ -98,6 +98,7 @@ class MsgEvent : public EventBase {
 	msgh_t *header;
 	msg_ev_t *peer;
 	msg_ev_t *next;
+	msg_ev_t *prev;
 	backtrace_ev_t *bt;
 	voucher_ev_t *voucher;
 	bool free_before_deliver;
@@ -111,12 +112,14 @@ public:
 	bool is_freed_before_deliver(void) {return free_before_deliver;}
 	void set_tag(uint64_t _tag) {tag = _tag;}
 	void set_user_addr(uint64_t _user_addr) {user_addr = _user_addr;}
-	void set_peer(msg_ev_t * _peer) {peer = _peer;}
-	void set_next(msg_ev_t * _next) {next = _next;}
+	void set_peer(msg_ev_t *_peer) {peer = _peer; set_event_peer(peer);}
+	void set_next(msg_ev_t *_next) {next = _next; _next->set_prev(this);}
+	void set_prev(msg_ev_t *_prev) {prev = _prev;}
 	void set_bt(backtrace_ev_t *_bt) {bt = _bt;}
 	void set_voucher(voucher_ev_t * _voucher) {voucher = _voucher;}
 	msg_ev_t* get_peer(void) {return peer;}
 	msg_ev_t* get_next(void) {return next;}
+	msg_ev_t* get_prev(void) {return prev;}
 	backtrace_ev_t* get_bt(void) {return bt;}
 	voucher_ev_t* get_voucher(void) {return voucher;}
 	uint64_t get_tag(void) {return tag;}

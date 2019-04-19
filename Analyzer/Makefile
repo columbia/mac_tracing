@@ -1,4 +1,4 @@
-TARGET		:= analyzer
+TARGET		:= pattern check_graph
 #pattern_check analyzer partial_compare who_trigger_spinning
 #trace_voucher diff
 CXX		:= clang++

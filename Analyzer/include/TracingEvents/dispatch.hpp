@@ -14,7 +14,10 @@ class EnqueueEvent: public EventBase {
 public:
 	EnqueueEvent(double abstime, string op, uint64_t _tid, uint64_t _q_id, uint64_t _item, uint32_t _ref, uint32_t _core, string procname= "");
 	bool is_consumed(void) {return consumed;}
-	void set_consumer(dequeue_ev_t *_consumer) {consumed = true; consumer = _consumer;}
+	void set_consumer(dequeue_ev_t *_consumer) {
+		consumed = true;
+		consumer = _consumer; 
+		set_event_peer((event_t *)consumer);}
 	dequeue_ev_t *get_consumer(void) {return consumer;}
 	uint64_t get_qid(void) {return q_id;}
 	uint64_t get_item(void) {return item;}
@@ -47,7 +50,10 @@ class DequeueEvent: public EventBase {
 public:
 	DequeueEvent(double abstime, string op, uint64_t _tid, uint64_t _q_id, uint64_t _item, uint64_t _ctxt, uint32_t _ref, uint32_t _core, string proc="" );
 	void set_ptrs(uint64_t _func_ptr, uint64_t _invoke_ptr, uint64_t _vtable_ptr);
-	void set_root(enqueue_ev_t* _root) {root = _root;}
+	void set_root(enqueue_ev_t* _root) {
+		root = _root;
+		set_event_peer((event_t *)root);
+	}
 	enqueue_ev_t *get_root(void) {return root;}
 	blockinvoke_ev_t *get_invoke(void) {return invoke;}
 	uint64_t get_func_ptr(void) {return func_ptr;}

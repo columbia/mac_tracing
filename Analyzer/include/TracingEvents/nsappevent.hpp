@@ -47,6 +47,8 @@ public:
 	// pair to the nearest event_ref
 	void set_event_ref(event_ref_ev_t * _ref) {event_ref = _ref;}
 	event_ref_ev_t *get_event_ref(void) {return event_ref;}
+	uint64_t get_event_class() {return event_class;}
+	uint64_t get_key_code() {return key_code;}
 	bool is_begin(void) {return begin;}
 	const char *decode_event_type(int event_type);
 	const char *decode_keycode(int key_code);

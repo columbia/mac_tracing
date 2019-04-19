@@ -2,6 +2,7 @@
 #define WAIT_HPP
 
 #include "base.hpp"
+#include "mkrun.hpp"
 #include "syscall.hpp"
 using namespace std;
 
@@ -21,7 +22,7 @@ class WaitEvent : public EventBase {
 	const char *decode_wait_result(void);
 public :
 	WaitEvent(double timestamp, string op, uint64_t tid, uint64_t wait_event, uint32_t coreid, string procname = "");
-	void pair_mkrun(mkrun_ev_t *mkrun) {mkrun_event = mkrun;}
+	void pair_mkrun(mkrun_ev_t *mkrun) {mkrun_event = mkrun; set_event_peer(mkrun);}
 	mkrun_ev_t *get_mkrun(void) {return mkrun_event;}
 	void pair_syscall(syscall_ev_t *syscall) {syscall_event = syscall;}
 	syscall_ev_t *get_syscall(void) {return syscall_event;}
@@ -30,6 +31,7 @@ public :
 	uint64_t get_wait_event(void) {return wait_event;}
 	string get_wait_resource(void) {return wait_resource;}
 	int get_wait_result(void) {return wait_result;}
+	double get_time_cost(void);
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
 };

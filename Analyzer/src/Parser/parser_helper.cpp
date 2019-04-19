@@ -4,7 +4,7 @@ namespace Parse
 {
 	namespace EventComparator
 	{
-		bool compare_time(event_t * event_1, event_t * event_2)
+		bool compare_time(event_t *event_1, event_t *event_2)
 		{
 			double timestamp1 = event_1->get_abstime();
 			double timestamp2 = event_2->get_abstime();

@@ -11,6 +11,7 @@ EventBase::EventBase(double _timestamp, int _event_id, string _op, uint64_t _tid
 	procname = _procname;
 	group_id = (uint64_t)-1;
 	complete = false;
+	event_peer = NULL;
 }
 
 EventBase::EventBase(EventBase * base)
@@ -29,6 +30,15 @@ void EventBase::decode_event(bool is_verbose, ofstream &outfile)
 }
 
 void EventBase::streamout_event(ofstream &outfile)
+{
+	outfile << std::right << hex << get_group_id();
+	outfile << "\t" << fixed << setprecision(1) << get_abstime();
+	outfile << "\t" << get_tid();
+	outfile << "\t" << get_procname();
+	outfile << "\t" << get_op();
+}
+
+void EventBase::streamout_event(ostream &outfile)
 {
 	outfile << std::right << hex << get_group_id();
 	outfile << "\t" << fixed << setprecision(1) << get_abstime();

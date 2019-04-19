@@ -1,5 +1,5 @@
 #include  "thread_divider.hpp"
-#define DEBUG_THREAD_DIVIDER 1
+#define DEBUG_THREAD_DIVIDER 0
 
 //////////////////////////////////////////////
 //event schemas for divider
@@ -11,8 +11,14 @@ void ThreadDivider::add_disp_invoke_event_to_group(event_t *event)
 
 	if (invoke_event->is_begin()) {
 		current_disp_invokers.push(invoke_event);
-		/*1. if a new execution segment should initiate
-		 * only isolate block when it is from dispatch queue
+#if DEBUG_THREAD_DIVIDER
+		mtx.lock();
+		cerr << hex << event->get_tid() << " current_disp_invokers size " << current_disp_invokers.size();
+		cerr << " at " << fixed << setprecision(1) << invoke_event->get_abstime() << endl;
+		mtx.unlock();
+#endif
+		/*1. a new execution segment should initiate
+		 * only when it is from dispatch queue
 		 */
 		if (cur_group && !cur_group->get_blockinvoke_level() && invoke_event->get_root())
 			cur_group = NULL;
@@ -47,9 +53,40 @@ void ThreadDivider::add_disp_invoke_event_to_group(event_t *event)
 		/* sanity check for block invoke event
 		 * and restore group if dispatch_mig_server invoked
 		 */
-		assert(invoke_event->get_root() && !current_disp_invokers.empty());
-		current_disp_invokers.pop();
 		blockinvoke_ev_t *begin_invoke = dynamic_cast<blockinvoke_ev_t *>(invoke_event->get_root());
+		assert(begin_invoke);
+
+		if (!current_disp_invokers.empty()) {
+#if DEBUG_THREAD_DIVIDER
+		    mtx.lock();
+			cerr << hex << event->get_tid() << " pop current_disp_invokers size " << current_disp_invokers.size();
+			cerr << " invoke_block end at "<< fixed << setprecision(1);
+			cerr << invoke_event->get_abstime();
+			cerr << "  for " << fixed << setprecision(1) << current_disp_invokers.top()->get_abstime() << endl;
+			mtx.unlock();
+#endif
+		}
+
+		if (current_disp_invokers.empty()) {
+#if DEBUG_THREAD_DIVIDER
+		    mtx.lock();
+			cerr << "Error at " << hex << event->get_tid() << invoke_event->get_abstime();
+			mtx.unlock();
+#endif
+			assert(!current_disp_invokers.empty());
+		}
+
+		if ( !(begin_invoke == current_disp_invokers.top())) {
+#if DEBUG_THREAD_DIVIDER
+		    mtx.lock();
+			cerr << "Error at " << hex << event->get_tid() << invoke_event->get_abstime();
+			mtx.unlock();
+#endif
+			assert(begin_invoke == current_disp_invokers.top());
+		}
+
+		current_disp_invokers.pop();
+
 		/*1. dispatch_mig_server inside block*/
 		if (!dispatch_mig_servers.empty()) {
 			disp_mig_ev_t *current_mig_server = dispatch_mig_servers.top();
@@ -77,6 +114,7 @@ void ThreadDivider::add_disp_invoke_event_to_group(event_t *event)
 			assert(cur_group->get_first_event());
 			cerr << "group begins at " << fixed << setprecision(1) << cur_group->get_first_event()->get_abstime() << endl;
 			mtx.unlock();
+			assert(cur_group && cur_group->get_blockinvoke_level() > 0);
 			cur_group = NULL;
 			return;
 		}

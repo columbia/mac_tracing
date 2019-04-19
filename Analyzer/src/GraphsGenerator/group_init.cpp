@@ -178,7 +178,7 @@ string Groups::pid2comm(pid_t pid)
 	return proc_comm;
 }
 
-Groups::tid_evlist_t Groups::divide_eventlist_and_mapping(list<event_t *> &ev_list)
+tid_evlist_t Groups::divide_eventlist_and_mapping(list<event_t *> &ev_list)
 {
 	list<event_t *>::iterator it;
 	tid_evlist_t tid_list_map;
@@ -295,7 +295,10 @@ void Groups::check_host_uithreads(list<event_t *> &backtrace_list)
 	list<event_t *>::iterator it;
 	backtrace_ev_t *backtrace_event;
 	uint64_t tid;
-	string mainthread("NSApplication run");
+	//string mainthread("NSApplication run");
+	string mainthread("[NSApplication run]");
+	string mainthreadobserver("MainLoopObserver");
+	string mainthreadsendevent("SendEventToEventTargetWithOptions");
 	string nsthread("_NSEventThread");
 
 	for (it = backtrace_list.begin(); it != backtrace_list.end(); it++) {
@@ -313,10 +316,13 @@ void Groups::check_host_uithreads(list<event_t *> &backtrace_list)
 			&& tid2comm(tid) != LoadData::meta_data.host)
 			continue;
 
-		if (main_thread == -1
-			&& backtrace_event->check_backtrace_symbol(mainthread)) {
-			main_thread = tid;
-			continue;
+		if (main_thread == -1) {
+			if (backtrace_event->check_backtrace_symbol(mainthread)
+			|| backtrace_event->check_backtrace_symbol(mainthreadobserver)
+			|| backtrace_event->check_backtrace_symbol(mainthreadsendevent)) {
+				main_thread = tid;
+				continue;
+			}
 		}
 
 		if (nsevent_thread == -1
@@ -606,9 +612,11 @@ void Groups::para_connector_generate(void)
 
 group_t *Groups::group_of(event_t *event)
 {
+	assert(event);
 	uint64_t gid = event->get_group_id();
-	if (groups.find(gid) != groups.end()) 
+	if (groups.find(gid) != groups.end()) { 
 		return groups[gid];
+	} 
 	return NULL;
 }
 
@@ -680,6 +688,7 @@ void Groups::para_group(void)
 
 group_t *Groups::spinning_group()
 {
+	cout << "Try to detect spinning group" << endl;
 	if (nsevent_thread == -1) {
 		return NULL;
 	}
@@ -696,18 +705,36 @@ group_t *Groups::spinning_group()
 			break;
 		}
 	}
+	
 	if (nsthread_spin_timestamp > 0.0) {
+		cout << "spin at " << fixed << nsthread_spin_timestamp << endl;
 	    map<uint64_t, group_t *>mainthread_groups = sub_results[main_thread];
 	    map<uint64_t, group_t *>::reverse_iterator rit;
+		mtx.lock();
+		cerr << "Main thread has " << mainthread_groups.size() << " groups" << endl;
+		mtx.unlock();
+		
 	    for (rit = mainthread_groups.rbegin(); rit != mainthread_groups.rend(); rit++) {
-		group_t *cur_group = rit->second;
-
-		if (cur_group->get_size() > 2 && cur_group->get_first_event()->get_abstime() < nsthread_spin_timestamp) {
-			cout << "Correspoin busy UI thread execution: " << hex << cur_group->get_group_id() << endl;
-			return cur_group;
-		}
+			group_t *cur_group = rit->second;
+			if (cur_group->get_first_event()->get_abstime() < nsthread_spin_timestamp) {
+				if (cur_group->get_size() <= 2) {
+					mtx.lock();
+					cerr << "Spinning Group identified is too small " << hex << cur_group->get_group_id() << endl;
+					mtx.unlock();
+					continue;
+				}
+					
+//#if DEBUG_GROUP
+				mtx.lock();
+				cerr << "Spinning at " << nsthread_spin_timestamp << endl;
+				cerr << "Corresponding busy UI execution: Group #" << hex << cur_group->get_group_id() << endl;
+				mtx.unlock();
+//#endif
+				return cur_group;
+			}
 	    }
 	}
+	cout << "Spinning group is not found" << endl;
 	return NULL;
 }
 
@@ -781,11 +808,14 @@ int Groups::streamout_groups(string &output_path)
 }
 /////////////////////////////////////////////
 /*checking can also be done paralelly*/
-bool Groups::check_interleaved_pattern(list<event_t *> &ev_list, list<event_t *>::iterator &it, ofstream &output)
+bool Groups::check_interleaved_pattern(list<event_t *> &ev_list, list<event_t *>::iterator &it)
 {
 	msg_ev_t *msg_event = dynamic_cast<msg_ev_t *>(*it);
 	assert(msg_event);
 	bool found = false;
+	mtx.lock();
+	cerr << "Check interleaved msg receive at: "<< fixed << setprecision(1) << msg_event->get_abstime() << endl;
+	mtx.unlock();
 	for (it++; it != ev_list.end()
 		&& (*it)->get_abstime() < msg_event->get_next()->get_abstime(); it++) {
 		msg_ev_t *other = NULL;
@@ -794,26 +824,66 @@ bool Groups::check_interleaved_pattern(list<event_t *> &ev_list, list<event_t *>
 			&& other->get_peer()
 			&& other->get_peer()->get_tid() != msg_event->get_next()->get_tid()
 			&& other->get_peer()->get_tid() != msg_event->get_tid()) {
-			output << "Interleaved procs: " << msg_event->get_procname() \
+			mtx.lock();
+			cerr << "Interleaved procs: " << msg_event->get_procname() \
 				<< "\t" << other->get_peer()->get_procname() << " at " \
 				<< fixed << setprecision(1) << other->get_abstime() \
 				<< "\t" << msg_event->get_peer()->get_procname() << endl;
+			mtx.unlock();
 			found = true;
 		}
+	}
+	if (found == true) {
+		mtx.lock();
+		cerr << "Interleaved patterns for " << msg_event->get_procname();
+		cerr << "\treceive: "<< fixed << setprecision(1) << msg_event->get_abstime();
+		cerr << "\treply: " <<fixed << setprecision(1) << msg_event->get_next()->get_abstime() << endl;
+		mtx.unlock();
 	}
 	return found;
 }
 
-void Groups::check_pattern(string output_path)
+void Groups::check_interleavemsg_from_thread(list<event_t *> &evlist)
 {
-	ofstream output(output_path);
+	list<event_t *>::iterator ev_it;
+	for (ev_it = evlist.begin(); ev_it != evlist.end(); ev_it++) {
+		msg_ev_t *msg_event = dynamic_cast<msg_ev_t *>(*ev_it);
+		if (!msg_event || !msg_event->get_header()->check_recv())
+			continue;
+
+		if (!msg_event->get_next())
+			continue;
+		if (msg_event->get_next()->get_tid() == msg_event->get_tid())
+			check_interleaved_pattern(evlist, ev_it);
+		/*
+			mtx.lock();
+			cerr << "interleaved patterns for " << msg_event->get_procname();
+			cerr << "\treceive: "<< fixed << setprecision(1) << msg_event->get_abstime();
+			cerr << "\treply: " <<fixed << setprecision(1) << msg_event->get_next()->get_abstime() << endl;
+			mtx.unlock();
+		*/
+	}
+}
+
+//void Groups::check_pattern(string output_path)
+void Groups::check_msg_pattern()
+{
+	boost::asio::io_service ioService;
+	boost::thread_group threadpool;
+	asio_worker work(new asio_worker::element_type(ioService));
+	
+	for (int i = 0 ; i < LoadData::meta_data.nthreads; i++)
+		threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &ioService));
+
+	//ofstream output(output_path);
 	tid_evlist_t::iterator it;
 	list<event_t *>::iterator ev_it;
-
-	output << "Checking mach message interleave inside execution segment" << endl;
+	cerr << "Checking mach message interleave inside execution segment" << endl;
 	for (it = tid_lists.begin(); it != tid_lists.end(); it++) {
 		if ((it->second).size() == 0)
 			continue;
+		ioService.post(boost::bind(&Groups::check_interleavemsg_from_thread, this, it->second));
+		/*
 		for (ev_it = (it->second).begin(); ev_it != (it->second).end(); ev_it++) {
 			msg_ev_t *msg_event = dynamic_cast<msg_ev_t *>(*ev_it);
 			if (!msg_event || !msg_event->get_header()->check_recv())
@@ -829,5 +899,27 @@ void Groups::check_pattern(string output_path)
 				output << "\treply: " <<fixed << setprecision(1) << msg_event->get_next()->get_abstime() << endl;
 			}
 		}
+		*/
 	}
+	work.reset();
+	threadpool.join_all();
+}
+
+void Groups::check_noncausual_mkrun()
+{
+	boost::asio::io_service ioService;
+	boost::thread_group threadpool;
+	asio_worker work(new asio_worker::element_type(ioService));
+	
+	for (int i = 0 ; i < LoadData::meta_data.nthreads; i++)
+		threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &ioService));
+
+	gid_group_map_t::iterator it;
+	for (it = groups.begin(); it != groups.end(); it++) {
+		group_t *cur_group = it->second;
+		ioService.post(boost::bind(&Group::contains_noncausual_mk_edge, cur_group));
+	}
+	
+	work.reset();
+	threadpool.join_all();
 }

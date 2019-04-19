@@ -126,6 +126,8 @@ class EventRefEvent : public EventBase {
 	uint64_t key_code;
 public:
 	EventRefEvent(double timestamp, string op, uint64_t tid, uint64_t event_addr, uint64_t event_class, uint64_t event_kind, uint64_t keycode, uint32_t coreid, string procname = "");
+	uint64_t get_class() {return event_class;}
+	uint64_t get_kind() {return event_kind;}
 	const char *decode_keycode(int keyCode);
 	const char *decode_keykind(int keyKind);
 	void decode_event(bool is_verbose, ofstream &outfile);

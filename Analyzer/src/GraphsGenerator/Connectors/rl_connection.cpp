@@ -1,5 +1,6 @@
 #include "rl_connection.hpp"
 #include "mach_msg.hpp"
+#include "eventlistop.hpp"
 
 #define RL_BOUNDARY_DEBUG 1
 
@@ -10,6 +11,8 @@ RLConnection::RLConnection(list<event_t *> &_rl_item_list, tid_evlist_t &_tid_li
 
 void RLConnection::connect_for_source1(rl_boundary_ev_t *rl_boundary_event)
 {
+	
+	/* Not need because of source1 will connect with port message
 	list<event_t *> cur_tid_list = tid_lists[rl_boundary_event->get_tid()];
 	list<event_t *>::reverse_iterator cur_rpos(find(cur_tid_list.begin(), cur_tid_list.end(), rl_boundary_event));
 	for (; cur_rpos != cur_tid_list.rend(); cur_rpos++) {
@@ -21,13 +24,14 @@ void RLConnection::connect_for_source1(rl_boundary_ev_t *rl_boundary_event)
 			break;
 		}
 	}
-#if	RL_BOUNDARY_DEBUG
+#if RL_BOUNDARY_DEBUG
 	if (cur_rpos == cur_tid_list.rend()) {
 		mtx.lock();
 		cerr << "No matching event found for Source1 " << fixed << setprecision(1) << rl_boundary_event->get_abstime() << endl;
 		mtx.unlock();
 	}
 #endif
+	*/
 }
 
 void RLConnection::connect_for_source0(rl_boundary_ev_t *rl_boundary_event, list<event_t *>::reverse_iterator rit)
@@ -44,6 +48,8 @@ void RLConnection::connect_for_source0(rl_boundary_ev_t *rl_boundary_event, list
 				unset_sig_event = rl_event;
 		} else if (rl_event->get_state() == SetSignalForSource0 && unset_sig_event->get_rls() == rl_event->get_rls()) {
 			rl_boundary_event->set_owner(*rit);
+			assert(rl_event == *rit);
+			rl_event->set_consumer(rl_boundary_event);
 			break;
 		}
 	}
@@ -65,6 +71,7 @@ void RLConnection::connect_for_blocks(rl_boundary_ev_t *rl_boundary_event, list<
 			continue;
 		if (block_orig->get_block() == rl_boundary_event->get_block()) {
 			rl_boundary_event->set_owner(block_orig);
+			block_orig->set_consumer(rl_boundary_event);
 			break;
 		}
 	}
@@ -80,6 +87,7 @@ void RLConnection::connect_for_blocks(rl_boundary_ev_t *rl_boundary_event, list<
 void RLConnection::rl_connection(void)
 {
 	list<event_t *>::iterator it;
+	EventLists::sort_event_list(rl_item_list);
 	for (it = rl_item_list.begin(); it != rl_item_list.end(); it++) {
 		rl_boundary_ev_t *rl_boundary_event = dynamic_cast<rl_boundary_ev_t *>(*it);
 		assert(rl_boundary_event);

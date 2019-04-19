@@ -12,6 +12,7 @@ public:
 	uint64_t get_object_addr(void) {return object_addr;}
 	void set_display(ca_disp_ev_t *disp) {display = disp;}
 	ca_disp_ev_t *get_display_object(void) {return display;}
+	ca_disp_ev_t *get_display_event(void) {return display;}
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
 };

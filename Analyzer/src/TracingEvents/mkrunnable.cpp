@@ -59,6 +59,7 @@ int32_t MkrunEvent::check_mr_type(event_t *last_event, intr_ev_t *potential_root
 void MkrunEvent::pair_wait(wait_ev_t* _wait)
 {
 	wait = _wait;
+	set_event_peer(wait);
 }
 
 void MkrunEvent::decode_event(bool is_verbose, ofstream &outfile)

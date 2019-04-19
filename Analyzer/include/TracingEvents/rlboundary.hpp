@@ -14,6 +14,7 @@ class RLBoundaryEvent:public EventBase {
 	uint64_t func_ptr;
 	string func_symbol;
 	event_t *owner;
+	event_t *consumer;
 	uint64_t rls;
 	uint64_t block;
 public:
@@ -21,12 +22,14 @@ public:
 	void set_func_symbol(string _symbol) {func_symbol = _symbol;}
 	void set_rls(uint64_t _rls) {rls = _rls;}
 	void set_block(uint64_t _block) {block = _block;}
-	uint64_t get_state(void) {return state;}
+	uint32_t get_state(void) {return state;}
 	uint64_t get_func_ptr(void) {return func_ptr;}
 	uint64_t get_rls(void) {return rls;}
 	uint64_t get_block(void) {return block;}
-	void set_owner(event_t *_owner) {owner = _owner;}
+	void set_owner(event_t *_owner) {owner = _owner; set_event_peer(owner);}
+	void set_consumer(event_t *_c) {consumer = _c; set_event_peer(consumer);}
 	event_t *get_owner(void) {return owner;}
+	event_t *get_consumer(void) {return consumer;}
 	const char * decode_state(int state);
 	void decode_event(bool is_verbose, ofstream &outfile);
 	void streamout_event(ofstream &outfile);
