@@ -18,9 +18,6 @@ namespace Parse
 			frame_info.addr = addrs[i];
 			frame_info.symbol = "";
 			if (frame_info.filepath = image->search_path(frame_info.addr), frame_info.filepath.size() > 0) {
-				cerr << "Parse hwbr event at " << fixed << setprecision(1) << breakpoint_trap_event->get_abstime() << endl;
-				cerr << "symbol path " << frame_info.filepath << endl;
-				cerr << "symbolize addr = " << hex << frame_info.addr << endl;
 				Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
 						frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);
 			}
@@ -35,9 +32,6 @@ namespace Parse
 		ret = Frames::lookup_symbol_via_lldb(cur_debugger, &frame_info);
 		if (ret == false)
 			return;
-		cerr << "Parse hwbr event at " << fixed << setprecision(1) << breakpoint_trap_event->get_abstime() << endl;
-		cerr << "symbol path " << frame_info.filepath << endl;
-		cerr << "symbolize eip = " << hex << frame_info.addr << endl;
 		if (frame_info.filepath.find("CoreGraphics") != string::npos)
 			Frames::checking_symbol_with_image_in_memory(frame_info.symbol, frame_info.addr,
 					frame_info.filepath, backtrace_parser->get_vmsymbol_map(), image);

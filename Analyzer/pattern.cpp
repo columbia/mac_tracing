@@ -62,6 +62,10 @@ int main(int argc, char* argv[]) {
 	cout << "Begin grouping ..." << endl;
 	groups_t *g_ptr = new groups_t(event_lists_ptr);
 
+	string pattern_check_log = get_prefix(logfile) + "_pattern.stream";
+	g_ptr->check_noncausual_mkrun();
+	g_ptr->check_msg_pattern();
+	
 	cout << "Decode groups ..." << endl;
 	string group_stream_path = get_prefix(logfile) + "_groups.stream";
 	g_ptr->streamout_groups(group_stream_path);
@@ -70,12 +74,15 @@ int main(int argc, char* argv[]) {
 	string event_stream_path = get_prefix(logfile) + "_events.stream";
 	event_lists_ptr->streamout_all_event(event_stream_path);
 	
-	//cout << "Search bug..." << endl;
-	//string report_path = get_prefix(logfile) + "_blocks.stream";
-	//string buggy_path = get_prefix(logfile) + "_paths.stream";
-	//BugSearcher bug_searcher(g_ptr);
-	//map<wait_ev_t *, double> result = bug_searcher.suspicious_blocking(g_ptr, report_path);
-	//bug_searcher.slice_path(-1, buggy_path);
+	/*
+	cout << "Construct graph..." << endl;
+	Graph *graph = new Graph(g_ptr);
+	string pattern_check_log = get_prefix(logfile) + "_pattern.stream";
+	graph->check_pattern_for_mkrun(pattern_check_log);
+	
+	cout << "Clearing graph..." << endl;
+	delete (graph);
+	*/
 
 	cout << "Clearing groups..." << endl;
 	delete(g_ptr);
@@ -85,4 +92,5 @@ int main(int argc, char* argv[]) {
 
 	cout << "Done!" << endl;
 	return 0;
+	
 }

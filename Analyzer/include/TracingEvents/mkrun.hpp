@@ -29,7 +29,7 @@ class MkrunEvent: public EventBase {
 public:
 	MkrunEvent(double timestamp, string op, uint64_t tid, uint64_t peer_tid, uint64_t wakeup_event,
 			uint64_t mr_type, pid_t pid, pid_t peer_pid, uint32_t coreid, string procname = "");
-	void set_peer_event(event_t *ev) {peer_event = ev;}
+	void set_peer_event(event_t *ev) {peer_event = ev; set_event_peer(ev);}
 	event_t *get_peer_event(void) {return peer_event;}
 	void set_peer_prio(uint64_t _peer_prio) {peer_prio = _peer_prio;}
 	void set_peer_wait_result(uint64_t wait_result) {peer_wait_result = wait_result;}

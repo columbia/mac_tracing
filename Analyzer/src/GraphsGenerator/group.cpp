@@ -8,6 +8,7 @@ Group::Group(uint64_t _group_id, event_t * _root)
 	blockinvoke_level = 0;
 	nsapp_event = NULL;
 	time_span = 0.0;
+	sorted = false;
 	container.clear();
 }
 
@@ -132,7 +133,120 @@ double Group::calculate_time_span()
 	return time_span;
 }
 
-void Group::decode_group(ofstream & output)
+int Group::compare_syscall_ret(group_t *peer)
+{
+	list<event_t *> &peer_container = peer->get_container();
+	list<event_t *>::iterator cur_it, peer_it;
+	int ret = 0;
+	//get the desired event from the event list
+	//compare
+	for (cur_it = container.begin(), peer_it = peer_container.begin();
+		cur_it != container.end() && peer_it != peer_container.end();) {
+		while(cur_it != container.end() && (*cur_it)->get_event_id() != SYSCALL_EVENT)
+			cur_it++;
+		if (cur_it == container.end())
+			return ret;
+
+		while(peer_it != peer_container.end() && (*peer_it)->get_event_id() != SYSCALL_EVENT)
+			peer_it++;
+
+		if (peer_it == peer_container.end())
+			return ret;
+
+		assert(*cur_it != NULL && *peer_it != NULL);
+		syscall_ev_t *cur_syscall = dynamic_cast<syscall_ev_t *>(*cur_it);
+		syscall_ev_t *peer_syscall = dynamic_cast<syscall_ev_t *>(*peer_it);
+		cerr << "Compare event " << fixed << setprecision(1) << cur_syscall->get_abstime();
+		cerr << " with " << fixed << setprecision(1) << peer_syscall->get_abstime() << endl;
+		if (cur_syscall->get_ret() != peer_syscall->get_ret())
+			ret = 1;
+		
+		cerr << "result is (1 stands for have difference) : " << ret << endl;
+
+		if (ret == 1)
+			return ret;
+		cur_it++;
+		peer_it++;
+	}
+	return ret;
+}
+
+//if no wait event inside the group. return 0
+int Group::compare_wait(group_t *peer)
+{
+	list<event_t *> &peer_container = peer->get_container();
+	list<event_t *>::iterator cur_it, peer_it;
+	int ret = 0;
+	//get the desired event from the event list
+	//compare
+	for (cur_it = container.begin(), peer_it = peer_container.begin();
+		cur_it != container.end() && peer_it != peer_container.end();) {
+		while(cur_it != container.end() && (*cur_it)->get_event_id() != WAIT_EVENT)
+			cur_it++;
+		if (cur_it == container.end())
+			return ret;
+
+		while(peer_it != peer_container.end() && (*peer_it)->get_event_id() != WAIT_EVENT)
+			peer_it++;
+		if (peer_it == peer_container.end())
+			return ret;
+		double cur_wait = dynamic_cast<wait_ev_t*>(*cur_it)->get_time_cost();
+		double peer_wait = dynamic_cast<wait_ev_t*>(*peer_it)->get_time_cost();
+		if (cur_wait - peer_wait > 1000000)
+			return 1;
+		if (peer_wait - cur_wait > 1000000)
+			return -1;
+		cur_it++;
+		peer_it++;
+	}
+	return ret;
+}
+
+int Group::compare_timespan(group_t *peer)
+{
+	double peer_timespan = peer->calculate_time_span();
+	if (time_span - peer_timespan > 1000000)
+		return 1;
+ 	if (peer_timespan - time_span > 1000000)
+		return -1;
+	return 0;
+}
+
+bool Group::contains_noncausual_mk_edge()
+{
+	sort_container();
+	list<event_t*>::iterator it;
+	for (it = container.begin(); it != container.end(); it++) {
+		mkrun_ev_t *makerun = dynamic_cast<mkrun_ev_t *>(*it);
+		if (makerun == NULL)
+			continue;
+		if (makerun->get_mr_type() == WORKQ_MR || makerun->get_mr_type() < 5) {
+			mtx.lock();
+			cout << "Group# " << hex << group_id << endl;
+			mtx.unlock();
+		}
+	}
+	return false;
+}
+
+bool Group::wait_over()
+{
+	sort_container();
+	list<event_t*>::iterator it;
+	for (it = container.begin(); it != container.end(); it++) {
+		wait_ev_t *wait_event = dynamic_cast<wait_ev_t *>(*it);
+		if (wait_event != NULL) {
+			double wait_length = wait_event->get_time_cost();
+			if (wait_length > 2000000)
+				return true;
+			if (wait_length < 10e-8 && wait_length > -10e-8)
+				return true;
+		}
+	}
+	return false;
+}
+
+void Group::decode_group(ofstream &output)
 {	
 	sort_container();
 	list<event_t*>::iterator it;
@@ -142,9 +256,19 @@ void Group::decode_group(ofstream & output)
 	}
 }
 
-void Group::streamout_group(ofstream & output)
+void Group::streamout_group(ofstream &output)
 {	
 	sort_container();
+	list<event_t*>::iterator it;
+	for (it = container.begin(); it != container.end(); it++) {
+		event_t * cur_ev = *it;
+		cur_ev->streamout_event(output);
+	}
+}
+
+void Group::streamout_group(ostream &output)
+{	
+	//sort_container();
 	list<event_t*>::iterator it;
 	for (it = container.begin(); it != container.end(); it++) {
 		event_t * cur_ev = *it;

@@ -197,6 +197,9 @@ void MsgPattern::collect_patterned_ipcs(void)
 	cerr << "total number of msg patterns: " << patterned_ipcs.size() << endl;
 	mtx.unlock();
 #endif
+	string output("output/msg_pattern.log");
+	decode_patterned_ipcs(output);
+
 	free(mark_visit);
 }
 
@@ -282,7 +285,7 @@ list<event_t *>::iterator MsgPattern::search_ipc_msg(
 				}
 			}
 			/*meet requirment*/
-#if MSG_PATTERN_DEBIG
+#if MSG_PATTERN_DEBUG
 			mtx.lock();
 			cerr << "Matched: " << fixed << setprecision(1) << cur_ipc->get_abstime();
 			cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
@@ -356,7 +359,7 @@ vector<msg_ev_t *> MsgPattern::sort_msg_episode(msg_episode & s)
 	return s_vector;
 }
 
-void MsgPattern::decode_patterned_ipcs(string & output_path)
+void MsgPattern::decode_patterned_ipcs(string &output_path)
 {
 	ofstream output(output_path, ofstream::out);
 	list<msg_episode>::iterator it;

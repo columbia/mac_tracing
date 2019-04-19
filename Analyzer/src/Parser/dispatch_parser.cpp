@@ -128,6 +128,8 @@ namespace Parse
 				if (invokebegin->get_tid() == new_invoke->get_tid()
 					 && invokebegin->get_func() == new_invoke->get_func()) {
 					new_invoke->set_root(invokebegin);
+					//delete the item
+					dispatch_blockinvoke_begin_list.erase(next(rit).base());
 					return true;
 				}
 			}

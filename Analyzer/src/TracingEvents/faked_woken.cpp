@@ -3,6 +3,7 @@ FakedwokenEvent::FakedwokenEvent(double timestamp, string op, uint64_t tid, mkru
 :EventBase(timestamp, FAKED_WOKEN_EVENT, op, tid, coreid, procname)
 {
 	mkrun_peer = _mkrun_peer;
+	set_event_peer(mkrun_peer);
 }
 
 void FakedwokenEvent::decode_event(bool is_verbose, ofstream &outfile)

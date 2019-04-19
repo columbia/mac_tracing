@@ -5,7 +5,7 @@ RLBoundaryEvent::RLBoundaryEvent(double timestamp, string op, uint64_t tid, uint
 {
 	state = _state;
 	func_ptr = _func_ptr;
-	owner = NULL;
+	consumer = owner = NULL;
 	rls = 0;
 	block = 0;
 }

@@ -308,7 +308,7 @@ void IPCForest::decode_voucher_relations(const char * outfile)
 	output.close();
 }
 
-void IPCTree::decode_tree(IPCNode * root, ofstream & output)
+void IPCTree::decode_tree(IPCNode *root, ofstream & output)
 {
 	uint32_t indent = root->get_depth();
 	output << dec << indent << "\t";

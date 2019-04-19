@@ -158,11 +158,9 @@ void ThreadDivider::divide()
 				add_msg_event_into_group(event);
 				store_event_to_group_handler(event);
 				break;
-			
 			case BREAKPOINT_TRAP_EVENT:
 				add_hwbr_event_into_group(event);
 				break;
-		
 			default:
 				add_general_event_to_group(event);
 		}

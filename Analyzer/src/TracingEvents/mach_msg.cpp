@@ -4,7 +4,7 @@ MsgEvent::MsgEvent(double _timestamp, string _op, tid_t _tid, msgh_t * _header, 
 : EventBase(_timestamp, MSG_EVENT, _op, _tid, _core_id, _procname)
 {
 	header = _header;
-	peer = next = NULL;
+	prev = peer = next = NULL;
 	bt = NULL;
 	voucher = NULL;
 	free_before_deliver = false;
