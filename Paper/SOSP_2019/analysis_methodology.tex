@@ -1,6 +1,6 @@
 \section{Analysis Methodology}
 To fit the nodes into limited categories are widely utilized in previous work to represent the dependency graphs and critical paths\cite{Magpie, AppInsight, Panaappticon}.
-However, compared to the work with user input schema and limited thread models for mobile apps, the purpose of the event sequence in Argus is not straightforward to generalize to a high-level semantics.
+However, compared to the work with user input schema and limited thread models for mobile apps, the purpose of the event sequence in \xxx is not straightforward to generalize to a high-level semantics.
 Daemons and services make MacOS more like a distributed system with overwhelming IPCs.
 Handlers in these background threads are versatile and not obvious to identify.
 Besides, it is not essential to recognize the semantics for every execution segment, as long as all the events included in the same execution segment are on behalf of the same request, and the integrity of a request can be preserved with connections.
@@ -82,5 +82,5 @@ The comparison algorithm is as shown in the figure \ref{Figure: comparison algor
 %
 \subsection{Validation of bug fix}
 With the root cause revealed, users can come up with a binary patch with our instrumentation tool by themselves if necessary.
-Argus also provides a way to check how the fix works either by comparing to the anomaly extract in section \ref{subsec:rootcause}. Alternatively, the user can add the tracing points in the binary patch for verification.
+\xxx also provides a way to check how the fix works either by comparing to the anomaly extract in section \ref{subsec:rootcause}. Alternatively, the user can add the tracing points in the binary patch for verification.
 For the case that has a timeout, we can narrow the timeout to check if the time interval when the main thread is non-responsive get reduced.

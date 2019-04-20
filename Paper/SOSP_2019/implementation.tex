@@ -53,7 +53,7 @@ We hook the handler in the CoreFoundation to make sure that it is loaded correct
 Setting the hardware watchpoint is ad-hoc with a command line tool we built.
 Only the process id, the name, and size of the variable, operation type, read, write, execute, the watchpoint register id(from 0 to 3) need to be specified.
 
-\subsection{Incrmental Instrumentaion}
+\subsection{Incremental Instrumentation}
 Due to the transparent of programming paradigms designed by the developer, it does not always generate a complete and accurate dependency graph based on the builtin event schema.
 The graph should be incrementally improved with new tracing points somehow.
 

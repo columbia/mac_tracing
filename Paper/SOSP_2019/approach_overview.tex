@@ -1,12 +1,12 @@
 \section{Approach Overview}
-The Argus prototype is designed to expose the thread relationships with temporal constraints as an graph and allow analysis toolkit built on for diagnosis.
+The \xxx prototype is designed to expose the thread relationships with temporal constraints as an graph and allow analysis toolkit built on for diagnosis.
 Workloads running on MacOS usually send requests to various sets of daemons.
 One request can take paths through multiple daemons, while one daemon can also accept a batch of comming messages and demultiplex them in a daemon thread.
 For example, the window server communicates with every application to pass the user input events and draw things on the display.
 Our framework records the system-wide activities with minimal instrumentation and constructs the thread relationship with our defined event schema built in the framework.
 
 \subsection{Instrumentation}
-The instrumentation in Argus leverages the tracing technology from Apple's event logging infrastructure.
+The instrumentation in \xxx leverages the tracing technology from Apple's event logging infrastructure.
 An event consists of a timestamp, an event type name to notate current activity and arbitrary attributes.
 One example is as the following line.
 
