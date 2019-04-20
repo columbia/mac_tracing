@@ -3,6 +3,15 @@ We apply our tools to study the design of spinning cursors in MacOS and analyze 
 We illustrate two of the bugs in this section and leave more cases in section \ref{section:evaluation}.
 Both of them are longlisted in public.
 
+\begin{figure}[tb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{chromium_case_study.eps}
+    \caption{Chromium case study.}
+    \label{fig:chromium-trace}
+\end{figure}
+
+
+
 The chromium bug has been reported multiple times in the chromium bug report.
 It was initially a deadlock bug in which the main thread in the browser is waiting on a condition variable.
 As no one knows how the deadlock triggered, timeout is added as a programming trick to eliminate the deadlock.
