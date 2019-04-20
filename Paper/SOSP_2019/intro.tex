@@ -19,23 +19,27 @@
 Today's web and desktop applications are predominantly parallel or
 distributed, making performance issues in them extremely difficult to
 diagnose because the handling of an external request is often spread
-across many threads, processes, and sometimes machines instead of in one
+across many threads, processes, and asynchronous
+%execution
+contexts
+%sometimes machines
+instead of in one
 sequential execution segment.  To manually reconstruct this graph of
 execution segments for debugging, developers have to sift through a
 massive amount of log entries and potentially code of related application
-components.  More often than not, developers give up and resort to
-guessing the root causes, producing "fixes" that sometimes make the matter
+components~\cite{luXXXXX}.  More often than not, developers give up and resort to
+guessing the root cause, producing ``fixes'' that sometimes make the matter
 worse.  For instance, a bug in the Chrome browser causes a spinning cursor
 in MacOS when a user switches the input method to XX~\cite{bug-url}.  It
-was first reported in 2000 XX time, and developers attempted to add timers
-to work around the issue.  Unfortunately, the bug remained and the timers
-added made diagnosis even harder.  The bug remains open for XXX years.
+was first reported in 2012, and developers attempted to add timeouts
+to work around the issue.  Unfortunately, the bug remained and the timeouts
+added made diagnosis even harder.  The bug has remained open for seven years.
 
 Prior work proposed \emph{Causal tracing}, a powerful technique to
 construct request graphs (semi-)automatically~\cite{xxx}. It does so by
 inferring (1) the beginning and ending boundaries of the execution
-segments (vertexes in the graph) involved in handling a request; and (2)
-the causality between the segments (edges) -- how a segment causes others
+segments (vertices in the graph) involved in handling a request; and (2)
+the causality between the segments (edges)---how a segment causes others
 to do additional handling of the request.  Prior causal tracing systems
 all assumed certain programming idioms to automate inference.  For
 instance, if a segment sends a message, signals a condition variable, or
@@ -43,20 +47,20 @@ posts a task to a work queue, it wakes up additional execution segments,
 and prior systems assume that wake-ups reflect causality.  Similarly, they
 assume that the execution segment from the beginning of a callback
 invocation to the end is entirely for handling the request that causes the
-callback to be installed~\cite{}.  They are shown to be quite effective
+callback to be installed~\cite{}.  This system is quite effective at
 aiding developers to understand complex application behaviors and debug
 real-world performance issues in XXX.
 
 Unfortunately, based on our own study and experience of building a causal
-tracing system for commercial operating system MacOS, we found that modern
-applications frequently violate these assumptions, rendering the request
-graphs computed by causal tracing imprecise in several ways.  First, an
+tracing system for the commercial operating system MacOS, we found that modern
+applications frequently violate these assumptions. Hence, the request
+graphs computed by causal tracing are imprecise in several ways.  First, an
 inferred segment may be larger than the actual event handling segment due
 to batch processing.  Specifically, for performance, an application or its
-underlying frameworks may bundle work on behalf of multiple requests
-together without no clear boundaries between them.  For instance, Windows
-server in MacOS sends a reply for a previous request and receives a
-message for the current request using one system call SendRecvXXX
+underlying frameworks may bundle together work on behalf of multiple requests
+without no clear distinguishing boundaries.  For instance, WindowServer
+in MacOS sends a reply for a previous request and receives a
+message for the current request using one system call SendRecvXXX,
 presumably to reduce user-kernel crossings.
 
 Second, the graphs may be missing numerous causal edges.  For instance,
@@ -69,7 +73,7 @@ without knowing where the flags reside in memory, a tool would have to
 trace all shared-memory operations, incurring prohibitive overhead and
 adding many superfluous edges to the request graph.
 
-Third, many inferred edges may be superfluous because wake-ups do not
+Third, in any case, many inferred edges may be superfluous because wake-ups do not
 necessarily reflect causality.  Consider an \v{unlock()} operation waking
 up an thread waiting in \v{lock()}.  This wake-up may be just a
 happens-stance and the developer intent is only mutual exclusion.
@@ -78,47 +82,48 @@ between the two operations.
 
 We believe that, without detailed understanding of application semantics,
 request graphs computed by causal tracing are \emph{inherently} imprecise
-and both over-approximate and under-approximate the reality.  Although
+and both over- and under-approximate reality.  Although
 developer annotations can help improve precision~\cite{}, modern
 applications use more and more third-party libraries whose source code is
 not available.  In the case of users debugging performance issues such as
-a spinning cursor on her own laptop, the application's code is often not
+a spinning (busy) mouse cursor on her own laptop, the application's code is often not
 available.  Given the frequent use of custom synchronizations, work
 queues, and shared memory flags in modern applications, it is hopeless to
 count on manual annotations to ensure precise capture of request graphs.
 
-We present \xxx, a practical system for effectively debugging performance
-issues in modern desktop applications despite the imprecision of causal
-tracing.  We designed \xxx to be interactive, as a debugger should be, so
-that its users can easily inspect current diagnostics and guide the next
-steps of debugging to counter the inherent imprecision of causal tracing.
-For instance, \xxx's request graph contains likely missing and superfluous
-edges for users to view and confirm during debugging.
+In this work, we present \xxx, a practical system for effectively debugging
+performance issues in modern desktop applications despite the imprecision of
+causal tracing.  We designed \xxx to be interactive, as a debugger should be,
+so that its users can easily inspect current diagnostics and guide the next
+steps of debugging to counter the inherent imprecision of causal tracing. For
+instance, \xxx's request graph contains likely missing and superfluous edges
+for users to view and confirm during debugging. There may even be inaccurate
+edges that represent false dependencies, which the user can address in an
+interactive manner.
 
 Moreover, \xxx enables users to dynamically control the granularity of
-tracing using a couple of intuitive primitives.  It starts off with
+tracing using a number of intuitive primitives. The system begins by using
 always-on, lightweight, system-wide tracing.  When a user observes a
 performance issue (\eg, a spinning cursor), she can inspect the current
-graph \xxx computes, configure \xxx to perform fine-grained tracing (\eg,
+graph \xxx computes, configure \xxx to perform finer-grained tracing (\eg,
 logging call stacks and instruction streams) for events she deems
-relevant, and constructs a more detailed graph for diagnosis.  \xxx also
+relevant, and construct a more detailed graph for diagnosis.  \xxx also
 supports comparison of request graphs of normal vs buggy executions
 because the difference of the similarly imprecise graphs often reveal
-precise root causes.
+precise root causes.  % confusing, rewrite last sentence
 
-We implemented \xxx in MacOS, a widely used commercial operating system.
-MacOS is closed-source, so are its common frameworks and many
-applications. It therefore provide a true test of \xxx.  We addresses
-numerous nuances of MacOS that complicates causal tracing, and built a
-system-wide, low-overhead tracer.  Our evaluation using XXX real-world
-spinning cursors shows that \xxx is fast (XX\% overhead) and effective
-(XX).
+We implemented \xxx in MacOS, a widely used commercial operating system. MacOS
+is closed-source, as are its common frameworks and many of its applications.
+This environment therefore provides a true test of \xxx.  We address multiple
+nuances of MacOS that complicate causal tracing, and built a system-wide,
+low-overhead tracer.  Our evaluation using XXX real-world spinning cursors
+shows that \xxx is fast (XX\% overhead) and effective (XX).
 
 This paper makes the following contributions: our conceptual realization
 that causal tracing is inherently imprecise and that interactive causal
 tracing is superior than prior work in debugging performance issues in
 modern applications; our system \xxx that performs system-wide tracing in
-MacOS with little overhead; and our results diagnosing real-world spinning
+MacOS with little overhead; and our results diagnosing real-world spinning (busy)
 cursors and finding root causes for performance issues the remained open
 for XXX years.
 
