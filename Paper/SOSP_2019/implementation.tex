@@ -11,47 +11,45 @@ We store at most 2GB of data [per log?], which corresponds to approximately XXX 
 %To support the 24X7 tracing without exhaust the system resource, we modify it to dump data to a ring buffer in a file.
 
 \subsection{Instumentation}
-Like Detour~\cite{detourXXXXXXXX}, we use static analysis to decide which instrumentation to perform, and then enact this instrumentation at runtime; 
+Like Detour~\cite{detourXXXXXXXX}, we use static analysis to decide which instrumentation to perform, and then enact this instrumentation at runtime. 
 On MacOS, most libraries as well as many of the applications used day-to-day are closed-source.
 Adding tracing points to such code requires binary instrumentation.
 Techniques such as library preloading to override individual functions are not applicable on MacOS, as libraries use two-level executable namespaces.
-Hence, we implemented a binary instrumentation library that allows developers to add tracing at any location in a binary image.
+Hence, we implemented a binary instrumentation mechanism that allows developers to add tracing at any location in a binary image.
 
-To complete the instrumentation, we need to find an instruction in the event execution path, whose length is at least as long as a call instruction.
-We call such an instruction a victim instruction.
-It will be substituted with the callq instruction on the fly.
-The parameter of the callq instruction is a shell function, which we define to simulate the victim instruction and add tracing points of interest.
-With the input of the address of victim instruction and its corresponding shell function, our tool will generate a new library.
-In the new library, we define an init function, as shown in Figure~\ref{fig:pseudo-code}, to calculate offsets and replace the victim instruction with the shell function.
-The replacement only happened once in the memory by calling the init externally with dispatch\_once.
+To add instrumentation, we insert 5-byte call instructions into the program. The user finds a location of interest in the code related to a specific event,
+and we overwrite the victim instructions at that location. We create a new trampoline target function, whose first few instructions are those which were overwritten.
+All of the trampoline functions are grouped together by our tool and a new library is generated.
+This library provides the same public API as the original and is a drop-in replacement. We load and call the original code as an unmodified shared library.
+The detours or trampoline calls are added by an initialization function in our new library; we temporarily mark the code region as writable with \texttt{mprotect}
+to calculate offsets and perform the modifications. The initialization is called externally through \texttt{dispatch\_once}.
+To use the modified libraries, we simply replace system libraries in their original locations (renaming them so that our code can access the originals).
 
-\begin{figure}
-    \begin{algorithmic}[1]
-        \Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
-        \Procedure{init}{}
-        \For {$i \gets 1$ to $N$}
-        \State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
-        \State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
-        \State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
-        \State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
-        \State $memcpy(InstrVaddr,$ $CallqInstr)$
-        \State $mprotect(page$ $of$ $InstrVaddr, R|E)$
-        \EndFor
-        \EndProcedure
-    \end{algorithmic}
-    \label{fig:pseudo-code}
-    \caption{Pseudocode algorithm.}
-\end{figure}
+One potential issue is that we use 5-byte call instructions with 32-bit displacements to jump from the original library to our new one.
+This design requires that the libraries be loaded within +/- 2GB of each other in the 64-bit process address space.
+However, since we list each original library as a dependency of our new libraries, the system loader will map each new and original library in sequence.
+In practice, the libraries ended up very close to one another and we did not see the need to implement a more general long-jump mechanism.
 
-Finally, the generated library will re-export all the symbols from the original library and replace the original one.
-% as shown in Figure\ref{fig: overview of binary instrument}.
+
 %\begin{figure}
-%\centering
-%\rule{5cm}{5cm}
-%\caption {overview of binary instrument}
-%\label {fig: overview of binary instrument}
+%    \begin{algorithmic}[1]
+%        \Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
+%        \Procedure{init}{}
+%        \For {$i \gets 1$ to $N$}
+%        \State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
+%        \State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
+%        \State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
+%        \State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
+%        \State $memcpy(InstrVaddr,$ $CallqInstr)$
+%        \State $mprotect(page$ $of$ $InstrVaddr, R|E)$
+%        \EndFor
+%        \EndProcedure
+%    \end{algorithmic}
+%    \label{fig:pseudo-code}
+%    \caption{Pseudocode algorithm.}
 %\end{figure}
-Although one of the shortcomings is that only the short distance function call is supported in our implementation, as the new library and the original one are usually loaded close in memory, we do not need to apply techniques to achieve the long jump in instrumentation.
+
+
 \subsection{Hardware Watchpoint}
 For any given shared variable of interest, we take advantage of hardware watchpoints.
 Tracing points are recorded in the watchpoint handler when the variable is accessed.
