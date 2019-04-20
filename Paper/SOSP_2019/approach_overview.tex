@@ -1,14 +1,14 @@
-\section{Approach Overview}
+%\section{Approach Overview}
 
-The \xxx prototype is designed to expose the thread relationships with temporal constraints as an graph and allow analysis toolkit built on for diagnosis.
-Workloads running on MacOS usually send requests to various sets of daemons.
-One request can take paths through multiple daemons, while one daemon can also accept a batch of comming messages and demultiplex them in a daemon thread.
-For example, the window server communicates with every application to pass the user input events and draw things on the display.
-Our framework records the system-wide activities with minimal instrumentation and constructs the thread relationship with our defined event schema built in the framework.
+%The \xxx prototype is designed to expose the thread relationships with temporal constraints as an graph and allow analysis toolkit built on for diagnosis.
+%Workloads running on MacOS usually send requests to various sets of daemons.
+%One request can take paths through multiple daemons, while one daemon can also accept a batch of comming messages and demultiplex them in a daemon thread.
+%For example, the window server communicates with every application to pass the user input events and draw things on the display.
+%Our framework records the system-wide activities with minimal instrumentation and constructs the thread relationship with our defined event schema built in the framework.
 
 \subsection{Instrumentation}
-The instrumentation in \xxx leverages the tracing technology from Apple's event logging infrastructure.
-An event consists of a timestamp, an event type name to notate current activity and arbitrary attributes.
+The instrumentation in \xxx leverages tracing technology from Apple's event logging infrastructure.
+An event consists of a timestamp, an event type name to annotate current activity, and arbitrary attributes.
 One example is as the following line.
 
 \textit{timestamp, Mach\_msg\_send, local\_port, remote\_port, ...}
@@ -19,7 +19,7 @@ The code where the asynchronous task is submitted is one of the significant spot
 In the situation, the asynchronous handler should be captured from the local stack or registers in the thread.
 
 There are three main categories of tracing points:
-\begin {enumerate}
+\begin{enumerate}
 	\item Tracing points implies the relationship across thread boundaries.
 	\item Tracing points identifies the requests boundaries inside a thread.
 	\item Tracing points improves the comprehension of the system activity, e.g. the call stacks.
@@ -30,8 +30,8 @@ We augment them with more attributes to support our extensive use.
 Libraries and frameworks providing batch processing programming paradigms are instrumented to detangle multiple requests.
 We can instrument anywhere if necessary, but rarely touch the user space to allow our toolkits more general.
 
-\subsection{Graphs Construction}
-In the process of graphs construction, we extract the built-in event schema that indicates how a subset of events connected, and if an event acts as a delimiter, which implies a thread reaches the beginning or end of a request.
+\subsection{Graph Construction}
+In the process of graph construction, we extract the built-in event schema that indicates how a subset of events connected, and if an event acts as a delimiter, which implies a thread reaches the beginning or end of a request.
 We link the threads with connections defined in the subset of events and split the threads with the implied delimiters.
 A thread is split into multiple execution segments, decomplexing the execution of different requests on the thread.
 Therefore, multiple graphs are generated to represent the system activities, with the execution segments mapped to the nodes and the links among them to the edges.
@@ -49,7 +49,7 @@ We present the details in the following sections.
 With the graphs generated, analysis tools can be built on for various purposes, studying requests, comparison multiple executions or retrieve the bug paths.
 Some design mechanism can be revealed with the graphs.
 Our roughly generated graph on a toy app used particular API tells how the API gets implemented and what daemons are accessed to complete it.
-For example, the NSLog is implemented by sending messages to the server.
+For example, NSLog is implemented by sending messages to a server.
 %TODO: add details here on NSLog thing
 The design of the spinning cursor in MacOS is tapped by checking the path that triggers spindump.
 Timestamps carried by the tracing events helps to calculate the time cost of the execution segments, as well as the blocking time of a thread on specific resources.
