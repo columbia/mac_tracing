@@ -16,26 +16,26 @@ We call such instruction as a victim instruction.
 It will be substituted with the callq instruction on the fly.
 The parameter of the callq instruction is a shell function, which we define to simulate the victim instruction and add tracing points of interest.
 With the input of the address of victim instruction and its corresponding shell function, our tool will generate a new library.
-In the new library, we define an init function, as shown in Figure \ref{fig: pseudo code for init}, to calculate offsets and replace the victim instruction with the shell function.
+In the new library, we define an init function, as shown in Figure~\ref{fig:pseudo-code}, to calculate offsets and replace the victim instruction with the shell function.
 The replacement only happened once in the memory by calling the init externally with dispatch\_once.
 
-\begin{algorithm}
-\captionof{figure}[pseudo code for init]{pseudo code for init}
-\begin{algorithmic}[1]
-\Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
-\Procedure{init}{}
-\For {$i \gets 1$ to $N$}
-\State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
-\State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
-\State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
-\State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
-\State $memcpy(InstrVaddr,$ $CallqInstr)$
-\State $mprotect(page$ $of$ $InstrVaddr, R|E)$
-\EndFor
-\EndProcedure
-\end{algorithmic}
-\label {fig:pseudo code for init}
-\end{algorithm}
+\begin{figure}
+    \begin{algorithmic}[1]
+        \Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
+        \Procedure{init}{}
+        \For {$i \gets 1$ to $N$}
+        \State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
+        \State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
+        \State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
+        \State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
+        \State $memcpy(InstrVaddr,$ $CallqInstr)$
+        \State $mprotect(page$ $of$ $InstrVaddr, R|E)$
+        \EndFor
+        \EndProcedure
+    \end{algorithmic}
+    \label{fig:pseudo-code}
+    \caption{Pseudocode algorithm.}
+\end{figure}
 
 Finally, the generated library will re-export all the symbols from the original library and replace the original one.
 % as shown in Figure\ref{fig: overview of binary instrument}.
