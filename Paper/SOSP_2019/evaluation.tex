@@ -1,11 +1,16 @@
 \section{Evaluation}
 We first presents the results from the live deployment of Argus.
-We list the softwares which trigger spinning wait cursors in MacOs and the root cause we figure out with our framework.
-%TextEdit, Notes, Installer, Hopper Dissembler, ...
-Then, we show how much work our tools take over from the user and make the diagnosis much easier in the wild.
+We demonstrate the overhead of our tracing tool intruduced, regarding the storage, memory and CPU usage.
+Then we list the softwares which trigger spinning wait cursors in MacOs and the root cause we figure out with our framework.
+At the end, we summaries the tedious work that our tool can take over from the user and make the diagnosis much easier in the wild.
 
 \begin{itemize}
 \item tracing overhead
-\item number of edges and nodes in the graphs.
-\item portions of data the user need to examine to figure out the root cause.
+	\begin{itemize}
+	\item memory and CPU usage on top, while running ibench with and without our tracing enabled
+	\item memory and CPU usage on top, while running the listed real world applications with and without our tracing enabled
+	\item how much times it takes to filled the buffer we fixed 2G
+	\item how many events recorded in the buffer
+	\end{itemize}
+\item number of edges and nodes in the graphs and portions of data the user need to examine to figure out the root cause.
 \end{itemize}
