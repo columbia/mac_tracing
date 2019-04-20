@@ -11,13 +11,14 @@ We store at most 2GB of data [per log?], which corresponds to approximately XXX 
 %To support the 24X7 tracing without exhaust the system resource, we modify it to dump data to a ring buffer in a file.
 
 \subsection{Instumentation}
-The libraries, as well as lots of the daily used Apps on MacOS, are closed source.
-Adding tracing points to libraries and Frameworks requires the instrumentation of the binary image.
-Techniques, such as library preload with trampolines over the targeted functions, do not meet the requirements due to the two-level namespace executables in Mac.
-We hence implement the binary instrumentation lib for developers to add tracing points anywhere.
+Like Detour~\cite{detourXXXXXXXX}, we use static analysis to decide which instrumentation to perform, and then enact this instrumentation at runtime; 
+On MacOS, most libraries as well as many of the applications used day-to-day are closed-source.
+Adding tracing points to such code requires binary instrumentation.
+Techniques such as library preloading to override individual functions are not applicable on MacOS, as libraries use two-level executable namespaces.
+Hence, we implemented a binary instrumentation library that allows developers to add tracing at any location in a binary image.
 
-To complete the instrumentation, we need to find the instruction in the event execution path, where the desired attributes are accessible, and the length of the instruction can hold a call instruction.
-We call such instruction as a victim instruction.
+To complete the instrumentation, we need to find an instruction in the event execution path, whose length is at least as long as a call instruction.
+We call such an instruction a victim instruction.
 It will be substituted with the callq instruction on the fly.
 The parameter of the callq instruction is a shell function, which we define to simulate the victim instruction and add tracing points of interest.
 With the input of the address of victim instruction and its corresponding shell function, our tool will generate a new library.
@@ -52,11 +53,11 @@ Finally, the generated library will re-export all the symbols from the original 
 %\end{figure}
 Although one of the shortcomings is that only the short distance function call is supported in our implementation, as the new library and the original one are usually loaded close in memory, we do not need to apply techniques to achieve the long jump in instrumentation.
 \subsection{Hardware Watchpoint}
-For the shared variable of interest, we take advantage of hardware watchpoints.
-Tracing points are added in its handler when the variable is accessed.
-We hook the handler in the CoreFoundation to make sure that it is loaded correctly in the space of our interested application.
-Setting the hardware watchpoint is ad-hoc with a command line tool we built.
-Only the process id, the name, and size of the variable, operation type, read, write, execute, the watchpoint register id(from 0 to 3) need to be specified.
+For any given shared variable of interest, we take advantage of hardware watchpoints.
+Tracing points are recorded in the watchpoint handler when the variable is accessed.
+We hook the handler in CoreFoundation to make sure that it is loaded correctly into the address space of our target application.
+We set the hardware watchpoint in an ad-hoc manner with a custom command-line tool.
+%Only the process id, the name, and size of the variable, operation type, read, write, execute, the watchpoint register id(from 0 to 3) need to be specified.
 
 \subsection{Incremental Instrumentation}
 Due to the transparent of programming paradigms designed by the developer, it does not always generate a complete and accurate dependency graph based on the builtin event schema.
