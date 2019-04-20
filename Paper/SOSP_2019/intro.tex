@@ -47,7 +47,7 @@ posts a task to a work queue, it wakes up additional execution segments,
 and prior systems assume that wake-ups reflect causality.  Similarly, they
 assume that the execution segment from the beginning of a callback
 invocation to the end is entirely for handling the request that causes the
-callback to be installed~\cite{}.  This system is quite effective at
+callback to be installed~\cite{}.  Causal tracing is quite effective at
 aiding developers to understand complex application behaviors and debug
 real-world performance issues in XXX.
 
@@ -93,10 +93,10 @@ count on manual annotations to ensure precise capture of request graphs.
 
 In this work, we present \xxx, a practical system for effectively debugging
 performance issues in modern desktop applications despite the imprecision of
-causal tracing.  We designed \xxx to be interactive, as a debugger should be,
+causal tracing.  We designed \xxx to be interactive, as a debugger should rightly be,
 so that its users can easily inspect current diagnostics and guide the next
 steps of debugging to counter the inherent imprecision of causal tracing. For
-instance, \xxx's request graph contains likely missing and superfluous edges
+instance, \xxx's request graph contains likely missing edges
 for users to view and confirm during debugging. There may even be inaccurate
 edges that represent false dependencies, which the user can address in an
 interactive manner.
@@ -107,7 +107,7 @@ always-on, lightweight, system-wide tracing.  When a user observes a
 performance issue (\eg, a spinning cursor), she can inspect the current
 graph \xxx computes, configure \xxx to perform finer-grained tracing (\eg,
 logging call stacks and instruction streams) for events she deems
-relevant, and construct a more detailed graph for diagnosis.  \xxx also
+relevant, and trigger the issue again to construct a more detailed graph for diagnosis.  \xxx also
 supports comparison of request graphs of normal vs buggy executions
 because the difference of the similarly imprecise graphs often reveal
 precise root causes.  % confusing, rewrite last sentence
