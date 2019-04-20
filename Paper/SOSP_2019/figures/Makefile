@@ -18,5 +18,3 @@ clean:
 
 cleanall:
 	@rm -f $(PDFFILES)
-
-
