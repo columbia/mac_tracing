@@ -2,7 +2,12 @@
 \label{sec:design}
 
 Our \xxx prototype is designed to debug performance issues in complex modern applications.
-It can be used in two primary ways:
+It performs lightweight full system tracing of every process including system calls, interprocess messages, and MacOS system daemons.
+Offline, we build a graph based on thread executions, with nodes defined by per-event execution segments, and edges wherever there are temporal constraints between threads of execution.
+
+\subsection{Use Cases}
+
+\xxx can be used in two primary ways:
 \begin{enumerate}
     \item \xxx can continuously run live in the background and collect full
     system logs. The user works as usual until a crash or performance issue is
