@@ -19,8 +19,8 @@ Offline, we build a graph based on thread executions, with nodes defined by per-
 
 \end{enumerate}
 For a simple issue, like a rare segmentation fault, just having \xxx's lightweight logs may be enough to perform a diagnosis.
-However, in most cases, \xxx will need to be used interactively, so the user needs to be able to reproduce the problem.
-The user can request more detailed logs in several ways, reproducing the problem, and gathering enough data to narrow in even further on the problem.
+However, in most cases, \xxx will need to be used interactively, so the user needs to be able to restart the affected application and reproduce the problem on demand.
+The user can request more detailed logs in several ways, then reproduce the problem, and gather enough data to narrow in even further on the issue.
 The general process for interactive debugging with \xxx is as follows:
 \begin{enumerate}
     \item First, the user finds the node \emph{$N_{spin}$} in the \xxx graph
