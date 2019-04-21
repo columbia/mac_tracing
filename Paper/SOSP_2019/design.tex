@@ -3,7 +3,14 @@
 
 Our \xxx prototype is designed to debug performance issues in complex modern applications.
 It performs lightweight full system tracing of every process including system calls, interprocess messages, and MacOS system daemons.
-Offline, we build a graph based on thread executions, with nodes defined by per-event execution segments, and edges wherever there are temporal constraints between threads of execution.
+Offline, we build a graph based on thread executions, with nodes defined by per-request execution segments, and edges wherever there are temporal constraints between threads of execution.
+
+\begin{figure}[tb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{ArgusOverview.eps}
+    \caption{Dedign Overview}
+    \label{fig:argus-overview}
+\end{figure}
 
 \subsection{Use Cases}
 
@@ -13,13 +20,15 @@ Offline, we build a graph based on thread executions, with nodes defined by per-
     system logs. The user works as usual until a crash or performance issue is
     observed.
 
-    \item The user can begin with a reproducible performance issue, and collect
+    \item The user can begin with a reproducible performance issue, no matter how often it appears, and collect
     logs in two situations: a) a baseline situation where the program runs
     normally, and b) a spinning situation that exposes the performance issue.
 
 \end{enumerate}
 For a simple issue, like a rare segmentation fault, just having \xxx's lightweight logs may be enough to perform a diagnosis.
-However, in most cases, \xxx will need to be used interactively, so the user needs to be able to restart the affected application and reproduce the problem on demand.
+However, in most cases, \xxx will need to be used interactively, so the user needs to be able to
+%restart the affected application and
+reproduce the problem on demand.
 The user can request more detailed logs in several ways, then reproduce the problem, and gather enough data to narrow in even further on the issue.
 The general process for interactive debugging with \xxx is as follows:
 \begin{enumerate}
@@ -41,7 +50,7 @@ The general process for interactive debugging with \xxx is as follows:
     certain points in the program to be able to distinguish between the cases.
 
 \end{enumerate}
-As shown in Figure XXX, the user's main operations are a) manual inspection of
-the graph, b) performing slicing on the graph to show dependent nodes, c)
+As shown in Figure XXX, the user's main operations are a) inspection of
+the graph with our toolkits, b) performing slicing on the graph to show dependent nodes, c)
 selecting a graph node to gather more information about, and d) comparing graph
 slices between normal and spinning cases.
