@@ -6,9 +6,9 @@ We begin the path from the node where the spindump, a hang reporting tool, is la
 considering the spindump shares the same triggering condition.
 As is shown in Figure \ref{fig:spincursor}, the spindump is launched by the message from WindowServer, after the WindowServe received message from the NSEvent thread of targeted Application.
 
-We further added call stacks for the messages and revealed two shared variables are critical in the desgin, "is\_mainthread\_spinning" and "dispatch\_to\_mainthread".
+We further added call stacks for the messages and revealed two shared variables, ``\v{is\_mainthread\_spinning}'' and ``\v{dispatch\_to\_mainthread}'', are critical in the desgin,
 The NSEvent thread of the targeted App fetches CoreGraphics events from WindowServer, converts and creates NSEvents for the main thread.
-If the mainthread is not spinning by checking "is\_mainthread\_spinning", "dispath\_to\_mainthread" is set and a timer is armed.
-If the main thread processes the next event before the timer fires, nothing happens and the timer gets reset.
+If the mainthread is not spinning with the cleared ``\v{is\_mainthread\_spinning}'', ``\v{dispath\_to\_mainthread}'' is set and a timer is armed.
+If the main thread processes the next event before the timer fires, nothing happens and the timer gets re-armed.
 Otherwise, NSEvent thread sends a message to WindowServer from the timer,
 and WindowServer notifies the CoreGraphics to draw spinning cursor over the application window.

@@ -1,34 +1,46 @@
 \subsection{Chromium IME responsive}
-One of the long-lasting performance issues in chromium is hanging caused by the non-English input.
-When users try to type non English to textFields, such as search box,
-the main thread of the browser becomes not responsive.
-With lldb, it is not hard to tell that the main thread gets stuck on FindFirstRect,
-where the main thread waits for the signal of the condition variable.
-According to the history in the bug report, the developers realized there were deadlocks somewhere.
-However, it was hard to pinpoint due to the multiprocess and multithread programming paradigms.
-As a result, a timeout was added to prevent the deadlock, but not the long latency.
-Although a further bug patch introducing cache helps to eliminate the long hanging mostly, 
-the performance issue still appears from time to time.
-The scenario we can reproduce is to launch the website of Yahoo and immediately quickly type Simplified Chinese.
+One of the long-lasting performance issues in Chromium is hanging caused by the non-English input.
+Occasionally when users type non-English to text fields, such as a search box, the main thread of the browser process becomes non-responsive.
+ 
+With traditional debugging tools, both static and dynamic ones, it is not hard to tell that the main thread blocks on the method ``\v{TextInputClientMac::GetFirstRectForRange}'', which invokes a synchronous IPC to renderer process.
+Although developers knew there was a deadlock between the browser and the renderer,
+it was hard to pinpoint how the deadlock arose due to the multiprocessing of Chromium.
 
-The ground truth we revealed with our tool is as shown in picture XXX.
-In chromium, there are one browser process and multiple renderer processes.
+We deployed the Argus in our system. 
+The tracing tool recorded system-wide events in the background, and we terminated it once the spinning wait cursor appeared.
+The operating sequence we reproduced the Chromium bug was to launch the website of Yahoo and immediately type with Simplified Chinese.
+With the 2G size of the ring buffer, we were able to record the input causing spinning wait cursor and the ones that do not.
+
+First, our offline analysis toolkit identified the spinning node in the main(UI) thread in the browser.
+The parsing tool generated the relationship graphs containing both cases from the tracing data.
+Based on the graph and the known spinning cursor mechanism, the searching tool quickly identified the node representing the asynchronous timer triggering the spinning wait cursor in NSEvent thread in the browser.
+Finally, the timing information from the node helped to identify the spinning node in the UI thread.
+In this case, the spinning node was blocking in a condition variable with ``\v{psynch\_cv\_wait}'', which was identical to the debugging result from traditional tools like lldb.
+
+In the second step, the searching tool searched the similar nodes in the same thread backward and picked a non-blocking one by comparing the return value of the system calls and waiting intervals.
+As the hanging is resulted from that fact that a worker thread did not wake up the UI thread, to figure out the different behaviors of the worker thread is the key to figure out the root cause of the non-responsive of UI thread.
+Consequently, we began the backward path slicing from the worker thread node that woke up the UI thread in the graph.
+The path is shown in Figure \ref{fig:path-slice-of-chromium}.
+It acts as the baseline to figure out the root cause of blocking in the spinning case.
+
+We compared each node from the sliced path with nodes from the same thread.
+In the figure, we show parts of the nodes compared and reported the blocking nodes if any.
+In this case we reported the node from tid 16aa that waits over 4 seconds.
+The blocking nodes reported are the ones that indirectly caused the missing wakeup of the UI thread.
+We allow user interference in both path slicing and comparison processes, considering the inaccuracy of the causal path, although it is not necessary in the Chromium case.
+
+After the comparison, we found the main thread in the renderer process was the key thread that processed message from the fontd and sent message back eventually to woke up the browser's UI thread.
+Continually checking from the graph on how the renderer main thread got unblocked, we discovered it waited on the semaphore from the browser's UI thread, which caused a live lock between them.
+
+With the input of the causal tracing, it was not enough for the user to figure out the root cause.
+We ran the bug again and attached lldb to the renderer main thread when it blocked over 1.5s to check the full call stack.
+The additional live debugging disclosed that the renderer main thread processed various types of events and the waiting on the semaphore was caused by the processing of javascript from the website.   
+Noticing that the Node 16aa00219 was also waken up by fontd, we would suspect that there existed an missing execution boundary.
+
+The ground truth for the performance issue is revealed in Figure \ref{fig:chromium-trace}.
 The main thread of the browser process tries to get the caret position.
 It sends out the message and anticipates for the reply message with a condition variable.
 Usually, a worker thread in the browser process will return the firstrect and wake up the main thread.
-However, it requires the message from the main thread of a renderer process to proceed.
+However, it requires the message from the main thread of the renderer process.
 Without the message from the renderer process, the worker thread is not able to signal the main thread.
 Thus, the main thread will always time out.
-
-Our trace tool will collect the data system-wide.                                                                        
-Therefore, all the thread relationships are captured.                                                                    
-With the trace log size, both the hanging case and non-hanging case are recorded.                                           
-From the shared condition variable between threads, we are able to align the logs of the two cases and discover the missing message in the hanging case.                                                                    
-                                                                                                                            
-As we have known the unresponsive of the main thread in the renderer process,                                            
-we further consult the analyzed trace log and observe that it is waiting on a semaphore,                                 
-and eventually waken up by the main thread of the browser process.                                                       
-                                                                                                                         
-Our tool further explains the root cause of the livelock with conditional debugging.                                     
-We can either apply the binary instrument or modify the source code to make the renderer thread accept the attachment of lldb.
-The concrete call stacks from lldb disclose the task processing in the renderer thread is related to running javascript.   
