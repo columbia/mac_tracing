@@ -1,4 +1,8 @@
 \documentclass[sigplan,10pt]{acmart}
+\settopmatter{printacmref=false}
+\makeatletter
+\renewcommand\@formatdoi[1]{\ignorespaces}
+\makeatother
 \renewcommand\footnotetextcopyrightpermission[1]{}
 \pagestyle{plain}
 \settopmatter{printfolios=true}
