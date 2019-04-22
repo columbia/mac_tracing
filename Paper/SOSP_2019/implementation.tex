@@ -7,9 +7,6 @@ By default, the infrastructure temporarily stores events in memory and flushes t
 We extended this infrastructure to support larger-scale tests without filling up the disk by implementing a ring buffer backed by a file.
 We store at most 2GB of data [per log?], which corresponds to approximately XXX events (XXX time).
 
-%Tracing infrastructure builtin current MacOS is lightweight event logging technology which collects system-wide information, stores temporarily in memory and flushes to screen or disk when the buffer is full.
-%To support the 24X7 tracing without exhaust the system resource, we modify it to dump data to a ring buffer in a file.
-
 \subsection{Instumentation}
 Like Detour~\cite{detourXXXXXXXX}, we use static analysis to decide which instrumentation to perform, and then enact this instrumentation at runtime. 
 On MacOS, most libraries as well as many of the applications used day-to-day are closed-source.
@@ -30,47 +27,31 @@ This design requires that the libraries be loaded within +/- 2GB of each other i
 However, since we list each original library as a dependency of our new libraries, the system loader will map each new and original library in sequence.
 In practice, the libraries ended up very close to one another and we did not see the need to implement a more general long-jump mechanism.
 
-
-%\begin{figure}
-%    \begin{algorithmic}[1]
-%        \Require {$VictimFuncs_{1} \dots VictimFuncs_{N}$ $VictimInstOffsets_{1} \dots VictimInstOffsets_{N}$ $ShellFuncPtrs_{1} \dots ShellFuncPtrs_{N}$}
-%        \Procedure{init}{}
-%        \For {$i \gets 1$ to $N$}
-%        \State {$InstrVaddr$ $\gets$ {\textit{virtual addr of} $VictimFuncs_{i}$} + $VictimInstOffsets_{i}$}
-%        \State {$Offset$ $\gets$ $InstrVaddr$ + 5 - $ShellFuncPtrs_{i}$}
-%        \State {$CallqInstr$ $\gets$ \textit{callq} $Offset$}
-%        \State $mprotect(page$ $of$ $InstrVaddr,$ $R|W|E)$
-%        \State $memcpy(InstrVaddr,$ $CallqInstr)$
-%        \State $mprotect(page$ $of$ $InstrVaddr, R|E)$
-%        \EndFor
-%        \EndProcedure
-%    \end{algorithmic}
-%    \label{fig:pseudo-code}
-%    \caption{Pseudocode algorithm.}
-%\end{figure}
-
-
-\subsection{Hardware Watchpoint}
-For any given shared variable of interest, we take advantage of hardware watchpoints.
-Tracing points are recorded in the watchpoint handler when the variable is accessed.
-We hook the handler in CoreFoundation to make sure that it is loaded correctly into the address space of our target application.
-We set the hardware watchpoint in an ad-hoc manner with a custom command-line tool.
-%Only the process id, the name, and size of the variable, operation type, read, write, execute, the watchpoint register id(from 0 to 3) need to be specified.
-
-\subsection{Incremental Instrumentation}
-Due to the transparent of programming paradigms designed by the developer, it does not always generate a complete and accurate dependency graph based on the builtin event schema.
-The graph should be incrementally improved with new tracing points somehow.
-
-%methodology
-We built the toolkit upon the currently generated graph to guide the exploration of the over-connections and miss-connections of thread temporally.
-Vouchers, which are propagated through the system to record if a process works on behalf of the other process, are also taken advantage of to check the false connections.
-Threads connecting to multiple process are allowed only if their are vouchers reflecting their relationships.
-Last but not least, checking the path of the connection, as well as the call stack provides hints on the graph improvements.
-
-%results
-In our experiment, we discovered multiple programming paradigms in the libraries that are not realized from the initial composing of the schema.
-WindowServer will compact the request of send and receive in a mach\_msg\_overwrite\_trap system call, although they are on behalf of different userspace applications.
-The function dispatch\_mig\_service, as well as the calling out functions in runloop, will finish works one by one in a loop without blocking between them.
-This procedure to discover such programming paradigm can be repeated on regular executions before tracing for diagnosis.
-On the contrary, the missing connections are much harder to explore.
+\subsection{Incremental Tracing}
+The graph should be incrementally improved with new tracing points.
+The procedure to discover such programming paradigm can be repeated on regular executions before tracing for diagnosis.
+The missing connections are much harder to explore.
 As long as the remaining connections in the current graph help diagnosis, it is not necessary to explore.
+
+\xxx provides two lightweight tools for users to collecting data with incremental tracing, instead of the lldb.
+\begin {itemize}
+\item For any given shared variable of interest, we take advantage of hardware watchpoints.
+	Tracing points are recorded in the watchpoint handler when the variable is accessed.
+	We hook the handler in CoreFoundation to make sure that it is loaded correctly into the address space of our target application.
+	We set the hardware watchpoint in an ad-hoc manner with a custom command-line tool.
+\item For any code location where user want to check its call stacks, our interface accepts a tag as input to distiguish.
+	It unwindes the rbp from the user stack to store the valid return addresses in the buffer. The buffer is recorded into the log as tracing events.
+	These address woulg go through the offline symbolicator in the graph construction phase.
+\end{itemize}
+
+\subsection{Debugger Scripting}
+After the offline analysis on the graph, we take the API covers the fine range as input to our debugging scripts.
+The debugging scripts go throught the instruction from application and higher level frameworks step by step.
+The purpose is to capture the parameters results from the user interaction.
+Once a new function begins by checking the instruction, we record the call stacks for comprehension. 
+For API from the low level libraries, such as pthread, we step over and record the return value.
+AS the operation are confined in the small range, the overhead is not too much.
+
+Both the execution on normal case and problematic case are recorded, our tool further compares the log and report
+the difference, with the full call stack.
+
