@@ -2,7 +2,22 @@
 We first presents the results from the live deployment of Argus.
 We demonstrate the overhead of our tracing tool intruduced, regarding the storage, memory and CPU usage.
 Then we list the softwares which trigger spinning wait cursors in MacOs and the root cause we figure out with our framework.
+The list of real-world softwares includes TextEdit, CodEdit, Notes, Hopper Disassembler, Installer, Squel Pro, GetiPlayerAutomator.
 At the end, we summaries the tedious work that our tool can take over from the user and make the diagnosis much easier in the wild.
+
+\begin{figure}[tb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{ibench_memory_compare.png}
+    \caption{Memory overhead with tracing.}
+    \label{fig:ibench_memory_overhead}
+\end{figure}
+
+\begin{figure}[tb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{ibench_cpuload_compare.png}
+    \caption{CPU overhead with tracing.}
+    \label{fig:ibench_cpu_overhead}
+\end{figure}
 
 \begin{itemize}
 \item tracing overhead
