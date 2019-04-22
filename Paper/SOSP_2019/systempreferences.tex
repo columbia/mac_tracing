@@ -1,39 +1,40 @@
 \subsection{System Preferences spin}
-System Preferences is the application in MacOS for users to modify various settings.                                        
+System Preferences is the application in MacOS for users to modify various settings.
 Displays in the Panel allows user to rearrange the position of displays, but it does not support the disabling of a montor online.
-DisableMonitor is an application used to complete the function, easily disabling/enabling  monitors withou unplug them.                                                                
+DisableMonitor is an application used to complete the function, easily disabling/enabling  monitors withou unplug them.
 Surprisingly, the operation of DisableMonitor exposed a performance bug in System Preferences.
-If we disable an external monitor and arrange them afterward, the window System Preferences freezes for seconds.  
+If we disable an external monitor and arrange them afterward, the window System Preferences freezes for seconds.
 We enabled Argus on the background and collect the data by normally arranging the displays and reapeating the spinning sequence.
 
 It is not hard to tell the spinning node in the UI thread with our tool.
-However, to find the normal node corresponding to the spinning node is not straightforward with the direct comparison of events sequence,
+However, to find the normal node corresponding to the spinning node is not straightforward as in the previous case.
 The execution segment includes two types of events: ``\v{mach\_msg}'' and ``\v{thread\_switch}''.
-The ``\v{thread\_switch}'' is similar to the wait with checking, 
-and the messages in the case accompanied with the ``\v{thread\_switch}'' are used to check the data available ping.
-Both of them are not descriptive enough to manifest difference between the normal execution and spinning case in the same operation stage.
+Both of them are used to waiting for the data available ping.
+The semantics of the execution segment is not descriptive enough
+to identify the normal nodes in the same operation stage.
 
-As a result, two options are left fo the users to resolve the problem.
-The first one is checking the preceeding nodes.
-It provides about 8 similar nodes in this case, which requires a manul checking.
-The second one is to insert hardware breakpoints to signify the phases of event processing.
-We added the callstack first and revealed variables are userd to identify when to terminate the loop of thread switching inside.
-In this case, we took the second method, and got the comparible logs with Argus deployed.
+In the case we detected the intensive timeout in the node,
+our search algorithm identify the corresponding normal node by searching the similarity of their proceding nodes.
+We find out the path of the normal path as shown in the Figure \ref{fig:path slicing for system preference}.
+Our lightweight callstacks were used to verify the correctness of the findings.
 
-Concrete debugging with lldb are initialed with our debugging scripts as we notice the difference after the setting value of the variable,
-We get the function followed it from the lightweight callstack, \textit{activeDisplayNotificationHandler}.
-The spinning case ends up to return to checking the datagram avalible ping with the incorrect setting of variables,
-while the normal case continues with \textit{displayReconfigured}.
-Step intructions are recorded within the confined range, which does not cause too much overhead.
-As is shown in Figure \ref{fig:debugging logs}, we noticed the different branches
-in the function ``\v{display\_notify\_proc}'' are the root cause of the window frozen.
-Checking the sequence of instruction and the symbols carried by lldb, 
-the difference can be traced back to the type of the datagrame received from Windowserver.
+The normal node showed it proceeded to \textit{displayReconfigured} after received the message with id 29675.
+The spinning node fell into the ``\v{thread\_switch}'' after receiving the message with the same id,
+and end up to send message for the available datagram ping with \textit{CGSSnarfAndDispatchDatagrams} again.
+The proceding nodes before them sent message to WindowServer for \textit{activeDisplayNotificationHandler}.
 
-It reveals datagram from the WindowServer will post notifications for the application.                                   
-The particular datagram makes the application to finish reconfiguration and set the variable.
-However, in the spinning case the reconfiguration gets initiated but not completed.
-The handler display\_notify\_proc is not appropriately implemented to make the application exit the loop when there is an exception in the reconfiguration,
-which provides insight for the developer to fix the bug.
+With the result, we initiate the concrete debugging by filling the debugging script with the APIs reported.
+We set the method \textit{activeDisplayNotificationHandler} as a beakpoint where the script begins debugging.
+\textit{displayReconfigured} and \textit{CGSSnarfAndDispatchDatagrams} are recorded to indicate the end of debugging for the normal case and spinning case respectively.
 
-Neither the traditional causual tracing nor the lldb tool debbugiing, used individually, can pinpoint the root causes for this type of bugs in the wild.
+Our debugging scripts ran within the confined range for both the noraml and the spinning execution.
+The logs are generated as shown in Figure \ref{fig:step debug log for system preferences}.
+By diff the two logs, it is easy for the user to notice the differen braches in \textit{display\_notify\_proc},
+which is resulted from its prameter standing for the datagram type.
+
+We make use of the diassembly tool, and reveals the story in the background.
+Datagrams from the WindowServer makes applications to handle notifications.
+The datagram causes difference are used to finish display reconfiguration for System Preference.
+However, in the spinning case the reconfiguration got initiated but not completed.
+The main thread leveraged thread\_switch to wait for the flollowing datagram and resulted in a freeze.
+As a conclusion, the handler display\_notify\_proc is not appropriately implemented.
