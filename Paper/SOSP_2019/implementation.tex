@@ -1,5 +1,5 @@
 \section{Implementation}
-We now discuss how we collect tracing events of interest.
+We now discuss how we collect tracing events from both kernel and libraries.
 
 \subsection{Tracing Tool}
 Current MacOS systems support a system-wide tracing infrastructure built by Apple. [traces what]
@@ -44,6 +44,10 @@ As long as the remaining connections in the current graph help diagnosis, it is 
 	These address woulg go through the offline symbolicator in the graph construction phase.
 \end{itemize}
 
+In \xxx, we patched the kernel with 1193 lines of code,
+and we instrumented the libraries including: libsystem\_kernel.dylib, libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox, AppKit and QuartzCore with our binary instrumentation libraries. 
+Based on the new libraries creatd, the user can easily add tracing points with exposed API and the usage sample inside.
+
 \subsection{Debugger Scripting}
 After the offline analysis on the graph, we take the API covers the fine range as input to our debugging scripts.
 The debugging scripts go throught the instruction from application and higher level frameworks step by step.
@@ -54,4 +58,3 @@ AS the operation are confined in the small range, the overhead is not too much.
 
 Both the execution on normal case and problematic case are recorded, our tool further compares the log and report
 the difference, with the full call stack.
-
