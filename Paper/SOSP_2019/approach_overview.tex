@@ -6,51 +6,51 @@
 %For example, the window server communicates with every application to pass the user input events and draw things on the display.
 %Our framework records the system-wide activities with minimal instrumentation and constructs the thread relationship with our defined event schema built in the framework.
 
-\subsection{Instrumentation}
-The instrumentation in \xxx leverages tracing technology from Apple's event logging infrastructure.
-An event consists of a timestamp, an event type name to annotate current activity, and arbitrary attributes.
-One example is as the following line.
+%\subsection{Instrumentation}
+%The instrumentation in \xxx leverages tracing technology from Apple's event logging infrastructure.
+%An event consists of a timestamp, an event type name to annotate current activity, and arbitrary attributes.
+%One example is as the following line.
+%
+%\textit{timestamp, Mach\_msg\_send, local\_port, remote\_port, ...}
+%
+%The API that produces a stream of timestamped events of an event type is called a tracing point.
+%The goal of our Instrumentation is to attach the tracing points in significant spots where the thread state can be captured.
+%The code where the asynchronous task is submitted is one of the significant spots.
+%In the situation, the asynchronous handler should be captured from the local stack or registers in the thread.
+%
+%There are three main categories of tracing points:
+%\begin{enumerate}
+	%\item Tracing points implies the relationship across thread boundaries.
+	%\item Tracing points identifies the requests boundaries inside a thread.
+	%\item Tracing points improves the comprehension of the system activity, e.g. the call stacks.
+%\end{enumerate}
+%
+%Most of them are from the kernel which is open source and pre-existing in the current version of MacOS.
+%We augment them with more attributes to support our extensive use.
+%Libraries and frameworks providing batch processing programming paradigms are instrumented to detangle multiple requests.
+%We can instrument anywhere if necessary, but rarely touch the user space to allow our toolkits more general.
 
-\textit{timestamp, Mach\_msg\_send, local\_port, remote\_port, ...}
-
-The API that produces a stream of timestamped events of an event type is called a tracing point.
-The goal of our Instrumentation is to attach the tracing points in significant spots where the thread state can be captured.
-The code where the asynchronous task is submitted is one of the significant spots.
-In the situation, the asynchronous handler should be captured from the local stack or registers in the thread.
-
-There are three main categories of tracing points:
-\begin{enumerate}
-	\item Tracing points implies the relationship across thread boundaries.
-	\item Tracing points identifies the requests boundaries inside a thread.
-	\item Tracing points improves the comprehension of the system activity, e.g. the call stacks.
-\end{enumerate}
-
-Most of them are from the kernel which is open source and pre-existing in the current version of MacOS.
-We augment them with more attributes to support our extensive use.
-Libraries and frameworks providing batch processing programming paradigms are instrumented to detangle multiple requests.
-We can instrument anywhere if necessary, but rarely touch the user space to allow our toolkits more general.
-
-\subsection{Graph Construction}
-In the process of graph construction, we extract the built-in event schema that indicates how a subset of events connected, and if an event acts as a delimiter, which implies a thread reaches the beginning or end of a request.
-We link the threads with connections defined in the subset of events and split the threads with the implied delimiters.
-A thread is split into multiple execution segments, decomplexing the execution of different requests on the thread.
-Therefore, multiple graphs are generated to represent the system activities, with the execution segments mapped to the nodes and the links among them to the edges.
+%\subsection{Graph Construction}
+%In the process of graph construction, we extract the built-in event schema that indicates how a subset of events connected, and if an event acts as a delimiter, which implies a thread reaches the beginning or end of a request.
+%We link the threads with connections defined in the subset of events and split the threads with the implied delimiters.
+%A thread is split into multiple execution segments, decomplexing the execution of different requests on the thread.
+%Therefore, multiple graphs are generated to represent the system activities, with the execution segments mapped to the nodes and the links among them to the edges.
 
 %%TODO: add reference of magpie and AppInsight
-However, the graphs constructed with event schema is neither accurate nor complete definitely.
-The missing connections may be caused by shared variables which are widely used for the synchronizations among threads but is too exhaustive to explore.
-On the other hand, the delimiters are not explicit somewhere due to undocumented programming paradigms.
-For example, a batch processing programming paradigm is not uncommon in current systems from user-defined server thread to the kernel thread.
-Furthermore, the relationship between a thread waits, and another thread wakes it up later, are not equal to the dependency between them.
-To improve the constructed graphs, we come up with an ad-hoc hardware watchpoint tool to monitor shared variables if necessary to improve the completeness, and heuristics to ensure each node is only on behalf of one request.
-We present the details in the following sections.
+%However, the graphs constructed with event schema is neither accurate nor complete definitely.
+%The missing connections may be caused by shared variables which are widely used for the synchronizations among threads but is too exhaustive to explore.
+%On the other hand, the delimiters are not explicit somewhere due to undocumented programming paradigms.
+%For example, a batch processing programming paradigm is not uncommon in current systems from user-defined server thread to the kernel thread.
+%Furthermore, the relationship between a thread waits, and another thread wakes it up later, are not equal to the dependency between them.
+%To improve the constructed graphs, we come up with an ad-hoc hardware watchpoint tool to monitor shared variables if necessary to improve the completeness, and heuristics to ensure each node is only on behalf of one request.
+%We present the details in the following sections.
 
-\subsection{Analysis Toolkit}
-With the graphs generated, analysis tools can be built on for various purposes, studying requests, comparison multiple executions or retrieve the bug paths.
-Some design mechanism can be revealed with the graphs.
-Our roughly generated graph on a toy app used particular API tells how the API gets implemented and what daemons are accessed to complete it.
-For example, NSLog is implemented by sending messages to a server.
-%TODO: add details here on NSLog thing
-The design of the spinning cursor in MacOS is tapped by checking the path that triggers spindump.
-Timestamps carried by the tracing events helps to calculate the time cost of the execution segments, as well as the blocking time of a thread on specific resources.
-By checking the long execution segments or the long time blocking in UI thread, users can confine the performance anomaly to the execution interval.
+%\subsection{Analysis Toolkit}
+%With the graphs generated, analysis tools can be built on for various purposes, studying requests, comparison multiple executions or retrieve the bug paths.
+%Some design mechanism can be revealed with the graphs.
+%Our roughly generated graph on a toy app used particular API tells how the API gets implemented and what daemons are accessed to complete it.
+%For example, NSLog is implemented by sending messages to a server.
+%%TODO: add details here on NSLog thing
+%The design of the spinning cursor in MacOS is tapped by checking the path that triggers spindump.
+%Timestamps carried by the tracing events helps to calculate the time cost of the execution segments, as well as the blocking time of a thread on specific resources.
+%By checking the long execution segments or the long time blocking in UI thread, users can confine the performance anomaly to the execution interval.
