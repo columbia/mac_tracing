@@ -7,58 +7,59 @@ During post-processing, we form temporal links between threads, split some execu
 We make extensive use of the tracing points added by Apple and augment them with necessary attributes in the kernel.
 Libraries and Frameworks are instrumented only when necessary.
 
+Execution segments are defined in terms of links, so we discuss links next.
+
 \subsection{Link}
+We create link from source to destination thread in the following cases:
 \begin{itemize}
-        \item Inter-process Communications: mach\_msg is the low-level IPC
-        mechanism widely adopted by libraries and user applications. The
-        message sent and received will be matched to produce the tie between
-        the sender and receiver threads, as well as the flow of the reply
-        message. The connection will be based on the port names in userspace
-        and their kernel representation we collected with unique address
-        slides.
-        
-        \item Thread-scheduling: Contentions for virtual resources usually
-        result in thread block in a wait queue, and get unblocked by the other
-        thread when the resource is available. For the patterns like producer
-        and consumer, we will connect the producer and consumer based on the
-        resource id in the kernel. %TODO: some connections don't imply the causality order.
+        \item Inter-process Communications: As mentioned in pattern P7, MacOS
+        IPC uses mach\_msg with up to four threads involved in every
+        communication. Every step of the communication contains a reply port
+        which can be used to trace the communication, and we create a link when
+        the final thread sends a message to original reply port.
 
-        \item Timer-arm-and-fire: Timers are widely used in the Cocoa
-        Framework. We add tracing points in the kernel to capture the where it
-        is armed and where it is fired or canceled. The timer mechanism is
-        implemented by encapsulating the callout function in a kernel object
-        and linking/removing the object to/from the timer lists. Therefore, we
-        record the slid address of the object and the user passed in function
-        address as attributes in the kernel, which is used to connect events of
-        timer armed, timer fired and timer cancellation.
+        \item Thread-scheduling: Thread context switches may occur in our logs
+        for multiple reasons. Except for patterns P1 and P2, we create a link
+        between the yielding thread and the thread that wakes up.
 
-        \item Dispatch Queue synchronization: Dispatch queue is one of the main
-        synchronization mechanism. As the implication of the name, tasks can be
-        added into the queue and later get dequeued and executed by another
-        thread. We add tracing points in the binary code spots where enqueue,
-        dequeue and block execution are performed in the library.
+        \item Timer-arm-and-fire: Timers may be registered at any point by
+        passing a function pointer to a system call \texttt{mk\_timer}. When
+        the timer interrupt fires, the kernel will invoke each callback
+        function. We link the callback to the original thread that armed the
+        timer. If the timer re-registers itself (pattern P9), we will continue
+        to link future callbacks to the original registration point.
 
-        \item Runloop synchronization: A RunLoop is essentially an
-        event-processing loop running on a single thread to monitor and call
-        out to callbacks of the objects: sources, timers, and observers. We
-        leverage the binary instrument in the Cocoa Framework, where the
-        callouts get submitted and performed. Runloop object reference and
-        input source signal are recorded for sources; Runloop reference and
-        callout block address are recorded for observers; As timers are
-        implemented with the system timer-arm-and-fire, no instrumentation is
-        needed in the binary framework.
+        %\item Timer-arm-and-fire: Timers are widely used in the Cocoa
+        %Framework. We add tracing points in the kernel to capture the where it
+        %is armed and where it is fired or canceled. The timer mechanism is
+        %implemented by encapsulating the callout function in a kernel object
+        %and linking/removing the object to/from the timer lists. Therefore, we
+        %record the slid address of the object and the user passed in function
+        %address as attributes in the kernel, which is used to connect events of
+        %timer armed, timer fired and timer cancellation.
 
-        \item CoreAnimation-set-and-display synchronization: The display of
-        Applications are implemented in Cocoa Frameworks in a batch processing
-        manner. The display bits will be set when necessary, and later the
-        CoreAnimiation Layers get drawn batch at the end of an iteration in
-        RunLoop. The address of CA Layer object and display bits are recorded
-        for the connection with binary instrumentation in the Cocoa Framework.
+        \item Dispatch Queue synchronization: Via tracing points, we link each enqueue,
+        dequeue, and execution operation.
 
-        \item Shared Variable: Last but not less important, variables are an
-        important channel for thread synchronization. The synchronizations
-        above are less or more making use of the shared variables in objects.
-        It is hard to explore, for a reason enclosed in a structure.
+        \item Runloop synchronization: We wish to treat each event processed in
+        a RunLoop as an independent execution segment. However, RunLoops
+        frequently use complex control flow structures including sources,
+        timers, and observers (pattern P8). We abstract these lower-level
+        structures into single logical executions with appropriate links to
+        source segments.
+
+        \item CoreAnimation-set-and-display synchronization: Threads often
+        create dependencies with the main thread through CoreAnimation render
+        requests (pattern P4). If the user is concerned with any rendering
+        bugs, these dependencies may be useful, so we create links---but for
+        most cases, these links will not be helpful.
+
+        \item Shared Variable: Threads can create implicit dependencies by
+        synchronizing through shared variables. This case does not arise very
+        frequently, but one example is in pattern P5. Such synchronizations
+        will not be detected by our system unless explicit tracing is added for
+        that variable. Once appropriate tracing points are added, we create
+        links when one thread writes and another thread reads.
 
 \end{itemize}
 
