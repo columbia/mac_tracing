@@ -1,0 +1,143 @@
+\begin{verbatim}
+patterns
+
+1. signal handling
+
+signal handler happens to run within a thread's context
+
+thread 1      thread 2
+
+sleep(50);    running
+              process receives timer interrupt();
+                signal_handler
+                  make_runnable(thread_1);
+
+2. kernel takes over a thread's context
+
+thread_invoke(self, new_thread) // thread switch, kernel space
+  sched_timehsare_consider_maintance()
+    wake up another kernel_task thread
+                                                     kernel_task thread
+
+we filter wakeup from kernel timer/* interrupt handler, or kernel
+shared memory maintenance
+
+worker thread wakes up another worker thread [TODO]
+
+3. batching (windows server)
+
+  Window Server daemon
+
+  while() {
+    message = receive and send Mach msg(pending_reply) // reduces
+kernel crossing presumably
+    process message
+    if (message needs reply)
+      pending_reply = reply // only keeps one pending message
+  }
+
+4. shared memory in core animation display
+
+  worker thread that needs to update UI
+  ObjCoreAnimation->need_display = 1
+
+  main thread:
+  traverse all CoreAnimationobjects
+  if obj->need_display == 1
+    render(obj)
+
+5. shared memory flag, whenever spinning ball shows up
+
+  NSEvent thread                      main thread
+
+while()
+  NSArray[produced++] = event
+  event_dispatched = 1
+  if main_thread_spinning != 1n
+    register_timer(2 seconds, callback_closure}
+                                    while()
+                                      event = NSArray[consumed++];
+      process event;
+    callback_closure
+      if event_dispatched == 1
+        main_thread_spinning = 1
+                                      if main_thread_spinning == 1
+      main_thread_spinning = 0;
+              event_dispatched = 0
+
+lock: mutual exclusion, not happens-before
+
+6. batching, dispatch mig service
+
+fontd
+
+worker thread
+
+dispatch_queue.enqueue(
+   your code
+)
+  // create block function
+
+
+block = dispatch_equeue.dequeue()
+block
+  dispatch_mig_service()
+    while(){
+      receive mach message
+      process
+      optional reply if needed
+    }
+
+7. mach message mismatch
+
+thread 1,proc1      thread 2,proc2    thread 3,proc2    thread 4, proc 1
+send mach msg1
+                  recv mach msg1
+      send mach msg2
+                                      recv msg2
+              send msg3
+                            recv msg3 // reply
+ xpc (higher than mach msg
+ scim to chrome
+
+ scrim thread   t2          chrome worker thread            chrome main thread
+  send (msg has recv port)
+                           dispatch_mach_msg_recv
+                                        ?
+
+xpc_connection_and_send_msg (msg has scim recv port)
+               recv
+
+use recv port to connect messages
+
+8. runloop
+
+a lot of methods can post a callback to runloop source, instead of
+tracing all methods, we trace
+
+done by another thread
+callout_to_runloop(runloop, source, port, cb) cb installation
+log runloop, source, port, cb // runloop, source, port help identify
+the right execution of cb() to connect to
+
+   runloop will call cb()
+   cb begin: we log runloop, source, port so right match
+
+9. timer
+
+most timers are repeat timers.
+
+
+\
+timer_create
+     |       \ (may or may not fire)
+     |        timer_expire
+     |
+timer_cancel
+     |
+timer_create
+     |
+timer_create  // repeat timer?
+            \timer_expire
+
+\end{verbatim}
