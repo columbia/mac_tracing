@@ -1,9 +1,10 @@
 \section{Patterns}
+\label{sec:patterns}
 
 We encountered several instances of runtime event dependencies between thread
 contexts. We present several generalizable cases below.
 
-\para{Signal handling}
+\para{P1: Signal handling}
 Sometimes, a signal handler happens to run within a thread's context, for
 example, a timer interrupt. We identify the start and end of the
 signal-handling code to splice it away from the containing context, since it is
@@ -19,7 +20,7 @@ sleep(50);    running
 \end{verbatim}
 }
 
-\para{Kernel takes over context}
+\para{P2: Kernel takes over context}
 As part of a thread context switch, an execution context may enter kernel
 space. The code will enter kernel scheduling and wake up another
 \texttt{kernel\_task} thread.
@@ -37,7 +38,7 @@ dependencies. However, sometimes when a worker thread wakes up another worker
 thread, this can represent a true dependency. The distinguishing feature is
 whether a synchronization primitive (shared memory) is used.
 
-\para{Batching in event processing}
+\para{P3: Batching in event processing}
 The WindowServer MacOS system daemon contains an event loop which waits on Mach
 messages. Conceptually, it processes a series of independent events from
 different processes. However, to save on kernel boundary crossings, it uses a
@@ -56,13 +57,12 @@ kernel crossing presumably
 \end{verbatim}
 }
 
-\para{CoreAnimation shared memory}
-CoreAnimation contains a worker thread which sets a global variable inside
-animation objects whenever the object needs to be repainted. The main thread
-iterates over all animation objects and reads this flag, rendering any such
-object. This creates a dependency between the main thread and CoreAnimation,
-but these dependencies are extremely common and do not communicate much
-information.
+\para{P4: CoreAnimation shared memory}
+A worker thread can set a global variable inside a CoreAanimation objects
+whenever the object needs to be repainted. The main thread iterates over all
+animation objects and reads this flag, rendering any such object. This creates
+a dependency between the main thread and the worker, but these dependencies are
+extremely common and do not communicate much information.
 
 {\footnotesize \begin{verbatim}
   worker thread that needs to update UI
@@ -75,8 +75,11 @@ information.
 \end{verbatim}
 }
 
-\para{Spinning beach ball shared flag}
-Whenever the system determines that the main thread has hung for a certain period, and the spinning beach ball should be displayed, a shared memory flag is set. Access to this flag is controlled via a lock, i.e. the lock is used for mutual exclusion, and does not imply a happens before relationship.
+\para{P5: Spinning beach ball shared flag}
+Whenever the system determines that the main thread has hung for a certain
+period, and the spinning beach ball should be displayed, a shared memory flag
+is set. Access to this flag is controlled via a lock, i.e. the lock is used for
+mutual exclusion, and does not imply a happens before relationship.
 
 {\footnotesize \begin{verbatim}
   NSEvent thread                      main thread
@@ -98,7 +101,7 @@ while()
 \end{verbatim}
 }
 
-\para{Dispatch message batching}
+\para{P6: Dispatch message batching}
 The message dispatch service dequeues messages from many processes and staggers
 processing of the messages. This creates false dependencies between each
 message in the dispatch queue.
@@ -124,7 +127,9 @@ block
 \end{verbatim}
 }
 
-\para{Mach message mismatch}
+\para{P7: Mach message mismatch}
+In most systems, two threads are used to communicate messages.
+In the Mach message system, four threads are involved.
 Use recv port to connect messages.
 
 {\footnotesize \begin{verbatim}
@@ -148,7 +153,7 @@ xpc_connection_and_send_msg (msg has scim recv port)
 \end{verbatim}
 }
 
-\para{Runloop callbacks}
+\para{P8: Runloop callbacks}
 As is common in event driven programming, many methods can post a callback to a runloop to continue processing at a later time.
 
 {\footnotesize \begin{verbatim}
@@ -162,7 +167,7 @@ the right execution of cb() to connect to
 \end{verbatim}
 }
 
-\para{Timers}
+\para{P9: Timers}
 Most timers in MacOS are repeat timers, meaning that the timer reregisters itself before finishing.
 This creates complex dependencies because timers are invoked asyncronously during interrupts.
 
