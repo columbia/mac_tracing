@@ -1,0 +1,14 @@
+\subsection{Installer}
+Installer throws out spinning wait cursor in a situation
+that confuses the users.
+While we were installing jdk-7u80-macosx-x64, installer
+asked for the autority.
+Once we moved the cursor, the cursor spinning made the user
+confused. 
+
+\xxx collected tracing events in log of 550M for Installer,
+The generated graph contains 392199 edges and 294856 nodes.
+\xxx generate the graph in 168 seconds, and find the spinning
+node is blocked in the \textit{[IFRunnerProxy\ requestKeyForRights:askUser:]},
+which sent a synchronous XPC to daemon \textit{authd} with
+\textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
