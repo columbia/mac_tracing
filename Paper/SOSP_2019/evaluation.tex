@@ -1,68 +1,37 @@
 \section{Evaluation}
-We deployed \xxx Mac OS X x86 platform, with the Model code MacBookPro9,2.
-The model has the Intel Core i5-3210M CPU with 2 cores and 4 thread,
-10GB DDR3 memory, and we replace the hard disk with a 1T ssd.
-
-We first presents the performance impact of the live deployment of Argus.
-We demonstrate the overhead of our tracing tool intruduced, regarding the storage, memory and CPU usage.
-Then we list the softwares which trigger spinning wait cursors in MacOs and the root cause we figure out with our framework.
-At the end, we summaries the tedious work that our tool can take over from the user and make the diagnosis much easier in the wild.
-
-\begin{figure}[tb]
-    \centering
-    \includegraphics[width=1.0\linewidth]{ibench_memory_compare.png}
-    \caption{Memory overhead with tracing.}
-    \label{fig:ibench_memory_overhead}
-\end{figure}
-
-\begin{figure}[tb]
-    \centering
-    \includegraphics[width=1.0\linewidth]{ibench_cpuload_compare.png}
-    \caption{CPU overhead with tracing.}
-    \label{fig:ibench_cpu_overhead}
-\end{figure}
-
-\subsection{iBench}
-iBench is a synthetic micro benchmark for the CPU and memory performance on MacOS.
-We run the suite in the machine with and without \xxx enabled respectively,
-and collect the memory usage and cpu load for every 100 millisecons.
-Figure \ref{fig:ibench_memory_overhead} shows in \xxx, about 512M more memory in the footprint on \xxx,
-which is consistent with the default size of the internal buffer used to collect events in Apple's tracing facility.
-We also notice that the time cost of the two runs nearly the same.
-Figure \ref{fig:ibench_cpu_overhead} illustrate the cpu load every minutes for both settings.
-It supports the same conclusion that
-users can hardly realize the performance impact of our system.
-
-\subsection{Real-world Applications}
-With \xxx deployed in the paltform, the tracing tool is running in the background 24X7.
-Once the spinning cursor appeers on the screen,
-we store the tracing data for the root cause analysis.
- 
-The list of real-world softwares includes TextEdit, CodEdit, Notes, Hopper Disassembler, Installer, Squel Pro, GetiPlayerAutomator.
-\begin{table}[h]
-\begin{tabular}{|l|c|c|}
-Application & Reproduce Method & Root Cause\\
-\hline
-TextEdit & & \\
-CoEdit & & \\
-Notes & & \\
-HopperDiassembler & & \\
-Installer & &\\
-Squel Pro & & \\
+%\begin{table}[h]
+%\begin{tabular}{|l|c|c|}
+%Apps &  Memory & CPU\\
+%\hline
+%iBecnh & & \\
+%TextEdit & & \\
+%CoEdit & & \\
+%Notes & & \\
+%HopperDiassembler & & \\
+%Installer & &\\
+%Squel Pro & & \\
 %GetiPlayerAutomator & &\\
-\end{tabular}
-\caption{Diagnosis of Daily Softwares}
-\label{tab:disagnosis of daily softwares}
-\end{table}
+%\end{tabular}
+%\caption{overhead}
+%\label{tab:overhead}
+%\end{table}
+We deployed \xxx Mac OS X x86 platform, with the Model code MacBookPro9,2.  The
+model has the Intel Core i5-3210M CPU with 2 cores and 4 thread, 10GB DDR3
+memory, and we replace the hard disk with a 1T ssd.  The tracing tool is
+running in the background 24X7.  Once the spinning cursor appeers on the
+screen, we store the tracing data for the root cause analysis.
 
+In previous section, we studied the real-world softwares, including TextEdit,
+Notes, CodEdit in the category of content editing softwares, Installer, System
+Preference of the system operation category Hopper Disassembler, Squel Pro and
+Chromium of the productive softwares, TextEdit, Notes, Installer and System
+Preferences are distributed by Apple.  
+%GetiPlayerAutomator.  easy usage of
+%our tools, as well as the interactive actions required to figure out the
+%concise root causes.  At the end, we also summarize the tedious work that our
+Our tool can take over most burden searching and comparing work from the user,
+and make the diagnosis much easier in the wild.
 
-%\begin{itemize}
-%\item tracing overhead
-	%\begin{itemize}
-	%\item memory and CPU usage on top, while running ibench with and without our tracing enabled
-	%\item memory and CPU usage on top, while running the listed real world applications with and without our tracing enabled
-	%\item how much times it takes to filled the buffer we fixed 2G
-	%\item how many events recorded in the buffer
-	%\end{itemize}
-%\item number of edges and nodes in the graphs and portions of data the user need to examine to figure out the root cause.
-%\end{itemize}
+In this section we presents the performance impact of the live deployment of Argus.
+As we use the ring buffer to collect events, the storage cost can be adjusted
+and fixed to 2G in our experiments.
