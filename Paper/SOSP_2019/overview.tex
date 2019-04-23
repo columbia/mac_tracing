@@ -1,0 +1,228 @@
+\section{Overview}
+\label{sec:overview}
+
+Our \xxx prototype is designed to debug performance issues in complex modern applications.
+It performs lightweight full system tracing of every process including system calls,
+interprocess messages, and MacOS system daemons.
+Offline, we build a graph based on thread executions, with nodes defined by
+per-request execution segments,
+and edges wherever there are temporal constraints between threads of execution.
+
+Upon the graph, we build a set of tools to:
+a) inspect the graph,
+b) perform slicing on the graph to show dependent nodes,
+c) compare graph slices between normal and spinning cases, and
+d) select a graph node to gather more information with our debugger scripts.
+
+\begin{figure*}[tb]
+    \centering
+    \includegraphics[width=0.7\linewidth]{ArgusOverview.eps}
+    \caption{Design Overview}
+    \label{fig:argus-overview}
+\end{figure*}
+
+For a simple issue, like a rare segmentation fault,
+just having lightweight logs may be enough to perform a diagnosis.
+However, in most cases, user need to be able to reproduce and gathering
+additional data to debug the affected application.
+\xxx, shown in Figure \ref{fig:argus-overview} helps the users in the way
+it 1) records the system activity 24X7 to capture the reappearance of the bugs,
+2) provides tools for the users to gathering more detailed logs,
+3) allows users' interactions in the pathing finding,
+leaveraging human's superior pattern recognition ability.
+
+We show the general process of interactive debugging using \xxx,
+as is shown in Figure\ref{fig:argus-overview},
+on Chromium bug in the remaining of the section.
+
+Occasionally when users type non-English characters to search box in Chromium,
+the browser get frozen with the spinning cursor.
+By attaching the lldb to the main thread of browser, it is not hard to tell that
+the main thread blocks on the method \textit{TextInputClientMac::GetFirstRectForRange},
+invoking a synchronous IPC to a renderer process.
+Although developers knew there was a deadlock between the browser and the renderer,
+they did not know how the daedlock occured in the real-world.
+
+
+\subsection{Event Tracing}
+
+\xxx can continuously run live in the background and collect logs,
+leveraging the event tracing infrastructure builtin the system.
+The user works as usual until a performance issue is observed.
+A log contains a stream of timestamped events with the following format:
+
+\textit{timestamp, Mach\_IPC\_msg\_send, ...}
+
+An event consists of a timestamp, an event type name to annotate current activity,
+and arbitrary attributes.
+We augment the existing event types with more attributes to support our extensive usage.
+For exmaple, we suprisingly found that few traditional RPC style messages presented in the system.
+The XPC between SCIM to Chromium spans over four threads.
+$SCIM_{tid1}$ sent message and the message was received by $Chromium_{tid1}$.
+The reply message was sent from $Chromium_{tid2}$ and received by $SCIM_{tid2}$.
+We augment the attributes of Mach\_IPC\_msg with the port information from the messge header.
+We also add new types of tracing events when necessary in kernel and libraries.
+
+The log collects the tracing event both in 
+a) a baseline situation where the program runs normally,
+and b) a spinning situation that exposes the performance issue.
+It saved for offline analysis.
+
+\subsection{Offline Graph Construction}
+Smilar to traditional causual tracing,
+\xxx converts the log into relationship graphs,
+by two steps:
+linking events reflects correlations system-wide, 
+and decomplexing different request segments in the same thread.
+The rules are defined as event schema.
+
+Compared to Magpie which requires user input event schema,
+\xxx defines event schema initially in the system,
+which coveres mostly required event types and rules
+for graph construction.
+\xxx began graph generation from the event schema
+that traditional causual tracing used,
+listed in\ref{subsec:traditional event schema},
+and corrected them by inspecting the violation patterns in the graph.
+
+\begin{figure*}[tb]
+    \centering
+    \includegraphics[width=0.9\linewidth]{backward_slicing_chromium.eps}
+    \caption{Chromium backward path slicing.}
+    \label{fig:path-slice-on-chromium}
+\end{figure*}
+
+\begin{figure}[tb]
+    \centering
+    \includegraphics[width=1.0\linewidth]{chromium_case_study.eps}
+    \caption{Chromium case study.}
+    \label{fig:chromium-trace}
+\end{figure}
+
+Traditional causal tracing usually assume one task from
+the task queue works on behalf of a request.
+However, in MacOS the dequeue block can act as an server,
+to process requests from different applications.
+As is the nodes \textit{Node\#17a60000c} shown in Figure\ref{fig:path-slice-on-chromium},
+fontd dequeues a block and invokes \textit{dispatch\_mig\_server}
+in the block to processing message from
+different processes.
+\begin{lstlisting}[basicstyle=\small\linespread{0.6}]
+block = dispatch_queue.dequeue()
+dispatch_execute(block)
+{
+  dispatch_mig_server()
+}
+
+dispatch_msg_server()
+{
+  for(;;) {
+    mach_msg(send_reply, recev_request)
+    call_back()
+    set_reply()
+  }
+}
+\end{lstlisting}
+
+The synchronization between two threads does not
+always indicate the causality.
+As is shown in \textit{Node\#17a60000d}, the kernel takes over the fontd's thread context to process
+interrupts, and wakeup a kernel thread.
+As a result, to generate a more concise relationship graph,
+we defined additional event schema listed in following Section\ref{subsec:violations}.
+
+\subsection{Offline Analysis}
+\begin{itemize}
+\item First, our search tool finds the node \emph{$N_{spin}$} in the \xxx graph
+that corresponds to a hanging UI thread. The user may also leverage
+the system clock time to search for events (\eg, keystrokes).
+In chromium case, our tool quickly identifies the spinning node out from the
+XXX numbers of nodes in the main thread in XXX seconds.
+
+\item Next, our search tool attempts to find the node in the normal case \emph{$N_{normal}$}
+that corresponds with $N_{spin}$. There will likely be many possible candidates.
+In this situation, the search tool allows interference from the user by reporting the nodes
+to users and accept the user's identification of $N_{normal}$.
+The interactive step makes the identification more efficient and 
+precise with the user's knowldege and pattern recognition ablility. 
+Our search tool reports the normal node \textit{Node\#15e4000165} and 2 similar normal nodes
+for the chromium bug.
+By comparing the these nodes manually, we find no significant difference among them.
+\textit{Node\#154e0008} is picked as $N_{normal}$.
+The node is shown in Figure \ref{fig:path-slice-on-chromium}.
+
+\item Then, with knowledge of $N_{spin}$ and $N_{normal}$, our search tool
+performs a backward slice through the graph to find the defining difference
+between the cases. For the case that $N_{spin}$ results from the blocking in main thread,
+we begin the backward path slicing from the node $N_{slice_0}$ that wakes up
+the wait event in $N_{normal}$, in that $N_{slice_0}$ is the missing node for
+the spinning case.
+
+As is shown in Figure \ref{fig:path-slice-on-chromium}, we begin the path slicing
+from the \textit{Node\#15fa00028}, because it woke up the $N_{normal}$\textit{Node\#15e400008}.
+In the process of path slicing, as previous, we allow the user's
+interference when there are multiple incoming edges for the current node.
+We do not encounter the situation in chromium case, but have encounter it when debugging
+for the System Preference, we show the path of nodes in the Figure \ref{fig:multiple-incoming-edges}.
+
+\item Now, we have the sliced normal path as the baseline. Our search tool inspect every
+thread of the normal node with the timing information.
+The thread that acts quite differently afterward usually indicates quite directly the root cause.
+
+In the blocking case we expect to find the thread in the path that gets blocked.
+For complicated cases, although we has not yet encountered so far, users' interference
+is allowed as well. Users can inspect the thread in the refined temperal contraint.
+Additional information may be collected from certain points in the programe to
+verify the speculation of the root casuse.
+We found \textit{Node\#16aa00219} in Figure \ref{fig:multiple-incoming-edges} is the blocking node
+comparing backward the path.
+\end{itemize}
+
+\subsection{Incremental Tracing}
+The graph generated are subject to users' inspection and improvement.
+The inspection tool built upon the graph reports the potential missing
+and superfluous edges.
+Users can optionally check the report and improve the graph
+by collecting more data.
+
+\xxx provides the ad-hoc command line tool to insert the hareware breakpoints,
+detouring style instrumentation library to add tracing events anywhere,
+and the API to get lightweight call stacks by unwinding the \emph{rbp} in the library.
+User can repeating this process of incremental tracing with the tools
+repeatedly to improved the accuracy of the graph. 
+
+For instance, WindowServer sends a reply for a previous request and receives a current
+request in one system call, presumably to reduce the user-kernel crossings.
+We leverage the hardware breakpoint to monitor the \textit{pending\_message}, and add tracing event
+in the signal handler, which eventually helps to decouple the message for different requests.
+
+The \textit{Node\#16aa000f5} wakes up both \textit{Node\#16b700025} and \textit{Node\#16b70002e}
+in the execution segment.
+It may be larger than its actural event handling segment due to batch processing.
+As it does not impact our debugging, we leave it alone for further examination.
+
+\subsection{Debugger Scripting}
+\xxx can precisely degugging the complicated performance issue with user's interaction.
+After the steps of
+a) inspection of the graph,
+b) performing slicing on the graph to show dependent nodes,
+c) comparing graph slices between normal and spinning cases,
+users are able to d) select a graph node to gather more information with our debugger scripts.
+
+\xxx allow users to enable the concrete debugging with our debugger scripts.
+The debugging script takes the input from previous steps and conduct step-in debugging and callstack sampling
+within the range to bound the overheads.
+Diffing is applied again on the debugging logs from both the normal case and the problematic case.
+Mostly the call stacks from the fine range and the branch instructions can precisly
+reveal the root cause of the performance issue.
+
+We attache the debugger in the \textit{thread 16aa} both in the normal case and spinning case,
+and figure out the interleavings of events executed in the renderer thread.
+
+The ground truth for the performance issue is revealed in Figure \ref{fig:chromium-trace}.
+The main thread of the browser process tries to get the caret position.
+It sends out the message and anticipates for the reply message with a condition variable.
+Usually, a worker thread in the browser process will return the firstrect and wake up the main thread.
+However, it requires the message from the main thread of the renderer process.
+Without the message from the renderer process, the worker thread is not able to signal the main thread.
+Thus, the main thread will always time out.
