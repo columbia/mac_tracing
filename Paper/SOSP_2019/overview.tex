@@ -215,9 +215,11 @@ within the range to bound the overheads.
 Diffing is applied again on the debugging logs from both the normal case and the problematic case.
 Mostly the call stacks from the fine range and the branch instructions can precisly
 reveal the root cause of the performance issue.
-
 We attache the debugger in the \textit{thread 16aa} both in the normal case and spinning case,
 and figure out the interleavings of events executed in the renderer thread.
+
+The graph for debugging chromium bug consists 2,749,628 nodes and 3,606,657 edges,
+with \xxx we only need to inspect 3 nodes in total to figure out root cause.
 
 The ground truth for the performance issue is revealed in Figure \ref{fig:chromium-trace}.
 The main thread of the browser process tries to get the caret position.
