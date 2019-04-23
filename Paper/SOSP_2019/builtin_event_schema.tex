@@ -1,19 +1,65 @@
 \section{Built-in Event Schema}\label{section: builtin_event_schema}
-The instrumentation framework must support the capture of performance anomalies now and then without adding too much time overhead or exhausting the system storage.
-The built-in event schema alleviates the pain of the users without expert knowledge across the whole system suffers from constructing an event schema to capture the Application and system states.
-To balance the limited information amount capacity and its usefulness, we only record events with the purposes of threads temporal link, requests splits and minimal comprehensible information.
-We make extensive use of the Tracing points added by Apple and augment them with necessary attributes in the kernel.
-Libraries and Frameworks are instrumented only when it is necessary.
+Our instrumentation framework must be able to capture system events that indicate a performance anomaly, without significantly impacting performance or consuming too much storage space.
+The built-in event schema simplifies the use of our system for users without expert knowledge to capture application and system state.
+Trace points and other messages that do not match the schema are discarded to save disk space.
+We only record events that can be used to define execution segments within threads.
+During post-processing, we form temporal links between threads, split some execution segments, and summarize the results for the user.
+We make extensive use of the tracing points added by Apple and augment them with necessary attributes in the kernel.
+Libraries and Frameworks are instrumented only when necessary.
 
 \subsection{Link}
 \begin{itemize}
-        \item Inter-process Communications: mach\_msg is the low-level IPC mechanism widely adopted by libraries and user applications. The message sent and received will be matched to produce the tie between the sender and receiver threads, as well as the flow of the reply message. The connection will be based on the port names in userspace and their kernel representation we collected with unique address slides.
-        \item Thread-scheduling: Contentions for virtual resources usually result in thread block in a wait queue, and get unblocked by the other thread when the resource is available. For the patterns like producer and consumer, we will connect the producer and consumer based on the resource id in the kernel. %TODO: some connections don't imply the causality order.
-        \item Timer-arm-and-fire: Timers are widely used in the Cocoa Framework. We add tracing points in the kernel to capture the where it is armed and where it is fired or canceled. The timer mechanism is implemented by encapsulating the callout function in a kernel object and linking/removing the object to/from the timer lists. Therefore, we record the slid address of the object and the user passed in function address as attributes in the kernel, which is used to connect events of timer armed, timer fired and timer cancellation.
-        \item Dispatch Queue synchronization: Dispatch queue is one of the main synchronization mechanism. As the implication of the name, tasks can be added into the queue and later get dequeued and executed by another thread. We add tracing points in the binary code spots where enqueue, dequeue and block execution are performed in the library.
-        \item Runloop synchronization: A RunLoop is essentially an event-processing loop running on a single thread to monitor and call out to callbacks of the objects: sources, timers, and observers. We leverage the binary instrument in the Cocoa Framework, where the callouts get submitted and performed. Runloop object reference and input source signal are recorded for sources; Runloop reference and callout block address are recorded for observers; As timers are implemented with the system timer-arm-and-fire, no instrumentation is needed in the binary framework.
-        \item CoreAnimation-set-and-display synchronization: The display of Applications are implemented in Cocoa Frameworks in a batch processing manner. The display bits will be set when necessary, and later the CoreAnimiation Layers get drawn batch at the end of an iteration in RunLoop. The address of CA Layer object and display bits are recorded for the connection with binary instrumentation in the Cocoa Framework.
-        \item Shared Variable: Last but not less important, variables are an important channel for thread synchronization. The synchronizations above are less or more making use of the shared variables in objects. It is hard to explore, for a reason enclosed in a structure.
+        \item Inter-process Communications: mach\_msg is the low-level IPC
+        mechanism widely adopted by libraries and user applications. The
+        message sent and received will be matched to produce the tie between
+        the sender and receiver threads, as well as the flow of the reply
+        message. The connection will be based on the port names in userspace
+        and their kernel representation we collected with unique address
+        slides.
+        
+        \item Thread-scheduling: Contentions for virtual resources usually
+        result in thread block in a wait queue, and get unblocked by the other
+        thread when the resource is available. For the patterns like producer
+        and consumer, we will connect the producer and consumer based on the
+        resource id in the kernel. %TODO: some connections don't imply the causality order.
+
+        \item Timer-arm-and-fire: Timers are widely used in the Cocoa
+        Framework. We add tracing points in the kernel to capture the where it
+        is armed and where it is fired or canceled. The timer mechanism is
+        implemented by encapsulating the callout function in a kernel object
+        and linking/removing the object to/from the timer lists. Therefore, we
+        record the slid address of the object and the user passed in function
+        address as attributes in the kernel, which is used to connect events of
+        timer armed, timer fired and timer cancellation.
+
+        \item Dispatch Queue synchronization: Dispatch queue is one of the main
+        synchronization mechanism. As the implication of the name, tasks can be
+        added into the queue and later get dequeued and executed by another
+        thread. We add tracing points in the binary code spots where enqueue,
+        dequeue and block execution are performed in the library.
+
+        \item Runloop synchronization: A RunLoop is essentially an
+        event-processing loop running on a single thread to monitor and call
+        out to callbacks of the objects: sources, timers, and observers. We
+        leverage the binary instrument in the Cocoa Framework, where the
+        callouts get submitted and performed. Runloop object reference and
+        input source signal are recorded for sources; Runloop reference and
+        callout block address are recorded for observers; As timers are
+        implemented with the system timer-arm-and-fire, no instrumentation is
+        needed in the binary framework.
+
+        \item CoreAnimation-set-and-display synchronization: The display of
+        Applications are implemented in Cocoa Frameworks in a batch processing
+        manner. The display bits will be set when necessary, and later the
+        CoreAnimiation Layers get drawn batch at the end of an iteration in
+        RunLoop. The address of CA Layer object and display bits are recorded
+        for the connection with binary instrumentation in the Cocoa Framework.
+
+        \item Shared Variable: Last but not less important, variables are an
+        important channel for thread synchronization. The synchronizations
+        above are less or more making use of the shared variables in objects.
+        It is hard to explore, for a reason enclosed in a structure.
+
 \end{itemize}
 
 \subsection{Split}                                                                                                       
@@ -21,19 +67,39 @@ Continuously processing unrelated tasks is not uncommon in threads, from userspa
 Tracing points are required to split the events in a thread with the request boundary to exclude the false linkage in the graph.
 With the boundary, the interleaving execution of requests on the same thread can be decomplexed, which benefit the following analysis when a comparison is required.
 Three main categories are covered in our built-in schema.
-\begin{itemize}
-	\item System interference: User threads are randomly interrupted by the system activities, for example, interrupts, timeshare maintenance. We recognize the boundary of them and isolate them from activities triggered by a user application.
-	\item Batch processing: The second category is the batch processing in Daemons and Application Services. Boundaries in this category are usually implied by certain programming paradigms. A checking tool is created on our framework to unveil these programming paradigms.
+    
+\para{System interference}
+User threads are randomly interrupted by the system activities, for example,
+interrupts, timeshare maintenance. We recognize the boundary of them and
+isolate them from activities triggered by a user application.
 
-In our builtin schema, we cover not only the traditional programming model, dispatch queue and run loops, but also recognize special ones. For example, WindowServer sends out pending messages with the receiving of an unrelated message from kernel via one system call, due to Apple's design of the port set.
+\para{Batch processing}
+The second category is the batch processing in Daemons and Application
+Services. Boundaries in this category are usually implied by certain
+programming paradigms. A checking tool is created on our framework to unveil
+these programming paradigms.
 
-Kernel thread is a important one who processes requests without boundaries. While processing the timer, the kernel thread sends out messages one by one to a list of user processes who armed timer before.
-	\item Heuristics: It is not always possible to manifest all programming paradigms before tracing. In our framework, more can be added with heuristics by iteratively checking on new data.
-\end{itemize}
+In our builtin schema, we cover not only the traditional programming model,
+dispatch queue and run loops, but also recognize special ones. For example,
+WindowServer sends out pending messages with the receiving of an unrelated
+message from kernel via one system call, due to Apple's design of the port set.
+
+Kernel thread is a important one who processes requests without boundaries.
+While processing the timer, the kernel thread sends out messages one by one to
+a list of user processes who armed timer before.
+
+\para{Heuristics}
+It is not always possible to manifest all programming paradigms before tracing.
+In our framework, more can be added with heuristics by iteratively checking on
+new data.
 
 \subsection{Comprehension}
 To make the output of our data more comprehensible, we add tracing points on system call and insert a lightweight call stack on demand.
-\begin{itemize}
-	\item system calls: we record the system call number and corresponding parameters. It helps to understand what system service is required by the execution.
-	\item Lightweight call stacks: the user stacks are unwinded with the valid rbp in the system without processing the complex jump instructions. It benefits the understanding of our data with rare overhead.
-\end{itemize}
+\para{System calls}
+We record the system call number and corresponding parameters. It helps to
+understand what system service is required by the execution.
+
+\para{Lightweight call stacks}
+The user stacks are unwinded with the valid rbp in the system without
+processing the complex jump instructions. It benefits the understanding of our
+data with rare overhead.
