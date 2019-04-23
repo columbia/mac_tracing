@@ -9,7 +9,7 @@ example, a timer interrupt. We identify the start and end of the
 signal-handling code to splice it away from the containing context, since it is
 usually unrelated.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 thread 1      thread 2
 
 sleep(50);    running
@@ -17,17 +17,19 @@ sleep(50);    running
                 signal_handler
                   make_runnable(thread_1);
 \end{verbatim}
+}
 
 \para{Kernel takes over context}
 As part of a thread context switch, an execution context may enter kernel
 space. The code will enter kernel scheduling and wake up another
 \texttt{kernel\_task} thread.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 thread_invoke(self, new_thread) // thread switch, kernel space
   sched_timehsare_consider_maintance()
     wake up another kernel_task thread
 \end{verbatim}
+}
 
 To detect this case, we filter wakeups from the kernel timer, interrupt
 handler, or kernel shared memory maintenance. Such cases represent spurious
@@ -43,7 +45,7 @@ single system call to receive data and send data for an unrelated event. This
 batch processing artificially makes many events appear dependent, and we split
 the execution segments to maintain the independence of the events.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
   while() {
     message = receive and send Mach msg(pending_reply) // reduces
 kernel crossing presumably
@@ -52,6 +54,7 @@ kernel crossing presumably
       pending_reply = reply // only keeps one pending message
   }
 \end{verbatim}
+}
 
 \para{CoreAnimation shared memory}
 CoreAnimation contains a worker thread which sets a global variable inside
@@ -61,7 +64,7 @@ object. This creates a dependency between the main thread and CoreAnimation,
 but these dependencies are extremely common and do not communicate much
 information.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
   worker thread that needs to update UI
   ObjCoreAnimation->need_display = 1
 
@@ -70,11 +73,12 @@ information.
   if obj->need_display == 1
     render(obj)
 \end{verbatim}
+}
 
 \para{Spinning beach ball shared flag}
 Whenever the system determines that the main thread has hung for a certain period, and the spinning beach ball should be displayed, a shared memory flag is set. Access to this flag is controlled via a lock, i.e. the lock is used for mutual exclusion, and does not imply a happens before relationship.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
   NSEvent thread                      main thread
 
 while()
@@ -92,12 +96,13 @@ while()
       main_thread_spinning = 0;
               event_dispatched = 0
 \end{verbatim}
+}
 
 \para{Dispatch message batching}
 The message dispatch service dequeues messages from many processes and staggers
 processing of the messages. This creates false dependencies between each
 message in the dispatch queue.
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 fontd
 
 worker thread
@@ -117,11 +122,12 @@ block
       optional reply if needed
     }
 \end{verbatim}
+}
 
 \para{Mach message mismatch}
 Use recv port to connect messages.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 thread 1,proc1      thread 2,proc2    thread 3,proc2    thread 4, proc 1
 send mach msg1
                   recv mach msg1
@@ -140,11 +146,12 @@ send mach msg1
 xpc_connection_and_send_msg (msg has scim recv port)
                recv
 \end{verbatim}
+}
 
 \para{Runloop callbacks}
 As is common in event driven programming, many methods can post a callback to a runloop to continue processing at a later time.
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 done by another thread
 callout_to_runloop(runloop, source, port, cb) cb installation
 log runloop, source, port, cb // runloop, source, port help identify
@@ -153,14 +160,14 @@ the right execution of cb() to connect to
    runloop will call cb()
    cb begin: we log runloop, source, port so right match
 \end{verbatim}
-
+}
 
 \para{Timers}
 Most timers in MacOS are repeat timers, meaning that the timer reregisters itself before finishing.
 This creates complex dependencies because timers are invoked asyncronously during interrupts.
 
 
-\begin{verbatim}
+{\footnotesize \begin{verbatim}
 \
 timer_create
      |       \ (may or may not fire)
@@ -174,3 +181,4 @@ timer_create  // repeat timer?
             \timer_expire
 
 \end{verbatim}
+}
