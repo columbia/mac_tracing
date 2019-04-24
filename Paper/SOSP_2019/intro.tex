@@ -32,8 +32,8 @@ guessing the root cause, producing ``fixes'' that sometimes make the matter
 worse.  For instance, a bug in the Chrome browser causes a spinning cursor
 in MacOS when a user switches the input method to XX~\cite{bug-url}.  It
 was first reported in 2012, and developers attempted to add timeouts
-to work around the issue.  Unfortunately, the bug remained and the timeouts
-added made diagnosis even harder.  The bug has remained open for seven years.
+to work around the issue.  Unfortunately, the bug has remained 
+open for seven years and the timeouts obscured diagnosis further.
 
 Prior work proposed \emph{Causal tracing}, a powerful technique to
 construct request graphs (semi-)automatically~\cite{xxx}. It does so by
@@ -119,14 +119,13 @@ This environment therefore provides a true test of \xxx.  We address multiple
 nuances of MacOS that complicate causal tracing, and built a system-wide,
 low-overhead tracer.
 
-We evaluated \xxx on \nbug real-world spinning-cursor issues in widely
-used applications such as the Chromium browser and MacOS System
-Preference, Installer application, and Notes.  The root causes of all
-\nbug issues were, to the best of our knowledge, previously unknown to the
-public. Our results show that \xxx is effective: we were able to use it to
-find all root causes of issues, including the Chromium issue that remained
-open for seven years.  \xxx is also fast: it systems-wide tracing incurs
-only XX\% overhead.
+We evaluated \xxx on \nbug real-world, open spinning-cursor issues in
+widely used applications such as the Chromium browser and MacOS System
+Preferences, Installer, and Notes.  The root causes of all \nbug issues
+were previously unknown to us and, to a large extent, the public. Our
+results show that \xxx is effective: it helped us find all root causes of
+issues, including the Chromium issue that remained open for seven years.
+\xxx is also fast: its systems-wide tracing incurs only XX\% overhead.
 
 This paper makes the following contributions: our conceptual realization
 that causal tracing is inherently imprecise and that interactive causal
