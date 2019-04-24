@@ -106,18 +106,16 @@ consults the user to pick one to follow.  Given the path, \xxx examples
 the threads in the path one by one, and returns the thread whose wake-up
 is missing in the spinning case.
 
-Third, if the concurrent event is a thread yield, it is highly indicative
-that the main thread is waiting on a data flag (\eg, ``while(!done)
-thread\_switch();'').  To discover a data flag, the user reruns the
-application with \xxx to collect instruction traces of the concurrent
-event in both the normal and spinning cases and detects where the control
-flow diverges.  She then reruns the application with \xxx to collect
-register values for the basic blocks before the divergence and uncovers
-the address of the data flag.  She then configures \xxx to log accesses to
-the flag during system-wide tracing.
-
-The user can recursively apply \xxx to further diagnose ``the culprit of
-the culprit.''  For instance, 
+Third, if the concurrent event is a thread yield, it is highly indicative that
+the main thread is waiting on a data flag (\eg, ``while(!done)
+thread\_switch();'').  To discover a data flag, the user reruns the application
+with \xxx to collect instruction traces of the concurrent event in both the
+normal and spinning cases and detects where the control flow diverges.  She
+then reruns the application with \xxx to collect register values for the basic
+blocks before the divergence and uncovers the address of the data flag.  She
+then configures \xxx to log accesses to the flag during system-wide
+tracing. Finally, she can recursively apply \xxx to further diagnose ``the
+culprit of the culprit''. 
 
 Based on our results, the first type of spinning cursor is more common but
 the second and third types cause the most harm.  The reason is that the
@@ -170,7 +168,7 @@ schema~\cite{barham2004using} \cite{reynolds2006pip}, would be prohibitive
 because developers would have to provide schema for all involved applications
 and daemons.
 
-\begin{figure*}[tb]
+\begin{figure*}[p]
     \centering
     \includegraphics[width=0.8\linewidth]{chromium_case_study.eps}
     \caption{Chromium case study.}
