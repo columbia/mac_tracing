@@ -40,10 +40,12 @@ space. As shown below, the code will enter kernel scheduling by calling
 \texttt{kernel\_task} thread.  Again, such a wake-up does not reflect the application's intent, and should be filtered out from the containing context.  
 
 {\footnotesize \begin{verbatim}
-thread_invoke(self, new_thread, reason) // thread switch, kernel space
-  sched_timehsare_consider_maintance()
+thread_invoke(self, new_thread, reason) {// thread switch, kernel space
+  sched_timehsare_consider_maintance() {
     thread_wakeup((event_t)sched_timeshare_miantenance_continue);
+  }
   ast_context(new_thread);
+}
 \end{verbatim}
 }
 
@@ -84,7 +86,7 @@ flags and establish causal links between them.
     }
     CGXRunOneServicePass() {
       if(_gOutMessagePending)
-	mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
+        mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
       else
         mach_msg(MSG_RECV)
       ... // process received message
@@ -106,10 +108,10 @@ library to trace events on these flags.
 % , but these dependencies are extremely common and do not communicate much information.
 
 {\footnotesize \begin{verbatim}
-  worker thread that needs to update UI:
+  Worker thread that needs to update UI:
   ObjCoreAnimation->need_display = 1
 
-  main thread:
+  Main thread:
   traverse all CoreAnimationobjects
   if obj->need_display == 1
     render(obj)
@@ -120,9 +122,9 @@ library to trace events on these flags.
 Whenever the system determines that the main thread has hung for a certain
 period, and the spinning beach ball should be displayed, a shared-memory flag
 is set. Access to this flag is controlled via a lock, i.e. the lock is used for
-mutual exclusion, and does not imply a happens before relationship.
-
-watch point
+mutual exclusion, and does not imply a happens before relationship.  Thus,
+\xxx captures accesses to these flags using watch-point registers to add
+causal edges correctly.
 
 {\footnotesize \begin{verbatim}
  NSEvent thread                     
@@ -189,7 +191,6 @@ this way, which makes it fundamentally difficult to automatically infer
 event handling boundaries.
 
 \para{P7: Mach message mismatch}
-
 When RPC-style inter-process communication is used, most systems would use
 the same thread to send the call request and receive the return.  They
 would also use one recipient thread to process the call.  However, in
@@ -211,7 +212,6 @@ mach_msg_send(remote_port.reply_port)
 }
 
 \para{P8: Runloop callbacks batch processing}
-
 As is common in event driven programming, many methods can post a callback
 and MacOS uses runloop as a common idiom to process callbacks.  As shown
 in the following step-by-step description of the MacOS runloop, an
@@ -267,3 +267,21 @@ Run loop sequence of events //developer.apple.com
 
 %% \end{verbatim}
 %% }
+
+\subsection{Discussion}
+
+These patterns reinforce our insights described in
+Section~\ref{sec:intro}.  First, as illustrated by patterns P3, P6, and
+P7, batch processing is frequently used to lump work on behalf of
+different requests together, causing inaccurate edges that do not reflect
+causality in the event graph.  Some amount of manual schema is needed, but
+annotating all applications and daemons upfront to expose batch processing
+would be strenuous and error-prone.  We believe \xxx's interactive
+approach represents a better design tradeoff.  Second, as illustrated by
+P3, P4, and P5, systems use data flags for causal linkage.  They do so in
+both multithreaded and single-threaded environments.  Such data
+dependencies can be crucial for diagnosing performance issues -- the
+spinning cursor's display itself uses shared memory flags as shown in P5.
+Third, as P1, P2, and P5 show, wake-ups do not necessarily reflect causal
+linkage.  Lastly, systems may deviate from well-established patterns such
+as in P7 or create their custom primitives such as in P6.
