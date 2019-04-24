@@ -3,7 +3,8 @@ Our instrumentation framework must be able to capture system events that indicat
 The built-in event schema simplifies the use of our system for users without expert knowledge to capture application and system state.
 Trace points and other messages that do not match the schema are discarded to save disk space.
 We only record events that can be used to define execution segments within threads.
-During post-processing, we form temporal links between threads, split some execution segments, and summarize the results for the user.
+During post-processing, we form temporal links between threads and split execution into segments.
+% and summarize the results for the user.
 We make extensive use of the tracing points added by Apple and augment them with necessary attributes in the kernel.
 Libraries and Frameworks are instrumented only when necessary.
 
@@ -64,43 +65,45 @@ We create link from source to destination thread in the following cases:
 \end{itemize}
 
 \subsection{Split}                                                                                                       
-Continuously processing unrelated tasks is not uncommon in threads, from userspace, system services, and kernel threads.
-Tracing points are required to split the events in a thread with the request boundary to exclude the false linkage in the graph.
-With the boundary, the interleaving execution of requests on the same thread can be decomplexed, which benefit the following analysis when a comparison is required.
-Three main categories are covered in our built-in schema.
-    
-\para{System interference}
-User threads are randomly interrupted by the system activities, for example,
-interrupts, timeshare maintenance. We recognize the boundary of them and
-isolate them from activities triggered by a user application.
+After forming links, we split tracing events in the thread log into execution
+segments, which represents a series of operations tied to a specific logical
+event:
 
-\para{Batch processing}
-The second category is the batch processing in Daemons and Application
-Services. Boundaries in this category are usually implied by certain
-programming paradigms. A checking tool is created on our framework to unveil
-these programming paradigms.
+%Continuously processing unrelated tasks is not uncommon in threads, from
+%userspace, system services, and kernel threads. Tracing points are required to
+%split the events in a thread with the request boundary to exclude the false
+%linkage in the graph. With the boundary, the interleaving execution of requests
+%on the same thread can be decomplexed, which benefit the following analysis
+%when a comparison is required. Three main categories are covered in our
+%built-in schema.
+\begin{itemize}
+        \item Context Switches: User space thread code is frequently context
+switched out, e,g for signal handling (pattern P1) and timeshare maintainence
+(pattern P2). Whenever it happens, we isolate the code runs on different thread
+context by splitting before and after the context switch.
+        \item Sequential Processing: Many builtin control structures, such as
+RunLoop and Dispatch Queue, process events one after another. We assume each
+event is independent and split accordingly.
+        \item Batch Processing: In pattern P3 and P6, the processing of
+multiple events is interleaved. For example, WindowServer combines sending and
+receiving messages from independent events into a single system call. We split
+the operations into two execution segments. 
 
-In our builtin schema, we cover not only the traditional programming model,
-dispatch queue and run loops, but also recognize special ones. For example,
-WindowServer sends out pending messages with the receiving of an unrelated
-message from kernel via one system call, due to Apple's design of the port set.
+%\item User specified programming paradigms
+%It is not always possible to manifest all programming paradigms before tracing.
+%In our framework, more can be added with heuristics by iteratively checking on
+%new data.
+\end{itemize}
 
-Kernel thread is a important one who processes requests without boundaries.
-While processing the timer, the kernel thread sends out messages one by one to
-a list of user processes who armed timer before.
-
-\para{Heuristics}
-It is not always possible to manifest all programming paradigms before tracing.
-In our framework, more can be added with heuristics by iteratively checking on
-new data.
-
-\subsection{Comprehension}
-To make the output of our data more comprehensible, we add tracing points on system call and insert a lightweight call stack on demand.
-\para{System calls}
-We record the system call number and corresponding parameters. It helps to
-understand what system service is required by the execution.
-
-\para{Lightweight call stacks}
-The user stacks are unwinded with the valid rbp in the system without
-processing the complex jump instructions. It benefits the understanding of our
-data with rare overhead.
+%\subsection{Comprehension}
+%\subsection{Segment Identification}
+%summarize the results for the user.
+%To make the output of our data more comprehensible, we add tracing points on system call and insert a lightweight call stack on demand.
+%\para{System calls}
+%We record the system call number and corresponding parameters. It helps to
+%understand what system service is required by the execution.
+%
+%\para{Lightweight call stacks}
+%The user stacks are unwinded with the valid rbp in the system without
+%processing the complex jump instructions. It benefits the understanding of our
+%data with rare overhead.
