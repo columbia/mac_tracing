@@ -159,7 +159,7 @@ string typed via SCIM.  The entire session took roughly five minutes.
 
 She then ran \xxx to construct the event graph.  The graph had 2,749,628
 vertexes and 3,606,657 edges, almost fully connected.  It spans across 17
-applications; 109 daemons including \v{fontd}, \t{mdworker}, \t{nsurlsessiond}
+applications; 109 daemons including \v{fontd}, \v{mdworker}, \v{nsurlsessiond}
 and helper tools by applications; 126 processes; 679 threads, and 829,287 IPC
 messages.  Given the scale of the graph and the diverse communication patterns,
 it would be extremely challenging for prior automated causal tracing
@@ -190,15 +190,17 @@ and confirmed with the user which one she wanted.
 
 \xxx then found the normal-case wake-up path shown in the figure, which
 connects five threads.  The browser main thread was signaled by a browser
-worker thread, which in turn wake up\v{2} for\v{read\_file} for IPC from a
-worker thread of \v{renderer}, the daemon for rendering screens.  The
-\v{renderer} worker thread is woken up by the \v{renderer} main thread by pipe,
-which in turn \v{4 reve\_msg} from \v{fontd}, the font service daemon.  From
-this path, we could guess that \v{GetFirstRectForRange} was for the browser to
-understand the bounding box of the search string.  \xxx further compared the
-wake-up path with the spinning case, and returned the \v{wait\_semaphore} event
-in the \v{renderer} main thread, the culprit that delayed waking up the browser
-main thread over 4 seconds.
+worker thread as shown in step \textcircled{1} of backward slicing in Figure
+\ref{fig:chromium-trace}, which in turn wake up for \v{read\_file} in step
+\textcircled{2} for IPC from a worker thread of \v{renderer}, the daemon for
+rendering screens.  The \v{renderer} worker thread is woken up by the
+\v{renderer} main thread to \v{read\_file} as \textcircled{3} in the backward
+slicing, which in turn \v{recv\_msg} \textcircled{4} from \v{fontd}, the font
+service daemon.  From this path, we could guess that \v{GetFirstRectForRange}
+was for the browser to understand the bounding box of the search string.  \xxx
+further compared the wake-up path with the spinning case, and returned the
+\v{wait\_semaphore} event in the \v{renderer} main thread, the culprit that
+delayed waking up the browser main thread over 4 seconds.
 
 What caused the wait in the \v{renderer} main thread though?  She thus
 continued diagnosis and recursively applied \xxx to the wait in
