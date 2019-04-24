@@ -167,6 +167,13 @@ they handle a fairly limited set of patterns.  Tools that require manual
 schema~\cite{xxx} would be prohibitive because developers would have to
 provide schema for all involved applications and daemons.
 
+\begin{figure*}[tb]
+    \centering
+    \includegraphics[width=0.8\linewidth]{chromium_case_study.eps}
+    \caption{Chromium case study.}
+    \label{fig:chromium-trace}
+\end{figure*}
+
 Next she ran \xxx to find the event in the main thread of the browser
 process.  \xxx returned a \v{pthread\_cond\_timedwait()} event
 (Figure~\ref{fig:chromium-trace}) that blocked the main thread for a few
