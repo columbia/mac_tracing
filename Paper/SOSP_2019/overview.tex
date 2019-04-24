@@ -177,30 +177,30 @@ and daemons.
     \label{fig:chromium-trace}
 \end{figure*}
 
-Next she ran \xxx to find the event in the main thread of the browser
-process.  \xxx returned a \v{cv\_timed\_wait} event
-(Figure~\ref{fig:chromium-trace}) that blocked the main thread for a few
-seconds.  Inspection of the lightweight call stack reveled that this wait
-happened within a call to \v{TextInputClientMac::GetFirstRectForRange}.
-Without knowing the application's semantics, she could not understand this
-method.  Thus she ran \xxx to compare the spinning case to a normal case.
-\xxx searched in the main thread of the browser process for vertexes
-similar to this wait waiting vertexes similar to this wait, found three,
-and confirmed with the user which one she wanted.
+Next she ran \xxx to find the event in the main thread of the browser process.
+\xxx returned a \v{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})
+that blocked the main thread for a few seconds.  Inspection of the lightweight
+call stack reveled that this wait happened within a call to
+\v{TextInputClientMac::GetFirstRectForRange}.  Without knowing the
+application's semantics, she could not understand this method.  Thus she ran
+\xxx to compare the spinning case to a normal case.  \xxx searched in the main
+thread of the browser process for vertexes similar to this wait waiting
+vertexes (contain \v{write\_file, cv\_timed\_wait} in this case) similar to
+this wait, found three, and confirmed with the user which one she wanted.
 
 \xxx then found the normal-case wake-up path shown in the figure, which
 connects five threads.  The browser main thread was signaled by a browser
 worker thread as shown in step \textcircled{1} of backward slicing in Figure
-\ref{fig:chromium-trace}, which in turn wake up for \v{read\_file} in step
-\textcircled{2} for IPC from a worker thread of \v{renderer}, the daemon for
-rendering screens.  The \v{renderer} worker thread is woken up by the
-\v{renderer} main thread to \v{read\_file} as \textcircled{3} in the backward
-slicing, which in turn \v{recv\_msg} \textcircled{4} from \v{fontd}, the font
-service daemon.  From this path, we could guess that \v{GetFirstRectForRange}
-was for the browser to understand the bounding box of the search string.  \xxx
-further compared the wake-up path with the spinning case, and returned the
-\v{wait\_semaphore} event in the \v{renderer} main thread, the culprit that
-delayed waking up the browser main thread over 4 seconds.
+\ref{fig:chromium-trace}, which in turn \v{read\_file} in step \textcircled{2}
+for IPC from a worker thread of \v{renderer}, the daemon for rendering screens.
+The \v{renderer} worker thread is woken up by the \v{renderer} main thread to
+\v{read\_file} \textcircled{3}, which in turn \v{recv\_msg} \textcircled{4}
+from \v{fontd}, the font service daemon.  From this path, we could guess that
+\v{GetFirstRectForRange} was for the browser to understand the bounding box of
+the search string.  \xxx further compared the wake-up path with the spinning
+case, and returned the \v{wait\_semaphore} event in the \v{renderer} main
+thread, the culprit that delayed waking up the browser main thread over 4
+seconds.
 
 What caused the wait in the \v{renderer} main thread though?  She thus
 continued diagnosis and recursively applied \xxx to the wait in
