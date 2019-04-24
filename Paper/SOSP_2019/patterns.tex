@@ -204,11 +204,15 @@ together.
 
 {\footnotesize \begin{verbatim}
 SCIM calls XPC_connection_send_msg
-t1_scim   t2_chromium       t3_chormium     t4_scim
-mach_msg_send(remote_port, reply_port)
+t1_scim   t2_chromium       t3_chromium     t4_scim
+|         |                 |               |
+mach_msg_send(remote_port, reply_port)      |
+          |                 |               |
           dispatch_mach_msg_receive(remote_port, reply_port)
+                            |               |
                             mach_msg_send(reply_port)
-                                             mach_msg_receive(reply_port)
+                                            |
+                                    mach_msg_receive(reply_port)
 \end{verbatim}
 }
 
