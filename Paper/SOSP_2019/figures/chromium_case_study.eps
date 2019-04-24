@@ -1,7 +1,7 @@
 %!PS-Adobe-3.0 EPSF-3.0
 %%BoundingBox: -4 166 445 789
 %%Title: chromium_case_study
-%%CreationDate: Wed Apr 24 14:49:32 2019
+%%CreationDate: Wed Apr 24 19:23:59 2019
 %%Creator: Tgif-4.2.5 written by William Chia-Wei Cheng (bill.cheng@acm.org)
 %%ProducedBy: (unknown)
 %%Pages: 1
@@ -9,8 +9,25 @@
 %%EndComments
 %%BeginProlog
 
-/tgifdict 54 dict def
+/tgifdict 56 dict def
 tgifdict begin
+
+/tgifellipsedict 6 dict def
+tgifellipsedict /mtrx matrix put
+
+/TGEL % tgifellipse
+ { tgifellipsedict begin
+      /yrad exch def
+      /xrad exch def
+      /y exch def
+      /x exch def
+      /savematrix mtrx currentmatrix def
+      x y translate
+      xrad yrad scale
+      0 0 1 0 360 arc
+      savematrix setmatrix
+   end
+ } def
 
 /tgifarrowtipdict 8 dict def
 tgifarrowtipdict /mtrx matrix put
@@ -2326,12 +2343,48 @@ GS
    GR
 GR
 
+% OVAL
+0 SG
+GS
+   GS
+      NP 186 638 14 9 TGEL
+      S
+   GR
+GR
+
+% OVAL
+0 SG
+GS
+   GS
+      NP 350 553 10 12 TGEL
+      S
+   GR
+GR
+
+% OVAL
+0 SG
+GS
+   GS
+      NP 480 446 10 10 TGEL
+      S
+   GR
+GR
+
+% OVAL
+0 SG
+GS
+   GS
+      NP 612 356 11 10 TGEL
+      S
+   GR
+GR
+
 GR
 tgifsavedpage restore
 end
 showpage
 
 %%Trailer
-%MatchingCreationDate: Wed Apr 24 14:49:32 2019
+%MatchingCreationDate: Wed Apr 24 19:23:59 2019
 %%DocumentFonts: Courier
 %%EOF
