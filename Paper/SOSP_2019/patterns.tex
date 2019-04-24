@@ -1,4 +1,13 @@
-\section{Patterns}
+\section{Dependency Semantics}
+\subsection{Tracing Events}
+The log that \xxx collects consits of a squence of tracing events, falling into three categories:
+semantics tracing events, dependency tracing events and boundary tracing events.
+Semanctics events include system calls, backtraces and instruction logs.
+Boundary events are recorded within a single thread where we may eventually place an execution segment boundary.
+Dependency events are recorded whenever one thread comunnicates with another,such that we will eventually create causual links---for example, a thread calls \textit{mach\_msg\_send} and delivers message to anther thread which calls \textit{mach\_msg\_receive}. These two dependency events will eventually be used to create a link in the graph.
+
+
+\subsection{Dependency Patterns}
 \label{sec:patterns}
 
 We encountered several instances of runtime event dependencies between thread
