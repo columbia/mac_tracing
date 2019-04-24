@@ -25,7 +25,7 @@ system-wide schema we created to construct approximate graphs
 (\S\ref{subsec:graph}), and relies on interactive user insights for
 diagnosis (\S\ref{subsec:debug}).
 
-\subsection{Constructing Event Graphs} \label{subsec:graph}
+\subsubsection{Constructing Event Graphs} \label{subsec:graph}
 
 \xxx defines the beginning of an execution segment as one of the following
 three types of events (1) the beginning of a thread, (2) the event from a
@@ -64,7 +64,7 @@ or more different processes (unless the attributes of the corresponding
 events indicate otherwise).  We also added edges for three data flags and
 XXX custom communication primitives (see \S\ref{xxx}).
 
-\subsection{Interactive Diagnosis} \label{subsec:debug}
+\subsubsection{Interactive Diagnosis} \label{subsec:debug}
 
 After \xxx builds the event graph, a user can interactively query this
 graph for diagnosis.  For instance, consider a spinning cursor in MacOS
@@ -121,7 +121,7 @@ developers.  Therefore, they remain open for years and ruin many users'
 experiences.
 
 
-\subsection{The Chromium Spinning Cursor}
+\subsection{Example: The Chromium Spinning Cursor}
 
 %   resolve symbol, save to log
 %     search for set\_spinning
