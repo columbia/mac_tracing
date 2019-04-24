@@ -1,3 +1,5 @@
+add instrumentation after every occurrence of instruction seq: also supply c function to log
+
 \section{Implementation}
 We now discuss how we collect tracing events from both kernel and libraries.
 
@@ -9,6 +11,7 @@ Techniques such as library preloading to override individual functions are not a
 Hence, we implemented a binary instrumentation mechanism that allows developers to add tracing at any location in a binary image.
 
 XXX I thought a user can specify a search sequence of instructions, and our system adds instrumentation when the sequence is found in binary.  If so we want to emphasize it a bit as this feature is different from detour.
+XXX say that instrumentation code is written in C
 
 To add instrumentation, we insert 5-byte call instructions into the program. The user finds a location of interest in the code related to a specific event,
 and we overwrite the victim instructions at that location. We create a new trampoline target function, whose first few instructions are those which were overwritten.
@@ -45,6 +48,9 @@ As long as the remaining connections in the current graph help diagnosis, it is 
 	It unwindes the rbp from the user stack to store the valid return addresses in the buffer. The buffer is recorded into the log as tracing events.
 	These address woulg go through the offline symbolicator in the graph construction phase.
 \end{itemize}
+
+XXX give a simple command line example of how a user can ask \xxx to trace a data flag
+XXX say what we do in watch point exception handler (record instruction so can determine read or write, and reg values)
 
 In \xxx, we patched the kernel with 1193 lines of code,
 and we instrumented the libraries including: libsystem\_kernel.dylib, libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox, AppKit and QuartzCore with our binary instrumentation libraries. 
