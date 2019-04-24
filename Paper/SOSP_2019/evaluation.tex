@@ -22,16 +22,54 @@ running in the background 24X7.  Once the spinning cursor appeers on the
 screen, we store the tracing data for the root cause analysis.
 
 In previous section, we studied the real-world softwares, including TextEdit,
-Notes, CodEdit in the category of content editing softwares, Installer, System
-Preference of the system operation category Hopper Disassembler, Squel Pro and
-Chromium of the productive softwares, TextEdit, Notes, Installer and System
+Notes, Installer, System Preferences and Chromium.TextEdit, Notes, Installer and System
 Preferences are distributed by Apple.  
-%GetiPlayerAutomator.  easy usage of
-%our tools, as well as the interactive actions required to figure out the
-%concise root causes.  At the end, we also summarize the tedious work that our
 Our tool can take over most burden searching and comparing work from the user,
 and make the diagnosis much easier in the wild.
 
 In this section we presents the performance impact of the live deployment of Argus.
 As we use the ring buffer to collect events, the storage cost can be adjusted
 and fixed to 2G in our experiments.
+Since the internal memory used to collect data is fixed to 512M, so the overhead of the
+memory is pretty low with regards to the memory usage of  morden applications.
+We show the CPU overhead of \xxx first for the iBench Running on the system with the tracing
+on and off. In the following description, we call the envioronment without the tracing on as
+bare run, and otherwise tracing run.
+
+\begin{table}[h]
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+ bare run & 5.98 & 6.23 & 6.18 & 6.05 & 6.28\\
+\hline
+ tracing run& 6.29 & 6.01 & 6.09 & 6.28 & 6.01\\
+\hline
+\end{tabular}
+\caption{Score From iBench}
+\label{tab:ibench}
+\end{table}
+We show the five runs of both cases in Table\ref{tab:ibench}.
+For each run, the machine is clean boot for each run.
+The score are pretty closes and show no difference on the system running with and without \xxx.
+
+We also perform the evaluation on benchmark of Chromium, while recoding the timeusage.
+The telemetry from Chromium project is used to measure the CPU overhead of \xxx.
+In the experiment, it uses the chromium to launch webpage and scroll over.
+The result is shown in Table \ref{tab:chromium benchmark}. 
+\begin{table}[h]
+\begin{tabular}{l|c|c}
+\hline
+ & bare run & tracing run \\
+\hline
+real & 27.7s & 28.0s \\
+\hline
+user & 28.3s & 28.3s \\
+\hline
+sys &  5.0s & 5.7s\\
+\hline
+\end{tabular}
+\caption{Chromium benchmark: telemetry}
+\label{tab:chromium benchmark}
+\end{table}
+
+As it is shown in the Table \ref{tab:chromium benchmark}, the overhead for real, user and sys are 1\%, 0\% and
+14\%respectively.
