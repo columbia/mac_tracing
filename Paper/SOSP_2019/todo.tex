@@ -1,0 +1,31 @@
+overview graph fix [done]
+1. overhead:
+        1.1 ibench score: [done]
+                repeated for 5 times interleavely.
+                each run begins with the clean machine(clean files, shut down and then boot)
+                  bare run: 5.98 6.23 6.18 6.05 6.28
+               tracing run: 6.29 6.01 6.09 6.28 6.01
+       1.2 chromium runtime, benchmark 
+                time ./examples/run_benchmark --browser-executable=/Users/weng/out/LibMod/Chromium.app/Contents/MacOS/Chromium tbm_sample.tbm_sample --use-live-sites
+                 bare run:
+real	0m27.726s
+user	0m28.371s
+sys	0m5.015s
+todo_eval_results/result_bare1.html
+
+real	7m15.414s
+user	12m48.744s
+sys	1m38.910s
+todo_eval_results/result_bare30.html
+                tracing run:
+                
+                %2.https://www.chromium.org/developers/page-sets-and-benchmarks
+        1.3 Finder search
+
+2. fix the code example for patterns
+3. two graphs for chromium case 
+4. diagram of system preference
+5. disassemble
+6. sequl pro
+   
+
