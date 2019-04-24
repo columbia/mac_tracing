@@ -66,11 +66,14 @@ presumably to reduce user-kernel crossings.
 Second, the graphs may be missing numerous causal edges.  For instance,
 consider ad hoc synchronization~\cite{xxx} via shared-memory flags: a
 thread may set ``\v{flag = 1}'' and wake up another thread waiting on
-``\v{while(!flag);}'' to do additional work.  Although the number of these
+``\v{while(!flag);}'' to do additional work.  Even within one thread,
+the code may set a data variable derived from one request and later uses
+it in another request (\eg, the buffer that hols the reply in the
+preceding WindowServer example). Although the number of these
 flags may be small, they often express critical causality, and not tracing
 them would lead to many missing edges in the request graph.  However,
 without knowing where the flags reside in memory, a tool would have to
-trace all shared-memory operations, incurring prohibitive overhead and
+trace all memory operations, incurring prohibitive overhead and
 adding many superfluous edges to the request graph.
 
 Third, in any case, many inferred edges may be superfluous because wake-ups do not
@@ -82,13 +85,13 @@ between the two operations.
 
 We believe that, without detailed understanding of application semantics,
 request graphs computed by causal tracing are \emph{inherently} imprecise
-and both over- and under-approximate reality.  Although
-developer annotations can help improve precision~\cite{}, modern
-applications use more and more third-party libraries whose source code is
-not available.  In the case of users debugging performance issues such as
-a spinning (busy) mouse cursor on her own laptop, the application's code is often not
+and both over- and under-approximate reality.  Although developer
+annotations can help improve precision~\cite{}, modern applications use
+more and more third-party libraries whose source code is not available.
+In the case of tech-savvy users debugging performance issues such as a spinning
+(busy) mouse cursor on her own laptop, the application's code is often not
 available.  Given the frequent use of custom synchronizations, work
-queues, and shared memory flags in modern applications, it is hopeless to
+queues, and data flags in modern applications, it is hopeless to
 count on manual annotations to ensure precise capture of request graphs.
 
 In this work, we present \xxx, a practical system for effectively debugging
@@ -96,8 +99,7 @@ performance issues in modern desktop applications despite the imprecision of
 causal tracing.  We designed \xxx to be interactive, as a debugger should rightly be,
 so that its users can easily inspect current diagnostics and guide the next
 steps of debugging to counter the inherent imprecision of causal tracing. For
-instance, \xxx's request graph contains likely missing edges
-for users to view and confirm during debugging. There may even be inaccurate
+instance, \xxx's event graph contains many inaccurate
 edges that represent false dependencies, which the user can address in an
 interactive manner.
 
@@ -108,16 +110,23 @@ performance issue (\eg, a spinning cursor), she can inspect the current
 graph \xxx computes, configure \xxx to perform finer-grained tracing (\eg,
 logging call stacks and instruction streams) for events she deems
 relevant, and trigger the issue again to construct a more detailed graph for diagnosis.  \xxx also
-supports comparison of request graphs of normal vs buggy executions
-because the difference of the similarly imprecise graphs often reveal
-precise root causes.  % confusing, rewrite last sentence
+supports interactive search over the event graphs that contain both normal
+and buggy executions for diagnosis.
 
 We implemented \xxx in MacOS, a widely used commercial operating system. MacOS
 is closed-source, as are its common frameworks and many of its applications.
 This environment therefore provides a true test of \xxx.  We address multiple
 nuances of MacOS that complicate causal tracing, and built a system-wide,
-low-overhead tracer.  Our evaluation using XXX real-world spinning cursors
-shows that \xxx is fast (XX\% overhead) and effective (XX).
+low-overhead tracer.
+
+We evaluated \xxx on \nbug real-world spinning-cursor issues in widely
+used applications such as the Chromium browser and MacOS System
+Preference, Installer application, and Notes.  The root causes of all
+\nbug issues were, to the best of our knowledge, previously unknown to the
+public. Our results show that \xxx is effective: we were able to use it to
+find all root causes of issues, including the Chromium issue that remained
+open for seven years.  \xxx is also fast: it systems-wide tracing incurs
+only XX\% overhead.
 
 This paper makes the following contributions: our conceptual realization
 that causal tracing is inherently imprecise and that interactive causal
