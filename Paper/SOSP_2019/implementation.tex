@@ -8,7 +8,7 @@ Adding tracing points to such code requires binary instrumentation.
 Techniques such as library preloading to override individual functions are not applicable on MacOS, as libraries use two-level executable namespaces.
 Hence, we implemented a binary instrumentation mechanism that allows developers to add tracing at any location in a binary image.
 
-XXX I thought a user can specify a search sequence of instructions, and our system adds instrumentation when the sequence is found in binary
+XXX I thought a user can specify a search sequence of instructions, and our system adds instrumentation when the sequence is found in binary.  If so we want to emphasize it a bit as this feature is different from detour.
 
 To add instrumentation, we insert 5-byte call instructions into the program. The user finds a location of interest in the code related to a specific event,
 and we overwrite the victim instructions at that location. We create a new trampoline target function, whose first few instructions are those which were overwritten.
@@ -52,7 +52,7 @@ Based on the new libraries creatd, the user can easily add tracing points with e
 
 \subsection{Capturing Instructions for Diagnosis}
 
-XXX
+XXX Talk about what data we gather using lldb, the debugger in the LLVM compiler tool chain.
 
 After the offline analysis on the graph, we take the API covers the fine range as input to our debugging scripts.
 The debugging scripts go throught the instruction from application and higher level frameworks step by step.
