@@ -1,25 +1,48 @@
 \section{Related Work}
-While there is no system target for providing tools for users to assist the debugging of closed source applications on MacOS, several active research topics are closely related.
 
-textbf{Correlate tracing events:} Aguilela \cite{blackbox} use timing analysis to correlate messages and treat the system as a black box.
-Argus encompass the system knowledge to correlate messages, asynchronous operations, and share variables to achieve a finer grained analysis.                                                                                                                       
-Magpie \cite{magpie} is the most closely one which is a system monitoring and modeling server workload on Windows system.
-The goal of Magpie is to model a workload with normal behavior and with the data set to detect the anomaly one with statistic method. 
-Our goal is to identify the root cause of anomaly with the relationship graph, which includes not only the normal execution but also the anomaly one.
-Meanwhile, for the boundary of a request and causality of traced events, Magpie depends on the detailed knowledge of application semantics from the developer, while Argus defines them in the framework, and the semantics of the application is not required.
-                                                                                                                         
-Panappticon \cite{pannappticon} monitors the mobile system and use the trace to characterize the user transactions of mobile apps. 
-Although it aims to track system-wide and correlate events without developer input, the design is base on two thread models in its assumption. 
+While there is currently no system that can help users debug performance
+issues in closed-source applications on proprietary MacOS, several active
+research topics are closely related.
 
-AppInsight \cite{appinsight} instruments application to identify the critial execution path in user transaction.         
-It leverages the semantics and opcode in high-level frameworks, which is not available in MacOs.                         
-It does not track the request across process/app boundary. Thus it cannot reveal the root cause due to other processes.      
+\textbf{Event tracing.}  Magpie~\cite{magpie} is perhaps the closest to
+our work.  It monitors server applications in Windows with the goal to
+model the normal behaviors of a server application in response to a
+workload.  This model further helps detecting anomalies statistically.  In
+contrast, \xxx's goal is to identify the root causes of performance
+issues.  Its graphs are not request graphs, but rather graphs that may
+contain many requests.  In addition, it logs normal and abnormal
+executions in the same event trace.  In addition, Magpie requires a
+manual-written event schema for all involved applications to capture
+precise request graphs, whereas \xxx has a simple, application-agnostic
+schema for system-wide tracing and enables users to provide more
+application-specific knowledge on demand.
+
+Panappticon \cite{pannappticon} monitors a mobile system and uses the
+trace to characterize the user transactions of mobile apps.  Although it
+aims to track system-wide events and correlate them without developer
+input, it supports only two models of communication: work queue and thread
+pooling.
+
+AppInsight \cite{appinsight} instruments application to identify the
+critical execution path in a user transaction.  It supports the event
+callback pattern, and does not trace across process or app boundaries.
                                                                                                                          
-XTrace and Pinpoint \cite{xtrace, pinpoint} both trace the path of a request through a system using a unique identifier attached to each request and stitch traces together with the identifier.
-Argus does not use identifier due to the maintained overhead and propagation of such identifiers through the developing environments is not feasible with the closed source applications, frameworks, and libraries.
+XTrace and Pinpoint \cite{xtrace, pinpoint} both trace the path of a
+request through a system using a unique identifier attached to each
+request and stitch traces together with the identifier.  \xxx does not
+assume the presence of a unified identifier in closed-source, third-party
+applications, frameworks, and libraries.
                                                                                                                          
-\textbf{Performance anomaly:}\cite{} leverage the user logs and call stacks to identify the performance anomaly.         
-From our daily sense, the anomaly bugs whose root cause is hard to reveal are from the inefficient codes that escape the developers' bullets.                                                                                                        
-                                                                                                                         
-\cite{} apply the machine learning method to identify the unusual event sequence as an anomaly.
-\cite{} generates the wait and waken graph from sampled call stacks to stidy a case of performance anomaly.
+Aguilela \cite{blackbox} uses timing analysis to correlate messages to
+recover their input-output relations while treating the application as a
+black box.
+
+\textbf{Performance anomaly detection.}  Several systems detect
+performance anomalies automatically.  \cite{} leverage the user logs and
+call stacks to identify the performance anomaly. \cite{} apply the machine
+learning method to identify the unusual event sequence as an anomaly.
+\cite{} generates the wait and waken graph from sampled call stacks to
+stidy a case of performance anomaly.  These systems are orthogonal to \xxx
+as \xxx's goal is to diagnose an already-detected performance anomaly.
+These systems can help \xxx by detecting more accurately when a
+performance issue arises.
