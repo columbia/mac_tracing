@@ -1,9 +1,16 @@
-\section{Overview}
-\label{sec:overview}
+\section{Overview} \label{sec:overview}
 
 \subsection{\xxx Work Flow}
 
-\xxx operates in two phases.  A user runs command ``\v{\xxx start}'' to
+\begin{figure*}[tb]
+    \centering
+    \includegraphics[width=0.7\linewidth]{ArgusOverview.eps}
+    \caption{\xxx Work Flow}
+    \label{fig:argus-overview}
+\end{figure*}
+
+Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of
+two phases.  A user runs command ``\v{\xxx start}'' to
 enter the system-wide tracing phase, within which \xxx logs events
 including system calls, inter-process communications (IPCs), and waits and
 wake-ups from all applications and daemons.  Occasionally based on user
@@ -120,8 +127,7 @@ extremely hard to understand and fix even for the application's own
 developers.  Therefore, they remain open for years and ruin many users'
 experiences.
 
-
-\subsection{Motivating Example: Chromium Spinning Cursor}
+\subsection{Chromium Spinning Cursor Example}
 
 %   resolve symbol, save to log
 %     search for set\_spinning
@@ -134,15 +140,87 @@ experiences.
 %  spinning node in UI thread is not waiting
 %  so we look for messages, and find the diff
 
-chromium: open source
+One of the authors experienced first-hand the aforementioned performance
+issue in Chromium, an open-source browser engine that powers Google Chrome
+and, starting recently, Microsoft Edge~\cite{xxx}.  She tried to type in
+the Chromium search box a Chinese word using SCIM, the default Chinese
+Input Method Editor that ships with MacOS.  The browser appeared frozen
+and the spinning cursor occurs for a few seconds.  Afterwards everything
+went back to normal.  This issue is reproducible and always ruins her
+experience, but it is quite challenging to diagnose because two
+applications Chromium and SCIM and many daemons ran and exchanged
+messages.  This issue was reported by other users for other non-English
+input methods, too.
 
-chromium + scim shipped with macos, spinning cursor
-difficult to debug: where is the culprit?
-daemons: fontd, preferenced
-total threads:
+To diagnose this issue with \xxx, the author started system-wide tracing,
+typed an English string in the search box first to get the events in a
+normal case, and then reproduced the spinning cursor with a Chinese search
+string typed via SCIM.  The entire session took roughly five minutes.
 
-60 messages under bug report
-developers cannot figure out why
+She then ran \xxx to construct the event graph.  The graph had 2,749,628
+vertexes and 3,606,657 edges, almost fully connected.  It spans across XXX
+applications; XXX daemons including font daemon \v{fontd}, XXX; XXX
+processes; XXX threads, and XXX IPC messages.  Given the scale of the
+graph and the diverse communication patterns, it would be extremely
+challenging for prior automated causal tracing tools~\cite{xxx} because
+they handle a fairly limited set of patterns.  Tools that require manual
+schema~\cite{xxx} would be prohibitive because developers would have to
+provide schema for all involved applications and daemons.
+
+Next she ran \xxx to find the event in the main thread of the browser
+process.  \xxx returned a \v{pthread\_cond\_timedwait()} event
+(Figure~\ref{fig:chromium-trace}) that blocked the main thread for a few
+seconds.  Inspection of the lightweight call stack reveled that this wait
+happened within a call to \v{TextInputClientMac::GetFirstRectForRange}.
+Without knowing the application's semantics, she could not understand this
+method.  Thus she ran \xxx to compare the spinning case to a normal case.
+\xxx searched in the main thread of the browser process for vertexes
+similar to this wait waiting vertexes similar to this wait, found three,
+and confirmed with the user which one she wanted.
+
+\xxx then found the normal-case wake-up path shown in the figure, which
+connects five threads.  The browser main thread was signaled by a browser
+worker thread, which in turn received a XXX from a worker thread of
+\v{renderer}, the daemon for rendering screens.  The \v{renderer} worker
+thread is woken up by the \v{renderer} main thread by XXX, which in turn
+received XXX from \v{fontd}, the font service daemon.  From this path, we
+could guess that \v{GetFirstRectForRange} was for the browser to
+understand the bounding box of the search string.  \xxx further compared
+the wake-up path with the spinning case, and returned the XXX event in the
+\v{renderer} main thread, the culprit that delayed waking up the browser
+main thread by XXX seconds.
+
+What caused the wait in the \v{renderer} main thread though?  She thus
+continued diagnosis and recursively applied \xxx to the wait in
+\v{renderer}, and got the wake-up path shown in the figure for this wait.
+Inspection revel that the \v{renderer} requested the browser's help to
+render Javascript and was waiting for a reply.  At this point, a circular
+wait formed because the browser was waiting for the \v{renderer} to return
+the string bounding box and the \v{renderer} was waiting for the browser
+to help render Javascript.  This circular wait was broken by a timeout in
+the browser main thread (the \v{pthread\_cond\_timedwait()} timeout was
+1,500 ms).  While the system was able to make progress, the next key press
+caused the spinning cursor to display for another 1,500 ms.  The timeout
+essentially converted a deadlock into a livelock.
+
+\subsection{Limitations}
+
+\xxx is designed to support interactive debugging of performance issues.
+To incrementally obtain more fine-grained event traces, it needs to rerun
+an application to reproduce a performance issue.  Thus, if the issue is
+difficult to reproduce, we have to rely on the log collected by the
+lightweight system-wide tracing for debugging, and lose the benefits of
+interactivity.  Fortunately, a performance issue that almost never
+reproduces is probably not as annoying as one that occurs frequently.
+
+We implemented \xxx in the closed-source MacOS which presents a harsh test
+for \xxx, but we have not ported \xxx to other operating systems yet.  It
+is possible that the ideas and techniques do not generalize to other
+operating systems.  However, modern operating systems share many
+similarities, and good ideas tend to flow both ways, so we are hopeful
+that the ideas in \xxx are generally applicable.  Similarly, the
+applications and performance issues used in our evaluation may be
+non-representative.
 
 \iffalse
 
@@ -158,13 +236,6 @@ a) inspect the graph,
 b) perform slicing on the graph to show dependent nodes,
 c) compare graph slices between normal and spinning cases, and
 d) select a graph node to gather more information with our debugger scripts.
-
-\begin{figure*}[tb]
-    \centering
-    \includegraphics[width=0.7\linewidth]{ArgusOverview.eps}
-    \caption{Design Overview}
-    \label{fig:argus-overview}
-\end{figure*}
 
 For a simple issue, like a rare segmentation fault,
 just having lightweight logs may be enough to perform a diagnosis.

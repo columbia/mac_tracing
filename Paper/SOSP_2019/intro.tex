@@ -29,7 +29,7 @@ execution segments for debugging, developers have to sift through a
 massive amount of log entries and potentially code of related application
 components~\cite{luXXXXX}.  More often than not, developers give up and resort to
 guessing the root cause, producing ``fixes'' that sometimes make the matter
-worse.  For instance, a bug in the Chrome browser causes a spinning cursor
+worse.  For instance, a bug in the Chrome browser engine causes a spinning cursor
 in MacOS when a user switches the input method to XX~\cite{bug-url}.  It
 was first reported in 2012, and developers attempted to add timeouts
 to work around the issue.  Unfortunately, the bug has remained 
@@ -99,9 +99,12 @@ performance issues in modern desktop applications despite the imprecision of
 causal tracing.  We designed \xxx to be interactive, as a debugger should rightly be,
 so that its users can easily inspect current diagnostics and guide the next
 steps of debugging to counter the inherent imprecision of causal tracing. For
-instance, \xxx's event graph contains many inaccurate
-edges that represent false dependencies, which the user can address in an
-interactive manner.
+instance, \xxx's event graph contains many inaccurate edges that represent
+false dependencies, which the user can address in an interactive manner.
+When debugging a performance issue using \xxx, a user need only make edges
+relevant to the issue precise.  In other words, she can provide schematic
+information on demand, as opposed to full manual schema upfront for all
+involved applications and daemons~\cite{magpie}.
 
 Moreover, \xxx enables users to dynamically control the granularity of
 tracing using a number of intuitive primitives. The system begins by using
@@ -120,12 +123,13 @@ nuances of MacOS that complicate causal tracing, and built a system-wide,
 low-overhead tracer.
 
 We evaluated \xxx on \nbug real-world, open spinning-cursor issues in
-widely used applications such as the Chromium browser and MacOS System
-Preferences, Installer, and Notes.  The root causes of all \nbug issues
-were previously unknown to us and, to a large extent, the public. Our
-results show that \xxx is effective: it helped us find all root causes of
-issues, including the Chromium issue that remained open for seven years.
-\xxx is also fast: its systems-wide tracing incurs only XX\% overhead.
+widely used applications such as the Chromium browser engine and MacOS
+System Preferences, Installer, and Notes.  The root causes of all \nbug
+issues were previously unknown to us and, to a large extent, the
+public. Our results show that \xxx is effective: it helped us find all
+root causes of issues, including the Chromium issue that remained open for
+seven years.  \xxx is also fast: its systems-wide tracing incurs only XX\%
+overhead.
 
 This paper makes the following contributions: our conceptual realization
 that causal tracing is inherently imprecise and that interactive causal
