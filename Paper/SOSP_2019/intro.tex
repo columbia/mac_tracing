@@ -96,7 +96,11 @@ count on manual annotations to ensure precise capture of request graphs.
 
 In this work, we present \xxx, a practical system for effectively debugging
 performance issues in modern desktop applications despite the imprecision of
-causal tracing.  We designed \xxx to be interactive, as a debugger should rightly be,
+causal tracing.  \xxx's goal is not to construct a per-request causal
+graph which requires extremely precise causal tracing.  Instead, it
+captures an approximate event graph for a duration of the system execution
+to aid diagnosis.
+We designed \xxx to be interactive, as a debugger should rightly be,
 so that its users can easily inspect current diagnostics and guide the next
 steps of debugging to counter the inherent imprecision of causal tracing. For
 instance, \xxx's event graph contains many inaccurate edges that represent
