@@ -1,13 +1,35 @@
-Confusing behaviors are everywhere in GUI Applications, which usually make the user feel annoying.
-Spinning beachball is one of them in macOS.
-However, even unveiling the mystery of its design is not easy due to the closed source.
-Consequently, it is difficult for users to begin the debugging task in the wild.
-A tool to understand the complex behavior of GUI Apps in MacOS is essential, especially for a user who is neither a system expert nor the developer of the applications, to aid debugging, compile concise bug report, or even come up a temporary binary patch.
+Prior systems used causal tracing, a powerful technique that traces
+low-level events and builds dependency graphs, to diagnose performance
+issues.  However, they all assume that precise dependencies can be
+inferred from low-level tracing by either limiting applications to using
+only a few supported communication patterns or relying on developers to
+manually provide dependency schemas upfront for all involved components.
+Unfortunately, based on our own study and experience of building a causal
+tracing system for MacOS, we found that it is extremely difficult, if not
+impossible, to build precise dependency graphs.  We report patterns such
+as data dependency, batch processing, and custom communication primitives
+that introduce imprecision.  We present \xxx, a practical system for
+effectively debugging performance issues in modern desktop applications
+despite the imprecision of causal tracing.  \xxx lets a user easily inspect
+current diagnostics and interactively provide more domain knowledge on
+demand to counter the inherent imprecision of causal tracing.  We
+implemented \xxx in MacOS and evaluated it on \nbug real-world, open
+spinning-cursor issues in widely used applications.  The root causes of
+these issues were largely previously unknown.  Our results show that \xxx
+effectively helped us locate all root causes of the issues and incurred
+only 1\% CPU overhead in its system-wide tracing.
 
-Argus is the framework where system-wide activity is recorded until the mystery occurs in macOS, and analysis tools are built to explain the behavior.
-It monitors the system with low-overhead instrumentation running 24X7, from kernel and libraries, and constructs the relationship graph with the schema defined in the framework.
-The schema identifies execution boundaries in threads and the causality among them.
-The graph usually contains not only the problematic case but also the normal execution.
-With our tool, the problematic range can be easily narrowed down with with comparison.
-Our interactive debugging tools are provided to debugging on refind rang to manifest the root cause of the anomaly.
-In this paper, we describe and study the usage of our Argus to reveal root causes for the impenetrable behaviors from the real world applications in macOS.
+
+%% Confusing behaviors are everywhere in GUI Applications, which usually make the user feel annoying.
+%% Spinning beachball is one of them in macOS.
+%% However, even unveiling the mystery of its design is not easy due to the closed source.
+%% Consequently, it is difficult for users to begin the debugging task in the wild.
+%% A tool to understand the complex behavior of GUI Apps in MacOS is essential, especially for a user who is neither a system expert nor the developer of the applications, to aid debugging, compile concise bug report, or even come up a temporary binary patch.
+
+%% Argus is the framework where system-wide activity is recorded until the mystery occurs in macOS, and analysis tools are built to explain the behavior.
+%% It monitors the system with low-overhead instrumentation running 24X7, from kernel and libraries, and constructs the relationship graph with the schema defined in the framework.
+%% The schema identifies execution boundaries in threads and the causality among them.
+%% The graph usually contains not only the problematic case but also the normal execution.
+%% With our tool, the problematic range can be easily narrowed down with with comparison.
+%% Our interactive debugging tools are provided to debugging on refind rang to manifest the root cause of the anomaly.
+%% In this paper, we describe and study the usage of our Argus to reveal root causes for the impenetrable behaviors from the real world applications in macOS.
