@@ -20,12 +20,15 @@ signal-handling code to splice it away from the containing context, since it is
 usually unrelated.
 
 {\footnotesize \begin{verbatim}
-thread 1      thread 2
-
-sleep(50);    running
-              process receives timer interrupt();
-                signal_handler
-                  make_runnable(thread_1);
+kernel_task       Notes
+wait(io_work)
+		  state64()
+	          intterupt()
+                    state = save_contex  
+		    lapic_interrupt(intr, state)
+	          wait(lock_mutex)
+timer_callout
+wake_up(coreduetd)
 \end{verbatim}
 }
 
@@ -35,9 +38,10 @@ space. The code will enter kernel scheduling and wake up another
 \texttt{kernel\_task} thread.
 
 {\footnotesize \begin{verbatim}
-thread_invoke(self, new_thread) // thread switch, kernel space
+thread_invoke(self, new_thread, reason) // thread switch, kernel space
   sched_timehsare_consider_maintance()
-    wake up another kernel_task thread
+    thread_wakeup((event_t)sched_timeshare_miantenance_continue);
+  ast_context(new_thread);
 \end{verbatim}
 }
 
@@ -54,14 +58,19 @@ different processes. However, to save on kernel boundary crossings, it uses a
 single system call to receive data and send data for an unrelated event. This
 batch processing artificially makes many events appear dependent, and we split
 the execution segments to maintain the independence of the events.
-
+%// reduces kernel crossing presumably
+%// only keeps one pending message
 {\footnotesize \begin{verbatim}
   while() {
-    message = receive and send Mach msg(pending_reply) // reduces
-kernel crossing presumably
-    process message
-    if (message needs reply)
-      pending_reply = reply // only keeps one pending message
+    CGXPostReplyMessage(msg)
+      push_out_message(pending_reply)
+      pending_reply = msg
+    CGXRunOneServicePass()
+      if(_gOutMessagePending)
+	mach_msg_overwrite(option = send|receive, pending_reply)
+      else
+        mach_msg(option = receive)
+      processing
   }
 \end{verbatim}
 }
@@ -74,7 +83,7 @@ a dependency between the main thread and the worker, but these dependencies are
 extremely common and do not communicate much information.
 
 {\footnotesize \begin{verbatim}
-  worker thread that needs to update UI
+  worker thread that needs to update UI:
   ObjCoreAnimation->need_display = 1
 
   main thread:
@@ -142,23 +151,12 @@ In the Mach message system, four threads are involved.
 Use recv port to connect messages.
 
 {\footnotesize \begin{verbatim}
-thread 1,proc1      thread 2,proc2    thread 3,proc2    thread 4, proc 1
-send mach msg1
-                  recv mach msg1
-      send mach msg2
-                                      recv msg2
-              send msg3
-                            recv msg3 // reply
- xpc (higher than mach msg
- scim to chrome
-
- scrim thread   t2          chrome worker thread            chrome main thread
-  send (msg has recv port)
-                           dispatch_mach_msg_recv
-                                        ?
-
-xpc_connection_and_send_msg (msg has scim recv port)
-               recv
+SCIM calls XPC_connection_send_msg
+t1_scim       t2_chromium        t3_chormium        t4_scim
+mach_msg_send(remote_port.reply_port)
+             dispatch_mach_msg_receive(remote_port, reply_port)
+                                  mach_msg_send(reply_port)
+                                                    mach_msg_receive(reply_port)
 \end{verbatim}
 }
 
@@ -168,9 +166,9 @@ As is common in event driven programming, many methods can post a callback to a 
 {\footnotesize \begin{verbatim}
 done by another thread
 callout_to_runloop(runloop, source, port, cb) cb installation
+
 log runloop, source, port, cb // runloop, source, port help identify
 the right execution of cb() to connect to
-
    runloop will call cb()
    cb begin: we log runloop, source, port so right match
 \end{verbatim}
@@ -179,7 +177,6 @@ the right execution of cb() to connect to
 \para{P9: Timers}
 Most timers in MacOS are repeat timers, meaning that the timer reregisters itself before finishing.
 This creates complex dependencies because timers are invoked asyncronously during interrupts.
-
 
 {\footnotesize \begin{verbatim}
 \
