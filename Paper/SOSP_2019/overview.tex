@@ -121,7 +121,7 @@ developers.  Therefore, they remain open for years and ruin many users'
 experiences.
 
 
-\subsection{Example: The Chromium Spinning Cursor}
+\subsection{Motivating Example: Chromium Spinning Cursor}
 
 %   resolve symbol, save to log
 %     search for set\_spinning
@@ -133,6 +133,18 @@ experiences.
 % systems preference          
 %  spinning node in UI thread is not waiting
 %  so we look for messages, and find the diff
+
+chromium: open source
+
+chromium + scim shipped with macos, spinning cursor
+difficult to debug: where is the culprit?
+daemons: fontd, preferenced
+total threads:
+
+60 messages under bug report
+developers cannot figure out why
+
+\iffalse
 
 Our \xxx prototype is designed to debug performance issues in complex modern applications.
 It performs lightweight full system tracing of every process including system calls,
@@ -361,3 +373,5 @@ Usually, a worker thread in the browser process will return the firstrect and wa
 However, it requires the message from the main thread of the renderer process.
 Without the message from the renderer process, the worker thread is not able to signal the main thread.
 Thus, the main thread will always time out.
+
+\fi
