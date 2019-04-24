@@ -40,9 +40,10 @@ space. As shown below, the code will enter kernel scheduling by calling
 \texttt{kernel\_task} thread.  Again, such a wake-up does not reflect the application's intent, and should be filtered out from the containing context.  
 
 {\footnotesize \begin{verbatim}
-thread_invoke(self, new_thread, reason) {// thread switch, kernel space
+thread_invoke(self, new_thread, reason) {
+// thread switch, kernel space
   sched_timehsare_consider_maintance() {
-    thread_wakeup((event_t)sched_timeshare_miantenance_continue);
+    thread_wakeup(sched_timeshare_miantenance_continue);
   }
   ast_context(new_thread);
 }
@@ -203,11 +204,11 @@ together.
 
 {\footnotesize \begin{verbatim}
 SCIM calls XPC_connection_send_msg
-t1_scim       t2_chromium        t3_chormium        t4_scim
+t1_scim   t2_chromium       t3_chormium     t4_scim
 mach_msg_send(remote_port.reply_port)
-             dispatch_mach_msg_receive(remote_port, reply_port)
-                                  mach_msg_send(reply_port)
-                                                    mach_msg_receive(reply_port)
+          dispatch_mach_msg_receive(remote_port, reply_port)
+                            mach_msg_send(reply_port)
+                                             mach_msg_receive(reply_port)
 \end{verbatim}
 }
 
