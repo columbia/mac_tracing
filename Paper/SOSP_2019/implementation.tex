@@ -8,6 +8,8 @@ Adding tracing points to such code requires binary instrumentation.
 Techniques such as library preloading to override individual functions are not applicable on MacOS, as libraries use two-level executable namespaces.
 Hence, we implemented a binary instrumentation mechanism that allows developers to add tracing at any location in a binary image.
 
+XXX I thought a user can specify a search sequence of instructions, and our system adds instrumentation when the sequence is found in binary
+
 To add instrumentation, we insert 5-byte call instructions into the program. The user finds a location of interest in the code related to a specific event,
 and we overwrite the victim instructions at that location. We create a new trampoline target function, whose first few instructions are those which were overwritten.
 All of the trampoline functions are grouped together by our tool and a new library is generated.
