@@ -1,15 +1,15 @@
 The spinning wait cursor is a painful sight for Mac users, signifying that the application is non-responsive.
-It usually remains for munites, leaving the users at a loss .                    
+It usually remains for minutes at a time, leaving the user at a loss and unable to do anything productive.
 
-Argus shreds light on the design of the spinning wait cursor with the backward path slicing.
-We begin the path from the node where the spindump, a hang reporting tool, is launched,  
-considering the spindump shares the same triggering condition.
+Argus shreds light on the design of the spinning wait cursor with its backward path slicing.
+We begin the path from the node where spindump, a hang reporting tool, is launched,
+since spindump shares the same triggering condition.
 %As is shown in Figure \ref{fig:spincursor},
-The spindump is launched by the message from WindowServer, after the WindowServe received message from the NSEvent thread of targeted Application.
+Spindump is launched by the message from WindowServer, after WindowServer receives a message from the NSEvent thread of the targeted application.
 
 We further added call stacks for the messages and revealed two shared variables, ``\v{is\_mainthread\_spinning}'' and ``\v{dispatch\_to\_mainthread}'', are critical in the desgin,
 The NSEvent thread of the targeted App fetches CoreGraphics events from WindowServer, converts and creates NSEvents for the main thread.
-If the mainthread is not spinning with the cleared ``\v{is\_mainthread\_spinning}'', ``\v{dispath\_to\_mainthread}'' is set and a timer is armed.
+If the main thread is not spinning with the cleared ``\v{is\_mainthread\_spinning}'', ``\v{dispatch\_to\_mainthread}'' is set and a timer is armed.
 If the main thread processes the next event before the timer fires, nothing happens and the timer gets re-armed.
 Otherwise, NSEvent thread sends a message to WindowServer from the timer,
-and WindowServer notifies the CoreGraphics to draw spinning cursor over the application window.
+and WindowServer notifies the CoreGraphics to draw a spinning cursor over the application window.
