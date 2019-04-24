@@ -23,9 +23,9 @@ same operation stage.
 
 In the case we detected the intensive timeout in the node, our search algorithm
 identify the corresponding normal node by searching the similarity of their
-proceding nodes.  We find out the path of the normal path as shown in the
-Figure \ref{fig:path slicing for system preference}.  Our lightweight
-callstacks were used to verify the correctness of the findings.
+proceding nodes.  We find out the path of the normal path.
+% as shown in the Figure \ref{fig:path slicing for system preference}.
+Our lightweight callstacks were used to verify the correctness of the findings.
 
 The normal node showed it proceeded to \textit{displayReconfigured} after
 received the message with id 29675.  The spinning node fell into the
@@ -42,8 +42,9 @@ begins debugging.  \textit{displayReconfigured} and
 debugging for the normal case and spinning case respectively.
 
 Our debugging scripts ran within the confined range for both the noraml and the
-spinning execution.  The logs are generated as shown in Figure \ref{fig:step
-debug log for system preferences}.  By diff the two logs, it is easy for the
+spinning execution.
+%The logs are generated as shown in Figure \ref{fig:step debug log for system preferences}.
+By diff the two logs, it is easy for the
 user to notice the differen braches in \textit{display\_notify\_proc}, which is
 resulted from its prameter standing for the datagram type.
 
