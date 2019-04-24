@@ -71,7 +71,7 @@ via shared-memory flags: a
 thread may set ``\v{flag = 1}'' and wake up another thread waiting on
 ``\v{while(!flag);}'' to do additional work.  Even within one thread,
 the code may set a data variable derived from one request and later uses
-it in another request (\eg, the buffer that hols the reply in the
+it in another request (\eg, the buffer that hold the reply in the
 preceding WindowServer example). Although the number of these
 flags may be small, they often express critical causality, and not tracing
 them would lead to many missing edges in the request graph.  However,
