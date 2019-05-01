@@ -27,10 +27,10 @@ AppInsight \cite{ravindranath2012appinsight} instruments application to
 identify the critical execution path in a user transaction.  It supports the
 event callback pattern, and does not trace across process or app boundaries.
 
-XTrace\cite{fonseca2007x},Pinpoint \cite{chen2002pinpoint} and
-\cite{chow2014mystery} trace the path of a request through a system using
-a unique identifier attached to each request and stitch traces together with
-the identifier.  \xxx does not assume the presence of a unified identifier in
+XTrace, Pinpoint and \etc ~\cite{fonseca2007x, chen2002pinpoint,
+chow2014mystery} trace the path of a request through a system using a unique
+identifier attached to each request and stitch traces together with the
+identifier.  \xxx does not assume the presence of a unified identifier in
 closed-source, third-party applications, frameworks, and libraries.
 
 Aguilela \cite{aguilera2003performance} uses timing analysis to correlate
@@ -38,12 +38,13 @@ messages to recover their input-output relations while treating the application
 as a black box.
 
 \textbf{Performance anomaly detection.}  Several systems detect performance
-anomalies automatically.  \cite{han2012performance} \cite{yuan2012conservative}
+anomalies automatically.  \cite{han2012performance, yuan2012conservative}
 leverage the user logs and call stacks to identify the performance anomaly.
-\cite{cohen2004correlating} \cite{saidi2008full} \cite{xu2009detecting}
-\cite{du2017deeplog}apply the machine learning method to identify the unusual
-event sequence as an anomaly.  \cite{yu2014comprehending} generates the wait
-and waken graph from sampled call stacks to stidy a case of performance
-anomaly.  These systems are orthogonal to \xxx as \xxx's goal is to diagnose an
+\cite{cohen2004correlating, saidi2008full, xu2009detecting, du2017deeplog}apply
+the machine learning method to identify the unusual event sequence as an
+anomaly.  \cite{yu2014comprehending} generates the wait and waken graph from
+sampled call stacks to stidy a case of performance anomaly.
+
+These systems are orthogonal to \xxx as \xxx's goal is to diagnose an
 already-detected performance anomaly.  These systems can help \xxx by detecting
 more accurately when a performance issue arises.
