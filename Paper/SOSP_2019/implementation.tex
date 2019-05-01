@@ -5,53 +5,82 @@
 We now discuss how we collect tracing events from both kernel and libraries.
 
 \subsection{Instrumentation}
-Like Detour~\cite{hunt1999detours}, we use static analysis to decide which instrumentation to perform, and then enact this instrumentation at runtime. 
-On MacOS, most libraries as well as many of the applications used day-to-day are closed-source.
-Adding tracing points to such code requires binary instrumentation.
-Techniques such as library preloading to override individual functions are not applicable on MacOS, as libraries use two-level executable namespaces.
-Hence, we implemented a binary instrumentation mechanism that allows developers to add tracing at any location in a binary image.
+Like Detour~\cite{hunt1999detours}, we use static analysis to decide which
+instrumentation to perform, and then enact this instrumentation at runtime.  On
+MacOS, most libraries as well as many of the applications used day-to-day are
+closed-source.  Adding tracing points to such code requires binary
+instrumentation.  Techniques such as library preloading to override individual
+functions are not applicable on MacOS, as libraries use two-level executable
+namespaces.  Hence, we implemented a binary instrumentation mechanism that
+allows developers to add tracing at any location in a binary image.
 
-%XXX I thought a user can specify a search sequence of instructions, and our system adds instrumentation when the sequence is found in binary.  If so we want to emphasize it a bit as this feature is different from detour.
+%XXX I thought a user can specify a search sequence of instructions, and our
+%system adds instrumentation when the sequence is found in binary.  If so we
+%want to emphasize it a bit as this feature is different from detour.
 %XXX say that instrumentation code is written in C
 
-To add instrumentation, we insert 5-byte call instructions into the program. The user finds a location of interest in the code related to a specific event,
-and we overwrite the victim instructions at that location. We create a new trampoline target function, whose first few instructions are those which were overwritten.
-All of the trampoline functions are grouped together by our tool and a new library is generated.
-This library provides the same public API as the original and is a drop-in replacement. We load and call the original code as an unmodified shared library.
-The detours or trampoline calls are added by an initialization function in our new library; we temporarily mark the code region as writable with \texttt{mprotect}
-to calculate offsets and perform the modifications. The initialization is called externally through \texttt{dispatch\_once}.
-To use the modified libraries, we simply replace system libraries in their original locations (renaming them so that our code can access the originals).
+To add instrumentation, we insert 5-byte call instructions into the program.
+The user finds a location of interest in the code related to a specific event,
+and we overwrite the victim instructions at that location. We create a new
+trampoline target function, whose first few instructions are those which were
+overwritten.  All of the trampoline functions are grouped together by our tool
+and a new library is generated.  This library provides the same public API as
+the original and is a drop-in replacement. We load and call the original code
+as an unmodified shared library.  The detours or trampoline calls are added by
+an initialization function in our new library; we temporarily mark the code
+region as writable with \texttt{mprotect} to calculate offsets and perform the
+modifications. The initialization is called externally through
+\texttt{dispatch\_once}.  To use the modified libraries, we simply replace
+system libraries in their original locations (renaming them so that our code
+can access the originals).
 
-One potential issue is that we use 5-byte call instructions with 32-bit displacements to jump from the original library to our new one.
-This design requires that the libraries be loaded within +/- 2GB of each other in the 64-bit process address space.
-However, since we list each original library as a dependency of our new libraries, the system loader will map each new and original library in sequence.
-In practice, the libraries ended up very close to one another and we did not see the need to implement a more general long-jump mechanism.
+One potential issue is that we use 5-byte call instructions with 32-bit
+displacements to jump from the original library to our new one.  This design
+requires that the libraries be loaded within +/- 2GB of each other in the
+64-bit process address space.  However, since we list each original library as
+a dependency of our new libraries, the system loader will map each new and
+original library in sequence.  In practice, the libraries ended up very close
+to one another and we did not see the need to implement a more general
+long-jump mechanism.
 
 \subsection{Tracing Events}
-Current MacOS systems support a system-wide tracing infrastructure built by Apple.
-By default, the infrastructure temporarily stores events in memory and flushes them to screen or disk when an internal buffer is filled.
-We extended this infrastructure to support larger-scale tests without filling up the disk by implementing a ring buffer backed by a file.
-We store at most 2GB of data per log, which corresponds to approximately 18,560,187 events (with 5 mintes).
+Current MacOS systems support a system-wide tracing infrastructure built by
+Apple.  By default, the infrastructure temporarily stores events in memory and
+flushes them to screen or disk when an internal buffer is filled.  We extended
+this infrastructure to support larger-scale tests without filling up the disk
+by implementing a ring buffer backed by a file.  We store at most 2GB of data
+per log, which corresponds to approximately 18,560,187 events (with 5 mintes).
 
 \subsection{Tracing Custom Primitives} \label{subsec:tcp}
-The graph should be incrementally improved with new tracing points.
-The procedure to discover such programming paradigm can be repeated on regular executions before tracing for diagnosis.
-The missing connections are much harder to explore.
-As long as the remaining connections in the current graph help diagnosis, it is not necessary to explore.
+The graph should be incrementally improved with new tracing points.  The
+procedure to discover such programming paradigm can be repeated on regular
+executions before tracing for diagnosis.  The missing connections are much
+harder to explore.  As long as the remaining connections in the current graph
+help diagnosis, it is not necessary to explore.
 
-\xxx provides two lightweight tools for users to collecting data with incremental tracing, instead of the lldb.
+\xxx provides two lightweight tools for users to collecting data with
+incremental tracing, instead of the lldb.
+
 \begin {itemize}
-\item For any given shared variable of interest, we take advantage of hardware watchpoints.
-	Tracing points are recorded in the watchpoint handler when the variable is accessed.
-	We hook the handler in CoreFoundation to make sure that it is loaded correctly into the address space of our target application.
-	We set the hardware watchpoint in an ad-hoc manner with a custom command-line tool.
-\item For any code location where user want to check its call stacks, our interface accepts a tag as input to distiguish.
-	It unwindes the rbp from the user stack to store the valid return addresses in the buffer. The buffer is recorded into the log as tracing events.
-	These address woulg go through the offline symbolicator in the graph construction phase.
+
+\item For any given shared variable of interest, we take advantage of hardware
+watchpoints.  Tracing points are recorded in the watchpoint handler when the
+variable is accessed.  We hook the handler in CoreFoundation to make sure that
+it is loaded correctly into the address space of our target application.  We
+set the hardware watchpoint in an ad-hoc manner with a custom command-line
+tool.
+
+\item For any code location where user want to check its call stacks, our
+interface accepts a tag as input to distiguish.  It unwindes the \textit{rbp} from the
+user stack to store the valid return addresses in the buffer. The buffer is
+recorded into the log as tracing events.  These address woulg go through the
+offline symbolicator in the graph construction phase.
 \end{itemize}
 
 %XXX give a simple command line example of how a user can ask \xxx to trace a data flag
-%XXX say what we do in watch point exception handler (record instruction so can determine read or write, and reg values)
+
+%XXX say what we do in watch point exception handler (record instruction so can
+%determine read or write, and reg values)
 
 In \xxx, we patched the kernel with 1193 lines of code, and we instrumented the
 libraries including: libsystem\_kernel.dylib, libdispatch.dylib,
@@ -71,8 +100,8 @@ purpose is to capture the parameters results from the user interaction.  Once a
 new function begins by checking the instruction, we record the call stacks for
 comprehension.  For API from the low level libraries, such as pthread, we step
 over and record the return value. The debugging log in this step records the
-instruction and its address, callstacks when a \v{call} instruction is reached,
-and return values of \v{req} instruction.  AS the operation are confined in the
+instruction and its address, callstacks when a \textit{call} instruction is reached,
+and return values of \textit{req} instruction.  As the operation are confined in the
 small range, the overhead is not too much.
 
 Both the execution on normal case and problematic case are recorded, our tool
@@ -99,4 +128,3 @@ if one node contains all distinct events in the other node.
 The above step only idenfity the similarity of nodes.  We also define the
 differential attribtes to distinguish the normal node and spinning node,
 including the waiting time, execution time and system call return values.
-
