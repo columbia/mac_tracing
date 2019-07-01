@@ -1,10 +1,9 @@
 \subsection{Sequel Pro}
-The size of graph gernerated are shown in follow.
-The event log size is XXX for Sequel Pro.
-The generated graph contains XXX edges and XXX nodes.
-With our offline path slicing algorithm and comparison tool,
-XXX node are inspected.
-in which XXX nodes requires the user to inspect manuallly.
-By attaching the lightweight call stacks on the node,
-user can manifest that the spinning cursor
-is caused by XXXX operation in the UI thread.
+Sequel Pro is a graphical App for database client end.
+It can be connect to database server via different ways, socket, ssh and direct connection.
+When one of the window in Sequel Pro tries to reconnect with ssh, a spinning cursor appears and blocks the whole application,
+which results in the user can not save work in other windows if the reconnection failed.
+
+We got 2G tracing data and generated graph containing 3,650,832 edges and 2,412,236 vertexes.
+The main thread is blocked on rw\_lock.
+With the path slicing, we discovered the blocking is eventually caused by waiting on ssh connection, as is shown in Figure~\ref{fig:sequelpro_ssh_connection}.
