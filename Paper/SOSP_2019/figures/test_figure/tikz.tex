@@ -95,37 +95,29 @@
 \node [mininode, right of=3c0, node distance=2em] (3c1) {};
 \node [mininode, right of=3c0, node distance=6em] (3c2) {};
 \node [mininode, below of=3c0, node distance=2em] (4c0) {};
-\node (DGendline)[minimum height=1em, minimum width=20em, below of=DependencyGraph, node distance=10em]{};
 \draw [->] (1c2.south) -- (2c0.north);
+\node (DGendline)[minimum height=1em, minimum width=20em, below of=DependencyGraph, node distance=10em]{};
 
 %draw Arrow for Constructing Graph
 \node [actionLabel, below of=log, node distance=8em, name=action1] {Construct Graph};
 \draw [prearrow, -] (log.south) -- (action1.north);
 \draw [vecarrow, shorten <=-0.2em, shorten >= 0.1em] (action1.south) -- (DependencyGraph.north);
 
-%%draw beginline for interacive debug
-%\node (IDbeginline)[minimum height=1em, minimum width=20em, left of=DependencyGraph, node distance=25em]{};
-%draw debugging command
+%draw interactive Debugging part
 \node [commanddoc, left of=DependencyGraph, node distance=18em](command){Debugging command\\search\_node\\check\_node\\lldb:br\\lldb:si};
-%draw user
 \node[alice, minimum size=3em, left of=command, node distance=8em](user) {};
-%draw debugging log
-\node [debuglogdoc, left of=user, node distance=8em](log){Debugging log:\\path: ...\\node\_id: ...\\execution\_list:\\  movq \%rax, \%rcx\\  movq \$1, \%rbx\\  ...};
-%draw Interactive Debug
+\node [debuglogdoc, left of=user, node distance=8em](debuglog){Debugging log:\\path: ...\\node\_id: ...\\execution\_list:\\  movq \%rax, \%rcx\\  movq \$1, \%rbx\\  ...};
 \node [actionLabel, below of=user, node distance=8em, name=action2] {Interactive Debugging};
-%draw bend arrow from interactive debuging to human left of debugging log
-%draw bend arrow from human to interactive debugging right of debugging command
 \draw [->] (user.east) to [out=330,in=60] (action2.north east);
 \draw [->] (action2.north west) to [out=120,in=210] (user.west);
-%%draw endline for interacive debug
-%\node (IDendline)[minimum height=1em, minimum width=20em, below of=IDbeginline, node distance=10em]{};
 \draw [->] (user.north)+(0, 0.1) to (libs.south);
-
-%draw Root Cause node
-\node (result) [draw, rectangle, align=left, minimum height=2em, minimum width=20em, below of = action2, node distance=6em] {RootCause:\\UI thread blocking in Chromium because of\\wating for message from Render thread};
-%draw Arrow for Interactive Debug
 \draw [prearrow, -, shorten >= -1.8em](DGendline.north west) + (0, 0.5) -- (action2.east);
-\draw [vecarrow, shorten <= -0.2em] (action2.south) -- (result.north);
+%\node (result) [draw, rectangle, align=left, minimum height=2em, minimum width=20em, below of = action2, node distance=6em] {RootCause:\\UI thread blocking in Chromium because of\\wating for message from Render thread};
+%\draw [vecarrow, shorten <= -0.2em] (action2.south) -- (result.north);
+
+\node (result) [draw, rectangle, align=left, minimum height=20em, minimum width=9em, text width=8em, left of=debuglog, node distance=12em] {RootCause:\\UI thread of Chromium blocks due to wating for message from render thread};
+\node (alignresult)[left of=action2, node distance=16em]{};
+\draw [vecarrow, shorten <= -1.8em] (action2.west) -- (alignresult.east);
 
 \begin{pgfonlayer}{background}
 %%draw background rectangle for macos, graph and debugging log
