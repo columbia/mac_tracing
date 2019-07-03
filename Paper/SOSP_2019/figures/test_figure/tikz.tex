@@ -97,7 +97,6 @@
 \node [mininode, below of=3c0, node distance=2em] (4c0) {};
 \node (DGendline)[minimum height=1em, minimum width=20em, below of=DependencyGraph, node distance=10em]{};
 \draw [->] (1c2.south) -- (2c0.north);
-\draw [->] 
 
 %draw Arrow for Constructing Graph
 \node [actionLabel, below of=log, node distance=8em, name=action1] {Construct Graph};
@@ -116,11 +115,11 @@
 \node [actionLabel, below of=user, node distance=8em, name=action2] {Interactive Debugging};
 %draw bend arrow from interactive debuging to human left of debugging log
 %draw bend arrow from human to interactive debugging right of debugging command
-\draw [->] (action2.north east) to [out=60,in=300] (user.east);
-\draw [->] (user.west) to [out=210,in=120] (action2.north west);
+\draw [->] (user.east) to [out=330,in=60] (action2.north east);
+\draw [->] (action2.north west) to [out=120,in=210] (user.west);
 %%draw endline for interacive debug
 %\node (IDendline)[minimum height=1em, minimum width=20em, below of=IDbeginline, node distance=10em]{};
-\draw [->] (user.north) to (libs.south);
+\draw [->] (user.north)+(0, 0.1) to (libs.south);
 
 %draw Root Cause node
 \node (result) [draw, rectangle, align=left, minimum height=2em, minimum width=20em, below of = action2, node distance=6em] {RootCause:\\UI thread blocking in Chromium because of\\wating for message from Render thread};
