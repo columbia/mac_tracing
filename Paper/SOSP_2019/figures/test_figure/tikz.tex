@@ -53,19 +53,20 @@
 
 \tikzstyle{apps} = [draw, very thick, minimum height=3em, minimum width=5em, fill=white, rectangle, font={\sffamily\bfseries}]
 \tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.2em, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{actionLabel} = [draw, pattern=north west lines, pattern color = red!20, shape aspect=3, minimum size=30, diamond]
+\tikzstyle{actionLabel} = [draw, pattern=north west lines, pattern color = red!20, ellipse, minimum width = 15em, minimum height= 5em]%shape aspect=3, minimum size=30, diamond]
 
 \tikzstyle{doc} = [draw, thick, align=left, color=black, shape=document, minimum width=20em, minimum height=8em, shape=document, inner sep=2ex]
 \tikzstyle{commanddoc} = [draw, thick, align=left, color=black, shape=document, minimum width=5em, minimum height=8em, shape=document, inner sep=2ex]
 \tikzstyle{debuglogdoc} = [draw, thick, align=left, color=black, shape=document, minimum width=8em, minimum height=8em, shape=document, inner sep=2ex]
 \tikzstyle{mininode} = [draw, rectangle, minimum height=1em, minimum width=1em]
 
-\tikzstyle{prearrow} = [thick, fill=black, double distance = 1.2em, shorten >=-0.2em]
-\tikzstyle{vecarrow} = [thick, decoration={markings, mark=at position
-   1 with {\arrow[xshift=1.2em, scale=0.6] {triangle 90}}},
+\tikzstyle{prearrow} = [-, thick, line width=1em] %double distance = 1.2em, shorten >=-0.2em]
+\tikzstyle{vecarrow} = [->, thick, line width=1em] %double distance = 1.2em, shorten >=-0.2em]
+%\tikzstyle{vecarrow} = [thick, decoration={markings, mark=at position
+   %1 with {\arrow[xshift=1.2em, scale=0.6] {triangle 90}}},
    %1 with {\arrow[xshift=1.5em]{Straight Barb[length=2pt 0.7]}}},
-   double distance=1.2em,
-   postaction= {decorate}]
+   %double distance=1.2em,
+   %postaction= {decorate}]
 
 %draw MacOS components
 \node [apps, name=software1] at (0, 0) {chromium};
@@ -80,10 +81,15 @@
 \node [doc, below of=TracingEventLog, name=log, node distance=3em] {\#timestamp, event\_type, attr1, attr2...\\1030.4 Mach\_IPC\_msg\_send 0x4ea20 0x3 ...\\1031.7 Mach\_IPC\_msg\_recv 0x4ea20 0x3 ...\\1033.2 MakeRunnable 0xea45 0x16...};
 
 %draw arrow from MacOS to Tracing Event log
-\draw[vecarrow, shorten >= -0.05em] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
+%\draw[vecarrow, shorten >= -0.05em] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
+\draw[vecarrow] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
+
+%draw Arrow for Constructing Graph
+\node [actionLabel, below of=log, node distance=8em, name=action1] {Construct Graph};
+\draw [prearrow] (log.south) -- (action1.north);
 
 %draw Dependency Graph
-\node (DependencyGraph) [minimum height=3em, minimum width=20em, below of=log, node distance=13em] {Dependency Graph};
+\node (DependencyGraph) [minimum height=3em, minimum width=20em, below of=action1, node distance=8em] {Dependency Graph};
 \node [mininode, below of=DependencyGraph] (1c3) {};
 \node [mininode, left of=1c3, node distance=2em] (1c2) {};
 \node [mininode, below of=1c2, node distance=2em] (2c2) {};
@@ -98,10 +104,8 @@
 \draw [->] (1c2.south) -- (2c0.north);
 \node (DGendline)[minimum height=1em, minimum width=20em, below of=DependencyGraph, node distance=10em]{};
 
-%draw Arrow for Constructing Graph
-\node [actionLabel, below of=log, node distance=8em, name=action1] {Construct Graph};
-\draw [prearrow, -] (log.south) -- (action1.north);
-\draw [vecarrow, shorten <=-0.2em, shorten >= 0.1em] (action1.south) -- (DependencyGraph.north);
+%\draw [vecarrow, shorten <=-0.2em, shorten >= 0.1em] (action1.south) -- (DependencyGraph.north);
+\draw [vecarrow] (action1.south) -- (DependencyGraph.north);
 
 %draw interactive Debugging part
 \node [commanddoc, left of=DependencyGraph, node distance=18em](command){Debugging command\\search\_node\\check\_node\\lldb:br\\lldb:si};
@@ -111,13 +115,15 @@
 \draw [->] (user.east) to [out=330,in=60] (action2.north east);
 \draw [->] (action2.north west) to [out=120,in=210] (user.west);
 \draw [->] (user.north)+(0, 0.1) to (libs.south);
-\draw [prearrow, -, shorten >= -1.8em](DGendline.north west) + (0, 0.5) -- (action2.east);
+\draw [prearrow](DGendline.north west) + (0, 0.5) -- (action2.east);
+%\draw [prearrow, -, shorten >= -1.8em](DGendline.north west) + (0, 0.5) -- (action2.east);
 %\node (result) [draw, rectangle, align=left, minimum height=2em, minimum width=20em, below of = action2, node distance=6em] {RootCause:\\UI thread blocking in Chromium because of\\wating for message from Render thread};
 %\draw [vecarrow, shorten <= -0.2em] (action2.south) -- (result.north);
 
 \node (result) [draw, rectangle, align=left, minimum height=20em, minimum width=9em, text width=8em, left of=debuglog, node distance=12em] {RootCause:\\UI thread of Chromium blocks due to wating for message from render thread};
 \node (alignresult)[left of=action2, node distance=16em]{};
-\draw [vecarrow, shorten <= -1.8em] (action2.west) -- (alignresult.east);
+%\draw [vecarrow, shorten <= -1.8em] (action2.west) -- (alignresult.east);
+\draw [vecarrow] (action2.west) -- (alignresult.east);
 
 \begin{pgfonlayer}{background}
 %%draw background rectangle for macos, graph and debugging log
