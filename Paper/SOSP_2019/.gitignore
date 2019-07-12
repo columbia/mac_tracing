@@ -5,3 +5,6 @@
 /paper.pdf
 /p.pdf
 /paper.synctex.gz
+dep.mk
+/out
+/figures/test_figure/out
