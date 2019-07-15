@@ -1,57 +1,52 @@
-\subsection{System Preferences spin}
-System Preferences is the application in MacOS for users to modify various
-settings.  Displays in the Panel allows user to rearrange the position of
-displays, but it does not support the disabling of a montor online.
-DisableMonitor is an application used to complete the function, easily
-disabling/enabling  monitors withou unplug them.  Surprisingly, the operation
-of DisableMonitor exposed a performance bug in System Preferences.  If we
-disable an external monitor and arrange them afterward, the window System
-Preferences freezes for seconds.
+\subsection{System Preferences}
 
-We enabled Argus on the background and collect the data by normally arranging
-the displays and reapeating the spinning sequence.  With 2 minutes recording,
-we get the tracing log of size 132MB, which contains 428,785 vertexes and
-320,554 edges.
+System Preferences is widely used in MacOS for customizing the system settings.
+The display panel there helps users to extend there workspace with additional
+minitors. However, it can not deactivate monitors online without unplug it.
+DisableMonitor is distributed via github to complete the function. Surprisingly,
+it exposes a performance bug in System Preferences when we disable an external
+monitor, and rearrange the windows in the display panel afterward. The window of
+System Preferences freezes for seconds in the situation.
 
-It is not hard to tell the spinning node in the UI thread with our tool.
-However, to find the normal node corresponding to the spinning node is not
-straightforward as in the previous case.  The execution segment includes two
-types of events: ``\v{mach\_msg}'' and ``\v{thread\_switch}''.  Both of them
-are used to waiting for the data available ping.  The semantics of the
-execution segment is not descriptive enough to identify the normal nodes in the
-same operation stage.
+We arrange the displayers with all active monitors, and repeat the process with
+one of them deactivated. Argus collects 132MB data, and constructs dependency
+graph system-wide in the period, which contains 428,785 vertexes and 320,554
+edges.
 
-In the case we detected the intensive timeout in the node, our search algorithm
-identify the corresponding normal node by searching the similarity of their
-proceding nodes.  We find out the path of the normal path.
-% as shown in the Figure \ref{fig:path slicing for system preference}.
-Our lightweight callstacks were used to verify the correctness of the findings.
+To diagnose the root cause, Argus first finds out when the NSEvent thread in
+System Preferences notifies WindowServer to draw the spinning cursor and marks
+it as \textit{t}. The node in the main UI thread causing the non-responsiveness
+must overlap the time interval \textit{(t - 2s, t)}. It is not hard for
+Argus to tell the spinning node in the main UI thread, either busy processing or
+blocking.
 
-The normal node showed it proceeded to \textit{displayReconfigured} after
-received the message with id 29675.  The spinning node fell into the
-``\v{thread\_switch}'' after receiving the message with the same id, and end up
-to send message for the available datagram ping with
-\textit{CGSSnarfAndDispatchDatagrams} again.  The proceding nodes before them
-sent message to WindowServer for \textit{activeDisplayNotificationHandler}.
+The spinning node in the main UI thread is dominated by \textit{mach\_msg} and
+\textit{thread\_switch}, both of which are meant to wait for available data
+ping from WindowServer. Noticing the timeouts of \text{thread\_switch}, Argus
+classifies this case into the third category (\S\ref{subsec:debug}) and heads
+to find a comparable normal node in the same thread. As its semantics is not
+descriptive enough to identify its comparable node, Argus extends the comparison
+with its proceeding nodes.
 
-With the result, we initiate the concrete debugging by filling the debugging
-script with the APIs reported.  We set the method
-\textit{activeDisplayNotificationHandler} as a beakpoint where the script
-begins debugging.  \textit{displayReconfigured} and
-\textit{CGSSnarfAndDispatchDatagrams} are recorded to indicate the end of
-debugging for the normal case and spinning case respectively.
+In the normal case, System Preferences gets rid of the thread\_switch
+quickly after receiving messages from WindowServer. It proceeds
+to \textit{displayReconfigured}. On the contrary, the spinning
+node ends up sending message for the available datagram ping with
+\textit{CGSSnarfAndDispatchDatagrams}. By checking the lightweight callstacks,
+Argus figures out the messages from WindowServer in the previous nodes are
+responses to data avialable pings from \textit{activeDisplayNotificationHandler}.
 
-Our debugging scripts ran within the confined range for both the noraml and the
-spinning execution.
-%The logs are generated as shown in Figure \ref{fig:step debug log for system preferences}.
-By diff the two logs, it is easy for the
-user to notice the differen braches in \textit{display\_notify\_proc}, which is
-resulted from its prameter standing for the datagram type.
+Given the information, we launched the interactive debugging by 
+feeding the debugging script with those APIs mentioned above. We set the method
+\textit{activeDisplayNotificationHandler} as a beakpoint where the script begins
+debugging. \textit{displayReconfigured} and \textit{CGSSnarfAndDispatchDatagrams}
+are used to indicate the end of debugging for the normal case and spinning case
+respectively.
 
-We make use of the diassembly tool, and reveals the story in the background.
-Datagrams from the WindowServer makes applications to handle notifications.
-The datagram causes difference are used to finish display reconfiguration for
-System Preference.  However, in the spinning case the reconfiguration got
-initiated but not completed.  The main thread leveraged thread\_switch to wait
-for the flollowing datagram and resulted in a freeze.  As a conclusion, the
-handler display\_notify\_proc is not appropriately implemented.
+By diff the two logs, we notice the different branches in
+\textit{display\_notify\_proc} called by \textit{activeDisplayNotificationHandler}. 
+They depend on their received datagrams. In normal case, the datagram makes the
+System Preference finish the display reconfiguration, while in the spinning case
+such datagram is never received, which results in the repeating thread\_switch.
+As a conclusion, the handler \textit{display\_notify\_proc} is not appropriately
+implemented.

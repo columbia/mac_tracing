@@ -1,9 +1,25 @@
 \subsection{Sequel Pro}
-Sequel Pro is a graphical App for database client end.
-It can be connect to database server via different ways, socket, ssh and direct connection.
-When one of the window in Sequel Pro tries to reconnect with ssh, a spinning cursor appears and blocks the whole application,
-which results in the user can not save work in other windows if the reconnection failed.
 
-We got 2G tracing data and generated graph containing 3,650,832 edges and 2,412,236 vertexes.
-The main thread is blocked on rw\_lock.
-With the path slicing, we discovered the blocking is eventually caused by waiting on ssh connection, as is shown in Figure~\ref{fig:sequelpro_ssh_connection}.
+Sequel Pro is a fast, easy-to-use Mac database management application for
+working with MySQL databases. It allows user to connect to database with a
+standard way, socket or ssh. We noticed spinning beachballs while the network
+connection is lost and Sequel Pro tried to reconnect. In the worst case, work in
+other tabs get lost if the reconnection fails.
+
+We simulate the unstable network environment by randomly disabled the network
+for 1 second, and collect data covering the case that network reconnection
+successes quickly and the one that Sequel Pro losts connection for a while. 2G
+tracing data are stored and the graph we generated contains 3,650,832 edges
+and 2,412,236 vertexes.
+
+Argus starts analysis from the spinning node in NSEvent thread of Sequel Pro
+and finds the corresponding node in its main UI thead. We notice that the main
+UI thread gets stuck on the API and go to search a normal node. With the normal
+node, Argus figures out the node that wakes up the waiting API in the normal
+case, and slices path backwards from there. Argus carries out the comparison
+of the nodes in the thread before the normal node gets waken and before the
+spinning beachball shows up. The close examination tells that the main thread
+is waiting for the kernel thread, which in turn waits for the ssh thread. Such
+result could hardly figure out by lldb or spindump as both of them only focus
+on the callstack snapshot for each process, instead of providing the connections
+based the execution history system wide.
