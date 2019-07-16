@@ -1,0 +1,24 @@
+\subsection{TeXstudio}
+
+TeXstudio is an integrated writing environment for creating LaTeX documents. In
+their github we noticed some one reported while he was modifying his bib file,
+the TeXstudio hanged for minutes. Although the issue was closed by author for
+incomplete information for reproduction, we reproduce it in our machine. With a
+relatively large bib file from a LaTex project opened in a tab, once we touch
+the bib file through other editors, vim for exmaple, we would have a spinning
+beachball on the window.
+
+While the beachball is spinning over the application window, the main thread
+is busy with \textit{QDocumentPrivate::indexOF(QDocumentLineHandle const*,
+int)}. Slicing the path from the busy node, \xxx tells the busy processing is
+invoked by the callback from daemon fseventsd. The advantage of \xxx over other
+debugging tools is it helps to narrow down the root cause straigtfully with the
+path. If the user reported the bug with \xxx' report, it should have provided
+the author more hints to reproduce the bug successfully.
+
+Another operation triggering spinning beachball in TeXstudio is pasting
+a large amount of context in any file. The spinning node is busy with
+\textit{QEditor::insertFromMimeData(QMimeData const*)}, which always invokes
+\textit{match(QNFAMatchContext*, QChar const*, int, QNFAMatchNotifier)}. Path
+slicing by \xxx attributes it to the user's keybord inputs of cmd+v. The
+developers use the APIs to copy from the pasteboard.

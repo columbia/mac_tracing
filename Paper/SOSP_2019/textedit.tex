@@ -1,73 +1,34 @@
 \subsection{TextEdit}
-Select, copy, paste, delete, insert and save are common operations for Mac users who do text
-editing. However, these operations on a large amount of context usually trigger
-spinning cursors on text editing softwares, including TextEdit developed by Apple.
-We traced data from six popular text editing softwares to carry out the root causes analysis,
-including TextEdit, Microsoft Word, SublimeText, TextMate, CotEditor and TeXStudio.
 
-\xxx analyzed the tracing data and reported the spinning node for user to inspect.
-All the three cases are fell into the non-blocking categories.
-Our lightweight callstack tells the root cause directly.
+Select, copy, paste, delete, insert and save are common operations for Mac
+users who do text editing. However, these operations on a large amount of
+context usually trigger spinning cursors on text editing softwares, including
+TextEdit developed by Apple.  We traced data from six popular text editing
+softwares to carry out the root causes analysis, including TextEdit, Microsoft
+Word, SublimeText, TextMate, CotEditor and TeXStudio.
 
-For the selection in TextEdit, the size of the tracing log is 144MB.
-The graph generated from the log contains 170,054 edges and 101,212 vertexes.
-The spinning node illustrates that the main thread is busy processing
+\xxx analyzed the tracing data and reported the spinning node for user to
+inspect.  All the three cases are fell into the non-blocking categories.  Our
+lightweight callstack tells the root cause directly.
+
+For the selection in TextEdit, the size of the tracing log is 144MB.  The graph
+generated from the log contains 170,054 edges and 101,212 vertexes.  The
+spinning node illustrates that the main thread is busy processing
 \textit{[NSBigMutableString\ getCharacters:range:]},
 \textit{CFStringGetRangeOfCharacterClusterAtIndex},
 \textit{\_CFStringInlineBufferGetComposedRange} and
-\textit{NSFastFillAllGlyphHolesForCharacterRange}.
-All of them are related to the storage of characters.
+\textit{NSFastFillAllGlyphHolesForCharacterRange}.  All of them are related to
+the storage of characters.
 
-For the operation of copy, \xxx generated a graph of 158,066 edges and 126,663 vertexes.
-It reports that TextEdit is busy with
-\textit{get\_vImage\_converter} and \textit{get\_full\_conversion\_code\_fragment} in its main thread.
-Both of them are called by \textit{[NSTextView(NSPasteboard)\ \_writeRTFDInRanges:toPasteboard:]}.
+For the operation of copy, \xxx generated a graph of 158,066 edges and 126,663
+vertexes.  It reports that TextEdit is busy with
+\textit{get\_vImage\_converter} and
+\textit{get\_full\_conversion\_code\_fragment} in its main thread.  Both of
+them are called by \textit{[NSTextView(NSPasteboard)\
+\_writeRTFDInRanges:toPasteboard:]}.
 
-We collected 214MB data for the paste in TextEdit, and generated 2,312,112 edges and 1,060,273
-vertexes. TextEdit is busy with \textit{DDLookupTableRefLookupCurrentWord\_block\_invoke\_2},
+We collected 214MB data for the paste in TextEdit, and generated 2,312,112
+edges and 1,060,273 vertexes. TextEdit is busy with
+\textit{DDLookupTableRefLookupCurrentWord\_block\_invoke\_2},
 \textit{\_RTFGetToken} and \textit{platform\_memmove}. All of them called by
 \textit{-[NSTextView(NSPasteboard)\ \_readSelectionFromPasteboard:types:]}
-
-\subsection{Microsoft Word}
-Copying context in Microsoft Word produced 1.14GB trace file, which contained 474,178 edges and 306,171 vertexes.
-While the spinning cursor showed up for the application, the main thread was busy with system calls,
-\textit{lseek}, \textit{fstat64}, \textit{fcntl} and \textit{read} on the same file,
-\textit{\_\_CFStringCreateImmutableFunnel3} and \textit{platform\_memmove} over 2 seconds.
-They are on the behalf of \textit{-[NSPasteboard\ \_setData:forType:index:usesPboardTypes:]}.
-
-We collected 1.04GB tracing data for Paste operation. Its graph contains 161,921 edges and 110,680 vertexes.
-The spinning node are dominated by \textit{lseek}, \textit{fstat64}, \textit{fcntl} and \textit{write}.
-
-\subsection{SublimeText}
-We collected 1.16GB trace data for copy in SublimeText. It generates 173,071 edges and 127,488 vertexes.
-While the cursor is spinning, the main thread of SublimeText is busy encoding characters with \textit{\_\_CFToUTF8Len}.
-They are called from \textit{CFPasteboardSetData}, which invokded by \textit{px\_copy\_to\_clipboard} in SublimeText source code.
-
-Paste operation in SublimeText also results in the unresponsiveness of UI thread.
-The size of the tracing data is 505MB. The graph consists of 760,003 edges and 535,106 vertexes.
-The main thread is busy processing \textit{decode\_utf8}, \textit{convert\_utf8\_to\_utf32}, string \textit{append} and \textit{platform\_memmove}.
-All are called from \textit{px\_copy\_from\_clipboard}.
-
-Deleting large context in SublimeText also causes spinning beachball.
-Tracing file for it is 447MB, which contains 789,400 edges and 626,629 vertexes.
-The main thread is busy processing \textit{TokenStorage::substr}.
-
-\subsection{TextMate}
-Spinning cursor appears when a large amount of context get pasted into a file opend with TextMate.
-We traced 62MB data and got 73,679 edges and 50,860 vertexes. 
-The main thread is busy with \textit{-[OakTextView paste:]} which iterates through paragraphs,
-fetchs characters and processed with \textit{CFAttributedStringSet} and \textit{TASCIIEncoder::Encode}.
-
-\subsection{CotEditor}
-As is TextMate, CotEditor does not trigger spinning beachball when a large amount of context is copied in the Application.
-Any insertion in a large file results in a spinning beachball.
-We collected 318MB trace data and generated a graph with 374,577 edges and 245,638 vertexes.
-The main thread is busy processing \textit{-[NSBigMutableString characterAtIndex:]} and \textit{CFStorageGetValueAtIndex},
-The processing happens once the return key is pressed.  
-
-\subsection{TeXStudio}
-TeXStudio is another case that causes beachball only when a large amount of context is pasted.
-The size of the trace is 287MB.
-The graph contains 349,557 edges and 259,918 vertexes.
-The spinning node is busy with \textit{QEditor::insertFromMimeData(QMimeData const*)},
-which repeatedly calls \textit{match(QNFAMatchContext*, QChar const*, int, QNFAMatchNotifier)}.
