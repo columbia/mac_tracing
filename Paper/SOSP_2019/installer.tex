@@ -1,14 +1,15 @@
 \subsection{Installer}
-Installer throws out spinning wait cursor in a situation
-that confuses the users.
-While we were installing \texttt{jdk-7u80-macosx-x64}, the installer
-asked for privileged permissions.
-Once we move the cursor, it starts spinning whenever the
-original application is selected, potentially confusing the user.
 
-\xxx collected tracing events in log of 550M for Installer,
-The generated graph contains 392199 edges and 294856 vertexes.
-\xxx generate the graph in 168 seconds, and find the spinning
-node is blocked in the \textit{[IFRunnerProxy\ requestKeyForRights:askUser:]},
-which sent a synchronous XPC to daemon \textit{authd} with
-\textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
+As we were told the any spinning beachball in MacOS indicated a bug, in some
+situation, the ``\v{bugs}'' confuse users who concern. Installer is one of the
+case while poping up a window for previleged permission during the installation
+of \texttt{jdk-7u80-macosx-x64}. Moving the cursor out of the popup window
+triggers spinning beachball.
+
+\xxx collected tracing events in log of 550M for Installer, The generated graph
+contains 392199 edges and 294856 vertexes. \xxx generate the graph in 168
+seconds, and find the spinning node is blocked in the \textit{[IFRunnerProxy\
+requestKeyForRights:askUser:]}, which sent a synchronous XPC to daemon
+\textit{authd} with \textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
+In conclusion, if the user does not focus on the popup window, it will be
+treated as a main thread non-responsive bug.

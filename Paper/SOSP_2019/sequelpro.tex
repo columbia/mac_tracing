@@ -9,19 +9,19 @@ in other tabs get lost if the reconnection fails.
 We simulate the unstable network environment by randomly disabled the network
 for 1 second, and collect data covering the case that network reconnection
 successes quickly and the one that Sequel Pro losts connection for a while. 2G
-tracing data are stored and the graph we generated contains 3,650,832 edges
-and 2,412,236 vertexes.
+tracing data are stored and the graph we generated contains 3,650,832 edges and
+2,412,236 vertexes.
 
-Argus starts analysis from the spinning node in NSEvent thread of Sequel Pro
-and finds the corresponding node in its main UI thead. We notice the executuion
-sequence,\textit{poll, write, wakeup, re-arm timer, read}, in the node. Sequel
-Pro gets blocked on the read. As a result, Argus goes to search the similar
-normal node, which has the same sequence but is not blocked for long.  From the
-node, Argus goes along the weak edge to figure out which node wakes it up and
-slice path backwards.  Argus carries out the comparison of the nodes in the
-thread before the normal node gets waken and before the spinning beachball
-shows up. The close examination tells that the main thread is waiting for the
-kernel thread, which in turn waits for the ssh thread. Such result could hardly
-figure out by lldb or spindump as both of them only focus on the callstack
-snapshot for each process, instead of providing the connections based the
-execution history system wide.
+\xxx starts analysis from the spinning node in NSEvent thread of Sequel Pro and
+finds the corresponding node in its main UI thead. We notice the executuion
+sequence,\\ \centerline{\textit{poll, write, wakeup, re-arm timer, read}} \\
+in the node. Sequel Pro gets blocked on the read. As a result, \xxx goes to
+search the similar normal node, which has the same sequence but is not blocked
+for long. From the node, \xxx goes along the weak edge to figure out which node
+wakes it up and slice path backwards. \xxx carries out the comparison of the
+nodes in the thread before the normal node gets waken and before the spinning
+beachball shows up. The close examination tells that the main thread is waiting
+for the kernel thread, which in turn waits for the ssh thread. Such result
+could hardly figure out by lldb or spindump as both of them only focus on the
+callstack snapshot for each process, instead of providing the connections based
+the execution history system wide.

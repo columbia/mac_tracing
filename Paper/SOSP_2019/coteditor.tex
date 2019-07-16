@@ -1,0 +1,9 @@
+\subsection{CotEditor}
+
+As is TextMate, CotEditor does not trigger spinning beachball when a large
+amount of context is copied in the Application.  Any insertion in a large file
+results in a spinning beachball.  We collected 318MB trace data and generated a
+graph with 374,577 edges and 245,638 vertexes.  The main thread is busy
+processing \textit{-[NSBigMutableString characterAtIndex:]} and
+\textit{CFStorageGetValueAtIndex}, The processing happens once the return key
+is pressed.  
