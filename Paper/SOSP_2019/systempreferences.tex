@@ -1,14 +1,17 @@
 \subsection{System Preferences}
 
-System Preferences is widely used in MacOS for customizing the system settings.
-The display panel there helps users to extend there workspace with additional
-minitors. However, it can not deactivate monitors online without unplug it.
-DisableMonitor is distributed via github to complete the function. Surprisingly,
-it exposes a performance bug in System Preferences when we disable an external
-monitor, and rearrange the windows in the display panel afterward. The window of
-System Preferences freezes for seconds in the situation.
+System Preferences provides a central location in MacOS to customize system
+settings. The ``Display'' pane allows users to configure additional monitors,
+mirroring or extending their workspace. However, the software does not support
+disabling monitors that are online (the user must physically unplug monitors).
+There is a tool called DisableMonitor~\cite{disablemonitor}, distributed via
+GitHub, which addresses this functionality. Surprisingly, we find performance
+bug in System Preferences when we disable an external monitor, and rearrange
+the windows in the Display panel afterward. The System Preferences windows
+freezes for seconds in this situation.
 
-We arrange the displayers with all active monitors, and repeat the process with
+To diagnose this issue, we run the System Preferences app with \xxx. We
+rearrange the displays with two active monitors, and repeat the process with
 one of them deactivated. \xxx collects 132MB data, and constructs dependency
 graph system-wide in the period, which contains 428,785 vertexes and 320,554
 edges.
@@ -24,26 +27,26 @@ The spinning node in the main UI thread is dominated by \textit{mach\_msg} and
 \textit{thread\_switch}, both of which are meant to wait for available data
 ping from WindowServer. Noticing the timeouts of \text{thread\_switch}, \xxx
 classifies this case into the third category (\S\ref{subsec:debug}) and heads
-to find a comparable normal node in the same thread. As its semantics is not
+to find a comparable normal node in the same thread. As its semantics are not
 descriptive enough to identify its comparable node, \xxx extends the comparison
 with its proceeding nodes.
 
 In the normal case, System Preferences gets rid of the thread\_switch
 quickly after receiving messages from WindowServer. It proceeds
-to \textit{displayReconfigured}. On the contrary, the spinning
+to \textit{displayReconfigured}. On the other hand, the spinning
 node ends up sending message for the available datagram ping with
 \textit{CGSSnarfAndDispatchDatagrams}. By checking the lightweight callstacks,
 \xxx figures out the messages from WindowServer in the previous nodes are
-responses to data avialable pings from \textit{activeDisplayNotificationHandler}.
+responses to data available pings from \textit{activeDisplayNotificationHandler}.
 
 Given the information, we launched the interactive debugging by 
 feeding the debugging script with those APIs mentioned above. We set the method
-\textit{activeDisplayNotificationHandler} as a beakpoint where the script begins
+\textit{activeDisplayNotificationHandler} as a breakpoint where the script begins
 debugging. \textit{displayReconfigured} and \textit{CGSSnarfAndDispatchDatagrams}
 are used to indicate the end of debugging for the normal case and spinning case
 respectively.
 
-By diff the two logs, we notice the different
+By diff'ing the two logs, we notice the different
 branches in \textit{display\_notify\_proc} called by
 \textit{activeDisplayNotificationHandler}. The handler depends on received
 datagram and two shared variables ``\v{\_gCGWillReconfigureSeen}'' and
@@ -55,3 +58,5 @@ finish display reconfiguration, while in the spinning case such datagram
 is never received. Instead, an alternative datagram just drive it through
 \textit{display\_notify\_proc} without setting any variable, which causes the
 repeating \textit{thread\_switch} in the handler.
+
+[In conclusion, the bug is... would have to be fixed by... we provide a binary fix...]

@@ -6,14 +6,14 @@ standard way, socket or ssh. We noticed spinning beachballs while the network
 connection was lost and Sequel Pro tried reconnections. In the worst case, work
 in other tabs get lost if the reconnection fails.
 
-We simulate the unstable network environment by randomly disabled the network
-for 1 second, and collect data covering the case that network reconnection
-successes quickly and the one that Sequel Pro losts connection for a while. 2G
+We simulate the unstable network environment by randomly disabling the network
+for 1 second, and collect data in two cases: 1) network reconnection
+succeeds quickly, and 2) Sequel Pro loses its connection for a while. 2G
 tracing data are stored and the graph we generated contains 3,650,832 edges and
 2,412,236 vertexes.
 
 \xxx starts analysis from the spinning node in NSEvent thread of Sequel Pro and
-finds the corresponding node in its main UI thead. We notice the executuion
+finds the corresponding node in its main UI thead. We notice the execution
 sequence,\\ \centerline{\textit{poll, write, wakeup, re-arm timer, read}} \\
 in the node. Sequel Pro gets blocked on the read. As a result, \xxx goes to
 search the similar normal node, which has the same sequence but is not blocked
