@@ -1,0 +1,56 @@
+\documentclass[pageno]{jpaper}
+
+%replace XXX with the submission number you are given from the ASPLOS submission site.
+\newcommand{\asplossubmissionnumber}{XXX}
+
+\usepackage[normalem]{ulem}
+\usepackage{xspace}
+
+\usepackage{tikz}
+\usepackage{tikzpeople}
+\usetikzlibrary{shapes, shapes.misc}
+\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+\usetikzlibrary{patterns}
+
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     macro
+% paper-specific definitions
+\newcommand{\sys}[0]{Argus\xspace}
+\newcommand{\xxx}[0]{Argus\xspace}
+\newcommand{\nbug}[0]{11\xspace}
+\newcommand{\mytitle}[0]{\textbf {Argus : Debugging Performance Issues in Modern Applications with Interactive Causal Tracing}}
+
+% in short.
+\newcommand{\eg}{{e.g.}}
+\newcommand{\ie}{{i.e.}}
+\newcommand{\etc}{{etc}}
+\newcommand{\para}[1]{\vspace{.00in}\noindent{\bf #1}}
+\newcommand{\wrt}{{w.r.t. }}
+\newcommand{\cf}{{cf. }}
+\newcommand{\etal}{{et al. }}
+
+\begin{document}
+\title{\mytitle}
+
+\date{}
+\maketitle
+
+\thispagestyle{empty}
+
+\input{intro}
+\input{overview}
+\input{patterns}
+\input{implementation}
+\input{casestudies}
+\input{evaluation}
+\input{discussion}
+\input{related}
+\input{conclusion}
+
+\bibliographystyle{plain}
+\bibliography{bib/biblio}
+
+\end{document}
+

@@ -1,0 +1,9 @@
+/figures/*.pdf
+/paper.aux
+/paper.bbl
+/paper.blg
+/paper.pdf
+/paper.log
+/paper.out
+/figures/test_figure/out
+/out
