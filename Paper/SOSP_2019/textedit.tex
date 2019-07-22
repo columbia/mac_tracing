@@ -3,32 +3,26 @@
 Select, copy, paste, delete, insert and save are common operations for Mac
 users who do text editing. However, these operations on a large amount of
 context usually trigger spinning cursors on text editing softwares, including
-TextEdit developed by Apple.  We traced data from six popular text editing
-softwares to carry out the root causes analysis, including TextEdit, Microsoft
-Word, SublimeText, TextMate, CotEditor and TeXStudio.
+TextEdit developed by Apple. We traced data from six popular text editing
+softwares. including TextEdit, Microsoft Word, SublimeText, TextMate, CotEditor
+and TeXStudio. \xxx analyzed the tracing data and reported the spinning node for
+users to inspect. All of the cases are fell into the non-blocking categories.
+Our lightweight callstack tells the root cause directly.
 
-\xxx analyzed the tracing data and reported the spinning node for user to
-inspect.  All the three cases are fell into the non-blocking categories.  Our
-lightweight callstack tells the root cause directly.
-
-For the selection in TextEdit, the size of the tracing log is 144MB.  The graph
-generated from the log contains 170,054 edges and 101,212 vertexes.  The
-spinning node illustrates that the main thread is busy processing
-\textit{[NSBigMutableString\ getCharacters:range:]},
+For the selection in TextEdit, \xxx reports the main thread is busy
+processing \textit{[NSBigMutableString\ getCharacters:range:]},
 \textit{CFStringGetRangeOfCharacterClusterAtIndex},
 \textit{\_CFStringInlineBufferGetComposedRange} and
-\textit{NSFastFillAllGlyphHolesForCharacterRange}.  All of them are related to
+\textit{NSFastFillAllGlyphHolesForCharacterRange}. All of them are related to
 the storage of characters.
 
-For the operation of copy, \xxx generated a graph of 158,066 edges and 126,663
-vertexes.  It reports that TextEdit is busy with
-\textit{get\_vImage\_converter} and
-\textit{get\_full\_conversion\_code\_fragment} in its main thread.  Both of
-them are called by \textit{[NSTextView(NSPasteboard)\
+For the operation of copy, \xxx reports that TextEdit
+is busy with \textit{get\_vImage\_converter} and
+\textit{get\_full\_conversion\_code\_fragment} in its main thread.
+Both of them are called by \textit{[NSTextView(NSPasteboard)\
 \_writeRTFDInRanges:toPasteboard:]}.
 
-We collected 214MB data for the paste in TextEdit, and generated 2,312,112
-edges and 1,060,273 vertexes. TextEdit is busy with
+In the case of paste in TextEdit, it is busy with
 \textit{DDLookupTableRefLookupCurrentWord\_block\_invoke\_2},
 \textit{\_RTFGetToken} and \textit{platform\_memmove}. All of them called by
 \textit{-[NSTextView(NSPasteboard)\ \_readSelectionFromPasteboard:types:]}

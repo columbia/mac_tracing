@@ -12,7 +12,7 @@ While the beachball is spinning over the application window, the main thread
 is busy with \textit{QDocumentPrivate::indexOF(QDocumentLineHandle const*,
 int)}. Slicing the path from the busy node, \xxx tells the busy processing is
 invoked by the callback from daemon fseventsd. The advantage of \xxx over other
-debugging tools is it helps to narrow down the root cause straigtfully with the
+debugging tools is it helps to narrow down the root cause with the
 path. If the user reported the bug with \xxx' report, it should have provided
 the author more hints to reproduce the bug successfully.
 
@@ -21,4 +21,4 @@ a large amount of context in any file. The spinning node is busy with
 \textit{QEditor::insertFromMimeData(QMimeData const*)}, which always invokes
 \textit{match(QNFAMatchContext*, QChar const*, int, QNFAMatchNotifier)}. Path
 slicing by \xxx attributes it to the user's keybord inputs of cmd+v. The
-developers use the APIs to copy from the pasteboard.
+problematic code resides where developers copy data from the pasteboard.
