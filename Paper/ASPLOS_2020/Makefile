@@ -1,18 +1,17 @@
+PAPER = paper
+TEX = $(wildcard *.tex)
+BIB = bib/biblio.bib
+FIGS = $(wildcard figures/*.pdf figures/*.png graphs/*.pdf graphs/*.png)
+
 .PHONY: all clean
 
--include dep.mk
-
-OUT ?= out
-
-dep.mk:
-	@latexmk -silent -xelatex -dependents paper.tex -MF dep.mk -outdir=${OUT}
+$(PAPER).pdf: $(TEX) $(BIB) $(FIGS) jpaper.cls
+	echo $(FIGS)
+	pdflatex $(PAPER)
+	bibtex $(PAPER)
+	pdflatex $(PAPER)
+	pdflatex $(PAPER)
 
 clean:
-	@latexmk -silent -C -outdir=${OUT}
-	@rm dep.mk
-	@rm -rf ${OUT}
+	rm -f *.aux *.bbl *.blg *.log *.out $(PAPER).pdf
 
-out/main.pdf:
-	latexmk -xelatex paper.tex -outdir=out
-
-all: out/main.pdf

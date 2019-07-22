@@ -6,4 +6,7 @@
 /paper.log
 /paper.out
 /figures/test_figure/out
+dep.mk
 /out
+/paper.synctex.gz
+/p.pdf
