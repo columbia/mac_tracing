@@ -45,8 +45,8 @@ user-kernel crossings.
 
 Second, the graphs may be missing numerous causal edges.  For instance,
 consider ad hoc synchronization~\cite{xiong2010ad} via shared-memory flags: a
-thread may set ``\v{flag = 1}'' and wake up another thread waiting on
-``\v{while(!flag);}'' to do additional work.  Even within one thread, the code
+thread may set ``\vv{flag = 1}'' and wake up another thread waiting on
+``\vv{while(!flag);}'' to do additional work.  Even within one thread, the code
 may set a data variable derived from one request and later uses it in another
 request (\eg, the buffer that hold the reply in the preceding WindowServer
 example). Although the number of these flags may be small, they often express
@@ -56,8 +56,8 @@ a tool would have to trace all memory operations, incurring prohibitive
 overhead and adding many superfluous edges to the request graph.
 
 Third, in any case, many inferred edges may be superfluous because wake-ups do
-not necessarily reflect causality.  Consider an \v{unlock()} operation waking
-up an thread waiting in \v{lock()}.  This wake-up may be just a happens-stance
+not necessarily reflect causality.  Consider an \vv{unlock()} operation waking
+up an thread waiting in \vv{lock()}.  This wake-up may be just a happens-stance
 and the developer intent is only mutual exclusion.  However, the actual
 semantics of the code may also enforce a causal order between the two
 operations.

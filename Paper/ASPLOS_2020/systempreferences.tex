@@ -49,11 +49,11 @@ respectively.
 By diff'ing the two logs, we notice the different
 branches in \textit{display\_notify\_proc} called by
 \textit{activeDisplayNotificationHandler}. The handler depends on received
-datagram and two shared variables ``\v{\_gCGWillReconfigureSeen}'' and
-``\v{\_gCGDidReconfigureSeen}'' to finish a display configuration. In
+datagram and two shared variables ``\vv{\_gCGWillReconfigureSeen}'' and
+``\vv{\_gCGDidReconfigureSeen}'' to finish a display configuration. In
 both case the first variable is set to indicate the begin of display
 configuration. In normal case, it receives a datagram which set the variable
-``\v{\_gCGDidReconfigureSeen}'' in \textit{display\_notify\_proc} and
+``\vv{\_gCGDidReconfigureSeen}'' in \textit{display\_notify\_proc} and
 finish display reconfiguration, while in the spinning case such datagram
 is never received. Instead, an alternative datagram just drive it through
 \textit{display\_notify\_proc} without setting any variable, which causes the

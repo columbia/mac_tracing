@@ -10,14 +10,14 @@ receiving a message from WindowServer which receives a message from the NSEvent
 thread of the target application first.
 
 We further added call stacks for the messages and revealed two shared
-variables, ``\v{is\_mainthread\_spinning}'' and
-``\v{dispatch\_to\_mainthread}'', are critical in the desgin. The NSEvent
+variables, ``\vv{is\_mainthread\_spinning}'' and
+``\vv{dispatch\_to\_mainthread}'', are critical in the desgin. The NSEvent
 thread of the target application fetches CoreGraphics events from WindowServer,
 converts and creates NSEvents for the main thread. If the main thread is not
-spinning with ``\v{is\_mainthread\_spinning}'' equals 0 ,
-``\v{dispatch\_to\_mainthread}'' will be set to 1 and a timer is armed. If the
+spinning with ``\vv{is\_mainthread\_spinning}'' equals 0 ,
+``\vv{dispatch\_to\_mainthread}'' will be set to 1 and a timer is armed. If the
 main thread processes the next event before the timer fires, nothing happens
 and the timer gets re-armed. Otherwise, NSEvent thread sends a message inside
-``\v{CGSConnectionSetSpinning}'' to WindowServer from the timer handler, and
+``\vv{CGSConnectionSetSpinning}'' to WindowServer from the timer handler, and
 WindowServer notifies the CoreGraphics to draw a spinning wait cursor over the
 application window.

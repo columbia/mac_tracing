@@ -15,7 +15,7 @@ which calls \textit{mach\_msg\_receive}. These two dependency events will
 eventually be used to create a link in the graph.  These categories are not
 disjoint.  For instance, most events are logged together with the call stacks
 in which they occur.  Similarly, the return from aforementioned
-\v{mach\_msg\_receive} is both a dependency event and a boundary event as it
+\vv{mach\_msg\_receive} is both a dependency event and a boundary event as it
 begins a new execution segment.
 
 \subsection{Dependency Patterns}
@@ -49,7 +49,7 @@ wait(lock_mutex)
 \para{P2: Kernel takes over context}
 As part of a thread context switch, an execution context may enter kernel
 space. As shown below, the code will enter kernel scheduling by calling
-\v{sched\_timeshare\_consider\_maintenance}, which in turn wakes up another
+\vv{sched\_timeshare\_consider\_maintenance}, which in turn wakes up another
 \texttt{kernel\_task} thread.  Again, such a wake-up does not reflect the
 application's intent, and should be filtered out from the containing context.  
 
@@ -80,8 +80,8 @@ and we split the execution segments to maintain the independence of the events.
 
 This case also illustrates a causal linkage caused by data dependency within
 one thread.  As the code shows, WindowServer saves the reply message in
-variable \v{\_gOutMsg} inside function \v{CGXPostReplyMessage}.  When it calls
-\v{CGXRunOneServicePass}, it sends out \v{\_gOutMsg} if there is any pending
+variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.  When it calls
+\vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
 message.  This data dependency needs to be captured in order to establish a
 causal link between the handling of the previous request and the send of the
 reply.  Interestingly, it is an example of a data dependency within the same
@@ -108,7 +108,7 @@ while() {
 }
 
 \para{P4: CoreAnimation shared flags}
-A worker thread can set a field \v{need\_display} inside a CoreAnimation object
+A worker thread can set a field \vv{need\_display} inside a CoreAnimation object
 whenever the object needs to be repainted. The main thread iterates over all
 animation objects and reads this flag, rendering any such object.
 
@@ -163,9 +163,9 @@ if (sCGEventIsMainThreadSpinning == 0x1)
 The message dispatch service dequeues messages from many processes and staggers
 processing of the messages. This creates false dependencies between each
 message in the dispatch queue.  As illustrated in the following code snipped
-from the \v{fontd} daemon, function \v{dispatch\_execute} is installed as a
+from the \vv{fontd} daemon, function \vv{dispatch\_execute} is installed as a
 callback to a dispatch queue.  It subsequently calls
-\v{dispatch\_mig\_server()} which runs the typical server loop and handles many
+\vv{dispatch\_mig\_server()} which runs the typical server loop and handles many
 messages.
 To avoid incorrectly linking many irrelevant processes through such
 batching processing patterns, \xxx adopts the aforementioned heuristics to
@@ -203,7 +203,7 @@ sending the call request may be different from the one receiving the return,
 and multiple threads may be used in the recipient thread to handle the request.
 
 Fortunately, the messages involved typically carry metadata such as the
-\v{reply\_port} shown in the following diagram, so \xxx can easily link the
+\vv{reply\_port} shown in the following diagram, so \xxx can easily link the
 corresponding events together.
 
 {\footnotesize \begin{verbatim}
