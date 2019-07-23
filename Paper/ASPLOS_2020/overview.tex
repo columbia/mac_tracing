@@ -1,5 +1,38 @@
 \section{Overview} \label{sec:overview}
 
+\subsection{\xxx}
+
+\begin{figure}[tb]
+    \centering
+\begin{verbatim}
+Main Algorithm:
+    Input: Program to run + buggy test case
+        + (optional) similar baseline test case
+    Output: Sequence of actions or UI events which
+        trigger the performance problem, and trace
+        of execution across event handlers
+
+1. Run program under \xxx, trigger baseline case (if possible)
+    and then buggy test case
+2. Set heuristics = { default heuristics }
+3. Compute graph using current heuristics with
+    Algorithm ComputeControlFlowGraph
+4.a. If the buggy case is busy executing code (livelock):
+        run backward traversal of edges until UI event found
+4.b. Else, given a hanging node N_1, use Algorithm
+    FindSimilarNode to obtain an equivalent
+    in the baseline test case, N_0 \leftarrow FindSimilarNode(N_1)
+    5.a. Compare nodes N_0 and N_1, and automatically
+        diff the two cases, moving through history semi-automatically
+        with user input until useful UI events are found
+        [Algorithm AssistedGraphDiff]
+    5.b. If new heuristics were added, go to step 3.
+6. Return set of UI events found
+\end{verbatim}
+    \caption{Main \xxx algorithm.}
+    \label{fig:alg-main}
+\end{figure}
+
 \subsection{\xxx Work Flow}
 
 \begin{figure*}[tb]
