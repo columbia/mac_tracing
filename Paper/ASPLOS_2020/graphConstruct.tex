@@ -1,14 +1,26 @@
 \subsubsection{Argus Graph Computing}
 \begin{itemize}
-\item \xxx constructs dependency graphs with the events from tracing logs. The graphs are equivalent to a high level control flow graphs.
-%%Events traced by \xxx can be classified into three categories based on purposes: preserve higher level semantics, construct connections across inter and itra thread boundaries, define boundaries for batch processing within a thread. A vertex contains a list of events constrainted by intra-thread boundaries. Its semantics relies on the semantics events from the list. Edges across the threads usually indicated the two threads are working on behalf of the same task.
-\item As noticed that not all wake-up edges stands for a causality, \xxx applies default hueristicsto filter out definitive noises: interrupt/kernel maintainance/timer expirations
-\item The graph is inherently inaccurate given the existance of spurious edges. (mutex lock example)
-\item Despite of the inaccurary, the graph with the causality edges is still helpful in debugging complicated performance bugs, which involve mutilple processes and threads.
+
+\item \xxx constructs dependency graphs with the events from tracing logs.
+
+Each event stands for an execution state in a thread. The IPCs, asynchronouns
+calls and thread wakeups connect events either inside thread or acrosss thread
+boundaries. (vertex consists of a list of events and edges are generated with
+event pairs)
+
+\item The graph bares the causility path of a user input and thus is helpful in
+debugging complicated performance bugs, which involve mutilple processes and
+threads.
+
+\item As noticed that not all wake-up edges stands for a causality, \xxx
+applies default hueristicsto filter out definitive noises: interrupt/kernel
+maintainance/timer expirations
+
 \end{itemize}
 
 \subsubsection{User Interactions}
 \begin{itemize}
+\item The graph is inherently inaccurate given the existance of spurious edges. (mutex lock example).
 \item Making the graph sound without user interaction is almost impossible given essential attribite of commericial operating system as a grey box.
 \item Over connections occur if intra-thread boundaries are missing from batch processing programming paradigms. (dispatch\_mig\_service, runloop)
 \item Data dependencies inter/intra threads are usually hard to fully exploit in the initial pass of graph computing. (shared flags in Object, data dependency for delay work intra-thread)
