@@ -44,7 +44,7 @@ Main Algorithm:
 \end{figure*}
 
 Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of two
-phases.  A user runs command ``\v{\xxx start}'' to enter the system-wide
+phases.  A user runs command ``\vv{\xxx start}'' to enter the system-wide
 tracing phase, within which \xxx logs events including system calls,
 inter-process communications (IPCs), and waits and wake-ups from all
 applications and daemons.  Occasionally based on user configurations, it logs
@@ -57,7 +57,7 @@ low because the logged events themselves are often expensive and require
 user-kernel crossings, masking the overhead of tracing.
 
 Whenever a user detects a performance issue such as a spinning cursor, she runs
-``\v{\xxx debug}'' to enter the interactive diagnosis phase.  \xxx initializes
+``\vv{\xxx debug}'' to enter the interactive diagnosis phase.  \xxx initializes
 this phase by constructing a causal graph from all logged events up to
 user-specified duration.  Rather than requiring a precise application-specific
 user-written schema, \xxx leverages a simple system-wide schema we created to
@@ -68,7 +68,7 @@ user insights for diagnosis (\S\ref{subsec:debug}).
 
 \xxx defines the beginning of an execution segment as one of the following
 three types of events (1) the beginning of a thread, (2) the event from a wait
-operation such as \v{pthread\_cond\_wait()} or \v{mach\_msg\_receive()}, and
+operation such as \vv{pthread\_cond\_wait()} or \vv{mach\_msg\_receive()}, and
 (3) the first logged event of a thread because tracing may start mid execution.
 It similarly defines the end of an execution segment as (1) the exit of a
 thread, (2) the call to a wait operation, and (3) the last logged event of a
@@ -78,13 +78,13 @@ thread.
 causally depends on the wake-up operation.  Since an application or its
 libraries may define custom synchronization primitives, \xxx traces wait and
 wake-up operations inside the operating system kernel (the
-\v{waitq\_assert\_wait64\_locked} and \v{thread\_unblock} functions in MacOS
+\vv{waitq\_assert\_wait64\_locked} and \vv{thread\_unblock} functions in MacOS
 kernel).  This design decision ensures that \xxx captures a large set of casual
 edges at the expense of superfluous edges that do not map to causality.  For
 instance, inside a system call or interrupt handler, the kernel typically
 checks whether the current process has used up its time slice and, if so, wakes
 up another process.  \xxx thus explicitly filters out edges due to kernel
-maintenance (in \v{interrupt} and \v{sched\_timeshare\_miantenance\_continue}
+maintenance (in \vv{interrupt} and \vv{sched\_timeshare\_miantenance\_continue}
 functions in MacOS) instead of application intent.  Second, the read of a data
 flag causally depends on the write of the same flag.  Edges of this type are
 few but critical for diagnosis.  Third, the timer expiration and cancellation
@@ -185,7 +185,7 @@ The entire session took roughly five minutes.
 
 She then ran \xxx to construct the event graph.  The graph had 2,749,628
 vertexes and 3,606,657 edges, almost fully connected.  It spans across 17
-applications; 109 daemons including \v{fontd}, \v{mdworker}, \v{nsurlsessiond}
+applications; 109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond}
 and helper tools by applications; 126 processes; 679 threads, and 829,287 IPC
 messages.  Given the scale of the graph and the diverse communication patterns,
 it would be extremely challenging for prior automated causal tracing
@@ -204,39 +204,39 @@ applications and daemons.
 \end{figure*}
 
 Next she ran \xxx to find the event in the main thread of the browser process.
-\xxx returned a \v{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})
+\xxx returned a \vv{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})
 that blocked the main thread for a few seconds.  Inspection of the lightweight
 call stack revealed that this wait happened within a call to
-\v{TextInputClientMac::GetFirstRectForRange}.  Without knowing the
+\vv{TextInputClientMac::GetFirstRectForRange}.  Without knowing the
 application's semantics, she could not understand this method.  Thus she ran
 \xxx to compare the spinning case to a normal case.  \xxx searched in the main
 thread of the browser process for vertexes similar to this wait waiting
-vertexes (contain \v{write\_file, cv\_timed\_wait} in this case) similar to
+vertexes (contain \vv{write\_file, cv\_timed\_wait} in this case) similar to
 this wait, found three, and confirmed with the user which one she wanted.
 
 \xxx then found the normal-case wake-up path shown in the figure, which
 connects five threads.  The browser main thread was signaled by a browser
 worker thread as shown in step \textcircled{1} of backward slicing in Figure
-\ref{fig:chromium-trace}, which in turn \v{read\_file} in step \textcircled{2}
-for IPC from a worker thread of \v{renderer}, the daemon for rendering screens.
-The \v{renderer} worker thread is woken up by the \v{renderer} main thread to
-\v{read\_file} \textcircled{3}, which in turn \v{recv\_msg} \textcircled{4}
-from \v{fontd}, the font service daemon.  From this path, we could guess that
-\v{GetFirstRectForRange} was for the browser to understand the bounding box of
+\ref{fig:chromium-trace}, which in turn \vv{read\_file} in step \textcircled{2}
+for IPC from a worker thread of \vv{renderer}, the daemon for rendering screens.
+The \vv{renderer} worker thread is woken up by the \vv{renderer} main thread to
+\vv{read\_file} \textcircled{3}, which in turn \vv{recv\_msg} \textcircled{4}
+from \vv{fontd}, the font service daemon.  From this path, we could guess that
+\vv{GetFirstRectForRange} was for the browser to understand the bounding box of
 the search string.  \xxx further compared the wake-up path with the spinning
-case, and returned the \v{wait\_semaphore} event in the \v{renderer} main
+case, and returned the \vv{wait\_semaphore} event in the \vv{renderer} main
 thread, the culprit that delayed waking up the browser main thread over 4
 seconds.
 
-What caused the wait in the \v{renderer} main thread though?  She thus
-continued diagnosis and recursively applied \xxx to the wait in \v{renderer},
+What caused the wait in the \vv{renderer} main thread though?  She thus
+continued diagnosis and recursively applied \xxx to the wait in \vv{renderer},
 and got the wake-up path shown in the figure for this wait.  Inspection reveal
-that the \v{renderer} requested the browser's help to render Javascript and was
+that the \vv{renderer} requested the browser's help to render Javascript and was
 waiting for a reply.  At this point, a circular wait formed because the browser
-was waiting for the \v{renderer} to return the string bounding box and the
-\v{renderer} was waiting for the browser to help render Javascript.  This
+was waiting for the \vv{renderer} to return the string bounding box and the
+\vv{renderer} was waiting for the browser to help render Javascript.  This
 circular wait was broken by a timeout in the browser main thread (the
-\v{cv\_timed\_wait} timeout was 1,500 ms).  While the system was able to make
+\vv{cv\_timed\_wait} timeout was 1,500 ms).  While the system was able to make
 progress, the next key press caused the spinning cursor to display for another
 1,500 ms.  The timeout essentially converted a deadlock into a livelock.
 
