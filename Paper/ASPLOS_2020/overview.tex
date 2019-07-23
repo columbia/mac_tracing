@@ -1,6 +1,6 @@
 \section{Overview} \label{sec:overview}
 
-\subsection{\xxx}
+%%\subsection{\xxx} 
 
 \begin{figure}[tb]
     \centering
@@ -38,7 +38,6 @@ Main Algorithm:
 \begin{figure*}[tb]
     \centering
 	\input{figures/overview_tikz.tex}
-    %\includegraphics[width=0.8\linewidth]{ArgusOverview.eps}
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
 \end{figure*}
@@ -64,45 +63,45 @@ user-written schema, \xxx leverages a simple system-wide schema we created to
 construct approximate graphs (\S\ref{subsec:graph}), and relies on interactive
 user insights for diagnosis (\S\ref{subsec:debug}).
 
-\subsubsection{Constructing Event Graphs} \label{subsec:graph}
+\subsection{Constructing Event Graphs} \label{subsec:graph}
+\input {graphConstruct}
+%%\xxx defines the beginning of an execution segment as one of the following
+%%three types of events (1) the beginning of a thread, (2) the event from a wait
+%%operation such as \vv{pthread\_cond\_wait()} or \vv{mach\_msg\_receive()}, and
+%%(3) the first logged event of a thread because tracing may start mid execution.
+%%It similarly defines the end of an execution segment as (1) the exit of a
+%%thread, (2) the call to a wait operation, and (3) the last logged event of a
+%%thread.
+%%
+%%\xxx defines the edges as follows.  First, the return from a wait operation
+%%causally depends on the wake-up operation.  Since an application or its
+%%libraries may define custom synchronization primitives, \xxx traces wait and
+%%wake-up operations inside the operating system kernel (the
+%%\vv{waitq\_assert\_wait64\_locked} and \vv{thread\_unblock} functions in MacOS
+%%kernel).  This design decision ensures that \xxx captures a large set of casual
+%%edges at the expense of superfluous edges that do not map to causality.  For
+%%instance, inside a system call or interrupt handler, the kernel typically
+%%checks whether the current process has used up its time slice and, if so, wakes
+%%up another process.  \xxx thus explicitly filters out edges due to kernel
+%%maintenance (in \vv{interrupt} and \vv{sched\_timeshare\_miantenance\_continue}
+%%functions in MacOS) instead of application intent.  Second, the read of a data
+%%flag causally depends on the write of the same flag.  Edges of this type are
+%%few but critical for diagnosis.  Third, the timer expiration and cancellation
+%%events causally depend on the installation of the timer.  Fourth, each
+%%execution segment has an incoming edge from the immediately preceding segment
+%%in the same thread.  \xxx considers this type of intra-thread edges weaker than
+%%inter-thread edges due to the wait between the two segments.  In its analysis,
+%%\xxx follows intra-thread edges typically only when it cannot find any
+%%inter-thread edges.
+%%
+%%It is easy for a user to incrementally extend \xxx with custom segment
+%%boundaries and edges.  For instance, to handle batch processing, we
+%%created a heuristic that splits a segment if it has outgoing edges to two
+%%or more different processes (unless the attributes of the corresponding
+%%events indicate otherwise).  We also added edges for three data flags and
+%%eight custom communication primitives (see \S\ref{subsec:tcp}).
 
-\xxx defines the beginning of an execution segment as one of the following
-three types of events (1) the beginning of a thread, (2) the event from a wait
-operation such as \vv{pthread\_cond\_wait()} or \vv{mach\_msg\_receive()}, and
-(3) the first logged event of a thread because tracing may start mid execution.
-It similarly defines the end of an execution segment as (1) the exit of a
-thread, (2) the call to a wait operation, and (3) the last logged event of a
-thread.
-
-\xxx defines the edges as follows.  First, the return from a wait operation
-causally depends on the wake-up operation.  Since an application or its
-libraries may define custom synchronization primitives, \xxx traces wait and
-wake-up operations inside the operating system kernel (the
-\vv{waitq\_assert\_wait64\_locked} and \vv{thread\_unblock} functions in MacOS
-kernel).  This design decision ensures that \xxx captures a large set of casual
-edges at the expense of superfluous edges that do not map to causality.  For
-instance, inside a system call or interrupt handler, the kernel typically
-checks whether the current process has used up its time slice and, if so, wakes
-up another process.  \xxx thus explicitly filters out edges due to kernel
-maintenance (in \vv{interrupt} and \vv{sched\_timeshare\_miantenance\_continue}
-functions in MacOS) instead of application intent.  Second, the read of a data
-flag causally depends on the write of the same flag.  Edges of this type are
-few but critical for diagnosis.  Third, the timer expiration and cancellation
-events causally depend on the installation of the timer.  Fourth, each
-execution segment has an incoming edge from the immediately preceding segment
-in the same thread.  \xxx considers this type of intra-thread edges weaker than
-inter-thread edges due to the wait between the two segments.  In its analysis,
-\xxx follows intra-thread edges typically only when it cannot find any
-inter-thread edges.
-
-It is easy for a user to incrementally extend \xxx with custom segment
-boundaries and edges.  For instance, to handle batch processing, we
-created a heuristic that splits a segment if it has outgoing edges to two
-or more different processes (unless the attributes of the corresponding
-events indicate otherwise).  We also added edges for three data flags and
-eight custom communication primitives (see \S\ref{subsec:tcp}).
-
-\subsubsection{Interactive Diagnosis} \label{subsec:debug}
+\subsection{Interactive Diagnosis} \label{subsec:debug}
 
 After \xxx builds the event graph, a user can interactively query this graph
 for diagnosis.  For instance, consider a spinning cursor in MacOS which
