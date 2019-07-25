@@ -1,41 +1,74 @@
-\subsubsection{Argus Graph Computing}
+\section{Argus Graph Computing}
+
+\subsection{Event Graph}
+
+Main point for the subsection: \xxx computes a dependency graph to assist
+debugging. It is a useful graph to figure out relationships across thread
+boundary and timing boundary although it is not accurate.
+
 \begin{itemize}
+\item What the graph is?
 
-\item \xxx constructs dependency graphs with the events from tracing logs.
+	\begin{itemize}
+	\item Paragraph1: high level description of dependency graph.
 
-Tracing logs contains sequence of events per thread. Each event stands for an
-execution step in the thread. They are grouped into nodes and IPCs, asynchronouns
-calls and thread wakeups serve as edges; some edges can be inside a single
-thread.
+\xxx constructs dependency graphs with the events from tracing logs. Tracing
+logs contains sequence of events per thread. Each event stands for an execution
+step in the thread. They are grouped into nodes and IPCs, asynchronouns calls
+and thread wakeups serve as edges; some edges can be inside a single thread.
 
-Graph nodes consist of a list of execution events and edges are generated with event
-pairs.
-%% list of events into three categories: semantic, connection, boundary
+	\item Paragraph2: detail about the graph.
 
-\item The graph bares the causility path of a user input and thus is helpful in
+Events can be classed into three categories: semantic, connection, boundary
+Graph nodes consist of a list of execution events and edges are generated with
+event pairs.
+
+	\end{itemize}
+
+\item Why the graph is userful?
+
+The graph bares the causility path of a user input and thus is helpful in
 debugging complicated performance bugs, which involve mutilple processes and
 threads.
 
-\item As noticed that not all wake-up edges stands for a causality, \xxx
-applies default hueristics to filter out definitive noises: interrupt/kernel
-maintainance/timer expirations
+\item The Graph is not accurate
+
+As noticed that not all wake-up edges stands for a causality, \xxx applies
+default hueristics to filter out definitive noises: interrupt/kernel
+maintainance/timer expirations. Default hueristics do not guarantee the
+accuracy, so that \xxx needs user interaction.
 
 \end{itemize}
 
-\subsubsection{User Interactions}
+\subsection{User Interactions}
+
+Main point for the subsection: The graph is inherently inaccurate given the
+existance of spurious edges (for example mutex lock example). We illustrate some
+patterns that violated the traditional causality graph, and show how the users
+help to get a feasible event graph.
+
 \begin{itemize}
 
-\item The graph is inherently inaccurate given the existance of spurious edges.
-(mutex lock example).
+ 	\item Paragraph1: describe the inaccuracy with general idea, define over
+connection and under connection
 
-\item Making the graph sound without user interaction is almost impossible given
+Making the graph sound without user interaction is almost impossible given
 essential attribite of commericial operating system as a grey box.
+	
+	\item Paragraph2: over connection patterns
 
-\item Over connections occur if intra-thread boundaries are missing from batch
+Over connections occur if intra-thread boundaries are missing from batch
 processing programming paradigms. (dispatch\_mig\_service, runloop)
 
-\item Data dependencies inter/intra threads are usually hard to fully exploit in
-the initial pass of graph computing. (shared flags in Object, data dependency
-for delay work intra-thread)
+	\item Paragraph3: under connection patterns
+
+Data dependencies inter/intra threads are usually hard to fully exploit in the
+initial pass of graph computing. (shared flags in Object, data dependency for
+delay work intra-thread)
+
+	\item Paragraph4: how the user can do when find patterns
+
+Monitoring shared variables with Argus hardware breapoin watcher APIs, and add
+heuristics to the graph computing
 
 \end{itemize}
