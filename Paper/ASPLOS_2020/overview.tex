@@ -1,37 +1,5 @@
 \section{Overview} \label{sec:overview}
 
-%%\subsection{\xxx} 
-
-\begin{figure}[tb]
-    \centering
-\begin{verbatim}
-Main Algorithm:
-    Input: Program to run + buggy test case
-        + (optional) similar baseline test case
-    Output: Sequence of actions or UI events which
-        trigger the performance problem, and trace
-        of execution across event handlers
-
-1. Run program under \xxx, trigger baseline case (if possible)
-    and then buggy test case
-2. Set heuristics = { default heuristics }
-3. Compute graph using current heuristics with
-    Algorithm ComputeControlFlowGraph
-4.a. If the buggy case is busy executing code (livelock):
-        run backward traversal of edges until UI event found
-4.b. Else, given a hanging node N_1, use Algorithm
-    FindSimilarNode to obtain an equivalent
-    in the baseline test case, N_0 \leftarrow FindSimilarNode(N_1)
-    5.a. Compare nodes N_0 and N_1, and automatically
-        diff the two cases, moving through history semi-automatically
-        with user input until useful UI events are found
-        [Algorithm AssistedGraphDiff]
-    5.b. If new heuristics were added, go to step 3.
-6. Return set of UI events found
-\end{verbatim}
-    \caption{Main \xxx algorithm.}
-    \label{fig:alg-main}
-\end{figure}
 
 \subsection{\xxx Work Flow}
 
@@ -63,6 +31,7 @@ user-written schema, \xxx leverages a simple system-wide schema we created to
 construct approximate graphs (\S\ref{subsec:graph}), and relies on interactive
 user insights for diagnosis (\S\ref{subsec:debug}).
 
+\input{ArgusAlgorithm}
 %%\subsection{Constructing Event Graphs} \label{subsec:graph}
 %%\input {graphConstruct}
 %%\xxx defines the beginning of an execution segment as one of the following
@@ -194,13 +163,12 @@ Tools that require manual schema~\cite{barham2004using, reynolds2006pip}, would
 be prohibitive because developers would have to provide schema for all involved
 applications and daemons.
 
-\begin{figure*}[p]
-    \centering
-	\input{figures/chromium_case_study_tikz.tex} 
-    %\includegraphics[width=0.8\linewidth]{chromium_case_study.eps}
-    \caption{Chromium case study.}
-    \label{fig:chromium-trace}
-\end{figure*}
+%%\begin{figure*}[p]
+%%    \centering
+%%	\input{figures/chromium_case_study_tikz.tex} 
+%%    \caption{Chromium case study.}
+%%    \label{fig:chromium-trace}
+%%\end{figure*}
 
 Next she ran \xxx to find the event in the main thread of the browser process.
 \xxx returned a \vv{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})

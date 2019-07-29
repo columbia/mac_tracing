@@ -1,6 +1,6 @@
-\section{Argus Graph Computing}
+\section{Argus Graph Computing}\label{sec:graphcomputing}
 
-\subsection{Event Graph}
+\subsection{Event Graph}\label{subsec:eventgraph}
 %%Main point for the subsection: \xxx computes a dependency graph to assist
 %%debugging. It is a useful graph to figure out relationships across thread
 %%boundary and timing boundary 
@@ -172,11 +172,6 @@ Run loop sequence of events //developer.apple.com
 \end{verbatim}
 }
 
-Under connections are result from particular programing paradigms and data
-dependencies. Data dependencies inter/intra threads are usually hard to fully
-exploit in the initial pass of graph computing. (shared flags in Object, data
-dependency for delay work intra-thread)
-
 \para{Batching and data dependency in event processing}
 The WindowServer MacOS system daemon contains an event loop which waits on Mach
 messages. Conceptually, it processes a series of independent events from
@@ -213,6 +208,11 @@ while() {
 }
 \end{verbatim}
 }
+
+Under connections are result from particular programing paradigms and data
+dependencies. Data dependencies inter/intra threads are usually hard to fully
+exploit in the initial pass of graph computing. (shared flags in Object, data
+dependency for delay work intra-thread)
 
 \para{CoreAnimation shared flags}
 A worker thread can set a field \vv{need\_display} inside a CoreAnimation object
