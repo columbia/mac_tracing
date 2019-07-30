@@ -32,86 +32,24 @@ Main Algorithm:
     \label{fig:alg-main}
 \end{figure}
 
-The algorithm of ComputeControlFlowGraph figure~\ref{fig:alg-graphcomputing}
-takes the heuristics set and the parsed trace event as input and produce a
-event graph as in Section \S\ref{subsec:eventgraph}.
+ComputeControlGraph takes the heuristics set and the parsed trace
+events as input and produce a event graph as is described in
+Section \S\ref{subsec:eventgraph}. The algorithm is shown in
+Figure~\ref{fig:alg-graphcomputing}. The graph is subject to improve by rerun
+the computing process with new heuristics.
 
-It divides the thread into multiple nodes base on the heuristics defined for
-boundary events. Interrupts and kernel maintainance will be isolated from the
-current thread. To save the integrety of works drained from dispatch queue, it
-keeps a counter to monitor if current event is inside a dispatch queue item.
-\xxx makes use of mach message to add a heuristic to exclude a super node that
-includes execution steps for muliple tasks. \xxx defines IPC peer set for every
-node, which records the processes communicated with current node. For every
-mach message, \xxx gets the IPC peer set of the current node. If the set is
-empty, \xxx add the message event into the current node and update the peer set
-with the message. Otherwise, it check the peer and the voucher of the current
-message, if neither the peer or the processes in the voucher appeared in the IPC
-peer set, a new node is created for current message and its following events.
-
-The next step is to generate edges with the hueristics defined for the
-connection events. wake-up and wait are the most frequent events for the purpose
-of connection, we faked a woken event after every wait event with the timestamp
-when it wakes from the wait. The edges comes from the wake-up event to the woken
-event. \xxx also create a weak edge from the wait event to the corresponding
-wake-up event. mach messages are the lowlevel ipc mechanism in MacOS, we
-connects the threads involved in IPC message. Dispatch queue and runloop are
-popular programing paradigms to implement the asynchronous work, \xxx create
-edges respectively. As \xxx provides hardware breakpointer to collect data
-dependency, the graph computing algorithm create edges from the variable writing
-event to its reading event.
-
-Finally, the computing graph is generated and subject to the improvement with
-more input heuristics.
-
-\begin{figure}[tb]
-\footnotesize\begin{verbatim}
-Algorithm ComputeControlFlowGraph:
-    Input: Heuristics set + parsed tracing events
-    Output: Control flow graph
-1. Divide event per thread into nodes:
-  set callout_level = 0
-  1.a interrupt/kern_maintainance: remove_events
-  1.b wait: end of node if callout_level == 0
-  1.c if dispatch_callout begin, create a new node
-      and increase callout_level
-      if dispatch_callout end, complete current node
-      and decrease callout_level
-  1.d Runloop: divide every callout
-  1.e mach_msg: divide IPC with different peers
-  1.f Other heuristics added by user from the input set.
-
-2. For each Connection event type, generate edges:
-  2.a wake-up event and wait event
-    weak edge from wait event to wakeup
-    edge from the wake-up event to the first waken event
-  2.b mach message
-    edge from the sender to the receiver
-    edge from the receive to reply sender
-    edge from the reply sender to reply receiver
-  2.c timer events
-    edge from timer create to timer callout
-  2.d dispatch queue events
-    edge from the dispatch enqueu event to dispatch dequeue
-  2.e Create edges from Runloop work submission
-    to the RunLoop work execution.
-  2.f Create edges from the CoreAnimation
-    needsdisplay event to the display event
-  2.g Create edges from the hardware breakpoint write event
-    to its read event.
-  2.h Other heuristics added by user from the input set.
-3. Return the Graph with Nodes and Edges
-\end{verbatim}
-    \caption{\xxx Compute Graph algorithm.}
-    \label{fig:alg-graphcomputing}
-\end{figure}
-
-In FindsimilarNode algorithem Figure~\ref{fig:alg-findsimilarnode}, \xxx selects
-events that preserve the semantics and the interaction structures to some
-degree for finding similar node. Some events that could repeat different times
-in different runs are filtered out. The input checking event set includes:
-mach\_msg event, wait event, dispatch queue events, runloop events, breakpointer
-events, user input events and system call events.
+FindSimilarNode in Figure~\ref{fig:alg-findsimilarnode} is meant to find nodes
+which have the same high level semantics but different execution results.
+For example, both of them are waiting on locks, but one returns successfully and the other not.
+\xxx assumes that high level statements are likely executed repeatedly in a process life cycle.
+In the algorithm, \xxx defines a subset of
+events that peserve semantics, which contains mach\_msg event, wait event,
+dispatch queue events, runloop events, breakpointer events, user input events
+and system call events.
+The comparison of events depends on their types.
+\xxx finds nodes that have different wait results from the spinning node by default.
+Depending on the report detail of the spinning node, user can
+change the comparing metrics.
 
 \begin{figure}[H]
 \footnotesize\begin{verbatim}
@@ -135,7 +73,12 @@ Algorithm FindSimilarNode:
             compare their syscallname and eventname
    if iter_c and iter_i both reach end:
       put N_i into the result set
-3. return the result set
+3. filter the result set if:
+   3.a if the wait events in the end of node
+       have the same wait result
+   3.b if the difference of node time span
+       is within threshold
+4. return the result set
 \end{verbatim}
     \caption{\xxx Find similar node algorithm.}
     \label{fig:alg-findsimilarnode}
@@ -151,7 +94,7 @@ Algorithm AssistedGraphDiff:
   2. For every thread, node in the backware slicing path
      get timestamp of node in the baseline as t_normal
      check if thread block during (t_normal. t_spinning)
-     if true, put the thread and blocking node in the result set
+     if true, put the blocking node in the result set
   3. return the result set
 \end{verbatim}
     \caption{\xxx Assisted graph diff algorithm.}

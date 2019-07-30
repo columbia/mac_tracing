@@ -1,6 +1,5 @@
 \section{Overview} \label{sec:overview}
 
-
 \subsection{\xxx Work Flow}
 
 \begin{figure*}[tb]
@@ -11,25 +10,25 @@
 \end{figure*}
 
 Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of two
-phases.  A user runs command ``\vv{\xxx start}'' to enter the system-wide
-tracing phase, within which \xxx logs events including system calls,
-inter-process communications (IPCs), and waits and wake-ups from all
-applications and daemons.  Occasionally based on user configurations, it logs
-data flag accesses leveraging hardware watch-point registers.  Each log entry
-includes a timestamp, the event type, key attributes of the event, and a
-lightweight call stack obtained by unwinding the stack pointer.  \xxx
-implements tracing by instrumenting core system libraries and a small portion
-of the operating system.  The performance impact of this system-wide tracing is
-low because the logged events themselves are often expensive and require
-user-kernel crossings, masking the overhead of tracing.
+phases. A user runs command ``\vv{\xxx start}'' to enter the system-wide tracing
+phase, within which \xxx logs events including system calls, inter-process
+communications (IPCs), and waits and wake-ups from all applications and daemons.
+Occasionally based on user configurations, it logs data flag accesses leveraging
+hardware watch-point registers. Each log entry includes a timestamp, the event
+type, key attributes of the event, and an optional lightweight call stack
+obtained by unwinding the user stack pointer. \xxx implements tracing by
+instrumenting core system libraries and a small portion of the operating system.
+The performance impact of this system-wide tracing is low because the logged
+events themselves are often expensive and require user-kernel crossings, masking
+the overhead of tracing.
 
-Whenever a user detects a performance issue such as a spinning cursor, she runs
-``\vv{\xxx debug}'' to enter the interactive diagnosis phase.  \xxx initializes
-this phase by constructing a causal graph from all logged events up to
-user-specified duration.  Rather than requiring a precise application-specific
-user-written schema, \xxx leverages a simple system-wide schema we created to
-construct approximate graphs (\S\ref{subsec:graph}), and relies on interactive
-user insights for diagnosis (\S\ref{subsec:debug}).
+Whenever a user detects a performance issue such as a spinning cursor, she
+runs ``\vv{\xxx debug}'' to enter the interactive diagnosis phase. \xxx
+initializes this phase by constructing a causal graph from all logged events up
+to user-specified duration. Rather than requiring a precise application-specific
+user-written schema, \xxx leverages a simple system-wide schema we created
+to construct approximate graphs (\S\ref{subsec:eventgraph}), and relies on
+interactive user insights for diagnosis (\S\ref{subsec:debug}).
 
 \input{ArgusAlgorithm}
 %%\subsection{Constructing Event Graphs} \label{subsec:graph}
