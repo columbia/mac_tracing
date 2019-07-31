@@ -13,6 +13,12 @@
 \usetikzlibrary{arrows, arrows.meta, decorations.markings}
 \usetikzlibrary{patterns}
 
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amssymb}
+\usepackage{algorithmicx}
+%\algsetup{linenosize=\small}
+
 \usepackage{graphicx}
 \graphicspath{{figures/}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -32,6 +38,22 @@
 \newcommand{\cf}{{cf. }}
 \newcommand{\etal}{{et al. }}
 \newcommand{\vv}[1]{{\texttt{#1}}}
+
+%for algorithm
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}%
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
+\algtext*{EndSwitch}%
+\algtext*{EndCase}%
+\let\oldemptyset\emptyset
+\let\emptyset\varnothing
+\makeatletter
+\algrenewcommand\ALG@beginalgorithmic{\footnotesize}
+\makeatother
 
 \begin{document}
 \title{\mytitle}
