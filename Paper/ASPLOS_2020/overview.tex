@@ -1,75 +1,27 @@
 \section{Overview} \label{sec:overview}
 
-\subsection{\xxx Work Flow}
-
-\begin{figure*}[tb]
-    \centering
-	\input{figures/overview_tikz.tex}
-    \caption{\xxx Work Flow}
-    \label{fig:argus-overview}
-\end{figure*}
-
-Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of two
-phases. A user runs command ``\vv{\xxx start}'' to enter the system-wide tracing
-phase, within which \xxx logs events including system calls, inter-process
-communications (IPCs), and waits and wake-ups from all applications and daemons.
-Occasionally based on user configurations, it logs data flag accesses leveraging
-hardware watch-point registers. Each log entry includes a timestamp, the event
-type, key attributes of the event, and an optional lightweight call stack
-obtained by unwinding the user stack pointer. \xxx implements tracing by
-instrumenting core system libraries and a small portion of the operating system.
-The performance impact of this system-wide tracing is low because the logged
-events themselves are often expensive and require user-kernel crossings, masking
-the overhead of tracing.
-
-Whenever a user detects a performance issue such as a spinning cursor, she
-runs ``\vv{\xxx debug}'' to enter the interactive diagnosis phase. \xxx
-initializes this phase by constructing a causal graph from all logged events up
-to user-specified duration. Rather than requiring a precise application-specific
-user-written schema, \xxx leverages a simple system-wide schema we created
-to construct approximate graphs (\S\ref{subsec:eventgraph}), and relies on
-interactive user insights for diagnosis (\S\ref{subsec:debug}).
-
-\input{ArgusAlgorithm}
-%%\subsection{Constructing Event Graphs} \label{subsec:graph}
-%%\input {graphConstruct}
-%%\xxx defines the beginning of an execution segment as one of the following
-%%three types of events (1) the beginning of a thread, (2) the event from a wait
-%%operation such as \vv{pthread\_cond\_wait()} or \vv{mach\_msg\_receive()}, and
-%%(3) the first logged event of a thread because tracing may start mid execution.
-%%It similarly defines the end of an execution segment as (1) the exit of a
-%%thread, (2) the call to a wait operation, and (3) the last logged event of a
-%%thread.
-%%
-%%\xxx defines the edges as follows.  First, the return from a wait operation
-%%causally depends on the wake-up operation.  Since an application or its
-%%libraries may define custom synchronization primitives, \xxx traces wait and
-%%wake-up operations inside the operating system kernel (the
-%%\vv{waitq\_assert\_wait64\_locked} and \vv{thread\_unblock} functions in MacOS
-%%kernel).  This design decision ensures that \xxx captures a large set of casual
-%%edges at the expense of superfluous edges that do not map to causality.  For
-%%instance, inside a system call or interrupt handler, the kernel typically
-%%checks whether the current process has used up its time slice and, if so, wakes
-%%up another process.  \xxx thus explicitly filters out edges due to kernel
-%%maintenance (in \vv{interrupt} and \vv{sched\_timeshare\_miantenance\_continue}
-%%functions in MacOS) instead of application intent.  Second, the read of a data
-%%flag causally depends on the write of the same flag.  Edges of this type are
-%%few but critical for diagnosis.  Third, the timer expiration and cancellation
-%%events causally depend on the installation of the timer.  Fourth, each
-%%execution segment has an incoming edge from the immediately preceding segment
-%%in the same thread.  \xxx considers this type of intra-thread edges weaker than
-%%inter-thread edges due to the wait between the two segments.  In its analysis,
-%%\xxx follows intra-thread edges typically only when it cannot find any
-%%inter-thread edges.
-%%
-%%It is easy for a user to incrementally extend \xxx with custom segment
-%%boundaries and edges.  For instance, to handle batch processing, we
-%%created a heuristic that splits a segment if it has outgoing edges to two
-%%or more different processes (unless the attributes of the corresponding
-%%events indicate otherwise).  We also added edges for three data flags and
-%%eight custom communication primitives (see \S\ref{subsec:tcp}).
-
 \subsection{Interactive Diagnosis} \label{subsec:debug}
+
+In this section, we describe the steps a user takes to investigate a
+performance anomaly with \xxx. We assume the user has a program to execute and
+a buggy test case that can be reliably reproduced; if possible, the user can
+also provide a similar test case which executes normally for comparison
+purposes. The goal of \xxx is to discover a sequence of user-interface (UI)
+actions that trigger the buggy test case, and a detailed execution trace for
+these events. In the cases we consider, the flow of information across threads
+and processes is essential to discovering the system state that leads to a
+performance bug. \xxx recovers UI actions from logged data rather than being
+told the actions that a user performs, because not all of them may be relevant
+to the true bug.
+
+While the user knows how to trigger
+the bug, the actions that they believe to be the root cause may not be.
+
+ (shown in Figure~\ref{fig:alg-main})
+
+
+. At
+this point, the user can submit a detailed bug report or attempt to fix the bug herself and verify that modifications address the problem.
 
 After \xxx builds the event graph, a user can interactively query this graph
 for diagnosis.  For instance, consider a spinning cursor in MacOS which
@@ -119,6 +71,165 @@ tends to be straightforward to diagnose, so they are fixed quickly.  The second
 and third types involve multiple threads, so they are extremely hard to
 understand and fix even for the application's own developers.  Therefore, they
 remain open for years and ruin many users' experiences.
+
+\subsection{\xxx Work Flow}
+
+In this section, we describe the steps a user takes to investigate a
+performance anomaly with \xxx (shown in Figure~\ref{fig:alg-main}). At the
+beginning, we assume the user has a program to execute and a buggy test case
+that can be reliably reproduced; if possible, the user can also provide a
+similar test case which executes normally for comparison purposes. The goal of
+\xxx is to discover a sequence of user-interface (UI) actions that trigger the
+buggy test case.
+
+First (step 1) the user executes the program with \xxx instrumentation enabled,
+running through the baseline test case (if applicable) and then the buggy test
+case, capturing execution logs. Next (steps 2-3), \xxx computes a generalized
+control-flow graph which includes inter-thread and inter-process dependencies;
+this graph is described in further detail in \S\ref{subsec:eventgraph}. In step
+4.a and 4.b, the goal is to track events and synchronization primitives
+throughout the system to figure out the root cause, in terms of user input
+events, which caused a hang or performance bug. We locate the node $N_1$ in our
+graph where the performance bug is triggered. This node could be executing code
+(step 4.a) or in a deadlock situation (step 4.b). The most common and most
+complex situation is the latter, where we use a diff between the buggy test
+case and a baseline test case to further diagnosis. We locate a node $N_0$ in
+our graph that corresponds to the baseline version of the hanging node $N_1$
+(see \S XXX), and diff the subgraphs to determine the differences between the
+cases. This diffing technique, detailed in \S\ref{subsec:debug} below, is
+semi-automated but can integrate user input at each stage to leverage
+hypotheses or expert knowledge as to why a hang may occur.
+
+\begin{figure}[tb]
+\footnotesize\begin{verbatim}
+Main Algorithm:
+    Input: Program to run + buggy test case
+        + (optional) similar baseline test case
+    Output: Sequence of actions or UI events which
+        trigger the performance problem, and trace
+        of execution across event handlers
+
+1. Run program under \xxx, trigger baseline case
+    (if possible) and then buggy test case
+2. Set heuristics = { default heuristics }
+3. Compute graph using current heuristics with
+    Algorithm ComputeControlFlowGraph
+4.a. If the buggy case is busy executing code (livelock):
+    run backward traversal of edges until UI event found
+4.b. Else, given a hanging node N_1, use Algorithm
+    FindSimilarNode to obtain an equivalent
+    in the baseline test case,
+    N_0 -> FindSimilarNode(N_1)
+    5.a. Compare nodes N_0 and N_1, and automatically
+        diff the two cases, moving through history
+        semi-automatically with user input
+	    until useful UI events are found
+        [Algorithm AssistedGraphDiff]
+    5.b. If new heuristics were added, go to step 3.
+6. Return set of UI events found
+\end{verbatim}
+    \caption{Main \xxx algorithm.}
+    \label{fig:alg-main}
+\end{figure}
+
+
+%\begin{figure*}[tb]
+%    \centering
+%	\input{figures/overview_tikz.tex}
+%    \caption{\xxx Work Flow}
+%    \label{fig:argus-overview}
+%\end{figure*}
+
+%Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of two
+%phases. A user runs command ``\vv{\xxx start}'' to enter the system-wide tracing
+%phase, within which \xxx logs events including system calls, inter-process
+%communications (IPCs), and waits and wake-ups from all applications and daemons.
+%Occasionally based on user configurations, it logs data flag accesses leveraging
+%hardware watch-point registers. Each log entry includes a timestamp, the event
+%type, key attributes of the event, and an optional lightweight call stack
+%obtained by unwinding the user stack pointer. \xxx implements tracing by
+%instrumenting core system libraries and a small portion of the operating system.
+%The performance impact of this system-wide tracing is low because the logged
+%events themselves are often expensive and require user-kernel crossings, masking
+%the overhead of tracing.
+%
+%Whenever a user detects a performance issue such as a spinning cursor, she
+%runs ``\vv{\xxx debug}'' to enter the interactive diagnosis phase. \xxx
+%initializes this phase by constructing a causal graph from all logged events up
+%to user-specified duration. Rather than requiring a precise application-specific
+%user-written schema, \xxx leverages a simple system-wide schema we created
+%to construct approximate graphs (\S\ref{subsec:eventgraph}), and relies on
+%interactive user insights for diagnosis (\S\ref{subsec:debug}).
+
+ComputeControlGraph takes the heuristics set and the parsed trace
+events as input and produce a event graph as is described in
+Section \S\ref{subsec:eventgraph}. The algorithm is shown in
+Figure~\ref{fig:alg-graphcomputing}. The graph is subject to improve by rerun
+the computing process with new heuristics.
+
+FindSimilarNode in Figure~\ref{fig:alg-findsimilarnode} is meant to find nodes
+which have the same high level semantics but different execution results.
+For example, both of them are waiting on locks, but one returns successfully and the other not.
+\xxx assumes that high level statements are likely executed repeatedly in a process life cycle.
+In the algorithm, \xxx defines a subset of
+events that peserve semantics, which contains mach\_msg event, wait event,
+dispatch queue events, runloop events, breakpointer events, user input events
+and system call events.
+The comparison of events depends on their types.
+\xxx finds nodes that have different wait results from the spinning node by default.
+Depending on the report detail of the spinning node, user can
+change the comparing metrics.
+
+\begin{figure}[H]
+\footnotesize\begin{verbatim}
+Algorithm FindSimilarNode:
+  Input: Checking Events + CurrentNode + Graph
+  Output: Similar node set
+1. Get the thread id of CurrentNode
+2. Iterate the node from the same thread N_i, 
+   compare them to CurrentNode N_c:
+   while event{iter_c} in N_c is not checking event
+   and iter_c not reaches end
+   	 iter_c++
+   while event{iter_i} in N_i is checking event
+   and iter_i not reaches end
+     iter_i++
+   if iter_c and iter_i do not reach end:
+      Compare Event{iter_c} and Event{iter_i}:
+        2.a wait events compares the wait resource
+        2.b connection events compare their peer
+        2.c system call events and user input events
+            compare their syscallname and eventname
+   if iter_c and iter_i both reach end:
+      put N_i into the result set
+3. filter the result set if:
+   3.a if the wait events in the end of node
+       have the same wait result
+   3.b if the difference of node time span
+       is within threshold
+4. return the result set
+\end{verbatim}
+    \caption{\xxx Find similar node algorithm.}
+    \label{fig:alg-findsimilarnode}
+\end{figure}
+
+\begin{figure}[H]
+\footnotesize\begin{verbatim}
+Algorithm AssistedGraphDiff:
+  Input: Backward slicing path from the baseline Node
+          + Spinning Node + Graph
+  Output: Possible root cause of thread blocking
+  1. get timestamp of Spinning Node as t_spinning
+  2. For every thread, node in the backware slicing path
+     get timestamp of node in the baseline as t_normal
+     check if thread block during (t_normal. t_spinning)
+     if true, put the blocking node in the result set
+  3. return the result set
+\end{verbatim}
+    \caption{\xxx Assisted graph diff algorithm.}
+    \label{fig:alg-graphdiff}
+\end{figure}
+
 
 \subsection{Chromium Spinning Cursor Example}
 
