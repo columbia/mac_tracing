@@ -339,7 +339,7 @@ The algrithm has two main steps: construct nodes with heuristics base on
 boundary events, and generate edges from the connection events.
 
 A node is a sequence of events derived from the execution of a task in a thread.
-As is shown in Figure ~\ref{fig:alg-graphcomputing}, \xxx checks events per
+As is shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
 thread and applies heuristics when a boundary event is encoutered. \xxx provides
 5 default heuristics. 4 of them shares the idea of general cuasual tracing, 1
 is used to work around unknown programming pargdigms, and more are expected
@@ -371,7 +371,7 @@ node if the condition is true or the set is empty. Otherwise it add a boundary
 for current node and begin a new node for the mach\_message event.
 
 Edges connect nodes, both intra-thread and iter-thread, with connection events.
-\xxx walks through each connection event types to apply heuritics as follows.
+\xxx walks through each connection event type to apply heuritics as follows.
 First, the return from a wait operation causally depends on the wake-up
 operation. An edge is defined from the wake-up event to the first event after
 the wait returns. \xxx also add a weak edges from the wait event to the wake-up
@@ -393,41 +393,110 @@ user interaction are expected to remedy event graphs.
 Finally, the computing graph is generated and subject to the improvement with
 more input heuristics.
 
-\begin{figure}[tb]
-\footnotesize\begin{verbatim}
-Algorithm ComputeControlFlowGraph:
-    Input: Heuristics set + parsed tracing events
-    Output: Control flow graph
-1. Create nodes per thread:
-  set callout_level = 0
-  1.a interrupt/kern_maintainance: remove_events
-  1.b wait: end of node if callout_level == 0
-  1.c if dispatch_callout begin, create a new node
-      and increase callout_level
-      if dispatch_callout end, complete current node
-      and decrease callout_level
-  1.d Runloop: divide every callout
-  1.e mach_msg: divide IPC with different peers
-  1.f Other heuristics added by user from the input set.
-2. Add edges for connection events:
-  2.a wake_up event and wait event
-  	edge(wake_up, first_waken_event)
-	weak_edge(wait, wake_up)
-  2.b mach message
-  	edge(sender, receiver)
-    if message needs reply
-       edge(receiver, reply_sender)
-  2.c dispatch queue events
-  	edge(work_enqueue, work_dequeue)
-  2.d Runloop work submission
-  	edge(work_submit, work_invoke)
-  2.e timer events
-  	edge(timer_armed, timer_fired)
-  2.f shared variable
-  	edge(set_variable, read_and_clear_variable)
-  2.g Other heuristics added by user from the input set.
-3. Return the Graph with Nodes and Edges
-\end{verbatim}
-    \caption{\xxx Compute Graph algorithm.}
-    \label{fig:alg-graphcomputing}
-\end{figure}
+\begin{algorithm}[h!]
+\caption{\xxx Compute Graph algorithm.}
+\label{alg:graphcomputing}
+\begin{algorithmic}[1]
+\Require{Heuristics set + parsed tracing events}
+\Ensure{Control flow graph}
+\Statex
+\Function{ComputeGraph}{}
+\State {$callout\_level$ $\gets$ $0$}
+\State {$IPC\_peer\_set$ $\gets$ $\{\}$}
+\State {$current\_node$ $\gets$ $New Node$}
+\For{Event: Events in a thread}
+    \Switch {EventType}
+	\Case {Interrupt or Timeshare\_maintenance}
+		\State {Remove following events before return}
+	\EndCase
+	\Case {Wait}
+		\If {$callout\_level$ $equals$ {$0$}} 
+			\State {Add end boundary for current node}
+            \State {$current\_node$ $\gets$ $New Node$}
+		\EndIf
+	\EndCase
+	\Case {Dispatch\_invoke or Runloop\_invoke}
+	 	\State {Divide each callout into a node}
+	\EndCase
+	\Case {Mach\_message}	
+		\If {peer $\in$ $IPC\_peer\_set$ or $IPC\_peer\_set$ $equals$ $\emptyset$}
+		\State {update $IPC\_peer\_set$}
+		\Else
+		\State {Add end boundary for current node}
+        \State {$current\_node$ $\gets$ $New Node$}
+		\EndIf
+	\EndCase
+	\EndSwitch
+	\State {Other Heuristics}
+\EndFor
+\For{Event: Connection Events}
+	\Switch {EventType}
+	\Case {Wake\_up}
+		\State{AddWeakEdge(corresponding wait, wake\_up)}
+		\State{AddEdge(wake\_up, first event after wait returns)}
+	\EndCase
+	\Case {Mach\_message}
+		\State{AddEdge(sender, receiver)}
+		\If(needs reply)
+			\State {AddEdge(receiver, reply sender)}
+		\EndIf
+	\EndCase
+	\Case {Dispatch\_enqueue}
+		\State{AddEdge(Dispatch\_enqueue, Dispatch\_invoke)}
+	\EndCase
+	\Case {Runloop\_submit}
+		\State {AddEdge(Runloop\_submit, RunLoop\_invoke)}
+	\EndCase
+	\Case {Timer}
+		\State {AddEdge(Timer armed, Timer callout)}
+	\EndCase
+	\Case {Share\_flag\_read}
+		\State {AddEdge(Share\_flag\_write, Share\_flag\_read)}
+	\EndCase
+	\EndSwitch
+	\State {Other Heuristics}
+\EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%%\begin{figure}[tb]
+%%\footnotesize\begin{verbatim}
+%%Algorithm ComputeControlFlowGraph:
+%%    Input: Heuristics set + parsed tracing events
+%%    Output: Control flow graph
+%%1. Create nodes per thread:
+%%  set callout_level = 0
+%%  set IPC_peer_set = 0
+%%  1.a interrupt/kern_maintainance: remove_events
+%%  1.b wait: end of node if callout_level == 0
+%%  1.c if dispatch_callout begin, create a new node
+%%      and increase callout_level
+%%      if dispatch_callout end, complete current node
+%%      and decrease callout_level
+%%  1.d Runloop: divide every callout
+%%  1.e mach_msg: divide IPC with different peers
+%%  1.f Other heuristics added by user from the input set.
+%%
+%%2. Add edges for connection events:
+%%  2.a wake_up event and wait event
+%%  	edge(wake_up, first_waken_event)
+%%	weak_edge(wait, wake_up)
+%%  2.b mach message
+%%  	edge(sender, receiver)
+%%    if message needs reply
+%%       edge(receiver, reply_sender)
+%%  2.c dispatch queue events
+%%  	edge(work_enqueue, work_dequeue)
+%%  2.d Runloop work submission
+%%  	edge(work_submit, work_invoke)
+%%  2.e timer events
+%%  	edge(timer_armed, timer_fired)
+%%  2.f shared variable
+%%  	edge(set_variable, read_and_clear_variable)
+%%  2.g Other heuristics added by user from the input set.
+%%3. Return the Graph with Nodes and Edges
+%%\end{verbatim}
+%%    \caption{\xxx Compute Graph algorithm.}
+%%    \label{fig:alg-graphcomputing}
+%%\end{figure}
