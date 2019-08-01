@@ -17,7 +17,7 @@
 \usepackage{algpseudocode}
 \usepackage{amssymb}
 \usepackage{algorithmicx}
-%\algsetup{linenosize=\small}
+\usepackage{fancyvrb}
 
 \usepackage{graphicx}
 \graphicspath{{figures/}}
@@ -43,8 +43,11 @@
 \algnewcommand\algorithmicswitch{\textbf{switch}}
 \algnewcommand\algorithmiccase{\textbf{case}}
 \algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\And{\textbf{and} }
+\algnewcommand\Or{\textbf{or} }
+\algnewcommand{\algorithmicgoto}{\textbf{go to}}%
+\algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
 \algnewcommand\Assert[1]{\State \algorithmicassert(#1)}%
-% New "environments"
 \algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
 \algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
 \algtext*{EndSwitch}%
@@ -54,6 +57,20 @@
 \makeatletter
 \algrenewcommand\ALG@beginalgorithmic{\footnotesize}
 \makeatother
+
+% for verbatim
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\RecustomVerbatimEnvironment{BVerbatim}{BVerbatim}{formatcom=\bigskip}
+%%\newenvironment{myBVerbatim}%
+%%{\bigskip\VerbatimEnvironment
+%%\begin{BVerbatim}}
+%%{\end{BVerbatim}%
+%%\bigskip}
+
+\fvset{xleftmargin=\mathindent}
+
 
 \begin{document}
 \title{\mytitle}

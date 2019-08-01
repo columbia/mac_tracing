@@ -118,42 +118,68 @@ user experience.
 %remain open for years and ruin many users' experiences.
 
 \subsection{\xxx Algorithm}
-
-\begin{figure}[tb]
-\footnotesize\begin{verbatim}
-Main Algorithm:
-    Input: Program to run + buggy test case
-        + (optional) similar baseline test case
-    Output: Sequence of actions or UI events which
-        trigger the performance problem, and trace
-        of execution across event handlers
-
-1. Run program under \xxx, trigger baseline case
-    (if possible) and then buggy test case
-2. Set heuristics = { default heuristics }
-3. Compute graph using current heuristics with
-    Algorithm ComputeControlFlowGraph
-4.a. If the buggy case is busy executing code (livelock):
-    run backward traversal of edges until UI event found
-4.b. Else, given a hanging node N_1, use Algorithm
-    FindSimilarNode to obtain an equivalent
-    in the baseline test case,
-    N_0 -> FindSimilarNode(N_1)
-    5.a. Compare nodes N_0 and N_1, and automatically
-        diff the two cases, moving through history
-        semi-automatically with user input
-	    until useful UI events are found
-        [Algorithm AssistedGraphDiff]
-    5.b. If new heuristics were added, go to step 3.
-6. Return set of UI events found
-\end{verbatim}
+\begin{algorithm}[h!]
     \caption{Main \xxx algorithm.}
-    \label{fig:alg-main}
-\end{figure}
+    \label{alg:alg-main}
+\begin{algorithmic}[1]
+\Require{Program to run + buggy test case + (optional) similar baseline test case}
+\Ensure{Sequence of actions or UI events which trigger the performance problem, and trace of execution across event handlers}
+\Statex
+\Function{\xxx Main}{}
+\State {$TracingEvents$ $\gets$ Run program under \xxx, trigger baseline case (if possible) and then buggy test case}
+\State {$HeuristicsSet$ $\gets$ $\{default$ $ $ $heuristics\}$}
+\State {$ControlFlowGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}\label{recompute}
+\State {$SpinningNode$ $\gets$ search $ControlFlowGraph$ with timestamp when spinning cursor displays}
+\If {$SpinningNode$ $==$ $CPU busy execution(livelock)$}
+	\State{run backward traversal of edges until UI event found}
+\Else
+	\State{$N_0$ $\gets$ $SpinningNode$}
+	\State{$N_1$ $\gets$ FindSimilarNode($ControlFlowGraph$, $N_0$)}
+	\State{call AssistedGraphDiff($ControlFlowGraph$, $N_0$, $N_1$)}
+	\If {new\_hueristics were added}
+		\State \Goto{recompute}
+	\EndIf
+\EndIf
+\State{Return set of UI events and root cause related Nodes}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%%\begin{figure}[tb]
+%%\footnotesize\begin{verbatim}
+%%Main Algorithm:
+%%    Input: Program to run + buggy test case
+%%        + (optional) similar baseline test case
+%%    Output: Sequence of actions or UI events which
+%%        trigger the performance problem, and trace
+%%        of execution across event handlers
+%%
+%%1. Run program under \xxx, trigger baseline case
+%%    (if possible) and then buggy test case
+%%2. Set heuristics = { default heuristics }
+%%3. Compute graph using current heuristics with
+%%    Algorithm ComputeControlFlowGraph
+%%4.a. If the buggy case is busy executing code (livelock):
+%%    run backward traversal of edges until UI event found
+%%4.b. Else, given a hanging node N_1, use Algorithm
+%%    FindSimilarNode to obtain an equivalent
+%%    in the baseline test case,
+%%    N_0 -> FindSimilarNode(N_1)
+%%    5.a. Compare nodes N_0 and N_1, and automatically
+%%        diff the two cases, moving through history
+%%        semi-automatically with user input
+%%	    until useful UI events are found
+%%        [Algorithm AssistedGraphDiff]
+%%    5.b. If new heuristics were added, go to step 3.
+%%6. Return set of UI events found
+%%\end{verbatim}
+%%    \caption{Main \xxx algorithm.}
+%%    \label{fig:alg-main}
+%%\end{figure}
 
 
 \paragraph{Main algorithm} Next, we describe \xxx's operation more precisely.
-Figure~\ref{fig:alg-main} shows the steps a user takes to investigate a
+Algorithm~\ref{alg:alg-main} shows the steps a user takes to investigate a
 performance anomaly with \xxx, given a buggy test case and (potentially) a
 baseline test case for comparison purposes.
 
@@ -175,29 +201,56 @@ cases. This diffing technique, detailed in \S\ref{subsec:debug} below, is
 semi-automated but can integrate user input at each stage to leverage
 hypotheses or expert knowledge as to why a hang may occur.
 
-\begin{figure}[tb]
-\footnotesize\begin{verbatim}
-Algorithm AssistedGraphDiff:
-  Input: Backward slicing path from the baseline Node
-          + Spinning Node + Graph
-  Output: Possible root cause of thread blocking
-  1. get timestamp of Spinning Node as t_spinning
-  2. For every thread, node in the backware slicing path
-     get timestamp of node in the baseline as t_normal
-     check if thread block during (t_normal. t_spinning)
-     if true, put the blocking node in the result set
-  3. return the result set
-\end{verbatim}
+
+\begin{algorithm}[h!]
     \caption{\xxx Assisted graph diff algorithm.}
-    \label{fig:alg-graphdiff}
-\end{figure}
+    \label{alg:alg-graphdiff}
+\begin{algorithmic}[1]
+\Require{SpinningNode + BaselineNode + Graph}
+\Ensure{Possible root cause of thread blocking}
+\Statex
+\Function{AssistedGraphDiff}{}
+\State{$ResultSet$ $\gets$ $\{\}$}
+\State{$SlicingPath$ $\gets$ BackwardSlicing on $BaseLineNode$}
+\State{$T_spinning$ $\gets$ timestamp of spinning beachball for $SpinningNode$}
+\For{$thread$ $\gets$ thread of $Node_i$ in $SlicingPath$}
+	\State{$T_normal$ $\gets$ timestamp of last event in $Node_i$}
+	\State{$Node_blocking$ $\gets$ $thread$ blocks during ($T_normal$, $T_spinning$)}
+	\If {$Nodeblocking$  $\neq$ $NULL$}
+		\State{put $Node_blocking$ into $ResultSet$}
+	\EndIf
+	\If {$UI Events$ in Main UI thread}
+		\State{put $UI Event$ into $ResultSet$}
+	\EndIf
+\EndFor
+\State{Return $ResultSet$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%%\begin{figure}[tb]
+%%\footnotesize\begin{verbatim}
+%%Algorithm AssistedGraphDiff:
+%%  Input: Backward slicing path from the baseline Node
+%%          + Spinning Node + Graph
+%%  Output: Possible root cause of thread blocking
+%%  1. get timestamp of Spinning Node as t_spinning
+%%  2. For every thread, node in the backware slicing path
+%%     get timestamp of node in the baseline as t_normal
+%%     check if thread block during (t_normal. t_spinning)
+%%     if true, put the blocking node in the result set
+%%  3. return the result set
+%%\end{verbatim}
+%%    \caption{\xxx Assisted graph diff algorithm.}
+%%    \label{fig:alg-graphdiff}
+%%\end{figure}
 
 
 \paragraph{Graph diff algorithm}
 We mentioned previously in \S\ref{subsec:debug} that \xxx explores the event
 graph semi-automatically to narrow in on relevant nodes for diagnosis. This
 full algorithm, which includes steps that accept manual user intervention, is
-shown in Figure~\ref{fig:alg-graphdiff}.
+shown in Algorithm~\ref{alg:alg-graphdiff}.
 
 \paragraph{Other algorithms}
 More detailed algorithms that require no user intervention are described in later sections.
@@ -237,40 +290,76 @@ Specifically, ComputeControlGraph is in \S XXX and FindSimilarNode is in \S XXX.
 %Figure~\ref{fig:alg-graphcomputing}. The graph is subject to improve by rerun
 %the computing process with new heuristics.
 
-
-\begin{figure}[tb]
-\footnotesize\begin{verbatim}
-Algorithm FindSimilarNode:
-  Input: Checking Events + CurrentNode + Graph
-  Output: Similar node set
-1. Get the thread id of CurrentNode
-2. Iterate the node from the same thread N_i, 
-   compare them to CurrentNode N_c:
-   while event{iter_c} in N_c is not checking event
-   and iter_c not reaches end
-   	 iter_c++
-   while event{iter_i} in N_i is checking event
-   and iter_i not reaches end
-     iter_i++
-   if iter_c and iter_i do not reach end:
-      Compare Event{iter_c} and Event{iter_i}:
-        2.a wait events compares the wait resource
-        2.b connection events compare their peer
-        2.c system call events and user input events
-            compare their syscallname and eventname
-   if iter_c and iter_i both reach end:
-      put N_i into the result set
-3. filter the result set if:
-   3.a if the wait events in the end of node
-       have the same wait result
-   3.b if the difference of node time span
-       is within threshold
-4. return the result set
-\end{verbatim}
+\begin{algorithm}[h!]
     \caption{\xxx Find similar node algorithm.}
     \label{fig:alg-findsimilarnode}
-\end{figure}
+\begin{algorithmic}[1]
+%%  Output: Similar node set
+\Require{EventTypesSet + BlockingNode + Graph}
+\Ensure{SimilarNodeSet}
+\Statex
+\Function{FindSimilarNode}{}
+\State{$thread$ $\gets$ thread of $Node_blocking$}
+\For {$Node_i$ in $thread$ other than $Node_blocking$}
+	\State{$iter_i$ $\gets$ iterator of first event in $Node_i$}
+	\State{$iter_b$ $\gets$ iterator of first event in $Node_blocking$}
+	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
+		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
+			$iter_i$++
+		\EndWhile
+		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
+			$iter_b$++
+		\EndWhile
+		\If {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
+			$if_eq$ $\gets$ CompareEvent($Event$($iter_b$), $Event$($iter_i$))
+			\If {$if_eq$ $==$ False}
+				\State{Break}
+			\EndIf
+		\EndIf
+	\EndWhile
+	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
+		\If {wresult of $Node_i$ $\neq$ wresult of $Node_blocking$ \Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
+			\State{Put Node into $SimilarNodeSet$}
+		\EndIf
+	\EndIf
+\EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
+%%\begin{figure}[tb]
+%%\footnotesize\begin{verbatim}
+%%Algorithm FindSimilarNode:
+%%  Input: Checking Events + CurrentNode + Graph
+%%  Output: Similar node set
+%%1. Get the thread id of CurrentNode
+%%2. Iterate the node from the same thread N_i, 
+%%   compare them to CurrentNode N_c:
+%%   while event{iter_c} in N_c is not checking event
+%%   and iter_c not reaches end
+%%   	 iter_c++
+%%   while event{iter_i} in N_i is checking event
+%%   and iter_i not reaches end
+%%     iter_i++
+%%   if iter_c and iter_i do not reach end:
+%%      Compare Event{iter_c} and Event{iter_i}:
+%%        2.a wait events compares the wait resource
+%%        2.b connection events compare their peer
+%%        2.c system call events and user input events
+%%            compare their syscallname and eventname
+%%   if iter_c and iter_i both reach end:
+%%      put N_i into the result set
+%%3. filter the result set if:
+%%   3.a if the wait events in the end of node
+%%       have the same wait result
+%%   3.b if the difference of node time span
+%%       is within threshold
+%%4. return the result set
+%%\end{verbatim}
+%%    \caption{\xxx Find similar node algorithm.}
+%%    \label{fig:alg-findsimilarnode}
+%%\end{figure}
+%%
 %FindSimilarNode in Figure~\ref{fig:alg-findsimilarnode} is meant to find nodes
 %which have the same high level semantics but different execution results.
 %For example, both of them are waiting on locks, but one returns successfully and the other not.
