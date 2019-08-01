@@ -25,12 +25,12 @@
 
 \xxx constructs dependency graphs with the events from tracing logs. Tracing
 logs contain sequence of events per thread. Each event stands for an execution
-step in a thread. They are grouped into nodes and IPCs, asynchronouns calls
-and thread wakeups serve as edges; some edges can be inside a single thread.
+step in a thread. They are grouped into nodes and IPCs, asynchronouns calls and
+thread wakeups serve as edges; some edges can be inside a single thread.
 
 The events traced in \xxx are carefully selected for three main purposes:
-preserve semantics for the node, indentify node boundary inside a thread, and
-provide connections between nodes. We classify them into three categories:
+preserve semantics for the node, indentify node boundaries inside a thread,
+and provide connections between nodes. We classify them into three categories:
 semantics events, boundary events and connection events, as listed in
 Table~\ref{table:event_types}.
 
@@ -68,290 +68,11 @@ Given the prevalent of multi-threading and multi-processing programs, bugs are
 much more complicated. The long opening bugs are usually have several threads
 involve, even across process boundaries. As an example, the always timeout on
 particular synchronization primitive in one thread usually need to trace back to
-find the other thread that was responsible for signal on the primitive. Compared
+find the other thread that was responsible for signal the primitive. Compared
 to the existing debugging tools like lldb and spindump, the dependency graph is
 useful in that 1) it provides thread relationships all over the system across
-processes boundary and timing boundary and 2) it records execution history for
-an input event before users capture hangs with their eyes.
-
-\subsection{Inherent Inaccuracy}\label{subsec:inherentinaccuracy}
-%%main point: the inaccuracy of causality graph
-%%\begin{itemize}
-%% 	\item Paragraph1: describe the inaccuracy with general idea, define over
-%%connection and under connection
-%%	\item Paragraph2: over connection patterns
-%%Over connections occur if intra-thread boundaries are missing from batch
-%%processing programming paradigms. (dispatch\_mig\_service, runloop)
-%%	\item Paragraph3: under connection patterns
-%%Data dependencies inter/intra threads are usually hard to fully exploit in the
-%%initial pass of graph computing. (shared flags in Object, data dependency for
-%%delay work intra-thread)
-%%\end{itemize}
-
-However, to construct an accurate and complete dependency graph is difficult,
-if not impossible. The graph is inherently inaccurate. That one thread wakes
-up the other thread does not always stand for a causility between them. In
-implementation, \xxx filters out some of the definitive noise in the following
-types.
-
-%%We identify the purpose of wake-up and add huristics to filter out the false edges.
-
-\begin{itemize}
-
-\item interrupt processing and kernel sharetime maintanance that take over
-current thread context.
-
-\item timer expiration in the kernel which clears up all the waiting threads on
-an event source.
-
-\end{itemize}
-
-In addition to the known definitive noise, there exist false connections and
-miss data dependencies based on our experience while building dependency graph
-with traditional causality tracing. We define them as over connection and under
-connection respectively.
-
-Over connections occur if intra-thread boundaries are missing from batch
-processing programming paradigms.
-
-\para{Dispatch message batching}
-The message dispatch service dequeues messages from many processes and staggers
-processing of the messages. This creates false dependencies between each message
-in the dispatch queue. As illustrated in the following code snipped from the
-\vv{fontd} daemon, function \vv{dispatch\_execute} is installed as a callback to
-a dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()} which runs
-the typical server loop and handles many messages.
-
-To avoid incorrectly linking many irrelevant processes through such batching
-processing patterns, \xxx adopts the aforementioned heuristics to split an
-execution segment when it observes that the segment sends out messages to two
-distinct processes. This pattern does pose a challenge for automated causal
-tracing tools that assume that the entire execution of a callback function is
-on behalf of one request. The code shown uses a dispatch-queue callback, but
-inside the callback, it does work on behalf of many different requests. Any
-application or daemon can implement its own server loop this way, which makes it
-fundamentally difficult to automatically infer event handling boundaries.
-
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-worker thread in fontd:
-//enqueue a block
-block = dispatch_mig_sevice;
-dispatch_async(block);
-\end{BVerbatim}
-}
-\quad
-{\footnotesize\begin{BVerbatim}[baseline=c]
-main thread in fontd:
-//dequeue blocks
-block = dequeue();
-invoke(block);
-\end{BVerbatim}
-}
-
-{\verbatimfont{\itshape\ttfamily}\footnotesize\begin{BVerbatim}
-//implementation of dipatch_mig_server
-  dispatch_mig_server()
-    for(;;) //batch processing
-      mach_msg(send_reply, recev_request)
-      call_back()
-      set_reply()
-\end{BVerbatim}
-}
-\bigskip
-
-%%{\footnotesize \begin{verbatim}
-%%Worker thread in fontd daemon:
-%%dispatch_async(block)
-%%
-%%Main thread in fontd daemon:
-%%block = dispatch_queue.dequeue()
-%%dispatch_execute(block)
-%%  dispatch_mig_server()
-%%
-%%dispatch_msg_server()
-%%  for(;;)
-%%    mach_msg(send_reply, recev_request)
-%%    call_back()
-%%    set_reply()
-%%\end{verbatim}
-%%}
-%%
-
-%%\para{Runloop callbacks batch processing}
-%%As is common in event driven programming, many methods can post a callback and
-%%MacOS uses runloop as a common idiom to process callbacks. As shown in the
-%%following step-by-step description of the MacOS runloop, an iteration of the
-%%runloop does 10 different stages of processing, each of which may do work on
-%%behalf of completely irrelevant requests. Since there are no obvious events
-%%(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
-%%add beginning and ending points for MacOS runloops. In general, any application
-%%or daemon can create its own version of the runloop, posing challenges for
-%%automated inference of event processing boundaries.
-%%
-%%% // another thread installs cb
-%%% performSelector:onThread:withObject:waitUntilDone;
-%%
-%%{\footnotesize \begin{verbatim}
-%%Run loop sequence of events //developer.apple.com
-%%1-3.Notify observers
-%%4.Fire any non-port-based input sources
-%%5.If a port-based input source is ready and waiting to fire,
-%%    process the event immediately. Go to step 9.
-%%6.Notify observers that the thread is about to sleep.
-%%7.Put the thread to sleep until:
-%%    //one of the following events occurs
-%%    An event arrives for a port-based input source.
-%%    A timer fires.
-%%    The timeout value set for the run loop expires.
-%%    The run loop is explicitly woken up.
-%%8.Notify observers that the thread just woke up.
-%%9.Process the pending event.
-%%  If a user-defined timer fired,
-%%    process the timer event
-%%    restart the loop.
-%%    Go to step 2.
-%%  If an input source fired
-%%    deliver the event.
-%%  If the run loop was explicitly woken up, but not timed out,
-%%    restart the loop. Go to step 2.
-%%10.Notify observers that the run loop has exited.
-%%
-%%\end{verbatim}
-%%}
-%%
-\para{Batching and data dependency in event processing}
-The WindowServer MacOS system daemon contains an event loop which waits on
-Mach messages. Conceptually, it processes a series of independent events from
-different processes. However, to presumably save on kernel boundary crossings,
-it uses a single system call to receive data and send data for an unrelated
-event. This batch processing artificially makes many events appear dependent,
-and we split the execution segments to maintain the independence of the events.
-
-This case also illustrates a causal linkage caused by data dependency within
-one thread. As the code shows, WindowServer saves the reply message in variable
-\vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}. When it calls
-\vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
-message. This data dependency needs to be captured in order to establish a
-causal link between the handling of the previous request and the send of the
-reply. Interestingly, it is an example of a data dependency within the same
-thread. \xxx uses watch point registers to capture events on these data flags
-and establish causal links between them.
-
-{\footnotesize \begin{verbatim}
-//inside a single thread
-while() {
-  CGXPostReplyMessage(msg) {
-  // send _gOutMsg if it hasn't been sent
-    push_out_message(_gOutMsg)
-    _gOutMsg = msg
-    _gOutMessagePending = 1
-  }
-  CGXRunOneServicePass() {
-    if (_gOutMessagePending)
-      mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
-    else
-      mach_msg(MSG_RECV)
-    ... // process received message
-  }
-}
-\end{verbatim}
-}
-
-Under connections are result from particular programing paradigms and data
-dependencies. Data dependencies inter/intra threads are usually hard to fully
-exploit in the initial pass of graph computing. (shared flags in Object, data
-dependency for delay work intra-thread)
-
-\para{CoreAnimation shared flags}
-A worker thread can set a field \vv{need\_display} inside a CoreAnimation object
-whenever the object needs to be repainted. The main thread iterates over all
-animation objects and reads this flag, rendering any such object.
-
-This shared-memory communication creates a dependency between the main thread
-and the worker so accesses to these field flags need to be tracked. However,
-since each object has such a field flag, \xxx cannot afford to monitor each
-using a watch point register. Instead, it uses instrumentation to modify the
-CoreAnimation library to trace events on these flags.
-%%{\footnotesize \begin{verbatim}
-
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-Worker thread:
-//needs to update UI:
-obj->need_display = 1
-\end{BVerbatim}
-}
-\quad
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-Main thread: 
-//traverse all CA objects
-if (obj->need_display == 1)
-  render(obj)
-\end{BVerbatim}
-}
-\bigskip
-
-\para{Spinning cursor shared flag}
-Whenever the system determines that the main thread has hung for a certain
-period, and the spinning beach ball should be displayed, a shared-memory flag
-is set. Access to this flag is controlled via a lock, i.e. the lock is used for
-mutual exclusion, and does not imply a happens before relationship. Thus, \xxx
-captures accesses to these flags using watch-point registers to add causal edges
-correctly.
-
-{\footnotesize \begin{verbatim}
-NSEvent thread:
-CGEventCreateNextEvent() {
-  if (sCGEventIsMainThreadSpinning == 0x0)
-     if (sCGEventIsDispatchToMainThread == 0x1)
-       CFRunLoopTimerCreateWithHandler{
-         if (sCGEventIsDispatchToMainThread == 0x1)
-           sCGEventIsMainThreadSpinning = 0x1
-           CGSConnectionSetSpinning(0x1);
-       }
-}
-
-Main thread
-Convert1CGEvent(0x1);
-if (sCGEventIsMainThreadSpinning == 0x1)
-  CGSConnectionSetSpinning(0x0);
-  sCGEventIsMainThreadSpinning = 0x0;
-  sCGEventIsDispatchedToMainThread = 0x0;
-\end{verbatim}
-}
-
-In addition, the spurious edge introduced by mutex lock is also a challenge in
-debugging. The synchronization on mutex lock reflects one thread wakes up the
-other thread. They can depend on each other like producer and comsumer, while
-no causality exists in the case of contention for a shared resource. Making the
-graph completely sound without user interaction is almost impossible given the
-essential attribite of commericial operating system as a grey box.
-
-\subsection{User Interactions}
-
-%%Main point for the subsection: why we need user interaction, what the user can
-%%do and how it helps
-%% Para1 : why we need user interaction
-%% Para2 : what the user can do
-%% Para3 : how it helps causality tracing
-
-As we mentioned above, to figure out all the over connections and under
-connections before hand is almost impossible. Instead, users can find out the
-descrepency on the dependency graph while checking the computing result. For
-example, we noticed that two unrelated applications connects to one node in the
-graph, which leads to the manifestation of kernel thread batch processing on
-timers. Users can gradually inject their knowledge until the graph is reasonable
-for following debugging.
-
-Over connections in this kind can be eliminated by adding heuristics to the
-process of graph computing. In addition, users can also binary instrument the
-image with the APIs provided by \xxx to amending the missing boundaries. On
-contrary, if users discover under connections due to missing data dependency,
-they can make use of the \xxx's hardware breakpointer tool to monitor the data
-and add rules to recompute the graph.
-
-Like other causality tracing approaches, \xxx is a general framework and tested
-on limited data set. Allowing user interaction makes the dependency graph more
-practical and useful case by case.
+process boundary and timing boundary and 2) it records execution history for an
+input event before users capture hangs with their eyes.
 
 \subsection{Graph Computing Algorithm}
 
@@ -362,40 +83,40 @@ boundary events, and generate edges from the connection events.
 A node is a sequence of events derived from the execution of a task in a thread.
 As is shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
 thread and applies heuristics when a boundary event is encoutered. \xxx provides
-five default heuristics. Four of them share the idea of general cuasual tracing, one
-is used to work around unknown programming pargdigms, and more are expected
+five default heuristics. Four of them share the idea of general cuasual tracing,
+one is used to work around unknown programming pargdigms, and more are expected
 from users to improve graphs. We discuss them in below.
 
-As known noises, event sequences for interrupt processing and
-kernel maintainance are removed from threads, as is shown in
-line ~\ref{graphcomputing:1.a}. The second heuristics in line
-~\ref{graphcomputing:1.b} treats a wait event as an end of node. Wait event
+As known noises listed in (\S\ref{subsec:inherentinaccuracy}), event sequences
+for interrupt processing and kernel maintainance are removed from threads,
+as is shown in line ~\ref{graphcomputing:1.a}. The second heuristics in line
+~\ref{graphcomputing:1.b} treats a wait event as an end of a node. An wait event
 usually indicates a thread switches to other tasks, but it is not always true
 considering a thread may park due to low thread priority. One of the examples
 in MacOS is the pause of worker threads draining a low priority diapatch queue.
 Dispatch queues are FIFO queues to which an application can submit tasks in
 the form of block objects. Wait events should not divide the block objects,
 otherwise it may result in a missing connection. To save the intergrity of block
-objects, \xxx GraphComputeAlgorithm keeps a counter \vv{callout\_level} to mark
-if the currently checking event is inside a block object. Only the begin and
-end of Dispatch\_invoke are served as the boundary for the node, as is shown in
-line~\ref{graphcomputing:1.c}. The hueristics in line~\ref{graphcomputing:1.c}
-is also for a batch processing mechanism. Runloop is an event processing loop
-that used to schedule work and coordinate the receipt of incoming events. The
-begin and end of the work invocation are served as boundaries. The last default
-heuristics in line~\ref{graphcomputing:1.e} is used to work around the problem
-that batch processing programming paragdigms are hard to exploit completely, as
-listed in previous (\S\ref{subsec:inherentinaccuracy}). \xxx makes use of mach
+objects, \xxx keeps a counter \vv{callout\_level} to mark if the current event
+is inside a block object. Only the begin and end of Dispatch\_invoke are served
+as the boundary for the node, as is shown in line~\ref{graphcomputing:1.c}.
+The hueristics also applies to runloop. Runloop is an event processing loop
+that used to schedule work and coordinate the receipt of incoming events.
+The begin and end of the work invocation are served as boundaries. The last
+default heuristics in line~\ref{graphcomputing:1.e} is used to work around the
+difficulty of exploiting batch processing programming paradigms completely, as
+listed in follows (\S\ref{subsec:inherentinaccuracy}). \xxx makes use of mach
 messages to avoid clustering multiple tasks due to unknown batch processing. It
 defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
-for every node. For every mach message, the algorithm checks whether its peer
-process exists in \vv{IPC\_peer\_set}, and adds the message into the current
-node if the condition is true or the set is empty. Otherwise it add a boundary
-for current node and begin a new node for the mach\_message event.
+for every node. For every mach message, the algorithm checks whether its
+peer process exists in \vv{IPC\_peer\_set}, and adds the message into the
+current node if the condition is true or the set is empty. Otherwise it adds an
+ending boundary for current node and constructs a new node beginning with the
+mach\_message event.
 
-Edges connect nodes, both intra-thread and iter-thread, with connection events.
-\xxx walks through each connection event type to apply heuritics as follows.
-First, the return from a wait operation causally depends on the wake-up
+Edges connect nodes, both intra-thread and inter-thread, with connection
+events. \xxx walks through each connection event type to apply heuritics as
+follows. First, the return from a wait operation causally depends on the wake-up
 operation. An edge is defined from the wake-up event to the first event after
 the wait returns. \xxx also add a weak edges from the wait event to the wake-up
 event in line ~\ref{graphcomputing:2.a}. Mach message is the core of ipc
@@ -409,14 +130,14 @@ are listed in line ~\ref{graphcomputing:2.c} and line~\ref{graphcomputing:2.d}
 respectively. Similarly, \xxx adds edge from a timer armed event to its
 triggered event in line ~\ref{graphcomputing:2.e}. Shared flag can either be
 traced with binary instrument, such as \vv{need\_display} flag for CoreAnimation
-in (\S\ref{subsect:inherentinaccuracy}), or with breakpoint watcher command
-line tool provided by \xxx. Edges from the flag set to its read are added as
-line ~\ref{graphcomputing: 2.f}. Since share variables are hard to completely
-exploited, and the causality can be complicated than the writer-reader pattern,
-user interaction is expected.
+in (\S\ref{subsec:inherentinaccuracy}), or with breakpoint watcher command line
+tool provided by \xxx. Edges from the flag written to its read are added from
+line ~\ref{graphcomputing:2.f}. Since share variables are hard to completely
+exploit, and the causality can be more complicated than the writer-reader
+pattern, user interaction is expected.
 
-Finally, the computing graph is generated and subject to the improvement with
-more input heuristics.
+Finally, a event graph returns and is subject to the improvement with
+more user input heuristics.
 
 \begin{algorithm}[h!]
 \caption{\xxx Compute Graph algorithm.}
@@ -525,3 +246,289 @@ more input heuristics.
 %%    \caption{\xxx Compute Graph algorithm.}
 %%    \label{fig:alg-graphcomputing}
 %%\end{figure}
+
+\subsection{Inherent Inaccuracy}\label{subsec:inherentinaccuracy}
+%%main point: the inaccuracy of causality graph
+%%\begin{itemize}
+%% 	\item Paragraph1: describe the inaccuracy with general idea, define over
+%%connection and under connection
+%%	\item Paragraph2: over connection patterns
+%%Over connections occur if intra-thread boundaries are missing from batch
+%%processing programming paradigms. (dispatch\_mig\_service, runloop)
+%%	\item Paragraph3: under connection patterns
+%%Data dependencies inter/intra threads are usually hard to fully exploit in the
+%%initial pass of graph computing. (shared flags in Object, data dependency for
+%%delay work intra-thread)
+%%\end{itemize}
+
+However, to construct an accurate and complete dependency graph is difficult,
+if not impossible. The graph is inherently inaccurate. That one thread wakes
+up the other thread does not always stand for a causility between them. In
+implementation, \xxx filters out some of the definitive noise in the following
+types.
+
+\begin{itemize}
+
+\item interrupt processing and kernel sharetime maintanance that take over
+current thread context.
+
+\item timer expiration in the kernel which clears up all the waiting threads on
+an event source.
+
+\end{itemize}
+
+In addition to the known definitive noise, there exist false connections and
+missing dependencies based on our experience of building a dependency graph
+with traditional causality tracing. We define them as over connection and under
+connection respectively.
+
+Over connections usually occur when intra-thread boundaries are missing due to
+unknown batch processing programming paradigms. We list the example patterns we
+found below.
+
+\para{Dispatch message batching}
+While traditional causual tracing assumes the entire execution of a
+callback function is on behalf of one request, we found the following code
+snippet from the \vv{fontd} daemon, function \vv{dispatch\_execute} is
+installed as a callback to a work from dispatch queue. It subsequently calls
+\vv{dispatch\_mig\_server()} which runs the typical server loop and handles
+messages from different apps. This creates false dependencies among messages.
+
+To avoid incorrectly linking many irrelevant processes through such batching
+processing patterns, \xxx adopts the aforementioned heuristics to split an
+execution segment when it observes that the segment sends out messages to two
+distinct processes. Any capplication or daemon can implement its own server loop
+this way, which makes it fundamentally difficult to automatically infer event
+handling boundaries.
+
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
+worker thread in fontd:
+//enqueue a block
+block = dispatch_mig_sevice;
+dispatch_async(block);
+\end{BVerbatim}
+}
+\quad
+{\footnotesize\begin{BVerbatim}[baseline=c]
+main thread in fontd:
+//dequeue blocks
+block = dequeue();
+dispatch_execute(block);
+\end{BVerbatim}
+}
+	
+{\verbatimfont{\itshape\ttfamily}\footnotesize\begin{BVerbatim}
+//implementation of dipatch_mig_server
+dispatch_mig_server()
+  for(;;) //batch processing
+    mach_msg(send_reply, recv_request)
+    call_back(recv_request)
+    set_reply(send_reply)
+\end{BVerbatim}
+}
+\bigskip
+
+%%The message dispatch service dequeues messages from many processes and staggers
+%%processing of the messages. This creates false dependencies between each message
+%%in the dispatch queue. As illustrated in the following code snipped from the
+%%\vv{fontd} daemon, function \vv{dispatch\_execute} is installed as a callback to
+%%a dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()} which runs
+%%the typical server loop and handles many messages.
+%%
+%%To avoid incorrectly linking many irrelevant processes through such batching
+%%processing patterns, \xxx adopts the aforementioned heuristics to split an
+%%execution segment when it observes that the segment sends out messages to two
+%%distinct processes. This pattern does pose a challenge for automated causal
+%%tracing tools that assume that the entire execution of a callback function is
+%%on behalf of one request. The code shown uses a dispatch-queue callback, but
+%%inside the callback, it does work on behalf of many different requests. Any
+%%application or daemon can implement its own server loop this way, which makes it
+%%fundamentally difficult to automatically infer event handling boundaries.
+
+%%{\footnotesize \begin{verbatim}
+%%Worker thread in fontd daemon:
+%%dispatch_async(block)
+%%
+%%Main thread in fontd daemon:
+%%block = dispatch_queue.dequeue()
+%%dispatch_execute(block)
+%%  dispatch_mig_server()
+%%
+%%dispatch_msg_server()
+%%  for(;;)
+%%    mach_msg(send_reply, recev_request)
+%%    call_back()
+%%    set_reply()
+%%\end{verbatim}
+%%}
+%%
+
+%%\para{Runloop callbacks batch processing}
+%%As is common in event driven programming, many methods can post a callback and
+%%MacOS uses runloop as a common idiom to process callbacks. As shown in the
+%%following step-by-step description of the MacOS runloop, an iteration of the
+%%runloop does 10 different stages of processing, each of which may do work on
+%%behalf of completely irrelevant requests. Since there are no obvious events
+%%(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
+%%add beginning and ending points for MacOS runloops. In general, any application
+%%or daemon can create its own version of the runloop, posing challenges for
+%%automated inference of event processing boundaries.
+%%
+%%% // another thread installs cb
+%%% performSelector:onThread:withObject:waitUntilDone;
+%%
+%%{\footnotesize \begin{verbatim}
+%%Run loop sequence of events //developer.apple.com
+%%1-3.Notify observers
+%%4.Fire any non-port-based input sources
+%%5.If a port-based input source is ready and waiting to fire,
+%%    process the event immediately. Go to step 9.
+%%6.Notify observers that the thread is about to sleep.
+%%7.Put the thread to sleep until:
+%%    //one of the following events occurs
+%%    An event arrives for a port-based input source.
+%%    A timer fires.
+%%    The timeout value set for the run loop expires.
+%%    The run loop is explicitly woken up.
+%%8.Notify observers that the thread just woke up.
+%%9.Process the pending event.
+%%  If a user-defined timer fired,
+%%    process the timer event
+%%    restart the loop.
+%%    Go to step 2.
+%%  If an input source fired
+%%    deliver the event.
+%%  If the run loop was explicitly woken up, but not timed out,
+%%    restart the loop. Go to step 2.
+%%10.Notify observers that the run loop has exited.
+%%
+%%\end{verbatim}
+%%}
+%%
+\para{Batching and data dependency in event processing}
+The WindowServer MacOS system daemon contains an event loop which waits on
+Mach messages. Conceptually, it processes a series of independent events from
+different processes. However, to presumably save on kernel boundary crossings,
+it uses a single system call to receive data and send data for an unrelated
+event. This batch processing artificially makes many events appear dependent,
+and we split the execution segments to maintain the independence of the events.
+
+This case also illustrates a causal linkage caused by data dependency within
+one thread. As the code shows, WindowServer saves the reply message in variable
+\vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}. When it calls
+\vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
+message. \xxx uses watch point registers to capture events on these data flags
+and establish causal links between them.
+%%This data dependency needs to be captured in order to establish a
+%%causal link between the handling of the previous request and the send of the
+%%reply. Interestingly, it is an example of a data dependency within the same
+%%thread. \xxx uses watch point registers to capture events on these data flags
+%%and establish causal links between them.
+{\footnotesize \begin{verbatim}
+//inside a single thread
+while() {
+  CGXPostReplyMessage(msg) {
+  // send _gOutMsg if it hasn't been sent
+    push_out_message(_gOutMsg)
+    _gOutMsg = msg
+    _gOutMessagePending = 1
+  }
+  CGXRunOneServicePass() {
+    if (_gOutMessagePending)
+      mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
+    else
+      mach_msg(MSG_RECV)
+    ... // process received message
+  }
+}
+\end{verbatim}
+}
+
+On the other hand, under connections mostly result from missing data
+dependencies. Data dependencies inter/intra threads are usually hard to fully
+exploit in the initial pass of graph computing.
+
+\para{CoreAnimation shared flags}
+
+A worker thread can set a field \vv{need\_display} inside a CoreAnimation
+object whenever the object needs to be repainted. The main thread iterates over
+all animation objects and reads this flag, rendering any such object. This
+shared-memory communication creates a dependency between the main thread and the
+worker so accesses to these field flags need to be tracked.
+%%However, since each object has such a field flag, \xxx cannot afford to monitor
+%%each using a watch point register. Instead, it uses instrumentation to modify
+%%the CoreAnimation library to trace events on these flags.
+
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
+Worker thread:
+//needs to update UI:
+obj->need_display = 1
+\end{BVerbatim}
+}
+\quad
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
+Main thread: 
+//traverse all CA objects
+if (obj->need_display == 1)
+  render(obj)
+\end{BVerbatim}
+}
+\bigskip
+
+\para{Spinning cursor shared flag}
+Whenever the system determines that the main thread has hung for a certain
+period, and the spinning beach ball should be displayed, a shared-memory flag
+is set. Access to the flag is controlled via a lock, i.e. the lock is used for
+mutual exclusion, and does not imply a happens before relationship. Thus, \xxx
+captures accesses to these flags using watch-point registers to add causal edges
+correctly.
+
+{\footnotesize \begin{verbatim}
+NSEvent thread:
+CGEventCreateNextEvent() {
+  if (sCGEventIsMainThreadSpinning == 0x0)
+     if (sCGEventIsDispatchToMainThread == 0x1)
+       CFRunLoopTimerCreateWithHandler{
+         if (sCGEventIsDispatchToMainThread == 0x1)
+           sCGEventIsMainThreadSpinning = 0x1
+           CGSConnectionSetSpinning(0x1);
+       }
+}
+
+Main thread:
+Convert1CGEvent(0x1);
+if (sCGEventIsMainThreadSpinning == 0x1)
+  CGSConnectionSetSpinning(0x0);
+  sCGEventIsMainThreadSpinning = 0x0;
+  sCGEventIsDispatchedToMainThread = 0x0;
+\end{verbatim}
+}
+
+In addition, the spurious edge introduced by mutex lock is also a challenge in
+debugging. The synchronization on mutex lock reflects one thread wakes up the
+other thread. The scenario can either be a producer-comsumer problem or merely
+mutualy exclusion. Making the graph completely sound without user interaction is
+almost impossible given the essential attribite of commericial operating system
+as a grey box.
+
+\subsection{User Interactions}
+
+%%Main point for the subsection: why we need user interaction, what the user can
+%%do and how it helps
+%% Para1 : why we need user interaction
+%% Para2 : what the user can do
+%% Para3 : how it helps causality tracing
+
+As we mentioned above, to figure out all over connections and under
+connections before hand is almost impossible. Instead, users can find out the
+descrepency in event graph after the initial graph computing. For
+example, we noticed that two unrelated applications connects to one node in the
+graph, which leads to the manifestation of kernel thread batch processing on
+timers.  Like other causality tracing approaches, \xxx is a general
+framework for MacOS and tested on limited programing paradigms. Allowing user interaction makes
+its graph more practical and useful case by case.
+
+Users can gradually inject their knowledge to improve the graph
+in two ways. They can either add add heuristics to the
+graph computing algorithm in Algorithm ~\ref{alg:graphcomputing}, or binary instrument
+images with the APIs provided by \xxx to expand the boundary or connection event categories.
