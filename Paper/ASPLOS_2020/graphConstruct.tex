@@ -4,26 +4,19 @@
 %%Main point for the subsection: \xxx computes a dependency graph to assist
 %%debugging. It is a useful graph to figure out relationships across thread
 %%boundary and timing boundary 
-%%
 %%\begin{itemize}
 %%\item What the graph is?
-%%
 %%	\begin{itemize}
 %%	\item Paragraph1: high level description of dependency graph.
-%%
 %%\xxx constructs dependency graphs with the events from tracing logs. Tracing
 %%logs contains sequence of events per thread. Each event stands for an execution
 %%step in the thread. They are grouped into nodes and IPCs, asynchronouns calls
 %%and thread wakeups serve as edges; some edges can be inside a single thread.
-%%
 %%	\item Paragraph2: detail about the graph.
-%%
 %%Events can be classed into three categories: semantic, connection, boundary
 %%Graph nodes consist of a list of execution events and edges are generated with
 %%event pairs.
-%%
 %%	\end{itemize}
-%%
 %%\item Why the graph is userful?
 %%The graph bares the causility path of a user input and thus is helpful in
 %%debugging complicated performance bugs, which involve mutilple processes and
@@ -86,19 +79,13 @@ an input event before users capture hangs with their eyes.
 %%\begin{itemize}
 %% 	\item Paragraph1: describe the inaccuracy with general idea, define over
 %%connection and under connection
-%%
-%%	
 %%	\item Paragraph2: over connection patterns
-%%
 %%Over connections occur if intra-thread boundaries are missing from batch
 %%processing programming paradigms. (dispatch\_mig\_service, runloop)
-%%
 %%	\item Paragraph3: under connection patterns
-%%
 %%Data dependencies inter/intra threads are usually hard to fully exploit in the
 %%initial pass of graph computing. (shared flags in Object, data dependency for
 %%delay work intra-thread)
-%%
 %%\end{itemize}
 
 However, to construct an accurate and complete dependency graph is difficult,
@@ -125,7 +112,7 @@ with traditional causality tracing. We define them as over connection and under
 connection respectively.
 
 Over connections occur if intra-thread boundaries are missing from batch
-processing programming paradigms. (dispatch\_mig\_service, runloop)
+processing programming paradigms.
 
 \para{Dispatch message batching}
 The message dispatch service dequeues messages from many processes and staggers
@@ -145,65 +132,93 @@ inside the callback, it does work on behalf of many different requests. Any
 application or daemon can implement its own server loop this way, which makes it
 fundamentally difficult to automatically infer event handling boundaries.
 
-{\footnotesize \begin{verbatim}
-Worker thread in fontd daemon:
-dispatch_async(block)
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
+worker thread in fontd:
+//enqueue a block
+block = dispatch_mig_sevice;
+dispatch_async(block);
+\end{BVerbatim}
+}
+\quad
+{\footnotesize\begin{BVerbatim}[baseline=c]
+main thread in fontd:
+//dequeue blocks
+block = dequeue();
+invoke(block);
+\end{BVerbatim}
+}
 
-Main thread in fontd daemon:
-block = dispatch_queue.dequeue()
-dispatch_execute(block)
+{\verbatimfont{\itshape\ttfamily}\footnotesize\begin{BVerbatim}
+//implementation of dipatch_mig_server
   dispatch_mig_server()
-
-dispatch_msg_server()
-  for(;;)
-    mach_msg(send_reply, recev_request)
-    call_back()
-    set_reply()
-\end{verbatim}
+    for(;;) //batch processing
+      mach_msg(send_reply, recev_request)
+      call_back()
+      set_reply()
+\end{BVerbatim}
 }
+\bigskip
 
-\para{Runloop callbacks batch processing}
-As is common in event driven programming, many methods can post a callback and
-MacOS uses runloop as a common idiom to process callbacks. As shown in the
-following step-by-step description of the MacOS runloop, an iteration of the
-runloop does 10 different stages of processing, each of which may do work on
-behalf of completely irrelevant requests. Since there are no obvious events
-(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
-add beginning and ending points for MacOS runloops. In general, any application
-or daemon can create its own version of the runloop, posing challenges for
-automated inference of event processing boundaries.
+%%{\footnotesize \begin{verbatim}
+%%Worker thread in fontd daemon:
+%%dispatch_async(block)
+%%
+%%Main thread in fontd daemon:
+%%block = dispatch_queue.dequeue()
+%%dispatch_execute(block)
+%%  dispatch_mig_server()
+%%
+%%dispatch_msg_server()
+%%  for(;;)
+%%    mach_msg(send_reply, recev_request)
+%%    call_back()
+%%    set_reply()
+%%\end{verbatim}
+%%}
+%%
 
-% // another thread installs cb
-% performSelector:onThread:withObject:waitUntilDone;
-
-{\footnotesize \begin{verbatim}
-Run loop sequence of events //developer.apple.com
-1-3.Notify observers
-4.Fire any non-port-based input sources
-5.If a port-based input source is ready and waiting to fire,
-    process the event immediately. Go to step 9.
-6.Notify observers that the thread is about to sleep.
-7.Put the thread to sleep until:
-    //one of the following events occurs
-    An event arrives for a port-based input source.
-    A timer fires.
-    The timeout value set for the run loop expires.
-    The run loop is explicitly woken up.
-8.Notify observers that the thread just woke up.
-9.Process the pending event.
-  If a user-defined timer fired,
-    process the timer event
-    restart the loop.
-    Go to step 2.
-  If an input source fired
-    deliver the event.
-  If the run loop was explicitly woken up, but not timed out,
-    restart the loop. Go to step 2.
-10.Notify observers that the run loop has exited.
-
-\end{verbatim}
-}
-
+%%\para{Runloop callbacks batch processing}
+%%As is common in event driven programming, many methods can post a callback and
+%%MacOS uses runloop as a common idiom to process callbacks. As shown in the
+%%following step-by-step description of the MacOS runloop, an iteration of the
+%%runloop does 10 different stages of processing, each of which may do work on
+%%behalf of completely irrelevant requests. Since there are no obvious events
+%%(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
+%%add beginning and ending points for MacOS runloops. In general, any application
+%%or daemon can create its own version of the runloop, posing challenges for
+%%automated inference of event processing boundaries.
+%%
+%%% // another thread installs cb
+%%% performSelector:onThread:withObject:waitUntilDone;
+%%
+%%{\footnotesize \begin{verbatim}
+%%Run loop sequence of events //developer.apple.com
+%%1-3.Notify observers
+%%4.Fire any non-port-based input sources
+%%5.If a port-based input source is ready and waiting to fire,
+%%    process the event immediately. Go to step 9.
+%%6.Notify observers that the thread is about to sleep.
+%%7.Put the thread to sleep until:
+%%    //one of the following events occurs
+%%    An event arrives for a port-based input source.
+%%    A timer fires.
+%%    The timeout value set for the run loop expires.
+%%    The run loop is explicitly woken up.
+%%8.Notify observers that the thread just woke up.
+%%9.Process the pending event.
+%%  If a user-defined timer fired,
+%%    process the timer event
+%%    restart the loop.
+%%    Go to step 2.
+%%  If an input source fired
+%%    deliver the event.
+%%  If the run loop was explicitly woken up, but not timed out,
+%%    restart the loop. Go to step 2.
+%%10.Notify observers that the run loop has exited.
+%%
+%%\end{verbatim}
+%%}
+%%
 \para{Batching and data dependency in event processing}
 The WindowServer MacOS system daemon contains an event loop which waits on
 Mach messages. Conceptually, it processes a series of independent events from
@@ -223,6 +238,7 @@ thread. \xxx uses watch point registers to capture events on these data flags
 and establish causal links between them.
 
 {\footnotesize \begin{verbatim}
+//inside a single thread
 while() {
   CGXPostReplyMessage(msg) {
   // send _gOutMsg if it hasn't been sent
@@ -256,18 +272,23 @@ and the worker so accesses to these field flags need to be tracked. However,
 since each object has such a field flag, \xxx cannot afford to monitor each
 using a watch point register. Instead, it uses instrumentation to modify the
 CoreAnimation library to trace events on these flags.
+%%{\footnotesize \begin{verbatim}
 
-{\footnotesize \begin{verbatim}
-Worker thread that needs to update UI:
-ObjCoreAnimation->need_display = 1
-
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
+Worker thread:
+//needs to update UI:
+obj->need_display = 1
+\end{BVerbatim}
+}
+\quad
+{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
 Main thread: 
-traverse all CoreAnimationobjects
+//traverse all CA objects
 if (obj->need_display == 1)
   render(obj)
-
-\end{verbatim}
+\end{BVerbatim}
 }
+\bigskip
 
 \para{Spinning cursor shared flag}
 Whenever the system determines that the main thread has hung for a certain
@@ -341,31 +362,33 @@ boundary events, and generate edges from the connection events.
 A node is a sequence of events derived from the execution of a task in a thread.
 As is shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
 thread and applies heuristics when a boundary event is encoutered. \xxx provides
-5 default heuristics. 4 of them shares the idea of general cuasual tracing, 1
+five default heuristics. Four of them share the idea of general cuasual tracing, one
 is used to work around unknown programming pargdigms, and more are expected
-from users to improve graphs. We discuss them in the following paragraph.
+from users to improve graphs. We discuss them in below.
 
-As known noises, event sequences for interrupt processing and kernel
-maintainance are removed from threads, as is shown in 1.a. The second heuristics
-1.b treats a wait event as an end of node. Wait event usually indicates a thread
-switches to other tasks, but it is not always true considering a thread may park
-due to low thread priority. One of the examples in MacOS is the pause of worker
-threads draining a low priority diapatch queue. Dispatch queues are FIFO queues
-to which an application can submit tasks in the form of block objects. Wait
-events should not divide the block objects, otherwise it may result in a missing
-connection. To save the intergrity of block objects, \xxx GraphComputeAlgorithm
-keeps a counter \vv{callout\_level} to mark if the currently checking event is
-inside a block object. Only the begin and end of Dispatch\_invoke are served
-as the boundary for the node, as is shown in the step 1.c. The hueristics 1.d
+As known noises, event sequences for interrupt processing and
+kernel maintainance are removed from threads, as is shown in
+line ~\ref{graphcomputing:1.a}. The second heuristics in line
+~\ref{graphcomputing:1.b} treats a wait event as an end of node. Wait event
+usually indicates a thread switches to other tasks, but it is not always true
+considering a thread may park due to low thread priority. One of the examples
+in MacOS is the pause of worker threads draining a low priority diapatch queue.
+Dispatch queues are FIFO queues to which an application can submit tasks in
+the form of block objects. Wait events should not divide the block objects,
+otherwise it may result in a missing connection. To save the intergrity of block
+objects, \xxx GraphComputeAlgorithm keeps a counter \vv{callout\_level} to mark
+if the currently checking event is inside a block object. Only the begin and
+end of Dispatch\_invoke are served as the boundary for the node, as is shown in
+line~\ref{graphcomputing:1.c}. The hueristics in line~\ref{graphcomputing:1.c}
 is also for a batch processing mechanism. Runloop is an event processing loop
-that used to schedule work and coordinate the receipt of incoming events.
-The begin and end of the work invocation are served as boundaries. The last
-default heuristics 1.e is used to work around the problem that batch processing
-programming paragdigms are hard to exploit completely, as listed in previous
-subsection ~\ref{subsec:inherentinaccuracy}. \xxx makes use of mach messages
-to avoid clustering multiple tasks due to unknown batch processing. It defines
-\vv{IPC\_peer\_set} to compute the set of mach message receivers/senders for
-every node. For every mach message, the algorithm checks whether its peer
+that used to schedule work and coordinate the receipt of incoming events. The
+begin and end of the work invocation are served as boundaries. The last default
+heuristics in line~\ref{graphcomputing:1.e} is used to work around the problem
+that batch processing programming paragdigms are hard to exploit completely, as
+listed in previous (\S\ref{subsec:inherentinaccuracy}). \xxx makes use of mach
+messages to avoid clustering multiple tasks due to unknown batch processing. It
+defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
+for every node. For every mach message, the algorithm checks whether its peer
 process exists in \vv{IPC\_peer\_set}, and adds the message into the current
 node if the condition is true or the set is empty. Otherwise it add a boundary
 for current node and begin a new node for the mach\_message event.
@@ -375,20 +398,22 @@ Edges connect nodes, both intra-thread and iter-thread, with connection events.
 First, the return from a wait operation causally depends on the wake-up
 operation. An edge is defined from the wake-up event to the first event after
 the wait returns. \xxx also add a weak edges from the wait event to the wake-up
-event in 2.a. Mach message is the core of ipc mechanism implemented in kernel,
-upon which higher level RPC are built. \xxx connects the sender and receiver
-of a mach message. For messages that expect a reply, \xxx also connects the
-receiver of the original message and the sender of the reply message in 2.b.
-As discussed above, dispatch queue and runloop are popular batch processing
-programming paradigms in MacOS, \xxx connects submissions of a task and
-executions of the task, which are listed in 2.c and 2.d respectively. Similarly,
-\xxx adds edge from a timer armed event to its triggered event in 2.e. Shared
-flag can either be traced with binary instrument, such as \vv{need\_display}
-flag for CoreAnimation in subsection ~\ref{subsect:inherentinaccuracy}, or with
-breakpoint watcher command line tool provided by \xxx. Edges from the flag set
-to its read are added as 2.f. Since share variables are hard to completely
+event in line ~\ref{graphcomputing:2.a}. Mach message is the core of ipc
+mechanism implemented in kernel, upon which higher level RPC are built. \xxx
+connects the sender and receiver of a mach message. For messages that expect a
+reply, \xxx also connects the receiver of the original message and the sender
+of the reply message in line ~\ref{graphcomputing:2.b}. As discussed above,
+dispatch queue and runloop are popular batch processing programming paradigms
+in MacOS, \xxx connects submissions of a task and executions of the task, which
+are listed in line ~\ref{graphcomputing:2.c} and line~\ref{graphcomputing:2.d}
+respectively. Similarly, \xxx adds edge from a timer armed event to its
+triggered event in line ~\ref{graphcomputing:2.e}. Shared flag can either be
+traced with binary instrument, such as \vv{need\_display} flag for CoreAnimation
+in (\S\ref{subsect:inherentinaccuracy}), or with breakpoint watcher command
+line tool provided by \xxx. Edges from the flag set to its read are added as
+line ~\ref{graphcomputing: 2.f}. Since share variables are hard to completely
 exploited, and the causality can be complicated than the writer-reader pattern,
-user interaction are expected to remedy event graphs.
+user interaction is expected.
 
 Finally, the computing graph is generated and subject to the improvement with
 more input heuristics.
@@ -406,19 +431,19 @@ more input heuristics.
 \State {$current\_node$ $\gets$ $New Node$}
 \For{Event: Events in a thread}
     \Switch {EventType}
-	\Case {Interrupt or Timeshare\_maintenance}
+	\Case {Interrupt or Timeshare\_maintenance} \label{graphcomputing:1.a}
 		\State {Remove following events before return}
 	\EndCase
-	\Case {Wait}
+	\Case {Wait} \label{graphcomputing:1.b}
 		\If {$callout\_level$ $equals$ {$0$}} 
 			\State {Add end boundary for current node}
             \State {$current\_node$ $\gets$ $New Node$}
 		\EndIf
 	\EndCase
-	\Case {Dispatch\_invoke or Runloop\_invoke}
+	\Case {Dispatch\_invoke or Runloop\_invoke} \label{graphcomputing:1.c}
 	 	\State {Divide each callout into a node}
 	\EndCase
-	\Case {Mach\_message}	
+	\Case {Mach\_message}\label{graphcomputing:1.d}
 		\If {peer $\in$ $IPC\_peer\_set$ or $IPC\_peer\_set$ $equals$ $\emptyset$}
 		\State {update $IPC\_peer\_set$}
 		\Else
@@ -427,30 +452,30 @@ more input heuristics.
 		\EndIf
 	\EndCase
 	\EndSwitch
-	\State {Other Heuristics}
+	\State {Other Heuristics}\label{graphcomputing:1.e}
 \EndFor
 \For{Event: Connection Events}
 	\Switch {EventType}
-	\Case {Wake\_up}
+	\Case {Wake\_up}\label{graphcomputing:2.a}
 		\State{AddWeakEdge(corresponding wait, wake\_up)}
 		\State{AddEdge(wake\_up, first event after wait returns)}
 	\EndCase
-	\Case {Mach\_message}
+	\Case {Mach\_message}\label{graphcomputing:2.b}
 		\State{AddEdge(sender, receiver)}
 		\If(needs reply)
 			\State {AddEdge(receiver, reply sender)}
 		\EndIf
 	\EndCase
-	\Case {Dispatch\_enqueue}
+	\Case {Dispatch\_enqueue}\label{graphcomputing:2.c}
 		\State{AddEdge(Dispatch\_enqueue, Dispatch\_invoke)}
 	\EndCase
-	\Case {Runloop\_submit}
+	\Case {Runloop\_submit}\label{graphcomputing:2.d}
 		\State {AddEdge(Runloop\_submit, RunLoop\_invoke)}
 	\EndCase
-	\Case {Timer}
+	\Case {Timer}\label{graphcomputing:2.e}
 		\State {AddEdge(Timer armed, Timer callout)}
 	\EndCase
-	\Case {Share\_flag\_read}
+	\Case {Share\_flag\_read}\label{graphcomputing:2.f}
 		\State {AddEdge(Share\_flag\_write, Share\_flag\_read)}
 	\EndCase
 	\EndSwitch
