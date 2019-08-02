@@ -2,38 +2,31 @@
 We now discuss how we collect tracing events from both kernel and libraries.
 
 \subsection{Event Tracing}
-
 Current MacOS systems support a system-wide tracing infrastructure built by
-Apple ~\ref{linktotracetool}. By default, the infrastructure temporarily stores
+Apple XXX~\ref{linktotracetool}. By default, the infrastructure temporarily stores
 events in memory and flushes them to screen or disk when an internal buffer is
 filled. We extended this infrastructure to support larger-scale tests and avoid
-filling up the disk with a file backed ring buffer. Subject to configurarion,
+filling up the disk with a file-backed ring buffer. Subject to configurarion,
 it allows at most 2GB of data per log, which corresponds to approximately
 18,560,187 events (about 5 minute with normal operations).
 
-The default tracing points in MacOS do not provide enough information to
-generate a dependency graph. As a result, we both patch source code of kernel
-and binary instrument libraries to gether more tracing information.
+The default tracing points in MacOS provide too limited information to
+apply causual tracing. As a result, we both patch source code of kernel
+XXX~\ref{linkofxnusourcecode} and binary instrument libraries to gether
+more tracing data. In \xxx, we patched the kernel with 1193 lines of
+code, and instrumented the libraries including: libsystem\_kernel.dylib,
+libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox,
+AppKit and QuartzCore, with our binary instrumentation.
 
 \subsection{Instrumentation}
-
-On MacOS, most libraries as well as many of the applications used day-to-day are
-closed-source. To add tracing points to such code, techniques such as library
-preloading to override individual functions are not applicable on MacOS, as
-libraries use two-level executable namespaces~\cite{}. Hence, we implemented
+Most libraries as well as many of the applications used day-to-day are
+closed-source in MacOS. To add tracing points to such code, techniques such as
+library preloading to override individual functions are not applicable on MacOS,
+as libraries use two-level executable namespaces~\cite{}. Hence, we implemented
 a binary instrumentation mechanism that allows developers to add tracing at
 any location in a binary image. Like Detour~\cite{hunt1999detours}, we use
 static analysis to decide which instrumentation to perform, and then enact this
 instrumentation at runtime.
-
-%XXX I thought a user can specify a search sequence of instructions, and our
-%system adds instrumentation when the sequence is found in binary.  If so we
-%want to emphasize it a bit as this feature is different from detour.
-%XXX say that instrumentation code is written in C
-In \xxx, we patched the kernel with 1193 lines of code, and instrumented
-the libraries including: libsystem\_kernel.dylib, libdispatch.dylib,
-libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox, AppKit and QuartzCore,
-with our binary instrumentation. 
 
 Now we talk about our instrumentation mechanism. Firstly, users find a location
 of interest in the image related to a specific event by searching a sequence of
@@ -57,48 +50,50 @@ are properly loaded; (3)invoke the initialization function externally through
 %%to one another and we did not see the need to implement a more general
 %%long-jump mechanism.
 
-%%\subsection{Tracing Custom Primitives} \label{subsec:tcp}
-\subsection{User Interaction} \label{subsec:tcp}
-
+\subsection{User Interaction} 
+\subsubsection{Tracing Custom Primitives} \label{subsec:tcp}\hfill\\
 %%XXX give a simple command line example of how a user can ask \xxx to trace a
 %%data flag
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
 
-As described in (\S\ref{subsec:userinteraction}), under-connection due to
-the missing share data dependency requires users'interaction. \xxx provides
-a command line tools to record the share\_flag\_write and share\_flag\_read
-events in ad-hoc manner. The tool takes the process id, path to image where the
-variable is defined and the symbol of the variable as input. We show the simple
-example how a user ask \xxx to trace \_gOutMsgPending in the following command.
+As described in (\S\ref{subsec:userinteraction}), under-connection due
+to the missing share data dependency requires users'interaction. \xxx
+provides a command line tool which sets the watch point registers to record
+share\_flag\_write and share\_flag\_read events in ad-hoc manner. This is one
+way users can easily collect the tracing events, and the more tech-savvy users
+can also instrument the binary. The tool takes the process id, path to image
+where the variable is defined and the symbol of the variable as input. We
+show the simple example how a user ask \xxx to trace \_gOutMsgPending in the
+following command.
 
 \begin{BVerbatim}
 ./bp_watch pidofWindowServer \
 	Path/to/CoreGraphics _gOutMsgPending
 \end{BVerbatim}
 
-\xxx hooks the watch point handler in CoreFoundation to make sure that it is
+\xxx hooks the watch point break handler in CoreFoundation to make sure that it is
 loaded correctly into the address space of our target application. The handler
 invokes the event tracing API from Apple to record the value of the shared
 variable and the operation type: read or write.
+\\
+\subsubsection{Capturing Instructions for Diagnosis}\hfill\\
+%XXX Talk about what data we gather using lldb, the debugger in the LLVM
+%compiler tool chain.
+Since the output of \xxx is the nodes and user input events suspected to cause
+the busy spinning, more detail may required to verify and fix the bug. After
+the offline analysis on the graph, \xxx provides tools for user to exact
+the backtrace events from the output and generate a script for conditional
+debugging.
 
-\subsection{Capturing Instructions for Diagnosis}
+The debugging scripts go through the instructions of apps and frameworks step
+by step to capture the parameters tained by user inputs. At each beginning of
+a function call, the script records a full callstack for it. Considering the
+overhead and usefullness, it steps over and only record the return value of APIs
+from libraries with a filename extension .dylib.
 
-%XXX Talk about what data we gather using lldb, the debugger in the LLVM compiler tool chain.
-
-After the offline analysis on the graph, we take the API covers the fine range
-as input to our debugging scripts.  The debugging scripts go throught the
-instruction from application and higher level frameworks step by step.  The
-purpose is to capture the parameters results from the user interaction.  Once a
-new function begins by checking the instruction, we record the call stacks for
-comprehension.  For API from the low level libraries, such as pthread, we step
-over and record the return value. The debugging log in this step records the
-instruction and its address, callstacks when a \textit{call} instruction is reached,
-and return values of \textit{req} instruction. As the operation are confined in the
-small range, the overhead is not too much.
-
-Both the execution on normal case and problematic case are recorded, our tool
-further compares the log and report the difference, with the full call stack.
+The supplementary information are subject to the users review to pinpoint the
+root cause of spinning beachball on MacOS
 
 %%\subsection{Finding Similar Events}
 %%
