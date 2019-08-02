@@ -34,7 +34,7 @@ and provide connections between nodes. We classify them into three categories:
 semantics events, boundary events and connection events, as listed in
 Table~\ref{table:event_types}.
 
-\begin{table}[h]
+\begin{table}[ht]
   \centering
   \begin{tabularx}{\columnwidth}{|X|X|}
   	\hline
@@ -76,20 +76,20 @@ input event before users capture hangs with their eyes.
 
 \subsection{Graph Computing Algorithm}
 
-In the section, we describe the algorithm \xxx used to generate an event graph.
-The algrithm has two main steps: construct nodes with heuristics base on
+In the section, we describe the algorithm \xxx uses to generate an event graph.
+The algrithm has two main steps: construct nodes with heuristics based on
 boundary events, and generate edges from the connection events.
 
 A node is a sequence of events derived from the execution of a task in a thread.
-As is shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
-thread and applies heuristics when a boundary event is encoutered. \xxx provides
+As shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
+thread and applies heuristics when a boundary event is checked. \xxx provides
 five default heuristics. Four of them share the idea of general cuasual tracing,
-one is used to work around unknown programming pargdigms, and more are expected
+one is used to work around unknown programming paradigms, and more are expected
 from users to improve graphs. We discuss them in below.
 
-As known noises listed in (\S\ref{subsec:inherentinaccuracy}), event sequences
-for interrupt processing and kernel maintainance are removed from threads,
-as is shown in line ~\ref{graphcomputing:1.a}. The second heuristics in line
+As listed in (\S\ref{subsec:inherentinaccuracy}), event sequences
+for interrupt processing and kernel maintainance are removed from
+threads in line ~\ref{graphcomputing:1.a}. The second heuristics in line
 ~\ref{graphcomputing:1.b} treats a wait event as an end of a node. An wait event
 usually indicates a thread switches to other tasks, but it is not always true
 considering a thread may park due to low thread priority. One of the examples
@@ -108,9 +108,9 @@ difficulty of exploiting batch processing programming paradigms completely, as
 listed in follows (\S\ref{subsec:inherentinaccuracy}). \xxx makes use of mach
 messages to avoid clustering multiple tasks due to unknown batch processing. It
 defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
-for every node. For every mach message, the algorithm checks whether its
-peer process exists in \vv{IPC\_peer\_set}, and adds the message into the
-current node if the condition is true or the set is empty. Otherwise it adds an
+for every node. For every mach message, the algorithm checks whether its peer
+process exists in \vv{IPC\_peer\_set}, and adds the message into the current
+node if the condition is true or the set is empty. Otherwise it adds an
 ending boundary for current node and constructs a new node beginning with the
 mach\_message event.
 
@@ -139,7 +139,7 @@ pattern, user interaction is expected.
 Finally, a event graph returns and is subject to the improvement with
 more user input heuristics.
 
-\begin{algorithm}[h!]
+\begin{algorithm}[ht!]
 \caption{\xxx Compute Graph algorithm.}
 \label{alg:graphcomputing}
 \begin{algorithmic}[1]
@@ -165,12 +165,11 @@ more user input heuristics.
 	 	\State {Divide each callout into a node}
 	\EndCase
 	\Case {Mach\_message}\label{graphcomputing:1.d}
-		\If {peer $\in$ $IPC\_peer\_set$ or $IPC\_peer\_set$ $equals$ $\emptyset$}
-		\State {update $IPC\_peer\_set$}
-		\Else
-		\State {Add end boundary for current node}
-        \State {$current\_node$ $\gets$ $New Node$}
+		\If {$IPC\_peer\_set$ $\neq$ $\emptyset$ and peer $\notin$ $IPC\_peer\_set$} 
+			\State {Add end boundary for current node}
+        	\State {$current\_node$ $\gets$ $New Node$}
 		\EndIf
+		\State {update $IPC\_peer\_set$}
 	\EndCase
 	\EndSwitch
 	\State {Other Heuristics}\label{graphcomputing:1.e}
@@ -183,7 +182,7 @@ more user input heuristics.
 	\EndCase
 	\Case {Mach\_message}\label{graphcomputing:2.b}
 		\State{AddEdge(sender, receiver)}
-		\If(needs reply)
+		\If {needs reply}
 			\State {AddEdge(receiver, reply sender)}
 		\EndIf
 	\EndCase
@@ -282,6 +281,7 @@ missing dependencies based on our experience of building a dependency graph
 with traditional causality tracing. We define them as over connection and under
 connection respectively.
 
+\subsubsection{Over Connections}\hfill\\
 Over connections usually occur when intra-thread boundaries are missing due to
 unknown batch processing programming paradigms. We list the example patterns we
 found below.
@@ -328,83 +328,6 @@ dispatch_mig_server()
 }
 \bigskip
 
-%%The message dispatch service dequeues messages from many processes and staggers
-%%processing of the messages. This creates false dependencies between each message
-%%in the dispatch queue. As illustrated in the following code snipped from the
-%%\vv{fontd} daemon, function \vv{dispatch\_execute} is installed as a callback to
-%%a dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()} which runs
-%%the typical server loop and handles many messages.
-%%
-%%To avoid incorrectly linking many irrelevant processes through such batching
-%%processing patterns, \xxx adopts the aforementioned heuristics to split an
-%%execution segment when it observes that the segment sends out messages to two
-%%distinct processes. This pattern does pose a challenge for automated causal
-%%tracing tools that assume that the entire execution of a callback function is
-%%on behalf of one request. The code shown uses a dispatch-queue callback, but
-%%inside the callback, it does work on behalf of many different requests. Any
-%%application or daemon can implement its own server loop this way, which makes it
-%%fundamentally difficult to automatically infer event handling boundaries.
-
-%%{\footnotesize \begin{verbatim}
-%%Worker thread in fontd daemon:
-%%dispatch_async(block)
-%%
-%%Main thread in fontd daemon:
-%%block = dispatch_queue.dequeue()
-%%dispatch_execute(block)
-%%  dispatch_mig_server()
-%%
-%%dispatch_msg_server()
-%%  for(;;)
-%%    mach_msg(send_reply, recev_request)
-%%    call_back()
-%%    set_reply()
-%%\end{verbatim}
-%%}
-%%
-
-%%\para{Runloop callbacks batch processing}
-%%As is common in event driven programming, many methods can post a callback and
-%%MacOS uses runloop as a common idiom to process callbacks. As shown in the
-%%following step-by-step description of the MacOS runloop, an iteration of the
-%%runloop does 10 different stages of processing, each of which may do work on
-%%behalf of completely irrelevant requests. Since there are no obvious events
-%%(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
-%%add beginning and ending points for MacOS runloops. In general, any application
-%%or daemon can create its own version of the runloop, posing challenges for
-%%automated inference of event processing boundaries.
-%%
-%%% // another thread installs cb
-%%% performSelector:onThread:withObject:waitUntilDone;
-%%
-%%{\footnotesize \begin{verbatim}
-%%Run loop sequence of events //developer.apple.com
-%%1-3.Notify observers
-%%4.Fire any non-port-based input sources
-%%5.If a port-based input source is ready and waiting to fire,
-%%    process the event immediately. Go to step 9.
-%%6.Notify observers that the thread is about to sleep.
-%%7.Put the thread to sleep until:
-%%    //one of the following events occurs
-%%    An event arrives for a port-based input source.
-%%    A timer fires.
-%%    The timeout value set for the run loop expires.
-%%    The run loop is explicitly woken up.
-%%8.Notify observers that the thread just woke up.
-%%9.Process the pending event.
-%%  If a user-defined timer fired,
-%%    process the timer event
-%%    restart the loop.
-%%    Go to step 2.
-%%  If an input source fired
-%%    deliver the event.
-%%  If the run loop was explicitly woken up, but not timed out,
-%%    restart the loop. Go to step 2.
-%%10.Notify observers that the run loop has exited.
-%%
-%%\end{verbatim}
-%%}
-%%
 \para{Batching and data dependency in event processing}
 The WindowServer MacOS system daemon contains an event loop which waits on
 Mach messages. Conceptually, it processes a series of independent events from
@@ -444,12 +367,12 @@ while() {
 \end{verbatim}
 }
 
+\subsubsection{Under Connections}\hfill\\
 On the other hand, under connections mostly result from missing data
 dependencies. Data dependencies inter/intra threads are usually hard to fully
 exploit in the initial pass of graph computing.
 
 \para{CoreAnimation shared flags}
-
 A worker thread can set a field \vv{need\_display} inside a CoreAnimation
 object whenever the object needs to be repainted. The main thread iterates over
 all animation objects and reads this flag, rendering any such object. This
@@ -511,7 +434,7 @@ mutualy exclusion. Making the graph completely sound without user interaction is
 almost impossible given the essential attribite of commericial operating system
 as a grey box.
 
-\subsection{User Interactions}
+\subsection{User Interactions}\label{subsec:userinteraction}
 
 %%Main point for the subsection: why we need user interaction, what the user can
 %%do and how it helps
@@ -519,16 +442,16 @@ as a grey box.
 %% Para2 : what the user can do
 %% Para3 : how it helps causality tracing
 
-As we mentioned above, to figure out all over connections and under
-connections before hand is almost impossible. Instead, users can find out the
-descrepency in event graph after the initial graph computing. For
-example, we noticed that two unrelated applications connects to one node in the
-graph, which leads to the manifestation of kernel thread batch processing on
-timers.  Like other causality tracing approaches, \xxx is a general
-framework for MacOS and tested on limited programing paradigms. Allowing user interaction makes
-its graph more practical and useful case by case.
+As we mentioned above, to figure out all over connections and under connections
+before hand is almost impossible. Instead, users can find out the descrepency
+in event graph after the initial graph computing. For example, we noticed that
+two unrelated applications connects to one node in the graph, which leads to the
+manifestation of kernel thread batch processing on timers. Like other causality
+tracing approaches, \xxx is a general framework for MacOS and tested on limited
+programing paradigms. Allowing user interaction makes its graph more practical
+and useful case by case.
 
-Users can gradually inject their knowledge to improve the graph
-in two ways. They can either add add heuristics to the
-graph computing algorithm in Algorithm ~\ref{alg:graphcomputing}, or binary instrument
-images with the APIs provided by \xxx to expand the boundary or connection event categories.
+Users can gradually inject their knowledge to improve the graph in two ways.
+They can either add add heuristics to the graph computing algorithm in Algorithm
+~\ref{alg:graphcomputing}, or binary instrument images with the APIs provided by
+\xxx to expand the boundary or connection event categories.
