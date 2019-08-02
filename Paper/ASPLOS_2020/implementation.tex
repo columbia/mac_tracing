@@ -92,26 +92,21 @@ overhead and usefullness, it steps over and only record the return value of APIs
 from libraries with a filename extension .dylib.
 
 The supplementary information are subject to the users review to pinpoint the
-root cause of spinning beachball on MacOS
+root cause of spinning beachball on MacOS.
 
-%%\subsection{Finding Similar Events}
-%%
-%%The performance isssue caused by the busy processing in UI thread is quite
-%%straightforward to diagnoze with our tool. Debugging the UI thread blocking on
-%%the contention of resource is much more difficult.  In this situation, our tool
-%%is required to recognize the corresponding node which obtained the resource in
-%%its normal execution.
-%%
-%%Node comparision algorithm helps to allieviate users from the burden of
-%%inspecting large logs.  We first normalize the nodes with selected events.  In
-%%our system, we exclude the interrupts from the comparison since the number and
-%%type of interrupts are usually different from execution to exection.  For the
-%%events that connected to other events, we normalize it with a peer attribute to
-%%record the process id of its connecting peer, We also record the name of the
-%%system calls, message id carried in mach\_msg for corresponding events.  The
-%%comparison algorithm omits the repeating times of the same events, by checking
-%%if one node contains all distinct events in the other node.
-%%
-%%The above step only idenfity the similarity of nodes.  We also define the
-%%differential attribtes to distinguish the normal node and spinning node,
-%%including the waiting time, execution time and system call return values.
+\subsection{Limitations}
+\xxx is designed to support interactive debugging of performance issues. To
+incrementally obtain more fine-grained event traces, it needs to rerun an
+application to reproduce a performance issue. Thus, if the issue is difficult to
+reproduce, we have to rely on the log collected by the lightweight system-wide
+tracing for debugging, and lose the benefits of interactivity. Fortunately, a
+performance issue that almost never reproduces is probably not as annoying as
+one that occurs frequently.
+
+We implemented \xxx in the closed-source MacOS which presents a harsh test
+for \xxx, but we have not ported \xxx to other operating systems yet. It is
+possible that the ideas and techniques do not generalize to other operating
+systems. However, modern operating systems share many similarities, and good
+ideas tend to flow both ways, so we are hopeful that the ideas in \xxx are
+generally applicable. Similarly, the applications and performance issues used in
+our evaluation may be non-representative.
