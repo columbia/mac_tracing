@@ -21,9 +21,12 @@
 \usepackage{fancyvrb}
 \usepackage{hyperref}
 \usepackage{threeparttable}
+\usepackage{listings, multicol}
+\usepackage{color}
 
 \usepackage{graphicx}
 \graphicspath{{figures/}}
+\raggedbottom
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     macro
 % paper-specific definitions
@@ -45,12 +48,10 @@
 %for algorithm
 \algnewcommand\algorithmicswitch{\textbf{switch}}
 \algnewcommand\algorithmiccase{\textbf{case}}
-\algnewcommand\algorithmicassert{\texttt{assert}}
 \algnewcommand\And{\textbf{and} }
 \algnewcommand\Or{\textbf{or} }
 \algnewcommand{\algorithmicgoto}{\textbf{go to}}%
 \algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
-\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}%
 \algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
 \algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
 \algtext*{EndSwitch}%
@@ -71,9 +72,46 @@
 %%\begin{BVerbatim}}
 %%{\end{BVerbatim}%
 %%\bigskip}
+%\fvset{xleftmargin=\mathindent}
 
-\fvset{xleftmargin=\mathindent}
+%for lslistings
+\lstdefinestyle{customc}{
+  language=C,                 % the language of the code
+  basicstyle=\ttfamily,        	   % style for all of the code
+  keywordstyle=\color{blue},       % keyword style
+  identifierstyle=\color{black}, % style for variables and identifiers
+  commentstyle=\selectfont\itshape\color{green!60!black},      % comment style
+  columns=fullflexible,
+  stringstyle=\color{mymauve},     % style for string literals
+  tabsize=2,                       % sets default tabsize (in spaces)
+  backgroundcolor=\color{white},   % requires the color package
+  %frame=single,                    % put a border around the code
+  basicstyle=\footnotesize,
+  xleftmargin=.25in,
+  numbers=left,                    % line numbers (none, left, right)
+  numberstyle=\tiny\color{red},    % the style that is used for line numbers
+  numbersep=5pt,                   % how far the line-numbers are from the code 
+  showspaces=false,                % visibly indicate spaces everywhere
+  showstringspaces=false,          % visibly indicate spaces within strings only
+  showtabs=false,                  % visibly indicate tabs within strings
+  breaklines=true,                 % toggle automated line wrapping
+  breakatwhitespace=false,         % if wrapping is on, enable to break on whitespace only
+  deletekeywords={...},            % exclude keywords from chosen language
+  morekeywords={*,...},            % add words to be treated as keywords
+  captionpos=b                     % sets the caption-position (bottom)
+}
 
+
+\lstdefinestyle{customasm}{
+  belowcaptionskip=1\baselineskip,
+  frame=L,
+  xleftmargin=\parindent,
+  language=[x86masm]Assembler,
+  basicstyle=\footnotesize\ttfamily,
+  commentstyle=\itshape\color{purple!40!black},
+}
+
+\lstset{escapechar=@,style=customc}
 
 \begin{document}
 \title{\mytitle}
