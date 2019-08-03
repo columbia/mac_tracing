@@ -45,15 +45,15 @@ graph operations \xxx performs leading to a diagnosis.
 \State {$TracingEvents$ $\gets$ Run program under \xxx,
 		trigger baseline case (if possible) and buggy test case}\label{algmain:collectdata}
 \State {$HeuristicsSet$ $\gets$ $\{default$ $ $ $heuristics\}$}
-\State {$ControlFlowGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}\label{algmain:recompute}
-\State {$SpinningNode$ $\gets$ search $ControlFlowGraph$ with timestamp
-		when spinning cursor displays}\label{algmain:findspinningnode}
+\State {$EventGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}
+\label{algmain:recompute}
+\State {$SpinningNode$ $\gets$ search $EventGraph$}\label{algmain:findspinningnode}
 \If {$SpinningNode$ $==$ $CPU busy execution(livelock)$}
-	\State{run backward traversal of edges until UI event found}\label{algmain:1st}
+	\State{run backward traversal of main thread until UI event found}\label{algmain:1st}
 \Else
 	\State{$N_0$ $\gets$ $SpinningNode$}\label{algmain:2and3begin}
-	\State{$N_1$ $\gets$ FindSimilarNode($ControlFlowGraph$, $N_0$)}
-	\State{call AssistedGraphDiff($ControlFlowGraph$, $N_0$, $N_1$)}
+	\State{$N_1$ $\gets$ FindSimilarNode($EventGraph$, $N_0$)}
+	\State{call AssistedGraphDiff($EventGraph$, $N_0$, $N_1$)}
 	\If {new\_hueristics were added}
 		\State \Goto{algmain:recompute}
 	\EndIf \label{algmain:2and3end}
@@ -143,10 +143,10 @@ hang may occur.
 	\State{$iter_b$ $\gets$ iterator of first event in $Node_blocking$}
 	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
 		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
-			$iter_i$++
+			\State{$iter_i$++}
 		\EndWhile
 		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
-			$iter_b$++
+			\State{$iter_b$++}
 		\EndWhile
 		\If {$iter_b$ $\neq$ end \And $iter_i$ $\neq$ end}
 			\State{$if_eq$ $\gets$ CompareEvent($Event$($iter_b$), $Event$($iter_i$))}
@@ -156,7 +156,8 @@ hang may occur.
 		\EndIf
 	\EndWhile
 	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
-		\If {wresult of $Node_i$ $\neq$ wresult of $Node_blocking$ \Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
+		\If {wresult of $Node_i$) $\neq$ wresult of $Node_blocking$
+		\Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
 			\State{Put Node into $SimilarNodeSet$}
 		\EndIf
 	\EndIf
@@ -280,7 +281,7 @@ applications and daemons.
 %%\end{figure*}
 
 Next she ran \xxx to find the event in the main thread of the browser process.
-\xxx returned a \vv{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})
+\xxx returned a \vv{cv\_timed\_wait} event %(Figure~\ref{fig:chromium-trace})
 that blocked the main thread for a few seconds. Inspection of the
 lightweight call stack revealed that this wait happened within a call to
 \vv{TextInputClientMac::GetFirstRectForRange}. Without knowing the application's

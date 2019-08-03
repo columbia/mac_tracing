@@ -66,10 +66,10 @@ where the variable is defined and the symbol of the variable as input. We
 show the simple example how a user ask \xxx to trace \_gOutMsgPending in the
 following command.
 
-\begin{BVerbatim}
-./bp_watch pidofWindowServer \
-	Path/to/CoreGraphics _gOutMsgPending
-\end{BVerbatim}
+\begin{lstlisting}
+./bp_watch pidofWindowServer Path/to/CoreGraphics\
+	_gOutMsgPending
+\end{lstlisting}
 
 \xxx hooks the watch point break handler in CoreFoundation to make sure that it is
 loaded correctly into the address space of our target application. The handler

@@ -44,13 +44,14 @@ Table~\ref{table:event_types}.
 		System\_call & Semantics\\ \hline
 		Back\_trace & Semantics\\ \hline
 		NSApp\_event\footnotemark[1] & Semantics \\ \hline
-		Interrupts & Boundary \\ \hline
-		Sharetime\_maintenance & Boundary \\ \hline
 		Wait & Semantics, Boundary \\ \hline
-		Dispatch\_invoke & Boundary \\ \hline
+		Interrupts & Boundary \\ \hline
+		Sharetime\_maintenance\footnotemark[2] & Boundary \\ \hline
+		Dispatch\_invoke\footnotemark[3] & Boundary \\ \hline
 		Runloop\_invoke & Boundary \\ \hline
 		Mach\_message & Boundary, Connection\\ \hline
 		Wake\_up & Connection \\ \hline
+		Timer & Connection \\hline
 		Dispatch\_enqueue & Connection \\ \hline
 		Runloop\_submit & Connection \\ \hline
 		Share\_flag\_read & Connection \\ \hline
@@ -60,6 +61,8 @@ Table~\ref{table:event_types}.
 	\begin{tablenotes}
 		\small
 		\item 1. User input events dispatched to the Application.
+		\item 2. Kernel invoked a routine to update timeshare quota. 
+		\item 3. Invoke callback function for works from dispatch queue.
 	\end{tablenotes}
 	\caption{Event Type Categories. }
   \label{table:event_types}
@@ -146,7 +149,7 @@ ending boundary for current node and constructs a new node beginning with the
 mach\_message event.
 
 Edges connect nodes, both intra-thread and inter-thread, with connection
-events. \xxx walks through each connection event type to apply heuritics as
+events. \xxx walks through event type in connection category to apply heuritics as
 follows. First, the return from a wait operation causally depends on the wake-up
 operation. An edge is defined from the wake-up event to the first event after
 the wait returns. \xxx also add a weak edges from the wait event to the wake-up
@@ -209,12 +212,12 @@ more user input heuristics.
 	\Switch {EventType}
 	\Case {Wake\_up}\label{graphcomputing:2.a}
 		\State{AddWeakEdge(corresponding wait, wake\_up)}
-		\State{AddEdge(wake\_up, first event after wait returns)}
+		\State{AddEdge(wake\_up, first\_event\_after\_wait\_returns)}
 	\EndCase
 	\Case {Mach\_message}\label{graphcomputing:2.b}
 		\State{AddEdge(sender, receiver)}
 		\If {needs reply}
-			\State {AddEdge(receiver, reply sender)}
+			\State {AddEdge(receiver, reply\_sender)}
 		\EndIf
 	\EndCase
 	\Case {Dispatch\_enqueue}\label{graphcomputing:2.c}
@@ -224,7 +227,7 @@ more user input heuristics.
 		\State {AddEdge(Runloop\_submit, RunLoop\_invoke)}
 	\EndCase
 	\Case {Timer}\label{graphcomputing:2.e}
-		\State {AddEdge(Timer armed, Timer callout)}
+		\State {AddEdge(Timer\_armed, Timer\_callout)}
 	\EndCase
 	\Case {Share\_flag\_read}\label{graphcomputing:2.f}
 		\State {AddEdge(Share\_flag\_write, Share\_flag\_read)}
@@ -317,11 +320,11 @@ Over connections usually occur when intra-thread boundaries are missing due to
 unknown batch processing programming paradigms. We list the example patterns we
 found below.
 
-\para{Dispatch message batching}
+\paragraph{Dispatch message batching}
 While traditional causual tracing assumes the entire execution of a
 callback function is on behalf of one request, we found some daemon
 implements its service loop inside the callback function and creates false
-dependencies. In the following code snippet from the \vv{fontd} daemon, function
+dependencies. In the code snippet in Figure~\ref{fig:dispatchmessagebatching} from the \vv{fontd} daemon, function
 \vv{dispatch\_execute} is installed as a callback to a work from dispatch queue.
 It subsequently calls \vv{dispatch\_mig\_server()} which runs the typical server
 loop and handles messages from different apps.
@@ -333,42 +336,49 @@ distinct processes. Any capplication or daemon can implement its own server loop
 this way, which makes it fundamentally difficult to automatically infer event
 handling boundaries.
 
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-worker thread in fontd:
+\begin{figure}[ht!]
+\begin{minipage}[t]{.25\textwidth}
+\begin{lstlisting}
+//worker thread in fontd:
 //enqueue a block
 block = dispatch_mig_sevice;
 dispatch_async(block);
-\end{BVerbatim}
-}
-\quad
-{\footnotesize\begin{BVerbatim}[baseline=c]
-main thread in fontd:
+\end{lstlisting}
+\end{minipage}\hfill
+\begin{minipage}[t]{.21\textwidth}
+\begin{lstlisting}
+//main thread in fontd:
 //dequeue blocks
 block = dequeue();
 dispatch_execute(block);
-\end{BVerbatim}
-}
-	
-{\verbatimfont{\itshape\ttfamily}\footnotesize\begin{BVerbatim}
+\end{lstlisting}
+\end{minipage}
+
+\begin{minipage}[t]{0.5\textwidth}
+\begin{lstlisting}
 //implementation of dipatch_mig_server
 dispatch_mig_server()
-  for(;;) //batch processing
-    mach_msg(send_reply, recv_request)
-    call_back(recv_request)
-    set_reply(send_reply)
-\end{BVerbatim}
-}
-\bigskip
+for(;;) //batch processing
+  mach_msg(send_reply, recv_request)
+  call_back(recv_request)
+  set_reply(send_reply)
+\end{lstlisting}
+\end{minipage}
+    \caption{Dispatch message batching}
+    \label{fig:dispatchmessagebatching}
+\end{figure}
 
-\para{Batching in event processing}
+\paragraph{Batching in event processing}
 Message activities inside a system call are assumed to be related traditionally.
 However, to presumably save on kernel boundary crossings, WindowServer MacOS
 system daemon uses a single system call to receive data and send data for an
-unrelated event from differnt processed in its event loop. This batch processing
+unrelated event from differnt processed in its event loop,
+as shown in Figure~\ref{fig:batchingineventprocessing}. This batch processing
 artificially makes many events appear dependent. We split the execution segments
 to maintain the independence of the events.
 
-{\footnotesize \begin{verbatim}
+\begin{figure}[ht!]
+\begin{lstlisting}
 //inside a single thread
 while() {
   CGXPostReplyMessage(msg) {
@@ -385,25 +395,28 @@ while() {
     ... // process received message
   }
 }
-\end{verbatim}
-}
+\end{lstlisting}
+    \caption{Batching in event processing}
+    \label{fig:batchingineventprocessing}
+\end{figure}
 
 \subsubsection{Under Connections}\hfill\\
 On the other hand, under connections mostly result from missing data
 dependencies. Data dependencies inter/intra threads are usually hard to fully
 exploit in the initial pass of graph computing.
 
-\para{Data dependency in event processing}
-The case above also illustrates a causal linkage caused by data dependency
-within one thread. As the code shows, WindowServer saves the reply message in
+\paragraph{Data dependency in event processing}
+The code in Figure~\ref{fig:batchingineventprocessing}also illustrates a causal linkage caused by data dependency in one thread.
+WindowServer saves the reply message in
 variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}. When it calls
 \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
 message. \xxx uses watch point registers to capture events on \vv{\_gOutMsg} and
 establish the causal link between the handling of the previous request and the
 send of the reply.
 
-\para{CoreAnimation shared flags}
-A worker thread can set a field \vv{need\_display} inside a CoreAnimation
+\paragraph{CoreAnimation shared flags}
+As shown in Figure~\ref{fig:casharedflag}, worker thread can set
+a field \vv{need\_display} inside a CoreAnimation
 object whenever the object needs to be repainted. The main thread iterates over
 all animation objects and reads this flag, rendering any such object. This
 shared-memory communication creates a dependency between the main thread and the
@@ -412,32 +425,39 @@ worker so accesses to these field flags need to be tracked.
 %%each using a watch point register. Instead, it uses instrumentation to modify
 %%the CoreAnimation library to trace events on these flags.
 
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-Worker thread:
+\begin{figure}[ht!]
+\begin{minipage}[t]{.20\textwidth}
+\begin{lstlisting}
+//Worker thread:
 //needs to update UI:
 obj->need_display = 1
-\end{BVerbatim}
-}
-\quad
-{\footnotesize\begin{BVerbatim}[baseline=c,numbers=left]
-Main thread: 
+\end{lstlisting}\hfill
+\end{minipage}
+\noindent\begin{minipage}[t]{.30\textwidth}
+\begin{lstlisting}
+//Main thread: 
 //traverse all CA objects
-if (obj->need_display == 1)
+if(obj->need_display == 1)
   render(obj)
-\end{BVerbatim}
-}
-\bigskip
+\end{lstlisting}\hfill
+\end{minipage}
+    \caption{CoreAnimation shared flag}
+    \label{fig:casharedflag}
+\end{figure}
 
 \para{Spinning cursor shared flag}
-Whenever the system determines that the main thread has hung for a certain
+As shown in Figure~\ref{fig:spinningcursorsharedflags},
+whenever the system determines that the main thread has hung for a certain
 period, and the spinning beach ball should be displayed, a shared-memory flag
 is set. Access to the flag is controlled via a lock, i.e. the lock is used for
 mutual exclusion, and does not imply a happens before relationship. Thus, \xxx
 captures accesses to these flags using watch-point registers to add causal edges
 correctly.
 
-{\footnotesize \begin{verbatim}
-NSEvent thread:
+\begin{figure*}[ht!]
+\begin{minipage}[t]{0.5\textwidth}
+\begin{lstlisting}
+//NSEvent thread:
 CGEventCreateNextEvent() {
   if (sCGEventIsMainThreadSpinning == 0x0)
      if (sCGEventIsDispatchToMainThread == 0x1)
@@ -447,22 +467,25 @@ CGEventCreateNextEvent() {
            CGSConnectionSetSpinning(0x1);
        }
 }
-
-Main thread:
-Convert1CGEvent(0x1);
-if (sCGEventIsMainThreadSpinning == 0x1)
-  CGSConnectionSetSpinning(0x0);
-  sCGEventIsMainThreadSpinning = 0x0;
-  sCGEventIsDispatchedToMainThread = 0x0;
-\end{verbatim}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.4\textwidth}
+\begin{lstlisting}
+//Main thread:
+{
+	... //pull events from event queue
+	Convert1CGEvent(0x1);
+	if (sCGEventIsMainThreadSpinning == 0x1){
+  		CGSConnectionSetSpinning(0x0);
+  		sCGEventIsMainThreadSpinning = 0x0;
+  		sCGEventIsDispatchedToMainThread = 0x0;
+	}
 }
-
-In addition to batching processing and data dependency, the spurious edge
-introduced by mutex lock is also a challenge in debugging. The synchronization
-on mutex lock reflects one thread wakes up the other thread. The scenario can
-either be a producer-comsumer problem or merely mutualy exclusion. Making the
-graph completely sound without user interaction is almost impossible given the
-essential attribite of commericial operating system as a grey box.
+\end{lstlisting}
+\end{minipage}
+    \caption{Spinning Cursor Shared Flags}
+    \label{fig:spinningcursorsharedflags}
+\end{figure*}
 
 \subsection{User Interactions}\label{subsec:userinteraction}
 
@@ -471,6 +494,12 @@ essential attribite of commericial operating system as a grey box.
 %% Para1 : why we need user interaction
 %% Para2 : what the user can do
 %% Para3 : how it helps causality tracing
+In addition to batching processing and data dependency, the spurious edge
+introduced by mutex lock is also a challenge in debugging. The synchronization
+on mutex lock reflects one thread wakes up the other thread. The scenario can
+either be a producer-comsumer problem or merely mutualy exclusion. Making the
+graph completely sound without user interaction is almost impossible given the
+essential attribite of commericial operating system as a grey box.
 
 As we mentioned above, to figure out all over connections and under connections
 before hand is almost impossible. Instead, users can find out the descrepency
