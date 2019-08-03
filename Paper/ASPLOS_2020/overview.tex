@@ -1,21 +1,28 @@
 \section{Overview} \label{sec:overview}
 
-%\subsection{Interactive Diagnosis} \label{subsec:debug}
+\subsection{Argus Work Flow}
+\begin{figure*}[tb]
+    \centering
+    \input{figures/overview_tikz.tex}
+    \caption{\xxx Work Flow}
+    \label{fig:argus-overview}
+\end{figure*}
 
-In this section, we describe the steps a user takes to investigate a
-performance anomaly with \xxx. We assume the user has a program to execute and
-a buggy test case that can be reliably reproduced; if possible, the user can
-also provide a similar test case which executes normally for comparison
-purposes. The goal of \xxx is to discover a sequence of user-interface (UI)
-actions that trigger the buggy test case, and a detailed execution trace for
-these events. In the cases we consider, the flow of information across threads
-and processes is essential to discovering the system state that leads to a
-performance bug. \xxx recovers UI actions from logged data rather than being
-told the actions that a user performs, because not all of them may be relevant
-to the true bug.
+In this section, we describe the steps a user takes to investigate a performance
+anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow,
+which consists of two phases. A user runs command ``\vv{\xxx start}'' to enter
+the system-wide tracing phase, within which \xxx logs events as listed in Table
+~\ref{table:event_types} (\S\ref{subsec:eventgraph}). Whenever a user detects
+a performance issue such as a spinning cursor, she runs ``\vv{\xxx debug}'' to
+enter the diagnosis phase.
+
+%%In the cases we consider, the flow of information across threads and processes
+%%is essential to discovering the system state that leads to a performance bug.
+%%\xxx recovers UI actions from logged data rather than being told the actions
+%%that a user performs, because not all of them may be relevant to the true bug.
 
 Central to our system is our \emph{event graph}, a generalized control-flow
-graph which includes inter-thread and inter-process dependencies. All diagnoses
+graph which includes inter-thread and inter-process dependencies. Diagnosis
 and inferences are performed within this graph, in a semi-automated fashion:
 \xxx performs searches and subgraph matching to trace logical events as they
 flow through the system, and the user can interactively query this graph to
@@ -23,184 +30,140 @@ understand the problem or provide guidance to \xxx. The event graph is
 described in further detail in \S\ref{subsec:eventgraph}. Next, we describe the
 graph operations \xxx performs leading to a diagnosis.
 
-\subsection{Graph Exploration and Diagnosis} \label{subsec:debug}
+\subsection{Diagnosis with Graph} \label{subsec:debug}
 
-The exact operations performed on the graph depend on the bug under
-investigation. Consider a common performance bug on MacOS, the \emph{spinning
-cursor}, which indicates the current application's main thread has not
-processed any UI events for over two seconds. Upon examining what the main
-thread is actually doing, the user may encounter three potential cases.
-
-First, the thread may be busy performing lengthy CPU operations (which take
-longer than two seconds). In this case, \xxx will examine the stack trace and
-find a sequence of events that led to the current CPU processing. If more
-specific tracing is required, the user can rerun the program with more
-heavyweight instrumentation enabled for any portion of the code's execution,
-gathering a precise sequence of calls or even instructions executed.
-
-Second, the thread may be in a blocking wait, in which case \xxx tries to
-automatically determine which event would normally wake up the thread. The
-system does so by diffing the current subgraph with other instances in the
-recorded execution (assuming the user has carried out a typical baseline test
-case before triggering the bug). Essentially, \xxx traces blocking events and
-messages backwards through history until relevant UI events are found. The user
-may manually intervene at different stages to guide the system towards the most
-relevant portions of execution, leveraging hypotheses or expert knowledge as to
-why a hang may occur. The full diff algorithm is described in \S XXX.
-
-Third, the main thread may be in a yield loop, which is highly indicative it
-is waiting on a data flag (\eg, ``while(!done)
-thread\_switch();'').
-To discover a data flag, the user re-runs the application
-with \xxx to collect instruction traces of the concurrent event in both the
-normal and spinning cases and detects where the control flow diverges.  She
-then reruns the application with \xxx to collect register values for the basic
-blocks before the divergence and uncovers the address of the data flag.  She
-then configures \xxx to log accesses to the flag during system-wide tracing.
-Finally, she can recursively apply \xxx to further diagnose ``the culprit of
-the culprit''.
-
-Based on our results and experience, the first case is the most common, but the
-second and third represent more severe bugs. Long-running CPU operations tend
-to be more straightforward to diagnose with existing tools. Blocking or
-yielding cases involve multiple threads and processes, and are extremely hard
-to understand and fix even for the application's original developers.
-Therefore, issues remain unaddressed for years and significantly impact the
-user experience.
-
-%After \xxx builds the event graph, a user can interactively query this graph
-%for diagnosis.  For instance, consider a spinning cursor in MacOS which
-%indicates the current application's main thread has not processed any UI events
-%for over two seconds.  The user can query \xxx to find the ongoing event in the
-%application's main thread concurrent to the display of the spinning cursor.
-%Depending on the type of the event, she can proceed in three directions.
-
-%First, if the concurrent event is a busy operation that occupies the CPU, she
-%has found the cause of the spinning because a busy main thread cannot process
-%UI events.  She can examine the event's lightweight call stack.  If it does not
-%provide enough details, she can rerun the application and use \xxx's
-%fine-grained debugging tool to obtain a more complete call stack, the addresses
-%of the instructions executed, and parameters and return values of call
-%instructions.  In general, she can increase debugging details for any event,
-%not just a busy event.
-
-%Second, if the concurrent event is a blocking wait, she runs \xxx to locate
-%another event in the graph that causes the wake-up to arrive late. \xxx does so
-%using the following idea.  In the normal case, there must be a path of wake-up
-%edges that leads to the blocking wait, so the main thread starts running again.
-%In the spinning case, somewhere along the path, a thread's wake-up is missing,
-%so this thread is the culprit.  Mechanically, \xxx first searches the graph to
-%find a similar wait that does not cause a spinning cursor.  If there are
-%multiple nodes similar to the wait, \xxx asks the user to pick one.  It then
-%slices the graph backwards to find the wake-up path.  If an event has exactly
-%one inter-thread edge or only an intra-thread edge, it follows the edge.
-%Otherwise, the event must have two or more inter-thread edges, and \xxx
-%consults the user to pick one to follow.  Given the path, \xxx examples the
-%threads in the path one by one, and returns the thread whose wake-up is missing
-%in the spinning case.
-%
-%Third, if the concurrent event is a thread yield, it is highly indicative that
-%the main thread is waiting on a data flag (\eg, ``while(!done)
-%thread\_switch();'').  To discover a data flag, the user reruns the application
-%with \xxx to collect instruction traces of the concurrent event in both the
-%normal and spinning cases and detects where the control flow diverges.  She
-%then reruns the application with \xxx to collect register values for the basic
-%blocks before the divergence and uncovers the address of the data flag.  She
-%then configures \xxx to log accesses to the flag during system-wide tracing.
-%Finally, she can recursively apply \xxx to further diagnose ``the culprit of
-%the culprit''. 
-%
-%Based on our results, the first type of spinning cursor is more common but the
-%second and third types cause the most harm.  The reason is that the first type
-%tends to be straightforward to diagnose, so they are fixed quickly.  The second
-%and third types involve multiple threads, so they are extremely hard to
-%understand and fix even for the application's own developers.  Therefore, they
-%remain open for years and ruin many users' experiences.
-
-\subsection{\xxx Algorithm}
-\begin{algorithm}[ht]
+\begin{algorithm}[ht!]
     \caption{Main \xxx algorithm.}
     \label{alg:alg-main}
 \begin{algorithmic}[1]
-\Require{Program to run + buggy test case + (optional) similar baseline test case}
-\Ensure{Sequence of actions or UI events which trigger the performance problem, and trace of execution across event handlers}
+\Require{Program to run + buggy test case
+			+ (optional) similar baseline test case}
+\Ensure{Sequence of UI events triggered the performance problem 
+		+ Nodes from Event Graph}
 \Statex
 \Function{\xxx Main}{}
-\State {$TracingEvents$ $\gets$ Run program under \xxx, trigger baseline case (if possible) and then buggy test case}
+\State {$TracingEvents$ $\gets$ Run program under \xxx,
+		trigger baseline case (if possible) and buggy test case}\label{algmain:collectdata}
 \State {$HeuristicsSet$ $\gets$ $\{default$ $ $ $heuristics\}$}
-\State {$ControlFlowGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}\label{recompute}
-\State {$SpinningNode$ $\gets$ search $ControlFlowGraph$ with timestamp when spinning cursor displays}
+\State {$ControlFlowGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}\label{algmain:recompute}
+\State {$SpinningNode$ $\gets$ search $ControlFlowGraph$ with timestamp
+		when spinning cursor displays}\label{algmain:findspinningnode}
 \If {$SpinningNode$ $==$ $CPU busy execution(livelock)$}
-	\State{run backward traversal of edges until UI event found}
+	\State{run backward traversal of edges until UI event found}\label{algmain:1st}
 \Else
-	\State{$N_0$ $\gets$ $SpinningNode$}
+	\State{$N_0$ $\gets$ $SpinningNode$}\label{algmain:2and3begin}
 	\State{$N_1$ $\gets$ FindSimilarNode($ControlFlowGraph$, $N_0$)}
 	\State{call AssistedGraphDiff($ControlFlowGraph$, $N_0$, $N_1$)}
 	\If {new\_hueristics were added}
-		\State \Goto{recompute}
-	\EndIf
+		\State \Goto{algmain:recompute}
+	\EndIf \label{algmain:2and3end}
 \EndIf
 \State{Return set of UI events and root cause related Nodes}
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
 
-%%\begin{figure}[tb]
-%%\footnotesize\begin{verbatim}
-%%Main Algorithm:
-%%    Input: Program to run + buggy test case
-%%        + (optional) similar baseline test case
-%%    Output: Sequence of actions or UI events which
-%%        trigger the performance problem, and trace
-%%        of execution across event handlers
-%%
-%%1. Run program under \xxx, trigger baseline case
-%%    (if possible) and then buggy test case
-%%2. Set heuristics = { default heuristics }
-%%3. Compute graph using current heuristics with
-%%    Algorithm ComputeControlFlowGraph
-%%4.a. If the buggy case is busy executing code (livelock):
-%%    run backward traversal of edges until UI event found
-%%4.b. Else, given a hanging node N_1, use Algorithm
-%%    FindSimilarNode to obtain an equivalent
-%%    in the baseline test case,
-%%    N_0 -> FindSimilarNode(N_1)
-%%    5.a. Compare nodes N_0 and N_1, and automatically
-%%        diff the two cases, moving through history
-%%        semi-automatically with user input
-%%	    until useful UI events are found
-%%        [Algorithm AssistedGraphDiff]
-%%    5.b. If new heuristics were added, go to step 3.
-%%6. Return set of UI events found
-%%\end{verbatim}
-%%    \caption{Main \xxx algorithm.}
-%%    \label{fig:alg-main}
-%%\end{figure}
+Algorithm~\ref{alg:alg-main} shows how \xxx investigates a performance anomaly
+for users, given a buggy test case and (potentially) a baseline test case
+for comparison purposes. We assume the user has a program to execute and a
+buggy test case that can be reproduced eventually; the tracing log collected
+by \xxx would contain a similar event processing normally, or the user can
+provide a nomarlly executed test case for comparison purpose, listed in
+line~\ref{algmain:collectdata}. \xxx initializes this debugging phase by
+constructing an event graph from all logged events up to user-specified duration
+in line~\ref{algmain:recompute}. The detail of algorithm ComputeGraph is
+presented in Algorithm ~\ref{alg:graphcomputing}(\S\ref{subsec:graphcomputing}).
 
+The exact searches and queries performed on the graph depend on the bug under
+investigation. Consider a common performance bug on MacOS, the \emph{spinning
+cursor}, which indicates the current application's main thread has not processed
+any UI events for over two seconds. \xxx queries the event graph to find the
+ongoing event in the application's main thread concurrent to the display of
+the spinning cursor shown in line~\ref{algmain:findspinningnode}. Upon examing
+what the main thread is actually doing, the user may encounter three potential
+cases. First, the thread may be busy performing lengthy CPU operations (which
+take longer than two seconds). Second, the thread may be in a blocking wait.
+Third, the main thread may be in a yield loop, which is highly indicative
+it is waiting on a data flag (\eg, ``while(!done) thread\_switch();'').
+Line ~\ref{algmain:1st} to ~\ref{algmain:2and3end} is to track events and
+synchronization primitives throughout the system to figure out the root cause,
+in terms of user input events and bug in code, for the three cases.
 
-\paragraph{Main algorithm} Next, we describe \xxx's operation more precisely.
-Algorithm~\ref{alg:alg-main} shows the steps a user takes to investigate a
-performance anomaly with \xxx, given a buggy test case and (potentially) a
-baseline test case for comparison purposes.
+For the first case, shown in line~\ref{algmain:1st}, \xxx will examine
+the stack trace and find a sequence of events that led to the current CPU
+processing. If more specific tracing is required, the user can rerun the
+program with more heavyweight instrumentation enabled for any portion of the
+code's execution, gathering a precise sequence of calls or even instructions
+executed.
 
-First (step 1) the user executes the program with \xxx instrumentation enabled,
-running through the baseline test case (if applicable) and then the buggy test
-case, capturing execution logs. Next (steps 2-3), \xxx computes a generalized
-control-flow graph which includes inter-thread and inter-process dependencies;
-this graph is described in further detail in \S\ref{subsec:eventgraph}. In step
-4.a and 4.b, the goal is to track events and synchronization primitives
-throughout the system to figure out the root cause, in terms of user input
-events, which caused a hang or performance bug. We locate the node $N_1$ in our
-graph where the performance bug is triggered. This node could be executing code
-(step 4.a) or in a deadlock situation (step 4.b). The most common and most
-complex situation is the latter, where we use a diff between the buggy test
-case and a baseline test case to further diagnosis. We locate a node $N_0$ in
-our graph that corresponds to the baseline version of the hanging node $N_1$
-(see \S XXX), and diff the subgraphs to determine the differences between the
-cases. This diffing technique, detailed in \S\ref{subsec:debug} below, is
-semi-automated but can integrate user input at each stage to leverage
-hypotheses or expert knowledge as to why a hang may occur.
+On the contrasy, for the rest cases, line~\ref{algmain:2and3begin} to
+line~\ref{algmain:2and3end}, \xxx locates the node $N_1$, either a blocking wait
+or a yield loop, in our graph when the spinning beachball is triggered. \xxx
+applies Algorithm~\ref{alg:alg-findsimilarnode} to locate a node $N_0$ in our
+graph that corresponds to the baseline version of the hanging node $N_1$.
 
+For the second case of block waiting, \xxx takes the assumption there usually
+exits a chain of blocking thread and the initial blocking thread is the most
+valuable for debugging. Consequentally, \xxx diffs the subgraphs between the
+blocking version and the baseline version to determine their difference with
+Algorithm ~\ref{alg:alg-graphdiff}.
+
+In the third case, the main thread is in a yield loop, which is highly indicative it is
+waiting on a data flag (\eg, ``while(!done) thread\_switch();''). To discover
+a data flag, the user re-runs the application with \xxx to collect instruction
+traces of the concurrent event in both the normal and spinning cases and detects
+where the control flow diverges. She then reruns the application with \xxx to
+collect register values for the basic blocks before the divergence and uncovers
+the address of the data flag. She then configures \xxx to log accesses to the
+flag during system-wide tracing. Finally, she can recursively apply \xxx to
+further diagnose ``the culprit of the culprit''.
+
+Based on our results and experience, the first case is the most common, but
+the second and third represent more severe bugs. Long-running CPU operations
+tend to be more straightforward to diagnose with existing tools. Blocking
+or yielding cases involve multiple threads and processes, and are extremely
+hard to understand and fix even for the application's original developers.
+Therefore, issues remain unaddressed for years and significantly impact the user
+experience. Algorithm~\ref{alg:alg-main} is semi-automated but can integrate
+user input at each stage to leverage hypotheses or expert knowledge as to why a
+hang may occur.
+
+\begin{algorithm}[ht!]
+    \caption{\xxx Find similar node algorithm.}
+    \label{alg:alg-findsimilarnode}
+\begin{algorithmic}[1]
+%%  Output: Similar node set
+\Require{EventTypesSet + SpinningNode + Graph}
+\Ensure{SimilarNodeSet}
+\Statex
+\Function{FindSimilarNode}{}
+\State{$thread$ $\gets$ thread of $Node_blocking$}
+\For {$Node_i$ in $thread$ other than $Node_blocking$}
+	\State{$iter_i$ $\gets$ iterator of first event in $Node_i$}
+	\State{$iter_b$ $\gets$ iterator of first event in $Node_blocking$}
+	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
+		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
+			$iter_i$++
+		\EndWhile
+		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
+			$iter_b$++
+		\EndWhile
+		\If {$iter_b$ $\neq$ end \And $iter_i$ $\neq$ end}
+			\State{$if_eq$ $\gets$ CompareEvent($Event$($iter_b$), $Event$($iter_i$))}
+			\If {$if_eq$ $==$ False}
+				\State{Break}
+			\EndIf
+		\EndIf
+	\EndWhile
+	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
+		\If {wresult of $Node_i$ $\neq$ wresult of $Node_blocking$ \Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
+			\State{Put Node into $SimilarNodeSet$}
+		\EndIf
+	\EndIf
+\EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
 \begin{algorithm}[ht!]
     \caption{\xxx Assisted graph diff algorithm.}
@@ -228,151 +191,44 @@ hypotheses or expert knowledge as to why a hang may occur.
 \end{algorithmic}
 \end{algorithm}
 
-%%\begin{figure}[tb]
-%%\footnotesize\begin{verbatim}
-%%Algorithm AssistedGraphDiff:
-%%  Input: Backward slicing path from the baseline Node
-%%          + Spinning Node + Graph
-%%  Output: Possible root cause of thread blocking
-%%  1. get timestamp of Spinning Node as t_spinning
-%%  2. For every thread, node in the backware slicing path
-%%     get timestamp of node in the baseline as t_normal
-%%     check if thread block during (t_normal. t_spinning)
-%%     if true, put the blocking node in the result set
-%%  3. return the result set
-%%\end{verbatim}
-%%    \caption{\xxx Assisted graph diff algorithm.}
-%%    \label{fig:alg-graphdiff}
-%%\end{figure}
 
+\subsection{\xxx Assisting Algorithm}
 
-\paragraph{Graph diff algorithm}
 We mentioned previously in \S\ref{subsec:debug} that \xxx explores the event
-graph semi-automatically to narrow in on relevant nodes for diagnosis. This
-full algorithm, which includes steps that accept manual user intervention, is
-shown in Algorithm~\ref{alg:alg-graphdiff}.
+graph semi-automatically to narrow in on relevant nodes in event graph for
+diagnosis. Algorithms that require no user intervention are described
+in this section.
 
-\paragraph{Other algorithms}
-More detailed algorithms that require no user intervention are described in later sections.
-Specifically, ComputeControlGraph is in \S XXX and FindSimilarNode is in \S XXX.
+\paragraph{Find Similar Node Algorithm}
 
-%\begin{figure*}[tb]
-%    \centering
-%	\input{figures/overview_tikz.tex}
-%    \caption{\xxx Work Flow}
-%    \label{fig:argus-overview}
-%\end{figure*}
+FindSimilarNode in Algorithm~\ref{alg:alg-findsimilarnode} is meant to find
+nodes which have the same high level semantics but different execution results
+compared to the spinning node. For example, both of them are waiting on locks,
+but one returns successfully and the other not. \xxx defines a subset of events
+that peserve semantics, which contains System\_call, Back\_trace, NSApp\_event,
+Mach\_message, Wait, Dispatch\_enqueue, Dispatch\_invoke, Runloop\_submit,
+Runloop\_invoke, Share\_flag\_read and Share\_flag\_write. The comparison of
+events depends on event type and its category in Table~\ref{table:event_types}.
+For connection events, \xxx compares their peers. For semantics Events, \xxx
+compares the content of the event attributes, for example, the system call
+number. The wait results of wait event usually differentiate the normal
+execution and buggy case. \xxx differentiate the cases with wait results by
+default. Depending on the report detail of the spinning node, user can change
+the comparing metrics.
 
-%Figure~\ref{fig:argus-overview} shows \xxx's work flow, which consists of two
-%phases. A user runs command ``\vv{\xxx start}'' to enter the system-wide tracing
-%phase, within which \xxx logs events including system calls, inter-process
-%communications (IPCs), and waits and wake-ups from all applications and daemons.
-%Occasionally based on user configurations, it logs data flag accesses leveraging
-%hardware watch-point registers. Each log entry includes a timestamp, the event
-%type, key attributes of the event, and an optional lightweight call stack
-%obtained by unwinding the user stack pointer. \xxx implements tracing by
-%instrumenting core system libraries and a small portion of the operating system.
-%The performance impact of this system-wide tracing is low because the logged
-%events themselves are often expensive and require user-kernel crossings, masking
-%the overhead of tracing.
-%
-%Whenever a user detects a performance issue such as a spinning cursor, she
-%runs ``\vv{\xxx debug}'' to enter the interactive diagnosis phase. \xxx
-%initializes this phase by constructing a causal graph from all logged events up
-%to user-specified duration. Rather than requiring a precise application-specific
-%user-written schema, \xxx leverages a simple system-wide schema we created
-%to construct approximate graphs (\S\ref{subsec:eventgraph}), and relies on
-%interactive user insights for diagnosis (\S\ref{subsec:debug}).
+\paragraph{Graph Diff Algorithm}
 
-%ComputeControlGraph takes the heuristics set and the parsed trace
-%events as input and produce a event graph as is described in
-%Section \S\ref{subsec:eventgraph}. The algorithm is shown in
-%Figure~\ref{fig:alg-graphcomputing}. The graph is subject to improve by rerun
-%the computing process with new heuristics.
-
-\begin{algorithm}[ht!]
-    \caption{\xxx Find similar node algorithm.}
-    \label{fig:alg-findsimilarnode}
-\begin{algorithmic}[1]
-%%  Output: Similar node set
-\Require{EventTypesSet + BlockingNode + Graph}
-\Ensure{SimilarNodeSet}
-\Statex
-\Function{FindSimilarNode}{}
-\State{$thread$ $\gets$ thread of $Node_blocking$}
-\For {$Node_i$ in $thread$ other than $Node_blocking$}
-	\State{$iter_i$ $\gets$ iterator of first event in $Node_i$}
-	\State{$iter_b$ $\gets$ iterator of first event in $Node_blocking$}
-	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
-		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
-			$iter_i$++
-		\EndWhile
-		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
-			$iter_b$++
-		\EndWhile
-		\If {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
-			$if_eq$ $\gets$ CompareEvent($Event$($iter_b$), $Event$($iter_i$))
-			\If {$if_eq$ $==$ False}
-				\State{Break}
-			\EndIf
-		\EndIf
-	\EndWhile
-	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
-		\If {wresult of $Node_i$ $\neq$ wresult of $Node_blocking$ \Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
-			\State{Put Node into $SimilarNodeSet$}
-		\EndIf
-	\EndIf
-\EndFor
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-%%\begin{figure}[tb]
-%%\footnotesize\begin{verbatim}
-%%Algorithm FindSimilarNode:
-%%  Input: Checking Events + CurrentNode + Graph
-%%  Output: Similar node set
-%%1. Get the thread id of CurrentNode
-%%2. Iterate the node from the same thread N_i, 
-%%   compare them to CurrentNode N_c:
-%%   while event{iter_c} in N_c is not checking event
-%%   and iter_c not reaches end
-%%   	 iter_c++
-%%   while event{iter_i} in N_i is checking event
-%%   and iter_i not reaches end
-%%     iter_i++
-%%   if iter_c and iter_i do not reach end:
-%%      Compare Event{iter_c} and Event{iter_i}:
-%%        2.a wait events compares the wait resource
-%%        2.b connection events compare their peer
-%%        2.c system call events and user input events
-%%            compare their syscallname and eventname
-%%   if iter_c and iter_i both reach end:
-%%      put N_i into the result set
-%%3. filter the result set if:
-%%   3.a if the wait events in the end of node
-%%       have the same wait result
-%%   3.b if the difference of node time span
-%%       is within threshold
-%%4. return the result set
-%%\end{verbatim}
-%%    \caption{\xxx Find similar node algorithm.}
-%%    \label{fig:alg-findsimilarnode}
-%%\end{figure}
-%%
-%FindSimilarNode in Figure~\ref{fig:alg-findsimilarnode} is meant to find nodes
-%which have the same high level semantics but different execution results.
-%For example, both of them are waiting on locks, but one returns successfully and the other not.
-%\xxx assumes that high level statements are likely executed repeatedly in a process life cycle.
-%In the algorithm, \xxx defines a subset of
-%events that peserve semantics, which contains mach\_msg event, wait event,
-%dispatch queue events, runloop events, breakpointer events, user input events
-%and system call events.
-%The comparison of events depends on their types.
-%\xxx finds nodes that have different wait results from the spinning node by default.
-%Depending on the report detail of the spinning node, user can
-%change the comparing metrics.
-
+\xxx tries to figure out the root cause for the second
+case(\S\ref{subsec:debug}) with Algorithm~\ref{alg:alg-graphdiff}. \xxx assumes
+that the blocking in the main thread usually caused by the unresponsive of
+another thread. In the algorithm, with the input of the blocking node in main
+thread, \xxx carries out a backward path slicing from the node from the baseline
+case in the graph. The path consists of nodes from mutiple threads. \xxx
+traverses every thread and confines the search within the time interval from the
+base line node in the thread and the timestamp when the blocking node appears
+in main thread. Among them \xxx expects to find a potential blocking in some
+threads and reports them. At the same time \xxx also collects the UIEvents into
+return set.
 
 \subsection{Chromium Spinning Cursor Example}
 
@@ -425,28 +281,28 @@ applications and daemons.
 
 Next she ran \xxx to find the event in the main thread of the browser process.
 \xxx returned a \vv{cv\_timed\_wait} event (Figure~\ref{fig:chromium-trace})
-that blocked the main thread for a few seconds.  Inspection of the lightweight
-call stack revealed that this wait happened within a call to
-\vv{TextInputClientMac::GetFirstRectForRange}.  Without knowing the
-application's semantics, she could not understand this method.  Thus she ran
-\xxx to compare the spinning case to a normal case.  \xxx searched in the main
-thread of the browser process for vertexes similar to this wait waiting
-vertexes (contain \vv{write\_file, cv\_timed\_wait} in this case) similar to
+that blocked the main thread for a few seconds. Inspection of the
+lightweight call stack revealed that this wait happened within a call to
+\vv{TextInputClientMac::GetFirstRectForRange}. Without knowing the application's
+semantics, she could not understand this method. Thus she ran \xxx to compare
+the spinning case to a normal case. \xxx searched in the main thread of the
+browser process for vertexes similar to this wait waiting vertexes similar to
 this wait, found three, and confirmed with the user which one she wanted.
 
-\xxx then found the normal-case wake-up path shown in the figure, which
-connects five threads.  The browser main thread was signaled by a browser
-worker thread as shown in step \textcircled{1} of backward slicing in Figure
-\ref{fig:chromium-trace}, which in turn \vv{read\_file} in step \textcircled{2}
-for IPC from a worker thread of \vv{renderer}, the daemon for rendering screens.
-The \vv{renderer} worker thread is woken up by the \vv{renderer} main thread to
-\vv{read\_file} \textcircled{3}, which in turn \vv{recv\_msg} \textcircled{4}
-from \vv{fontd}, the font service daemon.  From this path, we could guess that
-\vv{GetFirstRectForRange} was for the browser to understand the bounding box of
-the search string.  \xxx further compared the wake-up path with the spinning
-case, and returned the \vv{wait\_semaphore} event in the \vv{renderer} main
-thread, the culprit that delayed waking up the browser main thread over 4
-seconds.
+%%%need to adjust based on the new figure
+%%\xxx then found the normal-case wake-up path shown in the figure, which
+%%connects five threads.  The browser main thread was signaled by a browser
+%%worker thread as shown in step \textcircled{1} of backward slicing in Figure
+%%\ref{fig:chromium-trace}, which in turn \vv{read\_file} in step \textcircled{2}
+%%for IPC from a worker thread of \vv{renderer}, the daemon for rendering screens.
+%%The \vv{renderer} worker thread is woken up by the \vv{renderer} main thread to
+%%\vv{read\_file} \textcircled{3}, which in turn \vv{recv\_msg} \textcircled{4}
+%%from \vv{fontd}, the font service daemon.  From this path, we could guess that
+%%\vv{GetFirstRectForRange} was for the browser to understand the bounding box of
+%%the search string.  \xxx further compared the wake-up path with the spinning
+%%case, and returned the \vv{wait\_semaphore} event in the \vv{renderer} main
+%%thread, the culprit that delayed waking up the browser main thread over 4
+%%seconds.
 
 What caused the wait in the \vv{renderer} main thread though?  She thus
 continued diagnosis and recursively applied \xxx to the wait in \vv{renderer},
@@ -459,4 +315,3 @@ circular wait was broken by a timeout in the browser main thread (the
 \vv{cv\_timed\_wait} timeout was 1,500 ms).  While the system was able to make
 progress, the next key press caused the spinning cursor to display for another
 1,500 ms.  The timeout essentially converted a deadlock into a livelock.
-

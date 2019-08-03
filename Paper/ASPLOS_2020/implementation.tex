@@ -49,13 +49,13 @@ function externally through \texttt{dispatch\_once} during the loading.
 %%to one another and we did not see the need to implement a more general
 %%long-jump mechanism.
 
-\subsection{User Interaction} 
-\subsubsection{Tracing Custom Primitives} \label{subsec:tcp}\hfill\\
+\subsection{User Interaction}\label{subsec:tcp}
+
+\para{Tracing Custom Primitives}
 %%XXX give a simple command line example of how a user can ask \xxx to trace a
 %%data flag
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
-
 As described in (\S\ref{subsec:userinteraction}), under-connection due
 to the missing share data dependency requires users'interaction. \xxx
 provides a command line tool which sets the watch point registers to record
@@ -76,7 +76,7 @@ loaded correctly into the address space of our target application. The handler
 invokes the event tracing API from Apple to record the value of the shared
 variable and the operation type: read or write.
 \\
-\subsubsection{Capturing Instructions for Diagnosis}\hfill\\
+\para{Capturing Instructions for Diagnosis}
 %XXX Talk about what data we gather using lldb, the debugger in the LLVM
 %compiler tool chain.
 Since the output of \xxx is the nodes and user input events suspected to cause

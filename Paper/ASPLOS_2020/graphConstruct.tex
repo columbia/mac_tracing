@@ -38,31 +38,62 @@ Table~\ref{table:event_types}.
   \centering
   \begin{tabularx}{\columnwidth}{|X|X|}
   	\hline
-    \textbf{Categories} & \textbf{Event types}\\
+    \textbf{Event Type} & \textbf{Event Categories}\\
 	\hline
 	\hline
-    {\bf Semantics Events} & System\_call\\
-    provide hints for user & Back\_trace\\					   
-	interactive debugging  & NSApp\_event\\
-    \hline
-    {\bf Boundary Events} & Interrupts\\
-	construct nodes & Sharetime\_maintenance\\
-	& Wait\\
-	& Dispatch\_invoke\\
-    & Runloop\_invoke\\
-	& Mach\_message\\
-    \hline
-	{\bf Connection Events} & Wake\_up\\
-    add edges & Mach\_message\\
-    & Dispatch\_enqueue\\
-    & Runloop\_submit\\
-	& Share\_flag\_write\\
-	& Share\_flag\_read\\
-    \hline
+		System\_call & Semantics\\ \hline
+		Back\_trace & Semantics\\ \hline
+		NSApp\_event\footnotemark[1] & Semantics \\ \hline
+		Interrupts & Boundary \\ \hline
+		Sharetime\_maintenance & Boundary \\ \hline
+		Wait & Semantics, Boundary \\ \hline
+		Dispatch\_invoke & Boundary \\ \hline
+		Runloop\_invoke & Boundary \\ \hline
+		Mach\_message & Boundary, Connection\\ \hline
+		Wake\_up & Connection \\ \hline
+		Dispatch\_enqueue & Connection \\ \hline
+		Runloop\_submit & Connection \\ \hline
+		Share\_flag\_read & Connection \\ \hline
+		Share\_flag\_write & Connection \\ \hline
   \end{tabularx}
-  \caption{Event Type Categories. }
+
+	\begin{tablenotes}
+		\small
+		\item 1. User input events dispatched to the Application.
+	\end{tablenotes}
+	\caption{Event Type Categories. }
   \label{table:event_types}
 \end{table}
+
+%\begin{table}[ht]
+%  \centering
+%  \begin{tabularx}{\columnwidth}{|X|X|}
+%  	\hline
+%    \textbf{Categories} & \textbf{Event types}\\
+%	\hline
+%	\hline
+%    {\bf Semantics Events} & System\_call\\
+%    provide hints for user & Back\_trace\\					   
+%	interactive debugging  & NSApp\_event\\
+%    \hline
+%    {\bf Boundary Events} & Interrupts\\
+%	construct nodes & Sharetime\_maintenance\\
+%	& Wait\\
+%	& Dispatch\_invoke\\
+%    & Runloop\_invoke\\
+%	& Mach\_message\\
+%    \hline
+%	{\bf Connection Events} & Wake\_up\\
+%    add edges & Mach\_message\\
+%    & Dispatch\_enqueue\\
+%    & Runloop\_submit\\
+%	& Share\_flag\_write\\
+%	& Share\_flag\_read\\
+%    \hline
+%  \end{tabularx}
+%  \caption{Event Type Categories. }
+%  \label{table:event_types}
+%\end{table}
 
 Given the prevalent of multi-threading and multi-processing programs, bugs are
 much more complicated. The long opening bugs are usually have several threads
@@ -74,7 +105,7 @@ useful in that 1) it provides thread relationships all over the system across
 process boundary and timing boundary and 2) it records execution history for an
 input event before users capture hangs with their eyes.
 
-\subsection{Graph Computing Algorithm}
+\subsection{Graph Computing Algorithm}\label{subsec:graphcomputing}
 
 In the section, we describe the algorithm \xxx uses to generate an event graph.
 The algrithm has two main steps: construct nodes with heuristics based on
