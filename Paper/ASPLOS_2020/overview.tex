@@ -96,11 +96,12 @@ program with more heavyweight instrumentation enabled for any portion of the
 code's execution, gathering a precise sequence of calls or even instructions
 executed.
 
-On the contrasy, for the rest cases, line~\ref{algmain:2and3begin} to
-line~\ref{algmain:2and3end}, \xxx locates the node $N_1$, either a blocking wait
-or a yield loop, in our graph when the spinning beachball is triggered. \xxx
-applies Algorithm~\ref{alg:alg-findsimilarnode} to locate a node $N_0$ in our
-graph that corresponds to the baseline version of the hanging node $N_1$.
+On the contrary, \xxx locates the node $N_1$ for the rest
+cases, either a blocking wait or a yield loop, in our graph
+when the spinning beachball is triggered, as is shown between
+line~\ref{algmain:2and3begin} and line~\ref{algmain:2and3end}. Then \xxx applies
+Algorithm~\ref{alg:alg-findsimilarnode} to locate a node $N_0$ in our graph that
+corresponds to the baseline version of the hanging node $N_1$.
 
 For the second case of block waiting, \xxx takes the assumption there usually
 exits a chain of blocking thread and the initial blocking thread is the most
