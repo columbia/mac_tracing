@@ -1,17 +1,17 @@
-\section{Overview} \label{sec:overview}
+\section{Overview}\label{sec:overview}
 
 \subsection{Argus Work Flow}
-\begin{figure*}[tb]
+\begin{figure}[tb]
     \centering
     \input{figures/overview_tikz.tex}
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
-\end{figure*}
+\end{figure}
 
 In this section, we describe the steps a user takes to investigate a performance
-anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow,
-which consists of two phases. A user runs command ``\vv{\xxx start}'' to enter
-the system-wide tracing phase, within which \xxx logs events as listed in Table
+anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
+consists of two phases. A user runs command ``\vv{\xxx start}'' to enter the
+system-wide tracing phase, within which \xxx logs events as listed in Table
 ~\ref{table:event_types} (\S\ref{subsec:eventgraph}). Whenever a user detects
 a performance issue such as a spinning cursor, she runs ``\vv{\xxx debug}'' to
 enter the diagnosis phase.
@@ -26,11 +26,11 @@ graph which includes inter-thread and inter-process dependencies. Diagnosis
 and inferences are performed within this graph, in a semi-automated fashion:
 \xxx performs searches and subgraph matching to trace logical events as they
 flow through the system, and the user can interactively query this graph to
-understand the problem or provide guidance to \xxx. The event graph is
-described in further detail in \S\ref{subsec:eventgraph}. Next, we describe the
-graph operations \xxx performs leading to a diagnosis.
+understand the problem or provide guidance to \xxx. The event graph is described
+in further detail in \S\ref{subsec:eventgraph}. Next, we describe the graph
+operations \xxx performs leading to a diagnosis.
 
-\subsection{Diagnosis with Graph} \label{subsec:debug}
+\subsection{Diagnosis with Graph}\label{subsec:debug}
 
 \begin{algorithm}[ht!]
     \caption{Main \xxx algorithm.}
@@ -56,7 +56,7 @@ graph operations \xxx performs leading to a diagnosis.
 	\State{call AssistedGraphDiff($EventGraph$, $N_0$, $N_1$)}
 	\If {new\_hueristics were added}
 		\State \Goto{algmain:recompute}
-	\EndIf \label{algmain:2and3end}
+	\EndIf\label{algmain:2and3end}
 \EndIf
 \State{Return set of UI events and root cause related Nodes}
 \EndFunction
@@ -262,35 +262,71 @@ while the page was loading. It produced normal cases for the very first few
 characters, and the browser got blocked with the rest input as spinning cases.
 The entire session took roughly five minutes.
 
-She then ran \xxx to construct the event graph.  The graph had 2,749,628
-vertexes and 3,606,657 edges, almost fully connected.  It spans across 17
-applications; 109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond}
-and helper tools by applications; 126 processes; 679 threads, and 829,287 IPC
-messages.  Given the scale of the graph and the diverse communication patterns,
-it would be extremely challenging for prior automated causal tracing
+She then ran \xxx to construct the event graph. The graph had 2,749,628 vertexes
+and 3,606,657 edges, almost fully connected. It spans across 17 applications;
+109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond} and
+helper tools by applications; 126 processes; 679 threads, and 829,287
+IPC messages. Given the scale of the graph and the diverse communication
+patterns, it would be extremely challenging for prior automated causal tracing
 tools~\cite{aguilera2003performance, zhang2013panappticon, attariyan2012x,
 cohen2004correlating} because they handle a fairly limited set of patterns.
 Tools that require manual schema~\cite{barham2004using, reynolds2006pip}, would
 be prohibitive because developers would have to provide schema for all involved
 applications and daemons.
 
+Next she ran \xxx to find the spinning node in the main thread of the browser
+process. \xxx returned a \vv{Wait} event on condition variable with timeout that
+blocked the main thread for a few seconds. Thus \xxx compares the spinning node
+to a similar one in normal case where the \vv{Wait} was signaled quickly with
+Algorithm~\ref{alg:alg-findsimilarnode}. \xxx reported three, and confirmed with
+the user which one she wanted.
+
+\xxx then found the normal-case wake-up path which connects five threads. The
+browser main thread was signaled by a browser worker thread, which received IPC
+from a worker thread of \vv{renderer} where the rendering view and WebKit code
+run. The worker thread is woken up by the \vv{renderer} main thread, which in
+turn woken by fontd, the font service daemon. \xxx further compared the wake-up
+path with the spinning case with the Algorithm ~\ref{alg:alg-graphdiff}, and
+returned the \vv{wait} event on semaphore in the \vv{renderer} main thread, the
+culprit that delayed waking up the browser main thread over 4 seconds.
+
+What caused the wait in the \vv{renderer} main thread though? She thus continued
+diagnosis and recursively applied \xxx to the wait in \vv{renderer}, and got
+the wake-up path. The culprit that delayed the semaphore was the timeouts in
+the browser's main thread. At this point, a circular wait formed. To understand
+what exactly happens in the situation, she inspected the full call stacks by
+\xxx scripts, taking the reported nodes from the renderer and the browser as
+input. Inspection reveals that the \vv{renderer} requested the browser's help to
+render Javascript and waited for reply with semaphore. The browser was waiting
+for the \vv{renderer} to return the string bounding box and the \vv{renderer}
+was waiting for the browser to help render Javascript. This circular wait was
+broken by a timeout in the browser main thread (the \vv{wait} on cv timeout was
+1,500 ms). While the system was able to make progress, the next key press caused
+the spinning cursor to display for another 1,500 ms. The timeout essentially
+converted a deadlock into a livelock.
+
+The finding was verified with chromium source code. Shortening the timeout interval
+in the main browser thread proportionally shortens the waiting of the main
+render thread on processsing the javascript. Skipping certain javascripts
+processing in the renderer thread cuts down the success rate of spinning case
+reproducing.
+
+%%Next she ran \xxx to find the event in the main thread of the browser process.
+%%\xxx returned a \vv{cv\_timed\_wait} event %(Figure~\ref{fig:chromium-trace})
+%%that blocked the main thread for a few seconds. Inspection of the
+%%lightweight call stack revealed that this wait happened within a call to
+%%\vv{TextInputClientMac::GetFirstRectForRange}. Without knowing the application's
+%%semantics, she could not understand this method. Thus she ran \xxx to compare
+%%the spinning case to a normal case. \xxx searched in the main thread of the
+%%browser process for vertexes similar to this wait waiting vertexes similar to
+%%this wait, found three, and confirmed with the user which one she wanted.
+%%
 %%\begin{figure*}[p]
 %%    \centering
 %%	\input{figures/chromium_case_study_tikz.tex} 
 %%    \caption{Chromium case study.}
 %%    \label{fig:chromium-trace}
 %%\end{figure*}
-
-Next she ran \xxx to find the event in the main thread of the browser process.
-\xxx returned a \vv{cv\_timed\_wait} event %(Figure~\ref{fig:chromium-trace})
-that blocked the main thread for a few seconds. Inspection of the
-lightweight call stack revealed that this wait happened within a call to
-\vv{TextInputClientMac::GetFirstRectForRange}. Without knowing the application's
-semantics, she could not understand this method. Thus she ran \xxx to compare
-the spinning case to a normal case. \xxx searched in the main thread of the
-browser process for vertexes similar to this wait waiting vertexes similar to
-this wait, found three, and confirmed with the user which one she wanted.
-
 %%%need to adjust based on the new figure
 %%\xxx then found the normal-case wake-up path shown in the figure, which
 %%connects five threads.  The browser main thread was signaled by a browser
@@ -306,14 +342,14 @@ this wait, found three, and confirmed with the user which one she wanted.
 %%thread, the culprit that delayed waking up the browser main thread over 4
 %%seconds.
 
-What caused the wait in the \vv{renderer} main thread though?  She thus
-continued diagnosis and recursively applied \xxx to the wait in \vv{renderer},
-and got the wake-up path shown in the figure for this wait.  Inspection reveal
-that the \vv{renderer} requested the browser's help to render Javascript and was
-waiting for a reply.  At this point, a circular wait formed because the browser
-was waiting for the \vv{renderer} to return the string bounding box and the
-\vv{renderer} was waiting for the browser to help render Javascript.  This
-circular wait was broken by a timeout in the browser main thread (the
-\vv{cv\_timed\_wait} timeout was 1,500 ms).  While the system was able to make
-progress, the next key press caused the spinning cursor to display for another
-1,500 ms.  The timeout essentially converted a deadlock into a livelock.
+%%What caused the wait in the \vv{renderer} main thread though?  She thus
+%%continued diagnosis and recursively applied \xxx to the wait in \vv{renderer},
+%%and got the wake-up path shown in the figure for this wait.  Inspection reveal
+%%that the \vv{renderer} requested the browser's help to render Javascript and was
+%%waiting for a reply.  At this point, a circular wait formed because the browser
+%%was waiting for the \vv{renderer} to return the string bounding box and the
+%%\vv{renderer} was waiting for the browser to help render Javascript.  This
+%%circular wait was broken by a timeout in the browser main thread (the
+%%\vv{cv\_timed\_wait} timeout was 1,500 ms).  While the system was able to make
+%%progress, the next key press caused the spinning cursor to display for another
+%%1,500 ms.  The timeout essentially converted a deadlock into a livelock.
