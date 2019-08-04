@@ -68,18 +68,18 @@ for users, given a buggy test case and (potentially) a baseline test case
 for comparison purposes. We assume the user has a program to execute and a
 buggy test case that can be reproduced eventually; the tracing log collected
 by \xxx would contain a similar event processing normally, or the user can
-provide a nomarlly executed test case for comparison purpose, listed in
+provide a normally executed test case for comparison purpose, listed in
 line~\ref{algmain:collectdata}. \xxx initializes this debugging phase by
 constructing an event graph from all logged events up to user-specified duration
 in line~\ref{algmain:recompute}. The detail of algorithm ComputeGraph is
 presented in Algorithm ~\ref{alg:graphcomputing}(\S\ref{subsec:graphcomputing}).
 
 The exact searches and queries performed on the graph depend on the bug under
-investigation. Consider a common performance bug on MacOS, the \emph{spinning
+investigation. Consider a common performance bug on macOS, the \emph{spinning
 cursor}, which indicates the current application's main thread has not processed
 any UI events for over two seconds. \xxx queries the event graph to find the
 ongoing event in the application's main thread concurrent to the display of
-the spinning cursor shown in line~\ref{algmain:findspinningnode}. Upon examing
+the spinning cursor shown in line~\ref{algmain:findspinningnode}. Upon examining
 what the main thread is actually doing, the user may encounter three potential
 cases. First, the thread may be busy performing lengthy CPU operations (which
 take longer than two seconds). Second, the thread may be in a blocking wait.
@@ -105,7 +105,7 @@ corresponds to the baseline version of the hanging node $N_1$.
 
 For the second case of block waiting, \xxx takes the assumption there usually
 exits a chain of blocking thread and the initial blocking thread is the most
-valuable for debugging. Consequentally, \xxx diffs the subgraphs between the
+valuable for debugging. Consequently, \xxx diffs the subgraphs between the
 blocking version and the baseline version to determine their difference with
 Algorithm ~\ref{alg:alg-graphdiff}.
 
@@ -207,7 +207,7 @@ FindSimilarNode in Algorithm~\ref{alg:alg-findsimilarnode} is meant to find
 nodes which have the same high level semantics but different execution results
 compared to the spinning node. For example, both of them are waiting on locks,
 but one returns successfully and the other not. \xxx defines a subset of events
-that peserve semantics, which contains System\_call, Back\_trace, NSApp\_event,
+that preserve semantics, which contains System\_call, Back\_trace, NSApp\_event,
 Mach\_message, Wait, Dispatch\_enqueue, Dispatch\_invoke, Runloop\_submit,
 Runloop\_invoke, Share\_flag\_read and Share\_flag\_write. The comparison of
 events depends on event type and its category in Table~\ref{table:event_types}.
@@ -217,7 +217,7 @@ number. The wait results of wait event usually differentiate the normal
 execution and buggy case. \xxx differentiate the cases with wait results by
 default. Depending on the report detail of the spinning node, user can change
 the comparing metrics or request \xxx to compare proceeding nodes to narrow down
-the resultset reported.
+the result set reported.
 
 \paragraph{Graph Diff Algorithm}
 
@@ -226,7 +226,7 @@ case(\S\ref{subsec:debug}) with Algorithm~\ref{alg:alg-graphdiff}. \xxx assumes
 that the blocking in the main thread usually caused by the unresponsive of
 another thread. In the algorithm, with the input of the blocking node in main
 thread, \xxx carries out a backward path slicing from the node from the baseline
-case in the graph. The path consists of nodes from mutiple threads. \xxx
+case in the graph. The path consists of nodes from multiple threads. \xxx
 traverses every thread and confines the search within the time interval from the
 base line node in the thread and the timestamp when the blocking node appears
 in main thread. Among them \xxx expects to find a potential blocking in some
@@ -308,7 +308,7 @@ converted a deadlock into a livelock.
 
 The finding was verified with chromium source code. Shortening the timeout interval
 in the main browser thread proportionally shortens the waiting of the main
-render thread on processsing the javascript. Skipping certain javascripts
+render thread on processing the javascript. Skipping certain javascripts
 processing in the renderer thread cuts down the success rate of spinning case
 reproducing.
 

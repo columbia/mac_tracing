@@ -9,9 +9,9 @@ To figure out the spinning node in the main thread, we turned to the event
 graph, and sliced path backward from the launch of spindump, considering it is
 another indicator of non-responsive in app. The path showed it was launched
 after receiving a message from WindowServer, which in turn received a message
-from the NSEvent thread of the freezing app. The callstacks attached to the
+from the NSEvent thread of the freezing app. The call stacks attached to the
 messages further revealed NSEvent thread per process fetches CoreGraphics events
-from WindowServer, converts and creates NSAppEvent for the main thread. If the
+from WindowServer, converts and creates NSApp\_event for the main thread. If the
 main thread is not spinning ,a timer is armed. If the main thread processes
 the next event before the timer fires, nothing happens and the timer gets
 re-armed. Otherwise, NSEvent thread sends a message to WindowServer via the
@@ -19,8 +19,8 @@ API ``\vv{CGSConnectionSetSpinning}''from the timer handler, and WindowServer
 notifies the CoreGraphics to draw a spinning wait cursor over the application
 window.
 
-Moreover, with the callstack symbols found above as input, our detail debugging
+Moreover, with the call stack symbols found above as input, our detail debugging
 script detected two share variables ``\vv{is\_mainthread\_spinning}'' and
 ``\vv{dispatch\_to\_mainthread}'', are used to note the main thread status. With
 these discovery, we can make use of either the API or the shared variable to
-identiy the spinning node in the mian thread and the UI event cause the hanging.
+identify the spinning node in the main thread and the UI event cause the hanging.

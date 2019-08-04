@@ -1,7 +1,6 @@
 \subsection{TextMate}
-
 Spinning cursor appears when a large amount of context get pasted into a file
 opened with TextMate.  We traced 62MB data and got 73,679 edges and 50,860
 vertexes.  The main thread is busy with \textit{-[OakTextView paste:]} which
-iterates through paragraphs, fetchs characters and processed with
+iterates through paragraphs, fetches characters and processed with
 \textit{CFAttributedStringSet} and \textit{TASCIIEncoder::Encode}.

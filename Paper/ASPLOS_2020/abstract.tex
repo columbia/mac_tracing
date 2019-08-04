@@ -3,8 +3,8 @@ events and builds dependency graphs, to diagnose performance issues.  However,
 they all assume that precise dependencies can be inferred from low-level
 tracing by either limiting applications to using only a few supported
 communication patterns or relying on developers to manually provide dependency
-schemas upfront for all involved components.  Unfortunately, based on our own
-study and experience of building a causal tracing system for MacOS, we found
+schema upfront for all involved components.  Unfortunately, based on our own
+study and experience of building a causal tracing system for macOS, we found
 that it is extremely difficult, if not impossible, to build precise dependency
 graphs.  We report patterns such as data dependency, batch processing, and
 custom communication primitives that introduce imprecision.  We present \xxx, a
@@ -12,7 +12,7 @@ practical system for effectively debugging performance issues in modern desktop
 applications despite the imprecision of causal tracing.  \xxx lets a user
 easily inspect current diagnostics and interactively provide more domain
 knowledge on demand to counter the inherent imprecision of causal tracing.  We
-implemented \xxx in MacOS and evaluated it on \nbug real-world, open
+implemented \xxx in macOS and evaluated it on \nbug real-world, open
 spinning-cursor issues in widely used applications.  The root causes of these
 issues were largely previously unknown.  Our results show that \xxx effectively
 helped us locate all root causes of the issues and incurred only 1\% CPU

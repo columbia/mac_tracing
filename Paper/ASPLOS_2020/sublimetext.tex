@@ -3,7 +3,7 @@
 We collected 1.16GB trace data for copy in SublimeText. It generates 173,071
 edges and 127,488 vertexes. While the cursor is spinning, the main thread
 of SublimeText is busy encoding characters with \textit{\_\_CFToUTF8Len}.
-They are called from \textit{CFPasteboardSetData}, which invokded by
+They are called from \textit{CFPasteboardSetData}, which invoked by
 \textit{px\_copy\_to\_clipboard} in SublimeText source code.
 
 Paste operation in SublimeText also results in the unresponsiveness of

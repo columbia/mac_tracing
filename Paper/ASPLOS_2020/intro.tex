@@ -10,7 +10,7 @@ components~\cite{chen2002pinpoint, zhao2016non, xu2009detecting,
 nagaraj2012structured, yuan2012conservative}.  More often than not, developers
 give up and resort to guessing the root cause, producing ``fixes'' that
 sometimes make the matter worse.  For instance, a bug in the Chrome browser
-engine causes a spinning cursor in MacOS when a user switches the input
+engine causes a spinning cursor in macOS when a user switches the input
 method~\cite{chromiumbugreport}.  It was first reported in 2012, and developers
 attempted to add timeouts to work around the issue.  Unfortunately, the bug has
 remained open for seven years and the timeouts obscured diagnosis further.
@@ -32,13 +32,13 @@ Causal tracing is quite effective at aiding developers to understand complex
 application behaviors and debug real-world performance issues.% in XXX.
 
 Unfortunately, based on our own study and experience of building a causal
-tracing system for the commercial operating system MacOS, we found that modern
+tracing system for the commercial operating system macOS, we found that modern
 applications frequently violate these assumptions. Hence, the request graphs
 computed by causal tracing are imprecise in several ways.  First, an inferred
 segment may be larger than the actual event handling segment due to batch
 processing.  Specifically, for performance, an application or its underlying
 frameworks may bundle together work on behalf of multiple requests with no
-clear distinguishing boundaries.  For instance, WindowServer in MacOS sends a
+clear distinguishing boundaries.  For instance, WindowServer in macOS sends a
 reply for a previous request and receives a message for the current request
 using one system call mach\_msg\_overwrite\_trap, presumably to reduce
 user-kernel crossings.
@@ -98,14 +98,14 @@ to construct a more detailed graph for diagnosis.  \xxx also supports
 interactive search over the event graphs that contain both normal and buggy
 executions for diagnosis.
 
-We implemented \xxx in MacOS, a widely used commercial operating system. MacOS
+We implemented \xxx in macOS, a widely used commercial operating system. macOS
 is closed-source, as are its common frameworks and many of its applications.
 This environment therefore provides a true test of \xxx.  We address multiple
-nuances of MacOS that complicate causal tracing, and built a system-wide,
+nuances of macOS that complicate causal tracing, and built a system-wide,
 low-overhead tracer.
 
 We evaluated \xxx on \nbug real-world, open spinning-cursor issues in widely
-used applications such as the Chromium browser engine and MacOS System
+used applications such as the Chromium browser engine and macOS System
 Preferences, Installer, and Notes.  The root causes of all \nbug issues were
 previously unknown to us and, to a large extent, the public. Our results show
 that \xxx is effective: it helped us find all root causes of issues, including
@@ -115,14 +115,14 @@ systems-wide tracing incurs only 1\% CPU overhead overall.
 This paper makes the following contributions: our conceptual realization that
 causal tracing is inherently imprecise and that interactive causal tracing is
 superior than prior work in debugging performance issues in modern
-applications; our system \xxx that performs system-wide tracing in MacOS with
+applications; our system \xxx that performs system-wide tracing in macOS with
 little overhead; and our results diagnosing real-world spinning (busy) cursors
 and finding root causes for performance issues that have remained open for
 seven years.
 
 This paper is organized as follows. In Section~\ref{sec:overview}, we present
 an overview of using \xxx and a Chromium example.
-Section~\ref{sec:graphcomputing} describe our event graph from causual tracing,
+Section~\ref{sec:graphcomputing} describe our event graph from causal tracing,
 and Section~\ref{sec:implementation} describes our
 tracing implementation and tools for user interaction.
 In Section~\ref{sec:casestudy} we present other case

@@ -1,9 +1,9 @@
 \section{Dependency Semantics}
 \label{sec:dependency-semantics}
 \subsection{Tracing Events}
-The log that \xxx collects consits of a squence of tracing events, falling into
+The log that \xxx collects consists of a sequence of tracing events, falling into
 three categories: semantics tracing events, dependency tracing events and
-boundary tracing events.  Semanctics events include system calls, backtraces,
+boundary tracing events.  Semantics events include system calls, backtraces,
 and instruction logs.  These events help diagnosis and are also used by \xxx to
 find similar events in its analysis.  Boundary events are recorded within a
 single thread where we may eventually place an execution segment boundary.
@@ -21,7 +21,7 @@ begins a new execution segment.
 \subsection{Dependency Patterns}
 \label{sec:patterns}
 We encountered several instances of runtime event dependencies, correct or
-incorrect, between thread contexts. We present several generalizable cases
+incorrect, between thread contexts. We present several generalized cases
 below.
 
 
@@ -223,12 +223,12 @@ mach_msg_send(remote_port, reply_port)      |
 
 \para{P8: Runloop callbacks batch processing}
 As is common in event driven programming, many methods can post a callback and
-MacOS uses runloop as a common idiom to process callbacks.  As shown in the
-following step-by-step description of the MacOS runloop, an iteration of the
+macOS uses runloop as a common idiom to process callbacks.  As shown in the
+following step-by-step description of the macOS runloop, an iteration of the
 runloop does 10 different stages of processing, each of which may do work on
 behalf of completely irrelevant requests.  Since there are no obvious events
 (\eg, a wait operation) to split the execution, \xxx uses instrumentation to
-add beginning and ending points for MacOS runloops.  In general, any
+add beginning and ending points for macOS runloops.  In general, any
 application or daemon can create its own version of the runloop, posing
 challenges for automated inference of event processing boundaries.
 % // another thread installs cb
@@ -290,9 +290,9 @@ frequently used to lump work on behalf of different requests together, causing
 inaccurate edges that do not reflect causality in the event graph.  Some amount
 of manual schema is needed, but annotating all applications and daemons upfront
 to expose batch processing would be strenuous and error-prone.  We believe
-\xxx's interactive approach represents a better design tradeoff.  Second, as
+\xxx's interactive approach represents a better design trade off.  Second, as
 illustrated by P3, P4, and P5, systems use data flags for causal linkage.  They
-do so in both multithreaded and single-threaded environments.  Such data
+do so in both multi-threaded and single-threaded environments.  Such data
 dependencies can be crucial for diagnosing performance issues -- the spinning
 cursor's display itself uses shared memory flags as shown in P5.  Third, as P1,
 P2, and P5 show, wake-ups do not necessarily reflect causal linkage.  Lastly,

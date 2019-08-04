@@ -45,7 +45,7 @@
 \begin{center}
 
 %%\resizebox{0.8\textwidth}{0.4\textwidth}{%
-\resizebox{0.5\textwidth}{!}{%
+\resizebox{0.48\textwidth}{!}{%
 \begin{tikzpicture}[>=latex]
 
 % We need layers to draw the block diagram
@@ -81,7 +81,7 @@
 
 % draw Tracing Event log
 \node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=22em] {TracingEventLog};
-\node [doc, below of=TracingEventLog, name=log, node distance=4em] {\#timestamp, event\_type, attr1, attr2...\\30.4 Mach\_IPC\_msg\_send 0x4ea20 0x3 ...\\31.7 Mach\_IPC\_msg\_recv 0x4ea20 0x3 ...\\33.2 MakeRunnable 0xea45 0x16...};
+\node [doc, below of=TracingEventLog, name=log, node distance=4em] {\#timestamp, event\_type, att1, att2...\\30.4 Mach\_message 0x4ea20 0x3...\\31.7 Mach\_message 0x4ea20 0x3...\\33.2 Wake\_up 0xea45 0x16...};
 
 %draw arrow from MacOS to Tracing Event log
 %\draw[vecarrow, shorten >= -0.05em] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
