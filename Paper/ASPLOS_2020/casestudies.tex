@@ -1,18 +1,55 @@
-\section{Case Studies} \label{sec:casestudy}
+\section{Case Studies}\label{sec:casestudy}
 
-We applied our tool to figure out the design of spinning wait cursor in MacOS,
-and uncovered root causes of spinning for \nbug applications in total. As we
-have illustrated the Chromium case in Section\ref{sec:overview}, we will not
-present it here again.
+In this section, we presents how we apply \xxx to examine spinning
+beachballs in \nbug popular applications. We begin with how we found out the
+design of spinning beachball in Apple with event graph. Then we describe
+the cases in XXXXXX order or in XXXXcategories. As discussed before in
+(\S\ref{sec:overview}), the chromium case will not be present in this section .
 
 \input{spinningcursor}
-\input{systempreferences}
-\input{sequelpro}
-\input{texstudio}
-\input{installer}
-\input{notes}
-\input{textedit}
-\input{msword}
-\input{sublimetext}
-\input{textmate}
-\input{coteditor}
+
+\subsection{Blocking Cases}
+In this section, we discuss the cases where the spinning node is blocking on Wait event.
+\begin{itemize}
+\item sequelpro <- ssh connection
+\item textstudio <- synchronization once the file get touched
+\item installer <- user input blocked
+\end{itemize}
+
+%%\input{sequelpro}
+%%\input{texstudio}
+%%\input{installer}
+
+\subsection{Yielding Loop Cases}
+\begin{itemize}
+
+\item systempreferences <- similar node, branches on a shared variable, add monitor on the variable
+	\begin{itemize}
+		\item find similar node: compare proceeding nodes, differential metrics
+		\item shared variable and script to find out why they have different branches
+	\end{itemize}
+\end{itemize}
+
+%%\input{systempreferences}
+
+\subsection{CPU Busy Cases}
+\begin{itemize}
+\item  a table on case description, corresponding root cause reported by argus
+	\begin{itemize}
+	\item notes
+	\item textedit
+	\item mswords
+	\item sublimetext
+	\item textmate
+	\item coteditor
+	\end{itemize}
+\end{itemize}
+%%\input{notes}
+%%\input{textedit}
+%%\input{msword}
+%%\input{sublimetext}
+%%\input{textmate}
+%%\input{coteditor}
+
+\subsection{Verifications}
+
