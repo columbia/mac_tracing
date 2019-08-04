@@ -47,18 +47,20 @@
 %%\resizebox{0.8\textwidth}{0.4\textwidth}{%
 \resizebox{0.5\textwidth}{!}{%
 \begin{tikzpicture}[>=latex]
+
 % We need layers to draw the block diagram
 \pgfdeclarelayer{background}
 \pgfdeclarelayer{foreground}
 \pgfsetlayers{background,main,foreground}
 
+\tikzstyle{every node}=[font=\Large]
 \tikzstyle{apps} = [draw, very thick, minimum height=3em, minimum width=5em, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.2em, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.1em, fill=white, rectangle, font={\sffamily\bfseries}]
 \tikzstyle{actionLabel} = [draw, pattern=north west lines, pattern color = red!20, ellipse, minimum width = 15em, minimum height= 5em]%shape aspect=3, minimum size=30, diamond]
 
-\tikzstyle{doc} = [draw, thick, align=left, color=black, shape=document, minimum width=20em, minimum height=8em, shape=document, inner sep=2ex]
+\tikzstyle{doc} = [draw, thick, align=left, color=black, shape=document, minimum width=18em, minimum height=12em, shape=document, inner sep=2ex]
 \tikzstyle{commanddoc} = [draw, thick, align=left, color=black, shape=document, minimum width=5em, minimum height=8em, shape=document, inner sep=2ex]
-\tikzstyle{debuglogdoc} = [draw, thick, align=left, color=black, shape=document, minimum width=8em, minimum height=8em, shape=document, inner sep=2ex]
+\tikzstyle{debuglogdoc} = [draw, thick, align=left, color=black, shape=document, minimum width=8em, minimum height=6em, shape=document, inner sep=2ex]
 \tikzstyle{mininode} = [draw, rectangle, minimum height=1em, minimum width=1em]
 
 \tikzstyle{prearrow} = [-, thick, line width=1em] %double distance = 1.2em, shorten >=-0.2em]
@@ -73,20 +75,20 @@
 \node [apps, name=software1] at (0, 0) {chromium};
 \node [apps, name=software2, right of=software1, node distance=5em] {daemon1};
 \node [apps, name=software3, right of=software2, minimum width=5.2em, node distance=5em] {daemon2};
-\node [systemComp, name=libs, below of=software2, node distance=3em] {libs};
+\node [systemComp, name=libs, below left = 0em and -10.21em of software2] {libs};
 \node [systemComp, name=kernel, below of=libs, node distance=3em] {kernel};
 \node (MacOS) [below of = kernel, minimum width=15em, node distance = 3em] {MacOS};
 
 % draw Tracing Event log
-\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=20em] {TracingEventLog};
-\node [doc, below of=TracingEventLog, name=log, node distance=3em] {\#timestamp, event\_type, attr1, attr2...\\1030.4 Mach\_IPC\_msg\_send 0x4ea20 0x3 ...\\1031.7 Mach\_IPC\_msg\_recv 0x4ea20 0x3 ...\\1033.2 MakeRunnable 0xea45 0x16...};
+\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=22em] {TracingEventLog};
+\node [doc, below of=TracingEventLog, name=log, node distance=4em] {\#timestamp, event\_type, attr1, attr2...\\30.4 Mach\_IPC\_msg\_send 0x4ea20 0x3 ...\\31.7 Mach\_IPC\_msg\_recv 0x4ea20 0x3 ...\\33.2 MakeRunnable 0xea45 0x16...};
 
 %draw arrow from MacOS to Tracing Event log
 %\draw[vecarrow, shorten >= -0.05em] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
-\draw[vecarrow] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
+\draw[vecarrow] (libs.east)+(0.5, -0.35) -- (log.west);%(TracingEventLog.west);
 
 %draw Arrow for Constructing Graph
-\node [actionLabel, below of=log, node distance=8em, name=action1] {Construct Graph};
+\node [actionLabel, below of=log, node distance=9.5em, name=action1] {Construct Graph};
 \draw [prearrow] (log.south) -- (action1.north);
 
 %draw Dependency Graph
@@ -111,7 +113,7 @@
 %draw interactive Debugging part
 \node [commanddoc, left of=DependencyGraph, node distance=18em](command){Debugging command\\search\_node\\check\_node\\lldb:br\\lldb:si};
 \node[alice, minimum size=3em, left of=command, node distance=8em](user) {};
-\node [debuglogdoc, left of=user, node distance=8em](debuglog){Debugging log:\\path: ...\\node\_id: ...\\execution\_list:\\  movq \%rax, \%rcx\\  movq \$1, \%rbx\\  ...};
+\node [debuglogdoc, left of=user, node distance=8em](debuglog){Debugging log:\\path: ...\\node\_id: ...\\execution\_list:\\  movq \%rax, \%rcx \\...};%\\  movq \$1, \%rbx\\  ...};
 \node [actionLabel, below of=user, node distance=8em, name=action2] {Interactive Debugging};
 \draw [->] (user.east) to [out=330,in=60] (action2.north east);
 \draw [->] (action2.north west) to [out=120,in=210] (user.west);
