@@ -2,16 +2,16 @@
 We now discuss how we collect tracing events from both kernel and libraries.
 
 \subsection{Event Tracing}
-Current MacOS systems support a system-wide tracing infrastructure built by
+Current macOS systems support a system-wide tracing infrastructure built by
 Apple~\cite{linktotracetool}. By default, the infrastructure temporarily stores
 events in memory and flushes them to screen or disk when an internal buffer is
 filled. We extended this infrastructure to support larger-scale tests and avoid
-filling up the disk with a file-backed ring buffer. Subject to configurarion,
+filling up the disk with a file-backed ring buffer. Subject to configuration,
 it allows at most 2GB of data per log, which corresponds to approximately
 18,560,187 events (about 5 minute with normal operations).
 
-The default tracing points in MacOS provide too limited information to
-apply causual tracing. As a result, we both patch source code of kernel~\cite{linkofxnusourcecode} and binary instrument libraries to gether
+The default tracing points in macOS provide too limited information to
+apply causal tracing. As a result, we both patch source code of kernel~\cite{linkofxnusourcecode} and binary instrument libraries to gather
 more tracing data. In \xxx, we patched the kernel with 1193 lines of
 code, and instrumented the libraries including: libsystem\_kernel.dylib,
 libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox,
@@ -19,9 +19,9 @@ AppKit and QuartzCore, with our binary instrumentation.
 
 \subsection{Instrumentation}
 Most libraries as well as many of the applications used day-to-day are
-closed-source in MacOS. To add tracing points to such code, techniques such as
-library preloading to override individual functions are not applicable on MacOS,
-as libraries use two-level executable namespaces~\cite{}. Hence, we implemented
+closed-source in macOS. To add tracing points to such code, techniques such as
+library preloading to override individual functions are not applicable on macOS,
+as libraries use two-level executable namespace~\cite{twolayernamespace}. Hence, we implemented
 a binary instrumentation mechanism that allows developers to add tracing at
 any location in a binary image.
 
@@ -30,7 +30,7 @@ instrumentation to perform, and then enact this instrumentation at runtime.
 Firstly, users find a location of interest in the image related to a specific
 event by searching a sequence of instructions. Then the users replace a call
 instruction to invokes a trampoline target function, in which we overwrite the
-victimed instructions and produce tracing data with API from Apple. All of the
+victimized instructions and produce tracing data with API from Apple. All of the
 trampoline functions are grouped into a new image, as well as an initialization
 function which carries out the drop-in replacement. Then command tools from
 \xxx helps to configure the image with the following steps: (1)re-export all
@@ -56,7 +56,7 @@ function externally through \texttt{dispatch\_once} during the loading.
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
 As described in (\S\ref{subsec:userinteraction}), under-connection due
-to the missing share data dependency requires users'interaction. \xxx
+to the missing share data dependency requires users' interaction. \xxx
 provides a command line tool which sets the watch point registers to record
 share\_flag\_write and share\_flag\_read events in ad-hoc manner. This is one
 way users can easily collect the tracing events, and the more tech-savvy users
@@ -81,17 +81,17 @@ variable and the operation type: read or write.
 Since the output of \xxx is the nodes and user input events suspected to cause
 the busy spinning, more detail may required to verify and fix the bug. After
 the offline analysis on the graph, \xxx provides tools for user to exact
-the backtrace events from the output and generate a script for conditional
+the Back\_trace events from the output and generate a script for conditional
 debugging.
 
 The debugging scripts go through the instructions of apps and frameworks step
-by step to capture the parameters tained by user inputs. At each beginning of
-a function call, the script records a full callstack for it. Considering the
-overhead and usefullness, it steps over and only record the return value of APIs
+by step to capture the parameters tainted by user inputs. At each beginning of
+a function call, the script records a full call stack for it. Considering the
+overhead and usefulness, it steps over and only record the return value of APIs
 from libraries with a filename extension .dylib.
 
 The supplementary information are subject to the users review to pinpoint the
-root cause of spinning beachball on MacOS.
+root cause of spinning beachball on macOS.
 
 \subsection{Limitations}
 \xxx is designed to support interactive debugging of performance issues. To
@@ -102,7 +102,7 @@ tracing for debugging, and lose the benefits of interactivity. Fortunately, a
 performance issue that almost never reproduces is probably not as annoying as
 one that occurs frequently.
 
-We implemented \xxx in the closed-source MacOS which presents a harsh test
+We implemented \xxx in the closed-source macOS which presents a harsh test
 for \xxx, but we have not ported \xxx to other operating systems yet. It is
 possible that the ideas and techniques do not generalize to other operating
 systems. However, modern operating systems share many similarities, and good

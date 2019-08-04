@@ -1,10 +1,9 @@
 \subsection{CotEditor}
-
-Different from other text editing softwares, CotEditor does not trigger spinning
+Different from other text editing software, CotEditor does not trigger spinning
 beachball while copying a large amount of context. Although paste operation
 causes the spinning, the path slicing attributes it to the insertion of a
 new line. The main thread is busy on processing \textit{-[NSBigMutableString
-characterAtIndex:]} and \textit{CFStorageGetValueAtIndex} in the callstacks.
+characterAtIndex:]} and \textit{CFStorageGetValueAtIndex} in the call stacks.
 They are invoked after the user hits the return key to insert a line.
 
 Most of the text editing cases fall into the category of thread busy processing.

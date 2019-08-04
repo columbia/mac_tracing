@@ -354,7 +354,7 @@ dispatch_execute(block);
 \end{lstlisting}
 \end{minipage}
 
-\begin{minipage}[t]{0.5\textwidth}
+\begin{minipage}[t]{0.48\textwidth}
 \begin{lstlisting}
 //implementation of dipatch_mig_server
 dispatch_mig_server()
@@ -406,7 +406,7 @@ dependencies. Data dependencies inter/intra threads are usually hard to fully
 exploit in the initial pass of graph computing.
 
 \paragraph{Data dependency in event processing}
-The code in Figure~\ref{fig:batchingineventprocessing}also illustrates a causal linkage caused by data dependency in one thread.
+The code in Figure~\ref{fig:batchingineventprocessing} also illustrates a causal linkage caused by data dependency in one thread.
 WindowServer saves the reply message in
 variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}. When it calls
 \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
@@ -426,14 +426,14 @@ worker so accesses to these field flags need to be tracked.
 %%the CoreAnimation library to trace events on these flags.
 
 \begin{figure}[ht!]
-\begin{minipage}[t]{.20\textwidth}
+\begin{minipage}[t]{.18\textwidth}
 \begin{lstlisting}
 //Worker thread:
 //needs to update UI:
 obj->need_display = 1
 \end{lstlisting}\hfill
 \end{minipage}
-\noindent\begin{minipage}[t]{.30\textwidth}
+\noindent\begin{minipage}[t]{.28\textwidth}
 \begin{lstlisting}
 //Main thread: 
 //traverse all CA objects
@@ -497,17 +497,17 @@ CGEventCreateNextEvent() {
 In addition to batching processing and data dependency, the spurious edge
 introduced by mutex lock is also a challenge in debugging. The synchronization
 on mutex lock reflects one thread wakes up the other thread. The scenario can
-either be a producer-comsumer problem or merely mutualy exclusion. Making the
+either be a producer-consumer problem or merely mutual exclusion. Making the
 graph completely sound without user interaction is almost impossible given the
-essential attribite of commericial operating system as a grey box.
+essential attribute of commercial operating system as a grey box.
 
 As we mentioned above, to figure out all over connections and under connections
-before hand is almost impossible. Instead, users can find out the descrepency
+before hand is almost impossible. Instead, users can find out the discrepancy
 in event graph after the initial graph computing. For example, we noticed that
 two unrelated applications connects to one node in the graph, which leads to the
 manifestation of kernel thread batch processing on timers. Like other causality
-tracing approaches, \xxx is a general framework for MacOS and tested on limited
-programing paradigms. Allowing user interaction makes its graph more practical
+tracing approaches, \xxx is a general framework for macOS and tested on limited
+programming paradigms. Allowing user interaction makes its graph more practical
 and useful case by case.
 
 Users can gradually inject their knowledge to improve the graph in two ways.
