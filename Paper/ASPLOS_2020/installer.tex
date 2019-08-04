@@ -10,6 +10,7 @@ spinning beachball.
 392199 edges and 294856 vertexes. It figuree out the main thread is
 blocked in the API \textit{[IFRunnerProxy\ requestKeyForRights:askUser:]},
 which sent a synchronous XPC to daemon \textit{authd} with
-\textit{xpc\_connection\_send\_messag\_with\_reply\_sync}. In conclusion, if the
-user does not focus on the popup window, it will be treated as a main thread
+\textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
+In conclusion, if the
+user does not focus on the popup window, it is also treated as a UI thread
 non-responsive bug.

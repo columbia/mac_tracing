@@ -1,23 +1,26 @@
-The spinning beachball is a painful sight for Mac users, signifying that the
-application is non-responsive. It usually remains for minutes at a time,
-leaving the user at a loss and unable to do anything productive.
+\subsection{Spinning Node detection}
 
-\xxx shreds light on the design of the spinning wait cursor with its backward
-path slicing. We begin the path from the node where spindump, a hang reporting
-tool, is launched, considering the spindump shares the same triggering
-condition. For our tracing data, we found out that Spindump is launched after
-receiving a message from WindowServer which receives a message from the NSEvent
-thread of the target application first.
+Spinning beachball is a painful sight for Mac users, signifying that the
+application is non-responsive. It usually remains for minutes at a time, leaving
+the user at a loss and unable to do anything productive. Under this situation, a
+hang reporting tool, spindump, usually invoked by root to sample for debugging.
 
-We further added call stacks for the messages and revealed two shared
-variables, ``\vv{is\_mainthread\_spinning}'' and
-``\vv{dispatch\_to\_mainthread}'', are critical in the desgin. The NSEvent
-thread of the target application fetches CoreGraphics events from WindowServer,
-converts and creates NSEvents for the main thread. If the main thread is not
-spinning with ``\vv{is\_mainthread\_spinning}'' equals 0 ,
-``\vv{dispatch\_to\_mainthread}'' will be set to 1 and a timer is armed. If the
-main thread processes the next event before the timer fires, nothing happens
-and the timer gets re-armed. Otherwise, NSEvent thread sends a message inside
-``\vv{CGSConnectionSetSpinning}'' to WindowServer from the timer handler, and
-WindowServer notifies the CoreGraphics to draw a spinning wait cursor over the
-application window.
+To figure out the spinning node in the main thread, we turned to the event
+graph, and sliced path backward from the launch of spindump, considering it is
+another indicator of non-responsive in app. The path showed it was launched
+after receiving a message from WindowServer, which in turn received a message
+from the NSEvent thread of the freezing app. The callstacks attached to the
+messages further revealed NSEvent thread per process fetches CoreGraphics events
+from WindowServer, converts and creates NSAppEvent for the main thread. If the
+main thread is not spinning ,a timer is armed. If the main thread processes
+the next event before the timer fires, nothing happens and the timer gets
+re-armed. Otherwise, NSEvent thread sends a message to WindowServer via the
+API ``\vv{CGSConnectionSetSpinning}''from the timer handler, and WindowServer
+notifies the CoreGraphics to draw a spinning wait cursor over the application
+window.
+
+Moreover, with the callstack symbols found above as input, our detail debugging
+script detected two share variables ``\vv{is\_mainthread\_spinning}'' and
+``\vv{dispatch\_to\_mainthread}'', are used to note the main thread status. With
+these discovery, we can make use of either the API or the shared variable to
+identiy the spinning node in the mian thread and the UI event cause the hanging.
