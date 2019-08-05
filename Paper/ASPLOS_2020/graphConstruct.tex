@@ -60,9 +60,9 @@ Table~\ref{table:event_types}.
 
 	\begin{tablenotes}
 		\footnotesize
-		\item 1. User input events dispatched to the Application.
-		\item 2. Kernel invoked a routine to update timeshare quota. 
-		\item 3. Invoke callback function for works from dispatch queue.
+		\item[1] User input events dispatched to the Application.
+		\item[2] Kernel invoked a routine to update timeshare quota. 
+		\item[3] Invoke callback function for works from dispatch queue.
 	\end{tablenotes}
 	\caption{Event Type Categories. }
   \label{table:event_types}
@@ -294,11 +294,10 @@ more user input heuristics.
 %%delay work intra-thread)
 %%\end{itemize}
 
-However, to construct an accurate and complete dependency graph is difficult,
-if not impossible. The graph is inherently inaccurate. That one thread wakes
-up the other thread does not always stand for a causility between them. In
-implementation, \xxx filters out some of the definitive noise in the following
-types.
+Constructing an accurate and complete dependency graph is difficult, if not
+formally undecidable. The graph is inherently inaccurate. That one thread
+wakes up the other thread does not always imply a causility between them. In
+implementation, \xxx handles the following types of spurious edges.
 
 \begin{itemize}
 
@@ -310,11 +309,11 @@ an event source.
 
 \end{itemize}
 
-In addition to the known definitive noise, there exist false connections and
+\noindent In addition to the known definitive noise, there exist false connections and
 missing dependencies based on our experience of building a dependency graph
 with traditional causality tracing. We define them as over connection and under
 connection respectively.
-
+\vspace{1.5mm}
 \subsubsection{Over Connections}\hfill\\
 Over connections usually occur when intra-thread boundaries are missing due to
 unknown batch processing programming paradigms. We list the example patterns we
@@ -399,7 +398,7 @@ while() {
     \caption{Batching in event processing}
     \label{fig:batchingineventprocessing}
 \end{figure}
-
+\vspace{1.5mm}
 \subsubsection{Under Connections}\hfill\\
 On the other hand, under connections mostly result from missing data
 dependencies. Data dependencies inter/intra threads are usually hard to fully
