@@ -8,11 +8,20 @@ the cases in XXXXXX order or in XXXXcategories. As discussed before in
 
 \input{spinningcursor}
 
+\vspace{1cm}
+\begin{itemize}
+\item{brief description}
+\item{advantage over lldb/spindum}
+\item{user interaction required in the process}
+\item{what will be missing with traditional causual tracing}
+\item{verification of the root cause}
+\end{itemize}
+
 \subsection{Blocking Cases}
 In this section, we discuss the cases where the spinning node is blocking on Wait event.
 \begin{itemize}
 \item sequelpro <- ssh connection
-\item textstudio <- synchronization once the file get touched
+\item textstudio <- synchronization once the file get touched %recheck data if it can trace back to vim (vim->fsevent->textstudio)
 \item installer <- user input blocked
 \end{itemize}
 
@@ -49,6 +58,3 @@ In this section, we discuss the cases where the spinning node is blocking on Wai
 %%\input{sublimetext}
 %%\input{textmate}
 %%\input{coteditor}
-
-\subsection{Verification}
-

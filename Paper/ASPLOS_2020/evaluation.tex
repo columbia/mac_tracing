@@ -1,25 +1,25 @@
 \section{Performance Evaluation}
 \label{sec:evaluation}
-We deployed \xxx on a Mac OS X x86 system, model MacBookPro9,2.  The
-model has the Intel Core i5-3210M CPU with 2 cores and 4 thread, 10GB DDR3
-memory, and we replaced the hard disk with a 1T SSD. The tracing tool is
-running in the background 24X7. Once the spinning cursor appears on the
-screen, we store the tracing data for root cause analysis.
+We deployed \xxx on a Mac OS X x86 system, model MacBookPro9,2, which has the
+Intel Core i5-3210M CPU with 2 cores and 4 thread, 10GB DDR3 memory. Its hard
+disk is replaced with a 1T SSD. The tracing tool is running in the background
+24X7. Once the spinning cursor appears on the screen, we store the tracing data
+for root cause analysis.
 
-In previous section, we studied real-world software, including TextEdit,
-Notes, Installer, System Preferences and Chromium. TextEdit, Notes, Installer and System
-Preferences are distributed by Apple.  
-Our tool can take over most burden searching and comparing work from the user,
-and make the diagnosis much easier in the wild.
+In previous section, we studied real-world software, including TextEdit, Notes,
+Installer, System Preferences and Chromium. TextEdit, Notes, Installer and
+System Preferences are distributed by Apple. Our tool can take over most burden
+searching and comparing work from the user, and make the diagnosis much easier
+in the wild.
 
-In this section we present the performance impact of the live deployment of \xxx.
-As we use the ring buffer to collect events, the storage cost can be adjusted
-and is fixed to 2G in our experiments.
-Since the internal memory used to collect data is fixed to 512M, so the overhead of the
-memory is pretty low with regards to the memory usage of modern applications.
-We show the CPU overhead of \xxx first for the iBench Running on the system with the tracing
-on and off. In the following description, we call the environment without the tracing on as
-bare run, and otherwise tracing run.
+In this section we present the performance impact of the live deployment of
+\xxx. As we use the ring buffer to collect events, the storage cost can be
+adjusted and is fixed to 2G in our experiments. Since the internal memory used
+to collect data is fixed to 512M, so the overhead of the memory is pretty
+low with regards to the memory usage of modern applications. We show the CPU
+overhead of \xxx first for the iBench Running on the system with the tracing
+on and off. In the following description, we call the environment without the
+tracing on as bare run, and otherwise tracing run.
 
 \begin{table}[ht]
 \begin{tabular}{l|c|c|c|c|c}
@@ -34,6 +34,7 @@ bare run, and otherwise tracing run.
 \caption{Score From iBench}
 \label{tab:ibench}
 \end{table}
+
 We show the five runs of both cases in Table\ref{tab:ibench}.
 For each run, the machine is clean boot for each run.
 The scores are quite close and show no difference on the system running with and without \xxx.

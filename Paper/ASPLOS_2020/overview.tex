@@ -48,15 +48,18 @@ operations \xxx performs leading to a diagnosis.
 \State {$EventGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}
 \label{algmain:recompute}
 \State {$SpinningNode$ $\gets$ search $EventGraph$}\label{algmain:findspinningnode}
-\If {$SpinningNode$ $==$ $CPU busy execution(livelock)$}
+\If {IsCPUBusyExecuting($SpinningNode$)} 
 	\State{run backward traversal of main thread until UI event found}\label{algmain:1st}
 \Else
+	\While{NotFound(BlockingFromUI \Or CircularDependency)}
 	\State{$N_0$ $\gets$ $SpinningNode$}\label{algmain:2and3begin}
 	\State{$N_1$ $\gets$ FindSimilarNode($EventGraph$, $N_0$)}
 	\State{call AssistedGraphDiff($EventGraph$, $N_0$, $N_1$)}
+	\State{ManuallyAdjust($N_0$, $N_1$)}
 	\If {new\_hueristics were added}
 		\State \Goto{algmain:recompute}
 	\EndIf\label{algmain:2and3end}
+	\EndWhile
 \EndIf
 \State{Return set of UI events and root cause related Nodes}
 \EndFunction
@@ -138,28 +141,31 @@ hang may occur.
 \Ensure{SimilarNodeSet}
 \Statex
 \Function{FindSimilarNode}{}
-\State{$thread$ $\gets$ thread of $Node_blocking$}
-\For {$Node_i$ in $thread$ other than $Node_blocking$}
-	\State{$iter_i$ $\gets$ iterator of first event in $Node_i$}
-	\State{$iter_b$ $\gets$ iterator of first event in $Node_blocking$}
-	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
-		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
-			\State{$iter_i$++}
-		\EndWhile
-		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
-			\State{$iter_b$++}
-		\EndWhile
-		\If {$iter_b$ $\neq$ end \And $iter_i$ $\neq$ end}
-			\State{$if_eq$ $\gets$ CompareEvent($Event$($iter_b$), $Event$($iter_i$))}
-			\If {$if_eq$ $==$ False}
-				\State{Break}
-			\EndIf
+\State{$thread$ $\gets$ thread of $Node_{blocking}$}
+\For {$Node_i$ in $thread$ other than $Node_{blocking}$}
+%%	\State{$iter_i$ $\gets$ iterator of first event in $Node_i$}
+%%	\State{$iter_b$ $\gets$ iterator of first event in $Node_{blocking}$}
+%%	\While {$iter_b$ $\ne$ end \And $iter_i$ $\ne$ end}
+%%		\While {$iter_i$ $\ne$ end \And $Event$($iter_i$) $\notin$ $EventTypesSet$}
+%%			\State{$iter_i$++}
+%%		\EndWhile
+%%		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
+%%			\State{$iter_b$++}
+%%		\EndWhile
+	\For{$iter_i$ $\gets$ event iter in $Node_i$}
+		\State{$iter_b$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
+		\State{$iter_i$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
+		%%\If {$iter_b$ $\neq$ end \And $iter_i$ $\neq$ end}
+		\If{CompareEvent($Event$($iter_b$), $Event$($iter_i$)) $==$ False}
+			%%\If {$if_eq$ $==$ False}
+			\State{Break}
 		\EndIf
-	\EndWhile
+		%%\EndIf
+	\EndFor
 	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
-		\If {wresult of $Node_i$) $\neq$ wresult of $Node_blocking$
-		\Or timespan of $Node_blocking$ - timespan of $Node_i$ $\geq$ threshhold}
-			\State{Put Node into $SimilarNodeSet$}
+		\If {wresult of $Node_i$ $\neq$ wresult of $Node_{blocking}$
+		\Or timespan of $Node_{blocking}$ - timespan of $Node_i$ $\geq$ threshhold}
+			\State{Put $Node_i$ into $SimilarNodeSet$}
 		\EndIf
 	\EndIf
 \EndFor
@@ -177,12 +183,12 @@ hang may occur.
 \Function{AssistedGraphDiff}{}
 \State{$ResultSet$ $\gets$ $\{\}$}
 \State{$SlicingPath$ $\gets$ BackwardSlicing on $BaseLineNode$}
-\State{$T_spinning$ $\gets$ timestamp of spinning beachball for $SpinningNode$}
+\State{$T_{spinning}$ $\gets$ timestamp of spinning beachball for $SpinningNode$}
 \For{$thread$ $\gets$ thread of $Node_i$ in $SlicingPath$}
-	\State{$T_normal$ $\gets$ timestamp of last event in $Node_i$}
-	\State{$Node_blocking$ $\gets$ $thread$ blocks during ($T_normal$, $T_spinning$)}
+	\State{$T_{normal}$ $\gets$ timestamp of last event in $Node_i$}
+	\State{$Node_{blocking}$ $\gets$ $thread$ blocks during ($T_{normal}$, $T_{spinning}$)}
 	\If {$Nodeblocking$  $\neq$ $NULL$}
-		\State{put $Node_blocking$ into $ResultSet$}
+		\State{put $Node_{blocking}$ into $ResultSet$}
 	\EndIf
 	\If {$UI Events$ in Main UI thread}
 		\State{put $UI Event$ into $ResultSet$}

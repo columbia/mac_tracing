@@ -1,5 +1,4 @@
-\subsection{Spinning Node detection}
-
+%\subsection{Spinning Node detection}
 Spinning beachball is a painful sight for Mac users, signifying that the
 application is non-responsive. It usually remains for minutes at a time, leaving
 the user at a loss and unable to do anything productive. Under this situation, a
@@ -19,8 +18,10 @@ API ``\vv{CGSConnectionSetSpinning}''from the timer handler, and WindowServer
 notifies the CoreGraphics to draw a spinning wait cursor over the application
 window.
 
-Moreover, with the call stack symbols found above as input, our detail debugging
-script detected two share variables ``\vv{is\_mainthread\_spinning}'' and
-``\vv{dispatch\_to\_mainthread}'', are used to note the main thread status. With
-these discovery, we can make use of either the API or the shared variable to
-identify the spinning node in the main thread and the UI event cause the hanging.
+Moreover, two shared variables are discovered helps \xxx to identifying
+spinning node in main thread. With the call stack symbols found above
+as input, our detailed debugging script detects two share variables
+``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}'' which
+are used to identify the main thread status. As a result, \xxx can make use of
+either the API or the shared variable to identify the spinning node in the main
+thread.%and the UI event cause the hanging.
