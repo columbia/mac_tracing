@@ -138,7 +138,7 @@ more user input heuristics.
 \For{Event: Events in a thread}
     \Switch {EventType}
 	\Case {Interrupt \Or Timeshare\_maintenance} \label{graphcomputing:1.a}
-		\State {$Remove following event sequence before return$}
+		\State {$Isolate\_event\_sequence\_before\_return\_into\_a\_new\_node$}
 	\EndCase
 	\Case {Wait} \label{graphcomputing:1.b}
 		\If {$callout\_level$ $==$ {$0$}} 
@@ -146,7 +146,7 @@ more user input heuristics.
 		\EndIf
 	\EndCase
 	\Case {Dispatch\_invoke \Or Runloop\_invoke} \label{graphcomputing:1.c}
-	 	\State {$Divide each callout into a node$}
+	 	\State {$Divide\_each\_callout\_into\_a_node$}
 	\EndCase
 	\Case {Mach\_message}\label{graphcomputing:1.d}
 		\If {$IPC\_peer\_set$ $\neq$ $\emptyset$ \And $peer$ $\notin$ $IPC\_peer\_set$} 
@@ -160,13 +160,13 @@ more user input heuristics.
 \For{Event: Connection Events}
 	\Switch {EventType}
 	\Case {Wake\_up}\label{graphcomputing:2.a}
-		\State{$AddWeakEdge(corresponding wait, wake\_up)$}
+		\State{$AddWeakEdge(wait, wake\_up)$}
 		\State{$AddEdge(wake\_up, first\_event\_after\_wait\_returns)$}
 	\EndCase
 	\Case {Mach\_message}\label{graphcomputing:2.b}
-		\State{$AddEdge(Mach\_msg(send), Mach\_msg(receive))$}
+		\State{$AddEdge(msg(send), msg(receive))$}
 		\If {needs reply}
-			\State {$AddEdge(Mach\_msg(receive), Mach\_msg(reply\_sender))$}
+			\State {$AddEdge(msg(receive), msg(reply\_send))$}
 		\EndIf
 	\EndCase
 	\Case {Dispatch\_enqueue}\label{graphcomputing:2.c}
