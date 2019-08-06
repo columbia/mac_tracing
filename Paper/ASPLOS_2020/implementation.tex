@@ -10,34 +10,37 @@ filling up the disk with a file-backed ring buffer. Subject to configuration,
 it allows at most 2GB of data per log, which corresponds to approximately
 18,560,187 events (about 5 minute with normal operations).
 
-The default tracing points in macOS provide too limited information to
-apply causal tracing. As a result, we both patch source code of kernel~\cite{linkofxnusourcecode} and binary instrument libraries to gather
-more tracing data. In \xxx, we patched the kernel with 1193 lines of
-code, and instrumented the libraries including: libsystem\_kernel.dylib,
+The default tracing points in macOS provide too limited information
+to enact causal tracing. As a result, we both patch source code of
+kernel~\cite{linkofxnusourcecode} and binary instrument libraries to gather
+more tracing data. In \xxx, we patched the kernel with 1193 lines of code,
+and binary instrumented the libraries including: libsystem\_kernel.dylib,
 libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox,
-AppKit and QuartzCore, with our binary instrumentation.
+AppKit and QuartzCore.
 
 \subsection{Instrumentation}
+
 Most libraries as well as many of the applications used day-to-day are
 closed-source in macOS. To add tracing points to such code, techniques such as
 library preloading to override individual functions are not applicable on macOS,
-as libraries use two-level executable namespace~\cite{twolayernamespace}. Hence, we implemented
-a binary instrumentation mechanism that allows developers to add tracing at
-any location in a binary image.
+as libraries use two-level executable namespace~\cite{twolayernamespace}. Hence,
+we implemented a binary instrumentation mechanism that allows developers to add
+tracing at any location in a binary image.
 
 Like Detour~\cite{hunt1999detours}, we use static analysis to decide which
 instrumentation to perform, and then enact this instrumentation at runtime.
-Firstly, users find a location of interest in the image related to a specific
-event by searching a sequence of instructions. Then the users replace a call
-instruction to invokes a trampoline target function, in which we overwrite the
-victimized instructions and produce tracing data with API from Apple. All of the
-trampoline functions are grouped into a new image, as well as an initialization
-function which carries out the drop-in replacement. Then command tools from
-\xxx helps to configure the image with the following steps: (1)re-export all
-symbols from the original image so that the original code can be called Like an
-shared library; (2)replace the original image with the new one by renaming them
-to ensure the modifications are properly loaded; (3)invoke the initialization
-function externally through \texttt{dispatch\_once} during the loading.
+Firstly, the user finds a location of interest in the image related to a
+specific event by searching a sequence of instructions. Then the user replaces a
+call instruction to invokes a trampoline target function, in which we overwrite
+the victimized instructions and produce tracing data with API from Apple.
+All of the trampoline functions are grouped into a new image, as well as an
+initialization function which carries out the drop-in replacement. Then command
+tools from \xxx helps to configure the image with the following steps: (1)
+re-export all symbols from the original image so that the original code can be
+called like an shared library; (2) rename the original image, and use original
+name for the new one to ensure the modifications are properly loaded; (3) invoke
+the initialization function externally through \texttt{dispatch\_once} during
+the loading.
 
 %%One potential issue is that we use 5-byte call instructions with 32-bit
 %%displacements to jump from the original library to our new one.  This design

@@ -36,8 +36,7 @@ operations \xxx performs leading to a diagnosis.
     \caption{Main \xxx algorithm.}
     \label{alg:alg-main}
 \begin{algorithmic}[1]
-\Require{Program to run + buggy test case
-			+ (optional) similar baseline test case}
+\Require{Program to run}
 \Ensure{Sequence of UI events triggered the performance problem 
 		+ Nodes from Event Graph}
 \Statex
@@ -162,9 +161,8 @@ hang may occur.
 %%		\While {$iter_b$ $\ne$ end \And $Event$($iter_b$) $\notin$ $EventTypesSet$}
 %%			\State{$iter_b$++}
 %%		\EndWhile
-	\For{$iter_i$ $\gets$ event iter in $Node_i$}
-		\State{$iter_b$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
-		\State{$iter_i$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
+	\For{$iter_i$ $\gets$ NextEventInEventTypeSet($Node_i$)
+		\And $iter_b$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
 		%%\If {$iter_b$ $\neq$ end \And $iter_i$ $\neq$ end}
 		\If{CompareEvent($Event$($iter_b$), $Event$($iter_i$)) $==$ False}
 			%%\If {$if_eq$ $==$ False}
@@ -227,7 +225,7 @@ defines a subset of events that preserve semantics, which consists of
 System\_call, Back\_trace, NSApp\_event, Mach\_message, Wait, Dispatch\_enqueue,
 Dispatch\_invoke, Runloop\_submit, Runloop\_invoke, Share\_flag\_read and
 Share\_flag\_write. The comparison of events depends on event type and its
-category in Table~\ref{table:event_types}, described in \S~\ref{sec:eventgraph}.
+category in Table~\ref{table:event_types}, described in \S~\ref{subsec:eventgraph}.
 For connection events, \xxx compares their peers. For semantics Events, \xxx
 compares the content of the event attributes, for example, the system call
 number. The wait results of wait event usually differentiate the normal
