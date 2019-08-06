@@ -1,0 +1,62 @@
+\begin{itemize}
+\item{brief description}
+\item{advantage over lldb/spindump}
+	\begin{enumerate}
+	\item For blocking or loop yield, it does not provide the baseline case for root cause identification
+	\item For busy processing case, it does not provid the User input event or Apple event.
+	\end{enumerate}
+\item{advantage over traditional causal tracing}
+	\begin{enumerate}
+	\item Traditional causal tracing tries to get user transaction from end to end.
+		** edges introduced by daemons, leading to other applications involved
+			how many other applications' thread will involved in the graph
+	\item Traditional causual tracing does not process the case of interrupt,
+		will miss the related subgraph.
+		** how many edges/nodes missing
+	\end{enumerate}
+%threads involved? how many edges missing?
+\item{user interaction required in the process}
+\item{verification of the root cause}
+\end{itemize}
+
+\subsection{Blocking Cases}
+In this section, we discuss the cases where the spinning node is blocking on Wait event.
+\begin{itemize}
+\item sequelpro <- ssh connection
+\item textstudio <- synchronization once the file get touched %recheck data if it can trace back to vim (vim->fsevent->textstudio)
+\item installer <- user input blocked
+\end{itemize}
+
+%%\input{sequelpro}
+%%\input{texstudio}
+%%\input{installer}
+
+\subsection{Yielding Loop Cases}
+\begin{itemize}
+\item system preferences <-branches on a shared variable, add monitor on the variable
+	\begin{itemize}
+		\item find similar node: compare proceeding nodes, differential metrics
+		\item shared variable and script to find out why they have different branches
+	\end{itemize}
+\end{itemize}
+
+%%\input{systempreferences}
+
+\subsection{CPU Busy Cases}
+\begin{itemize}
+\item  a table on case description, corresponding root cause reported by Argus
+	\begin{itemize}
+	\item notes
+	\item textedit
+	\item mswords
+	\item sublimetext
+	\item textmate
+	\item coteditor
+	\end{itemize}
+\end{itemize}
+%%\input{notes}
+%%\input{textedit}
+%%\input{msword}
+%%\input{sublimetext}
+%%\input{textmate}
+%%\input{coteditor}

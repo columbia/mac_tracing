@@ -5,7 +5,7 @@ While there is currently no system that can help users debug performance
 issues in closed-source applications on proprietary macOS, several active
 research topics are closely related.
 
-\textbf{Event tracing.}  Magpie~\cite{barham2004using} is perhaps the closest to
+\paragraph{Event tracing.}  Magpie~\cite{barham2004using} is perhaps the closest to
 our work.  It monitors server applications in Windows with the goal to model
 the normal behaviors of a server application in response to a workload.  This
 model further helps detecting anomalies statistically.  In contrast, \xxx's
@@ -37,7 +37,7 @@ Aguilela \cite{aguilera2003performance} uses timing analysis to correlate
 messages to recover their input-output relations while treating the application
 as a black box.
 
-\textbf{Performance anomaly detection.}  Several systems detect performance
+\paragraph{Performance anomaly detection.}  Several systems detect performance
 anomalies automatically.  \cite{han2012performance, yuan2012conservative}
 leverage the user logs and call stacks to identify the performance anomaly.
 \cite{cohen2004correlating, saidi2008full, xu2009detecting, du2017deeplog} apply
