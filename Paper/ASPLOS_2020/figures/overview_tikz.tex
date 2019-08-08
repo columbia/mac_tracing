@@ -11,20 +11,22 @@
 \resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
 
+\tikzstyle{every node}=[font=\Large]
 \tikzstyle{apps} = [draw, very thick, minimum height=3em, minimum width=5.1em, fill=white, rectangle, font={\sffamily\bfseries}]
 \tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.2em, fill=white, rectangle, font={\sffamily\bfseries}]
 \tikzstyle{doc} = [draw, thick, align=left, color=black, minimum width=20em, minimum height=8em, inner sep=2ex]
 \tikzstyle{vecarrow} = [->, thick, line width=1em]
 
 %draw MacOS components
-\node [apps, name = software1] at (0, 0) {chromium}; % {\includegraphics[width=2.4em]{chromium_logo.png}};
+\node [apps, name = software1] at (0, 0) {\includegraphics[width=2.4em]{chromium_logo.png}};
 \node [apps, name = software2, right of=software1, node distance=5em] {daemon1};
 \node [apps, name = software3, right of=software2, minimum width=5.2em, node distance=5em] {daemon2};
-\node [systemComp, name = libs, below of = software2, node distance = 3em, pattern= north west lines, pattern color = blue] {ARgus Instrumented Lib};
+\node [systemComp, name = libs, below of = software2, node distance = 3em, pattern= north west lines, pattern color = blue!30!] {ARgus Instrumented Lib};
 \node [systemComp, name = os, below of = libs, node distance = 3em, pattern= north west lines, pattern color = blue] {Argus Instrumented OS};
 
 % draw Tracing Event log
-\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=20em] {TracingEventLog};
+\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=20em]{};
+%%{TracingEventLog};
 \node (log) [doc, below of=TracingEventLog, node distance=3em] {\#timestamp, event\_type, att1, att2...\\30.4 Mach\_message 0x4ea20 0x3...\\31.7 Mach\_message 0x4ea20 0x3...\\33.2 Wake\_up 0xea45 0x16...};
 \draw [vecarrow] (libs.east)+(0.5, 0) -- (log.west);
 
@@ -48,7 +50,7 @@
 
 \draw [vecarrow] (log.south) -- (InteractiveDebugger);
 
-\node (result) [draw, thick, minimum height = 10em, minimum width = 20em, below = 5em of InteractiveDebugger]{};
+\node (result) [draw, thick, minimum height = 10em, minimum width = 20em,pattern= north west lines, pattern color = blue!30!, below = 5em of InteractiveDebugger]{};
 \node[minimum width = 20em, above = -2em of result]{result};
 \node(r1)[draw, thick, minimum height = 3em, minimum width = 2em, above left = -5em and -3em of result]{"v"};
 \node(r2)[draw, thick, minimum height = 1em, minimum width = 0.5em, above left = -6em and -6em of result]{};

@@ -23,7 +23,6 @@
 In this section, we discuss the cases where the spinning node is blocking on Wait event.
 \begin{itemize}
 \item sequelpro <- ssh connection
-\item textstudio <- synchronization once the file get touched %recheck data if it can trace back to vim (vim->fsevent->textstudio)
 \item installer <- user input blocked
 \end{itemize}
 
@@ -46,6 +45,7 @@ In this section, we discuss the cases where the spinning node is blocking on Wai
 \begin{itemize}
 \item  a table on case description, corresponding root cause reported by Argus
 	\begin{itemize}
+	\item textstudio <- synchronization once the file get touched %recheck data if it can trace back to vim (vim->fsevent->textstudio)
 	\item notes
 	\item textedit
 	\item mswords
