@@ -1,27 +1,27 @@
-\subsection{Sequel Pro}
-
 Sequel Pro is a fast, easy-to-use Mac database management application for
 working with MySQL databases. It allows user to connect to database with a
 standard way, socket or ssh. We noticed spinning beachballs while the network
-connection was lost and Sequel Pro tried re-connections. In the worst case, work
-in other tabs get lost if the re-connection fails.
+connection was lost and Sequel Pro tried re-connections.
 
-We simulate the unstable network environment by randomly disabling the network
-for 1 second, and collect data in two cases: 1) network re-connection
-succeeds quickly, and 2) Sequel Pro loses its connection for a while. 2G
-tracing data are stored and the graph we generated contains 3,650,832 edges and
-2,412,236 vertexes.
+We collect tracing data in two cases: 1) network connected quickly when we
+login, and 2) Sequel Pro lost connection for a while. \xxx first identifies the
+spinning node from SequelPro's main thread.
+%In the node are the event sequence:
+%\textit{System\_call(poll), System\_call(write),
+%System\_call(wakeup), Timer(re\_arm), System\_call(read), Wait(lock)}.
+With the Algorithm FindSimilarNode, \xxx got a baseline node in case 1). From
+there, \xxx goes along the weak edge from wait event to wake\_up event to figure
+out the node that missing in case 2) and slices path backwards in case 1). \xxx
+carries out the comparison of the nodes in the thread before the normal node
+gets waken and before the spinning beachball shows up. The close examination
+tells that the main thread is waiting for the kernel thread, which in turn waits
+for the ssh thread.
 
-\xxx starts analysis from the spinning node in NSEvent thread of Sequel Pro and
-finds the corresponding node in its main UI thread. We notice the execution
-sequence,\\ \centerline{\textit{System\_call(poll), System\_call(write), System\_call(wakeup), Timer(re\_arm), System\_call(read), Wait(lock)}} \\
-in the node. Sequel Pro gets blocked on the read. As a result, \xxx goes to
-search the similar normal node, which has the same sequence but is not blocked
-for long. From the node, \xxx goes along the weak edge to figure out which node
-wakes it up and slice path backwards. \xxx carries out the comparison of the
-nodes in the thread before the normal node gets waken and before the spinning
-beachball shows up. The close examination tells that the main thread is waiting
-for the kernel thread, which in turn waits for the ssh thread. Such result
-could hardly figure out by lldb or spindump as both of them only focus on the
-call stack snapshot for each process, instead of providing the connections based
-the execution history system wide.
+\xxx helps to filter out overconnetions by dividing XXX combined batching node
+with hueristics, and recovers XXX missing edges due to the shared flag. In the
+diagnosis process, we get XXX similar node, XXX times of queries on backward
+slicing , XXX nodes for inspect.
+
+%%Such result could hardly figure out by lldb or
+%%spindump as both of them only focus on the call stack snapshot for each process,
+%%instead of providing the connections based the execution history system wide.
