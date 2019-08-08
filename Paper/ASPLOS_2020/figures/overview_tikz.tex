@@ -1,149 +1,81 @@
-%\documentclass{article}
-%\usepackage{tikz}
-%\usepackage{tikzpeople}
-%\usetikzlibrary{shapes, shapes.misc}
-%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
-%\usetikzlibrary{patterns}
+%%\documentclass{article}
+%%\usepackage{tikzpeople}
+%%\usepackage{tikz}
+%%\usetikzlibrary{shapes, shapes.misc}
+%%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+%%\usetikzlibrary{patterns}
 
-%\usetikzlibrary{calc,backgrounds}
-%\usepackage[active,tightpage]{preview}
-% taken from manual
-\makeatletter
-\pgfdeclareshape{document}{
-\inheritsavedanchors[from=rectangle] % this is nearly a rectangle
-\inheritanchorborder[from=rectangle]
-\inheritanchor[from=rectangle]{center}
-\inheritanchor[from=rectangle]{north}
-\inheritanchor[from=rectangle]{south}
-\inheritanchor[from=rectangle]{west}
-\inheritanchor[from=rectangle]{east}
-% ... and possibly more
-\backgroundpath{% this is new
-% store lower right in xa/ya and upper right in xb/yb
-\southwest \pgf@xa=\pgf@x \pgf@ya=\pgf@y
-\northeast \pgf@xb=\pgf@x \pgf@yb=\pgf@y
-% compute corner of ‘‘flipped page’’
-\pgf@xc=\pgf@xb \advance\pgf@xc by-10pt % this should be a parameter
-\pgf@yc=\pgf@yb \advance\pgf@yc by-10pt
-% construct main path
-\pgfpathmoveto{\pgfpoint{\pgf@xa}{\pgf@ya}}
-\pgfpathlineto{\pgfpoint{\pgf@xa}{\pgf@yb}}
-\pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yb}}
-\pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
-\pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@ya}}
-\pgfpathclose
-% add little corner
-\pgfpathmoveto{\pgfpoint{\pgf@xc}{\pgf@yb}}
-\pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yc}}
-\pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
-\pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yc}}
-}
-}
-\makeatother
 
-%\begin{document}
+%%\begin{document}
 \begin{center}
-
-%%\resizebox{0.8\textwidth}{0.4\textwidth}{%
-\resizebox{0.48\textwidth}{!}{%
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
 
-% We need layers to draw the block diagram
-\pgfdeclarelayer{background}
-\pgfdeclarelayer{foreground}
-\pgfsetlayers{background,main,foreground}
-
-\tikzstyle{every node}=[font=\Large]
-\tikzstyle{apps} = [draw, very thick, minimum height=3em, minimum width=5em, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.1em, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{actionLabel} = [draw, pattern=north west lines, pattern color = red!20, ellipse, minimum width = 15em, minimum height= 5em]%shape aspect=3, minimum size=30, diamond]
-
-\tikzstyle{doc} = [draw, thick, align=left, color=black, shape=document, minimum width=18em, minimum height=12em, shape=document, inner sep=2ex]
-\tikzstyle{commanddoc} = [draw, thick, align=left, color=black, shape=document, minimum width=5em, minimum height=8em, shape=document, inner sep=2ex]
-\tikzstyle{debuglogdoc} = [draw, thick, align=left, color=black, shape=document, minimum width=8em, minimum height=6em, shape=document, inner sep=2ex]
-\tikzstyle{mininode} = [draw, rectangle, minimum height=1em, minimum width=1em]
-
-\tikzstyle{prearrow} = [-, thick, line width=1em] %double distance = 1.2em, shorten >=-0.2em]
-\tikzstyle{vecarrow} = [->, thick, line width=1em] %double distance = 1.2em, shorten >=-0.2em]
-%\tikzstyle{vecarrow} = [thick, decoration={markings, mark=at position
-   %1 with {\arrow[xshift=1.2em, scale=0.6] {triangle 90}}},
-   %1 with {\arrow[xshift=1.5em]{Straight Barb[length=2pt 0.7]}}},
-   %double distance=1.2em,
-   %postaction= {decorate}]
+\tikzstyle{apps} = [draw, very thick, minimum height=3em, minimum width=5.1em, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{systemComp} = [draw, very thick, minimum height=3em, minimum width=15.2em, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{doc} = [draw, thick, align=left, color=black, minimum width=20em, minimum height=8em, inner sep=2ex]
+\tikzstyle{vecarrow} = [->, thick, line width=1em]
 
 %draw MacOS components
-\node [apps, name=software1] at (0, 0) {chromium};
-\node [apps, name=software2, right of=software1, node distance=5em] {daemon1};
-\node [apps, name=software3, right of=software2, minimum width=5.2em, node distance=5em] {daemon2};
-\node [systemComp, name=libs, below left = 0em and -10.21em of software2] {libs};
-\node [systemComp, name=kernel, below of=libs, node distance=3em] {kernel};
-\node (MacOS) [below of = kernel, minimum width=15em, node distance = 3em] {MacOS};
+\node [apps, name = software1] at (0, 0) {chromium}; % {\includegraphics[width=2.4em]{chromium_logo.png}};
+\node [apps, name = software2, right of=software1, node distance=5em] {daemon1};
+\node [apps, name = software3, right of=software2, minimum width=5.2em, node distance=5em] {daemon2};
+\node [systemComp, name = libs, below of = software2, node distance = 3em, pattern= north west lines, pattern color = blue] {ARgus Instrumented Lib};
+\node [systemComp, name = os, below of = libs, node distance = 3em, pattern= north west lines, pattern color = blue] {Argus Instrumented OS};
 
 % draw Tracing Event log
-\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=22em] {TracingEventLog};
-\node [doc, below of=TracingEventLog, name=log, node distance=4em] {\#timestamp, event\_type, att1, att2...\\30.4 Mach\_message 0x4ea20 0x3...\\31.7 Mach\_message 0x4ea20 0x3...\\33.2 Wake\_up 0xea45 0x16...};
+\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=20em] {TracingEventLog};
+\node (log) [doc, below of=TracingEventLog, node distance=3em] {\#timestamp, event\_type, att1, att2...\\30.4 Mach\_message 0x4ea20 0x3...\\31.7 Mach\_message 0x4ea20 0x3...\\33.2 Wake\_up 0xea45 0x16...};
+\draw [vecarrow] (libs.east)+(0.5, 0) -- (log.west);
 
-%draw arrow from MacOS to Tracing Event log
-%\draw[vecarrow, shorten >= -0.05em] (libs.east)+(0.5, 0) -- (log.west);%(TracingEventLog.west);
-\draw[vecarrow] (libs.east)+(0.5, -0.35) -- (log.west);%(TracingEventLog.west);
+%draw Interactive Debugger 
+\node (InteractiveDebugger) [draw, thick, minimum height=30em, minimum width=30em, pattern= north west lines, pattern color = blue!40!, below left = 2em and 0em of log] {};
+\node (debugger)[minimum width=40em, above = -3em of InteractiveDebugger]{Interactive Debugger};
+\node (graph) [draw, thick, minimum height = 20em, minimum width = 20em, below left = 7em and 3em of log]{};
+\node [minimum width = 20em, above = -3em of graph]{graph};
+\node (node1) [draw, thick, minimum height = 3em, minimum width = 1em, above left = -5em and -5em of graph]{0};
+\node (node2) [draw, thick, minimum height = 4em, minimum width = 1em, above left = -5em and -9em of graph]{1};
+\node (node3) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -9em and -12em of graph]{2};
+\node (node4) [draw, thick, minimum height = 3em, minimum width = 1em, above left = -14em and -17em of graph]{3};
+\node (node5) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -17em and -12em of graph]{4};
+\node (node6) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -20em and -5em of graph]{5};
 
-%draw Arrow for Constructing Graph
-\node [actionLabel, below of=log, node distance=9.5em, name=action1] {Construct Graph};
-\draw [prearrow] (log.south) -- (action1.north);
+\draw[->] (node1.south) -- node{0}(node3.north);
+\draw[->] (node2.south) -- node{1}(node3.west);
+\draw[->] (node3.south) -- node{2}(node4.north);
+\draw[->] (node4.south) -- node{3}(node5.north);
+\draw[->] (node5.south) -- node{4}(node6.north);
 
-%draw Dependency Graph
-\node (DependencyGraph) [minimum height=3em, minimum width=20em, below of=action1, node distance=8em] {Dependency Graph};
-\node [mininode, below of=DependencyGraph] (1c3) {};
-\node [mininode, left of=1c3, node distance=2em] (1c2) {};
-\node [mininode, below of=1c2, node distance=2em] (2c2) {};
-\node [mininode, left of=2c2, node distance=2em] (2c1) {};
-\node [mininode, left of=2c1, node distance=2em] (2c0) {};
-\node [mininode, right of=2c2, node distance=2em] (2c3) {};
-\node [mininode, right of=2c3, node distance=2em] (2c4) {};
-\node [mininode, below of=2c0, node distance=2em] (3c0) {};
-\node [mininode, right of=3c0, node distance=2em] (3c1) {};
-\node [mininode, right of=3c0, node distance=6em] (3c2) {};
-\node [mininode, below of=3c0, node distance=2em] (4c0) {};
-\draw [->] (1c2.south) -- (2c0.north);
-\node (DGendline)[minimum height=1em, minimum width=20em, below of=DependencyGraph, node distance=10em]{};
+\draw [vecarrow] (log.south) -- (InteractiveDebugger);
 
-%\draw [vecarrow, shorten <=-0.2em, shorten >= 0.1em] (action1.south) -- (DependencyGraph.north);
-\draw [vecarrow] (action1.south) -- (DependencyGraph.north);
+\node (result) [draw, thick, minimum height = 10em, minimum width = 20em, below = 5em of InteractiveDebugger]{};
+\node[minimum width = 20em, above = -2em of result]{result};
+\node(r1)[draw, thick, minimum height = 3em, minimum width = 2em, above left = -5em and -3em of result]{"v"};
+\node(r2)[draw, thick, minimum height = 1em, minimum width = 0.5em, above left = -6em and -6em of result]{};
+\node(r3)[draw, thick, minimum height = 1em, minimum width = 0.5em, above left = -7em and -9em of result]{};
+\node(r4)[draw, thick, minimum height = 1em, minimum width = 0.5em, above left = -8em and -12em of result]{};
+\node(r5)[draw, thick, minimum height = 2em, minimum width = 2em, above left = -9em and -17em of result]{wait};
+\draw[->](r1.south) -- (r2.west);
+\draw[->](r2.south) -- (r3.west);
+\draw[->](r3.south) -- (r4.west);
+\draw[->](r4.south) -- (r5.west);
 
+\draw [vecarrow] (InteractiveDebugger.south) -- (result);
 %draw interactive Debugging part
-\node [commanddoc, left of=DependencyGraph, node distance=18em](command){Debugging command\\search\_node\\check\_node\\lldb:br\\lldb:si};
-\node[alice, minimum size=3em, left of=command, node distance=8em](user) {};
-\node [debuglogdoc, left of=user, node distance=8em](debuglog){Debugging log:\\path: ...\\node\_id: ...\\execution\_list:\\  movq \%rax, \%rcx \\...};%\\  movq \$1, \%rbx\\  ...};
-\node [actionLabel, below of=user, node distance=8em, name=action2] {Interactive Debugging};
-\draw [->] (user.east) to [out=330,in=60] (action2.north east);
-\draw [->] (action2.north west) to [out=120,in=210] (user.west);
-\draw [->] (user.north)+(0, 0.1) to (libs.south);
-\draw [prearrow](DGendline.north west) + (0, 0.5) -- (action2.east);
-%\draw [prearrow, -, shorten >= -1.8em](DGendline.north west) + (0, 0.5) -- (action2.east);
-%\node (result) [draw, rectangle, align=left, minimum height=2em, minimum width=20em, below of = action2, node distance=6em] {RootCause:\\UI thread blocking in Chromium because of\\wating for message from Render thread};
-%\draw [vecarrow, shorten <= -0.2em] (action2.south) -- (result.north);
+\node (user)[alice, minimum size=3em, left = 10em of InteractiveDebugger, node distance=10em]{};
+\node (query1)[above left = -8em and -1em of InteractiveDebugger]{};
+\node (query2)[above left = -10em and -1em of InteractiveDebugger]{};
+\node (query3)[below left = -10em and -1em of InteractiveDebugger]{};
+\node (query4)[below left = -8em and -1em of InteractiveDebugger]{};
 
-\node (result) [draw, rectangle, align=left, minimum height=20em, minimum width=9em, text width=8em, left of=debuglog, node distance=12em] {RootCause:\\UI thread of Chromium blocks due to wating for message from render thread};
-\node (alignresult)[left of=action2, node distance=16em]{};
-%\draw [vecarrow, shorten <= -1.8em] (action2.west) -- (alignresult.east);
-\draw [vecarrow] (action2.west) -- (alignresult.east);
+\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
+\draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
 
-\begin{pgfonlayer}{background}
-%%draw background rectangle for macos, graph and debugging log
-\path (software1.west |- software3.north)+(-0.5, 0.5) node (a) {};
-\path (MacOS.south east)+(0.5, -0.5) node (b) {};
-\path[fill=yellow!20,rounded corners, draw=black!50, dashed] (a) rectangle (b);
-%%draw backgroud for dependancy graph
-\path (DependencyGraph.west |- DependencyGraph.north) node (a) {};
-\path (DGendline.south east) node (b){};
-\path[fill=yellow!20,rounded corners, draw=black!50, dashed] (a) rectangle (b);
-%%draw background for interactive debugging
-%\path (IDbeginline.west |- IDbeginline.north) node (a) {};
-%\path (IDendline.south east) node (b) {};
-%\path[fill=yellow!20,rounded corners, draw=black!50, dashed] (a) rectangle (b);
+\draw [->, thick, out=150, in=30] (query3.north west) to node{which edge?} (user.south);
+\draw [->, thick, out=310, in=230] (user.south) to node{edge 1} (query4.north);
 
-\end{pgfonlayer}
+
 \end{tikzpicture}
 }
 \end{center}
-%\end{document}
+%%\end{document}

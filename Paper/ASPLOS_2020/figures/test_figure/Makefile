@@ -12,7 +12,7 @@ clean:
 	@rm dep.mk
 	@rm -rf ${OUT}
 
-out/main.pdf:
+out/tikz.pdf:
 	latexmk -xelatex tikz.tex -outdir=out
 
-all: clean out/main.pdf
+all: clean out/tikz.pdf
