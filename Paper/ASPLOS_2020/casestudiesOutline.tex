@@ -1,26 +1,12 @@
 \begin{itemize}
 \item{brief description}
 \item{advantage over lldb/spindump}
-	\begin{enumerate}
-	\item For blocking or loop yield, it does not provide the baseline case for root cause identification
-	\item For busy processing case, it does not provid the User input event or Apple event.
-	\end{enumerate}
 \item{advantage over traditional causal tracing}
-	\begin{enumerate}
-	\item Traditional causal tracing tries to get user transaction from end to end.
-		** edges introduced by daemons, leading to other applications involved
-			how many other applications' thread will involved in the graph
-	\item Traditional causual tracing does not process the case of interrupt,
-		will miss the related subgraph.
-		** how many edges/nodes missing
-	\end{enumerate}
-%threads involved? how many edges missing?
 \item{user interaction required in the process}
 \item{verification of the root cause}
 \end{itemize}
 
 \subsection{Blocking Cases}
-In this section, we discuss the cases where the spinning node is blocking on Wait event.
 \begin{itemize}
 \item sequelpro <- ssh connection
 \item installer <- user input blocked
@@ -39,8 +25,6 @@ In this section, we discuss the cases where the spinning node is blocking on Wai
 	\end{itemize}
 \end{itemize}
 
-%%\input{systempreferences}
-
 \subsection{CPU Busy Cases}
 \begin{itemize}
 \item  a table on case description, corresponding root cause reported by Argus
@@ -54,9 +38,12 @@ In this section, we discuss the cases where the spinning node is blocking on Wai
 	\item coteditor
 	\end{itemize}
 \end{itemize}
-%%\input{notes}
-%%\input{textedit}
-%%\input{msword}
-%%\input{sublimetext}
-%%\input{textmate}
-%%\input{coteditor}
+
+\begin{itemize}
+\item #nodes, #edges
+\item dividing batching nodes
+\item data flag
+\item similar nodes
+\item length of the root cause path
+\item number of user needs to make decision on which edge to choose
+\end{itemize}

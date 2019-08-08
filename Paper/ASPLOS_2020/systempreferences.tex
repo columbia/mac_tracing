@@ -1,62 +1,36 @@
-\subsubsection{System Preferences}
-
 System Preferences provides a central location in macOS to customize system
-settings. The ``Display'' pane allows users to configure additional monitors,
-mirroring or extending their work space. However, the software does not support
-disabling monitors that are online (the user must physically unplug monitors).
-There is a tool called DisableMonitor~\cite{disablemonitor}, distributed via
-GitHub, which addresses this functionality. Surprisingly, we find performance
-bug in System Preferences when we disable an external monitor, and rearrange
-the windows in the Display panel afterward. The System Preferences windows
-freezes for seconds in this situation.
+settings, inclduing the configuration of additional monitors. A tool called
+DisableMonitor~\cite{disablemonitor}, distributed via GitHub completes its
+function with enable/disable monitors online. We blocked on the spinning
+beachball when we disabled an external monitor, and rearrange the windows in the
+``Display'' panel afterward.
 
-To diagnose this issue, we run the System Preferences app with \xxx. We
-rearrange the displays with two active monitors, and repeat the process with
-one of them deactivated. \xxx collects 132MB data, and constructs dependency
-graph system-wide in the period, which contains 428,785 vertexes and 320,554
-edges.
+We collected data with the \xxx, which contains 1) with external monitor
+on and rearrange the windows, and 2) disable the external monitor and
+rearrange the windows. The spinning node in the main UI thread is dominated by
+\textit{mach\_msg} and \textit{thread\_switch}, which falls into the category of
+yielding loop. We finds two missing shared variables via the reverse engineering
+and ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'',
+which are userd to signify the display configuration status.
 
-To diagnose the root cause, \xxx first finds out when the NSEvent thread in
-System Preferences notifies WindowServer to draw the spinning cursor and marks
-it as \textit{t}. The node in the main UI thread causing the non-responsiveness
-must overlap the time interval \textit{(t - 2s, t)}. It is not hard for
-\xxx to tell the spinning node in the main UI thread, either busy processing or
-blocking.
+\xxx compares the two cases and reveals in both cases the first variable is
+set to indicate the begin of display configuration. However, in case 1) the
+main thread of System Preferences receives a datagram which set the variable
+``\vv{\_gCGDidReconfigureSeen}'' in \textit{display\_notify\_proc} and finish
+display reconfiguration, while in case 2) the main thread yields and sends
+message for the available of such datagram ping until timed out.
 
-The spinning node in the main UI thread is dominated by \textit{mach\_msg} and
-\textit{thread\_switch}, both of which are meant to wait for available data
-ping from WindowServer. Noticing the timeouts of \text{thread\_switch}, \xxx
-classifies this case into the third category (\S\ref{subsec:debug}) and heads
-to find a comparable normal node in the same thread. As its semantics are not
-descriptive enough to identify its comparable node, \xxx extends the comparison
-with its proceeding nodes.
+Our FindSimilarNode reports a lot of similar node due to the limit of semantics
+in the node. As a result, we instruct \xxx to extends the comparison with its
+proceeding nodes in the main thread. In conclusion, the bug is from the design
+in CoreGraphics library and would have to fixed by Apple. We verified the bug by
+a dynamic binary fixing with lldb script.
 
-In the normal case, System Preferences gets rid of the thread\_switch
-quickly after receiving messages from WindowServer. It proceeds
-to \textit{displayReconfigured}. On the other hand, the spinning
-node ends up sending message for the available datagram ping with
-\textit{CGSSnarfAndDispatchDatagrams}. By checking the lightweight call stacks,
-\xxx figures out the messages from WindowServer in the previous nodes are
-responses to data available pings from \textit{activeDisplayNotificationHandler}.
-
-Given the information, we launched the interactive debugging by 
-feeding the debugging script with those APIs mentioned above. We set the method
-\textit{activeDisplayNotificationHandler} as a breakpoint where the script begins
-debugging. \textit{displayReconfigured} and \textit{CGSSnarfAndDispatchDatagrams}
-are used to indicate the end of debugging for the normal case and spinning case
-respectively.
-
-By diffing the two logs, we notice the different
-branches in \textit{display\_notify\_proc} called by
-\textit{activeDisplayNotificationHandler}. The handler depends on received
-datagram and two shared variables ``\vv{\_gCGWillReconfigureSeen}'' and
-``\vv{\_gCGDidReconfigureSeen}'' to finish a display configuration. In
-both case the first variable is set to indicate the begin of display
-configuration. In normal case, it receives a datagram which set the variable
-``\vv{\_gCGDidReconfigureSeen}'' in \textit{display\_notify\_proc} and
-finish display reconfiguration, while in the spinning case such datagram
-is never received. Instead, an alternative datagram just drive it through
-\textit{display\_notify\_proc} without setting any variable, which causes the
-repeating \textit{thread\_switch} in the handler.
-
-[In conclusion, the bug is... would have to be fixed by... we provide a binary fix...]
+%%Given the information, we launched the interactive debugging by feeding
+%%the debugging script with those APIs mentioned above. We set the
+%%method \textit{activeDisplayNotificationHandler} as a breakpoint
+%%where the script begins debugging. \textit{displayReconfigured} and
+%%\textit{CGSSnarfAndDispatchDatagrams} are used to indicate the end of debugging
+%%for the normal case and spinning case respectively. By diffing the two logs,
+%%we notice the different branches in \textit{display\_notify\_proc} called by
+%%\textit{activeDisplayNotificationHandler}. 
