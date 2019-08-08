@@ -1,11 +1,11 @@
 %\subsection{Spinning Node detection}
-Spinning beachball is a painful sight for Mac users, signifying that the
-application is non-responsive. It usually remains for minutes at a time, leaving
-the user at a loss and unable to do anything productive. Under this situation, a
-hang reporting tool, spindump, usually invoked by root to sample for debugging.
+\indent Spinning beachball is a painful sight for Mac users, signifying that an
+application is non-responsive and leaving the user at a loss and unable to do
+anything productive. In this situation, a hang reporting tool, spindump, usually
+kicks in automatically by root to sample for debugging.
 
-To figure out the spinning node in the main thread, we turned to the event
-graph, and sliced path backward from the launch of spindump, considering it is
+To figure out the spinning node in the main thread, we turn to the event
+graph, and slice path backward from the launch of spindump, considering it is
 another indicator of non-responsive in app. The path showed it was launched
 after receiving a message from WindowServer, which in turn received a message
 from the NSEvent thread of the freezing app. The call stacks attached to the
@@ -20,7 +20,7 @@ window.
 
 Moreover, two shared variables are discovered helps \xxx to identifying
 spinning node in main thread. With the call stack symbols found above
-as input, our detailed debugging script detects two share variables
+as input, our detailed debugging script detects two shared variables
 ``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}'' which
 are used to identify the main thread status. As a result, \xxx can make use of
 either the API or the shared variable to identify the spinning node in the main
