@@ -72,7 +72,7 @@ five default heuristics. Four of them share the idea of general cuasual tracing,
 one is used to work around unknown programming paradigms, and more are expected
 from users to improve graphs. We discuss them in below.
 
-As listed in (\S\ref{subsec:inherentinaccuracy}), event sequences
+As listed in (\S\ref{sec:inherentinaccuracy}), event sequences
 for interrupt processing and kernel maintainance are removed from
 threads in line ~\ref{graphcomputing:1.a}. The second heuristics in line
 ~\ref{graphcomputing:1.b} treats a wait event as an end of a node. An wait event
@@ -90,7 +90,7 @@ that used to schedule work and coordinate the receipt of incoming events.
 The begin and end of the work invocation are served as boundaries. The last
 default heuristics in line~\ref{graphcomputing:1.e} is used to work around the
 difficulty of exploiting batch processing programming paradigms completely, as
-listed in follows (\S\ref{subsec:inherentinaccuracy}). \xxx makes use of mach
+listed in follows (\S\ref{sec:inherentinaccuracy}). \xxx makes use of mach
 messages to avoid clustering multiple tasks due to unknown batch processing. It
 defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
 for every node. For every mach message, the algorithm checks whether its peer
@@ -115,7 +115,7 @@ are listed in line ~\ref{graphcomputing:2.c} and line~\ref{graphcomputing:2.d}
 respectively. Similarly, \xxx adds edge from a timer armed event to its
 triggered event in line ~\ref{graphcomputing:2.e}. Shared flag can either be
 traced with binary instrument, such as \vv{need\_display} flag for CoreAnimation
-in (\S\ref{subsec:inherentinaccuracy}), or with breakpoint watcher command line
+in (\S\ref{sec:inherentinaccuracy}), or with breakpoint watcher command line
 tool provided by \xxx. Edges from the flag written to its read are added from
 line ~\ref{graphcomputing:2.f}. Since share variables are hard to completely
 exploit, and the causality can be more complicated than the writer-reader
@@ -229,207 +229,6 @@ more user input heuristics.
 %%    \label{fig:alg-graphcomputing}
 %%\end{figure}
 
-\subsection{Inherent Inaccuracy}\label{subsec:inherentinaccuracy}
-
-Constructing an accurate and complete dependency graph is difficult, if not
-formally undecidable. The graph is inherently inaccurate. That one thread
-wakes up the other thread does not always imply a causility between them. In
-implementation, \xxx handles the following types of spurious edges.
-
-\begin{itemize}
-
-\item interrupt processing and kernel sharetime maintanance that take over
-current thread context.
-
-\item timer expiration in the kernel which clears up all the waiting threads on
-an event source.
-
-\end{itemize}
-
-\noindent In addition to the known definitive noise, there exist false connections and
-missing dependencies based on our experience of building a dependency graph
-with traditional causality tracing. We define them as over connection and under
-connection respectively.
-
-\vspace{1.5mm}
-\subsubsection{Over Connections}\hfill\\
-\vspace{-0.5mm}
-Over connections usually occur when intra-thread boundaries are missing due to
-unknown batch processing programming paradigms. We list the example patterns we
-found below.
-
-\paragraph{Dispatch message batching}
-
-While traditional causual tracing assumes the entire execution of a callback
-function is on behalf of one request, we found some daemons implement their
-service loop inside the callback function and create false dependencies. In the
-code snippet below from the \vv{fontd} daemon, function \vv{dispatch\_execute}
-is installed as a callback to a work from dispatch queue. It subsequently calls
-\vv{dispatch\_mig\_server()} which runs the typical server loop and handles
-messages from different apps.
-
-To avoid incorrectly linking many irrelevant processes through such batching
-processing patterns, \xxx adopts the aforementioned heuristics to split an
-execution segment when it observes that the segment sends out messages to two
-distinct processes. Any capplication or daemon can implement its own server loop
-this way, which makes it fundamentally difficult to automatically infer event
-handling boundaries.
-
-\vspace{-4mm}
-\begin{figure}[ht!]
-\begin{minipage}[t]{.25\textwidth}
-\begin{lstlisting}
-//worker thread in fontd:
-//enqueue a block
-block = dispatch_mig_sevice;
-dispatch_async(block);
-\end{lstlisting}
-\end{minipage}\hfill
-\begin{minipage}[t]{.21\textwidth}
-\begin{lstlisting}
-//main thread in fontd:
-//dequeue blocks
-block = dequeue();
-dispatch_execute(block);
-\end{lstlisting}
-\end{minipage}
-
-\begin{minipage}[t]{0.48\textwidth}
-\begin{lstlisting}
-//implementation of dipatch_mig_server
-dispatch_mig_server()
-for(;;) //batch processing
-  mach_msg(send_reply, recv_request)
-  call_back(recv_request)
-  set_reply(send_reply)
-\end{lstlisting}
-\end{minipage}
-   %% \caption{Dispatch message batching}
-    \label{fig:dispatchmessagebatching}
-\end{figure}
-\vspace{-7mm}
-
-\paragraph{Batching in event processing}
-
-Message activities inside a system call are assumed to be related traditionally.
-However, to presumably save on kernel boundary crossings, WindowServer MacOS
-system daemon uses a single system call to receive data and send data for an
-unrelated event from differnt processed in its event loop. This batch processing
-artificially makes many events appear dependent. We split the execution segments
-to maintain the independence of the events.
-
-\vspace{-4mm}
-\begin{figure}[ht!]
-\begin{lstlisting}
-//inside a single thread
-while() {
-  CGXPostReplyMessage(msg) {
-  // send _gOutMsg if it hasn't been sent
-    push_out_message(_gOutMsg)
-    _gOutMsg = msg
-    _gOutMessagePending = 1
-  }
-  CGXRunOneServicePass() {
-    if (_gOutMessagePending)
-      mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
-    else
-      mach_msg(MSG_RECV)
-    ... // process received message
-  }
-}
-\end{lstlisting}
-    %%\caption{Batching in event processing}
-    \label{fig:batchingineventprocessing}
-\end{figure}
-\vspace{-1.5mm}
-
-\subsubsection{Under Connections}\hfill\\
-On the other hand, under connections mostly result from missing data
-dependencies. Data dependencies, both inter- and intra-thread, are usually hard
-to fully exploit in the initial pass of graph computing.
-
-\paragraph{Data dependency in event processing}
-The code for \textbf{Batching in event processing} above also illustrates a causal
-linkage caused by data dependency in one thread. WindowServer saves the reply
-message in variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.
-When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there
-is any pending message. \xxx uses watch point registers to capture events
-on \vv{\_gOutMsg} and establish the causal link between the handling of the
-previous request and the send of the reply.
-
-\paragraph{CoreAnimation shared flags}
-%As shown in Figure~\ref{fig:casharedflag}, worker thread can set
-As shown in the code snippet below, worker thread can set
-a field \vv{need\_display} inside a CoreAnimation
-object whenever the object needs to be repainted. The main thread iterates over
-all animation objects and reads this flag, rendering any such object. This
-shared-memory communication creates a dependency between the main thread and the
-worker so accesses to these field flags need to be tracked.
-%%However, since each object has such a field flag, \xxx cannot afford to monitor
-%%each using a watch point register. Instead, it uses instrumentation to modify
-%%the CoreAnimation library to trace events on these flags.
-\vspace{-4mm}
-\begin{figure}[ht!]
-\begin{minipage}[t]{.20\textwidth}
-\begin{lstlisting}
-//Worker thread:
-//needs to update UI:
-obj->need_display = 1
-\end{lstlisting}\hfill
-\end{minipage}
-\noindent\begin{minipage}[t]{.28\textwidth}
-\begin{lstlisting}
-//Main thread: 
-//traverse all CA objects
-if(obj->need_display == 1)
-  render(obj)
-\end{lstlisting}\hfill
-\end{minipage}
-    %%\caption{CoreAnimation shared flag}
-    \label{fig:casharedflag}
-\end{figure}
-\vspace{-10mm}
-
-\paragraph{Spinning cursor shared flag}
-As shown in Figure~\ref{fig:spinningcursorsharedflags},
-whenever the system determines that the main thread has hung for a certain
-period, and the spinning beach ball should be displayed, a shared-memory flag
-is set. Access to the flag is controlled via a lock, i.e. the lock is used for
-mutual exclusion, and does not imply a happens before relationship. Thus, \xxx
-captures accesses to these flags using watch-point registers to add causal edges
-correctly.
-\begin{figure*}[ht!]
-\begin{minipage}[t]{0.5\textwidth}
-\begin{lstlisting}
-//NSEvent thread:
-CGEventCreateNextEvent() {
-  if (sCGEventIsMainThreadSpinning == 0x0)
-     if (sCGEventIsDispatchToMainThread == 0x1)
-       CFRunLoopTimerCreateWithHandler{
-         if (sCGEventIsDispatchToMainThread == 0x1)
-           sCGEventIsMainThreadSpinning = 0x1
-           CGSConnectionSetSpinning(0x1);
-       }
-}
-\end{lstlisting}
-\end{minipage}
-\begin{minipage}[t]{0.4\textwidth}
-\begin{lstlisting}
-//Main thread:
-{
-	... //pull events from event queue
-	Convert1CGEvent(0x1);
-	if (sCGEventIsMainThreadSpinning == 0x1){
-  		CGSConnectionSetSpinning(0x0);
-  		sCGEventIsMainThreadSpinning = 0x0;
-  		sCGEventIsDispatchedToMainThread = 0x0;
-	}
-}
-\end{lstlisting}
-\end{minipage}
-    \caption{Spinning Cursor Shared Flags}
-    \label{fig:spinningcursorsharedflags}
-\end{figure*}
 
 \subsection{User Interactions}\label{subsec:userinteraction}
 %%Main point for the subsection: why we need user interaction, what the user can
