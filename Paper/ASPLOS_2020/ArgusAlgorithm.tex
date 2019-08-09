@@ -1,1 +1,84 @@
-% empty
+\begin{algorithm}[ht!]
+    \caption{Diagnosis algorithm.}
+    \label{alg:alg-diagnosis}
+\begin{algorithmic}[1]
+\Require{g - EventGraph; spinning\_node - the node in the UI thread when the spinning cursor occurs}
+\Ensure{node\_vector - root cause node or the sliced path}
+\Statex
+\Function{Diagnose}{EventGraph g, Node *spinning\_node}
+  \Switch {spinning\_node.block\_type}
+    \Case {CPUBusy}
+		\State {slice $\gets$ InteractiveSlice(spinning\_node)}
+		\State\Return {slice}
+	\EndCase
+	\Case {Yield}
+		\If {spinning\_node.NotContain(Share\_flag\_read\_Event)}
+			\LineComment {Require users to annotate data flag}
+			\State {abort()}
+		\EndIf
+		\LineComment {Fall through}
+	\EndCase
+	\Case {Wait}
+		\LineComment {Find a baseline case where the wakeup occured}
+		\State {normal\_nodes $\gets$ FindSimilar(spinning\_node)}
+		\State {normal\_node $\gets$ Users.Pick(normal\_nodes)}
+		\State {slice $\gets$ InteractiveSlice(normal\_node)} 	
+		\State {$T_{spinning}$ $\gets$ spinning\_node.begin\_time}
+
+		\For {$node$ $\gets$ $slice.begin().next()$ to $slice.end()$}
+			\State {$T_{normal}$ $\gets$ node.end\_time}
+			\State {$t$ $\gets$ node.thread}
+			\State {$t\_nodes$ $\gets$ GetNodes(t, $T_{normal}$, $T_{spinning}$)}
+			\For {$node_i$ $\gets$ $t\_nodes.begin()$ to $t\_nodes.end()$}
+				\If {$node_i$.EventType == Wait}
+					\State {node\_vector.append($node_i$)}
+					\LineComment {Ask user if it is the root cause}
+					\If {User.Yes}
+						\State\Return {node\_vector}
+					\Else
+						\State {Diagnose($node_i$)}
+					\EndIf
+				\EndIf
+			\EndFor
+		\EndFor
+		\LineComment {Fail to diagnose with blocking culprit, return the normal}
+		\LineComment {node's parent for user to apply concrete debugging}
+		\If {node\_vector.empty()}
+			\State\Return {normal\_node.parent()}
+		\EndIf
+	\EndCase
+  \EndSwitch
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[ht!]
+    \caption{InteractiveSlicing algorithm.}
+    \label{alg:alg-interactiveslicing}
+\begin{algorithmic}[1]
+\Require{g - EventGraph; node - the node user wants to slice from}
+\Ensure{slice - causual path for node}
+\Statex
+\Function{InteractiveSlicing}{EventGraph g, Node *node}
+\Loop
+	\State{slice.append(node)}
+	\If{node.parent().size() > 1}
+		\State{node $\gets$ User.pick(candidates)}
+		\If{node.NotExist()}
+			\State\Return {slice}
+		\EndIf
+	\ElsIf{node.parent().size() == 1}
+		\State{node $\gets$ node.parent().front()}
+	\ElsIf{node.WeakEdges().size() > 0}
+		\State{node $\gets$ User.Pick(weak edges)}
+		\If{node.NotExist()}
+			\State\Return {slice}
+		\EndIf
+	\Else
+		\State\Return {slice}
+	\EndIf
+\EndLoop
+\EndFunction
+\end{algorithmic}
+\end{algorithm}

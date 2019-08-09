@@ -56,6 +56,9 @@
 \algnewcommand\Or{\textbf{or} }
 \algnewcommand{\algorithmicgoto}{\textbf{go to}}%
 \algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
+\algrenewcomment[1]{\(\triangleright\) #1}
+\algnewcommand{\LineComment}[1]{\State \(\triangleright\) #1}
+
 
 \algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
 \algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
