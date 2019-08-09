@@ -22,12 +22,12 @@
 		%\LineComment {find a baseline case where the wait returns quickly}
 		%\LineComment {slice baseline path and check the path thread to thread}
 		%\LineComment {check its nearest (to spinning timestamp) node}
-		\State {$T_{spinning}$ $\gets$ timestamp of spinning in spinning\_node}
+		%\State {$T_{spinning}$ $\gets$ timestamp of spinning in spinning\_node}
 		\State {similar\_nodes $\gets$ nodes have similar event sequences to spinning\_node}
 		\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
 		\State {baseline\_path $\gets$ InteractiveSlice(baseline\_node)} 	
 		\For {each t in $\{$threads in baseline\_path$\}$}
-			\State {$node_t$ $\gets$ node in t before $T_{spinning}$}
+			\State {$node_t$ $\gets$ node in t before spinning\_node gets spinning}
 			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
 				\If {is\_related\_to\_bug $\not=$ True}
