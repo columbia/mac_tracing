@@ -3,49 +3,41 @@
     \label{alg:alg-diagnosis}
 \begin{algorithmic}[1]
 \Require{g - EventGraph; spinning\_node - the node in the UI thread when the spinning cursor occurs}
-\Ensure{node\_vector - root cause node or the sliced path}
+\Ensure{root\_cause\_nodes-collecting root casuse nodes for user inspect}
 \Statex
-\Function{Diagnose}{EventGraph g, Node *spinning\_node}
+\Function{Diagnose}{g, spinning\_node}
   \Switch {spinning\_node.block\_type}
-    \Case {CPUBusy}
+    \Case {LongRunning}
 		\State {slice $\gets$ InteractiveSlice(spinning\_node)}
-		\State\Return {slice}
+		\State\Return {node contains UI event}
 	\EndCase
-	\Case {Yield}
-		\If {spinning\_node.NotContain(Share\_flag\_read\_Event)}
-			\LineComment {Require users to annotate data flag}
+	\Case {RepeatedYield}
+		\If {DataFlagEvent $\notin$ $\{$event types in spinning\_node$\}$}
+			\State {Require users to annotate data flag}
 			\State {abort()}
 		\EndIf
-		\LineComment {Fall through}
+		%\LineComment {Fall through}
 	\EndCase
-	\Case {Wait}
-		\LineComment {Find a baseline case where the wakeup occured}
-		\State {normal\_nodes $\gets$ FindSimilar(spinning\_node)}
-		\State {normal\_node $\gets$ Users.Pick(normal\_nodes)}
-		\State {slice $\gets$ InteractiveSlice(normal\_node)} 	
-		\State {$T_{spinning}$ $\gets$ spinning\_node.begin\_time}
-
-		\For {$node$ $\gets$ $slice.begin().next()$ to $slice.end()$}
-			\State {$T_{normal}$ $\gets$ node.end\_time}
-			\State {$t$ $\gets$ node.thread}
-			\State {$t\_nodes$ $\gets$ GetNodes(t, $T_{normal}$, $T_{spinning}$)}
-			\For {$node_i$ $\gets$ $t\_nodes.begin()$ to $t\_nodes.end()$}
-				\If {$node_i$.EventType == Wait}
-					\State {node\_vector.append($node_i$)}
-					\LineComment {Ask user if it is the root cause}
-					\If {User.Yes}
-						\State\Return {node\_vector}
-					\Else
-						\State {Diagnose($node_i$)}
-					\EndIf
+	\Case {LongWait}
+		%\LineComment {find a baseline case where the wait returns quickly}
+		%\LineComment {slice baseline path and check the path thread to thread}
+		%\LineComment {check its nearest (to spinning timestamp) node}
+		\State {$T_{spinning}$ $\gets$ timestamp of spinning in spinning\_node}
+		\State {similar\_nodes $\gets$ nodes have similar event sequences to spinning\_node}
+		\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
+		\State {baseline\_path $\gets$ InteractiveSlice(baseline\_node)} 	
+		\For {t $\gets$ $\{$threads in baseline\_path$\}$}
+			\State {$node_t$ $\gets$ node in t before $T_{spinning}$}
+			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
+				\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
+				\If {is\_related\_to\_bug $\not=$ True}
+					\State{Continue}
 				\EndIf
-			\EndFor
+				\State {root\_cause\_nodes.append($node_t$)}
+				\State {root\_cause\_nodes.append(Diagnose(g, last\_node))}
+			\EndIf
+			\LineComment{if t is normal running, disgnose the next thread}
 		\EndFor
-		\LineComment {Fail to diagnose with blocking culprit, return the normal}
-		\LineComment {node's parent for user to apply concrete debugging}
-		\If {node\_vector.empty()}
-			\State\Return {normal\_node.parent()}
-		\EndIf
 	\EndCase
   \EndSwitch
 \EndFunction
@@ -75,7 +67,7 @@
 		\If{node.NotExist()}
 			\State\Return {slice}
 		\EndIf
-	\Else
+	\Else \Comment{The very beginning dangle node of current thread}
 		\State\Return {slice}
 	\EndIf
 \EndLoop
