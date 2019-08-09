@@ -131,12 +131,17 @@ is conceivable to leverage memory protection techniques to infer them
 automatically, as demonstrated in previous record-replay
 %% https://www.usenix.org/legacy/events/usenix05/tech/general/king/king.pdf
 %% https://web.eecs.umich.edu/~pmchen/papers/dunlap08.pdf
-work~\cite{xxx}, we leave it for future work because it is out of the
-scope of this paper.  Once the user identifies a data flag, \xxx traces it
-using either binary instrument, such as the \vv{need\_display} flag in
-CoreAnimation (\S\ref{sec:inherentinaccuracy}), or with watchpoints.  \xxx
-add a causal edge between a write to a data flag to the corresponding read
-to the flag.
+work~\cite{xxx}, it is out of the scope of this paper and we leave it for
+future work.  Currently, to discover a data flag, the user re-runs the
+application with \xxx to collect instruction traces of the concurrent
+events in both the normal and spinning cases and detects where the control
+flow diverges. She then reruns the application with \xxx to collect
+register values for the basic blocks before the divergence and uncovers
+the address of the data flag.  Once the user identifies a data flag, \xxx
+traces it using either binary instrument, such as the \vv{need\_display}
+flag in CoreAnimation (\S\ref{sec:inherentinaccuracy}), or with
+watchpoints.  \xxx add a causal edge between a write to a data flag to the
+corresponding read to the flag.
 
 %% \subsection{Graph Computing Algorithm}\label{subsec:graphcomputing}
 
