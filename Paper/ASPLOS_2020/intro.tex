@@ -49,8 +49,9 @@ Second, the graphs may be missing numerous causal edges.  For instance,
 consider data dependencies in which the code sets a flag (\eg,
 ``\vv{need\_display} = 1'' in macOS animation rendering) and later queries
 the flag to process a request further.  This pattern is broader than ad
-hoc synchronization~\cite{xiong2010ad} because it happens even within the
-same thread (as in the preceding WindowServer example).  Although the
+hoc synchronization~\cite{xiong2010ad} because data dependency occurs even
+within a single thread (such as the buffer holding the reply in the
+preceding WindowServer example).  Although the
 number of these flags may be small, they often express
 critical causality, and not tracing them would lead to many missing edges in
 the request graph.  However, without knowing where the flags reside in memory,
@@ -80,7 +81,9 @@ performance issues in modern desktop applications despite the imprecision
 of causal tracing. \xxx does not construct a per-request causal graph
 which requires extremely accurate causal tracing.  Instead, it captures an
 approximate event graph for a duration of the system execution to aid
-diagnosis.  It keeps humans in the loop, as a debugger should rightly do,
+diagnosis, and tracks both true causality edges as well as weak ones that
+may or may not reflect causality.  It keeps humans in the loop, as a
+debugger should rightly do,
 and lets users easily inspect current diagnostics and guide the next steps
 to counter the inherent imprecision of causal tracing.  Specifically,
 during debugging, \xxx queries users a judicially few times to (1) resolve

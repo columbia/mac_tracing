@@ -1,31 +1,21 @@
-\section{Inherent Imprecision in Causal Tracing}\label{sec:inherentinaccuracy}
+\section{Inherent Inaccuracies in Causal Tracing}\label{sec:inherentinaccuracy}
 
-Constructing an accurate and complete dependency graph is difficult, if not
-formally undecidable. The graph is inherently inaccurate. That one thread
-wakes up the other thread does not always imply a causility between them. In
-implementation, \xxx handles the following types of spurious edges.
+As explained in \S\ref{sec:intro}, causal tracing builds a graph to
+connect execution segments on behalf of a request that spread across
+separate threads and processes.  Based on our experience building a causal
+tracing system on commercial, closed-source macOS, we believe such graphs
+are inherently inaccurate and contain both \emph{over-connections} --
+edges that do not really map to causality) -- and \emph{under-connections}
+-- missing edges between two vertices with one causally influencing the
+other.  In this section, we present several inherently inaccurate patterns
+we observed and their examples in macOS.
 
-\begin{itemize}
 
-\item interrupt processing and kernel sharetime maintanance that take over
-current thread context.
+\subsection{Over Connections}\hfill\\
 
-\item timer expiration in the kernel which clears up all the waiting threads on
-an event source.
-
-\end{itemize}
-
-\noindent In addition to the known definitive noise, there exist false connections and
-missing dependencies based on our experience of building a dependency graph
-with traditional causality tracing. We define them as over connection and under
-connection respectively.
-
-\vspace{1.5mm}
-\subsubsection{Over Connections}\hfill\\
-\vspace{-0.5mm}
-Over connections usually occur when intra-thread boundaries are missing due to
-unknown batch processing programming paradigms. We list the example patterns we
-found below.
+Over connections usually occur when (1) intra-thread boundaries are
+missing due to unknown batch processing programming paradigms or (2)
+superfluous wake-ups that do not always imply causality.
 
 \paragraph{Dispatch message batching}
 
@@ -40,11 +30,10 @@ messages from different apps.
 To avoid incorrectly linking many irrelevant processes through such batching
 processing patterns, \xxx adopts the aforementioned heuristics to split an
 execution segment when it observes that the segment sends out messages to two
-distinct processes. Any capplication or daemon can implement its own server loop
+distinct processes. Any application or daemon can implement its own server loop
 this way, which makes it fundamentally difficult to automatically infer event
 handling boundaries.
 
-\vspace{-4mm}
 \begin{figure}[ht!]
 \begin{minipage}[t]{.25\textwidth}
 \begin{lstlisting}
@@ -76,7 +65,6 @@ for(;;) //batch processing
    %% \caption{Dispatch message batching}
     \label{fig:dispatchmessagebatching}
 \end{figure}
-\vspace{-7mm}
 
 \paragraph{Batching in event processing}
 
@@ -84,10 +72,8 @@ Message activities inside a system call are assumed to be related traditionally.
 However, to presumably save on kernel boundary crossings, WindowServer MacOS
 system daemon uses a single system call to receive data and send data for an
 unrelated event from differnt processed in its event loop. This batch processing
-artificially makes many events appear dependent. We split the execution segments
-to maintain the independence of the events.
+artificially makes many events appear dependent.
 
-\vspace{-4mm}
 \begin{figure}[ht!]
 \begin{lstlisting}
 //inside a single thread
@@ -110,21 +96,28 @@ while() {
     %%\caption{Batching in event processing}
     \label{fig:batchingineventprocessing}
 \end{figure}
-\vspace{-1.5mm}
 
-\subsubsection{Under Connections}\hfill\\
-On the other hand, under connections mostly result from missing data
-dependencies. Data dependencies, both inter- and intra-thread, are usually hard
-to fully exploit in the initial pass of graph computing.
+\paragraph{Mutual exclusion}
+
+In a typical implementation of mutual exclusion, a thread's unlock
+operation wakes up a thread waiting in lock.  Such a wake-up may be, but
+is not always, intended as causality.  However, without knowing the
+developer intent, any wake-up is typically treated as causality by
+traditional causal tracing tools.
+
+\subsection{Under Connections}\hfill\\
+
+We observe that under connections mostly result from missing data
+dependencies.  This pattern is more general than shared-memory flags in ad
+hoc synchronization~\cite{xiong2010ad} because it occurs even within a
+single thread.
 
 \paragraph{Data dependency in event processing}
-The code for \textbf{Batching in event processing} above also illustrates a causal
-linkage caused by data dependency in one thread. WindowServer saves the reply
-message in variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.
-When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there
-is any pending message. \xxx uses watch point registers to capture events
-on \vv{\_gOutMsg} and establish the causal link between the handling of the
-previous request and the send of the reply.
+The code for Batching in event processing above also illustrates a causal
+linkage caused by data dependency in one thread. WindowServer saves the
+reply message in variable \vv{\_gOutMsg} inside function
+\vv{CGXPostReplyMessage}.  When it calls \vv{CGXRunOneServicePass}, it
+sends out \vv{\_gOutMsg} if there is any pending message.
 
 \paragraph{CoreAnimation shared flags}
 %As shown in Figure~\ref{fig:casharedflag}, worker thread can set
@@ -137,7 +130,7 @@ worker so accesses to these field flags need to be tracked.
 %%However, since each object has such a field flag, \xxx cannot afford to monitor
 %%each using a watch point register. Instead, it uses instrumentation to modify
 %%the CoreAnimation library to trace events on these flags.
-\vspace{-4mm}
+
 \begin{figure}[ht!]
 \begin{minipage}[t]{.20\textwidth}
 \begin{lstlisting}
@@ -157,16 +150,14 @@ if(obj->need_display == 1)
     %%\caption{CoreAnimation shared flag}
     \label{fig:casharedflag}
 \end{figure}
-\vspace{-10mm}
 
 \paragraph{Spinning cursor shared flag}
 As shown in Figure~\ref{fig:spinningcursorsharedflags},
 whenever the system determines that the main thread has hung for a certain
 period, and the spinning beach ball should be displayed, a shared-memory flag
 is set. Access to the flag is controlled via a lock, i.e. the lock is used for
-mutual exclusion, and does not imply a happens before relationship. Thus, \xxx
-captures accesses to these flags using watch-point registers to add causal edges
-correctly.
+mutual exclusion, and does not imply a happens before relationship.
+
 \begin{figure*}[ht!]
 \begin{minipage}[t]{0.5\textwidth}
 \begin{lstlisting}
