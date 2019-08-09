@@ -36,7 +36,7 @@ issues.
 Unfortunately, based on our own study and experience of building a causal
 tracing system for the commercial operating system macOS, we found that modern
 applications frequently violate these assumptions. Hence, the request graphs
-computed by causal tracing are imprecise in several ways.  First, an inferred
+computed by causal tracing are inaccurate in several ways.  First, an inferred
 segment may be larger than the actual event handling segment due to batch
 processing.  Specifically, for performance, an application or its underlying
 frameworks may bundle together work on behalf of multiple requests with no
@@ -65,7 +65,7 @@ semantics of the code may also enforce a causal order between the two
 operations.
 
 We believe that, without detailed understanding of application semantics,
-request graphs computed by causal tracing are \emph{inherently} imprecise and
+request graphs computed by causal tracing are \emph{inherently} inaccurate and
 both over- and under-approximate reality.  Although developer annotations can
 help improve precision~\cite{barham2004using, reynolds2006pip}, modern
 applications use more and more third-party libraries whose source code is not
@@ -73,12 +73,12 @@ available.  In the case of tech-savvy users debugging performance issues such
 as a spinning cursor on her own laptop, the application's code is
 often not available.  Given the frequent use of custom synchronizations, work
 queues, and data flags in modern applications, it is hopeless to count on
-manual annotations to ensure precise capture of request graphs.
+manual annotations to ensure accurate capture of request graphs.
 
 In this work, we present \xxx, an interactive system for debugging
 performance issues in modern desktop applications despite the imprecision
 of causal tracing. \xxx does not construct a per-request causal graph
-which requires extremely precise causal tracing.  Instead, it captures an
+which requires extremely accurate causal tracing.  Instead, it captures an
 approximate event graph for a duration of the system execution to aid
 diagnosis.  It keeps humans in the loop, as a debugger should rightly do,
 and lets users easily inspect current diagnostics and guide the next steps
@@ -119,7 +119,7 @@ overhead overall.
 %% of XXX user queries suffice to locate the root causes precisely.
 
 This paper makes the following contributions: our conceptual realization that
-causal tracing is inherently imprecise and that interactive causal tracing is
+causal tracing is inherently inaccurate and that interactive causal tracing is
 superior than prior work in debugging performance issues in modern
 applications; our system \xxx that performs system-wide tracing in macOS with
 little overhead and handles several macOS trickeries that complicate
