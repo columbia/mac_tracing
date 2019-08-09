@@ -1,190 +1,86 @@
-%\documentclass{article}
-%\usepackage{tikz}
-%\usetikzlibrary{shapes.misc}
-%\usetikzlibrary{calc,backgrounds}
-%\usepackage[active,tightpage]{preview}
+%%\documentclass{article}
+%%\usepackage{tikzpeople}
+%%\usepackage{tikz}
+%%\usetikzlibrary{shapes, shapes.misc}
+%%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+%%\usetikzlibrary{patterns}
 
-%\begin{document}
+%%\begin{document}
 \begin{center}
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
-%
-% Styles for threads, and thread edges
-%
-\tikzstyle{thread} = [align=left, below, font={\sffamily\bfseries}]
-\tikzstyle{state} = [draw, very thick, minimum height=1.5em, minimum width=6.5em, fill=white, rectangle]
-\tikzstyle{largestate} = [draw, very thick, minimum height=20em, minimum width=6.5em, fill=white, rectangle]
-\tikzstyle{openstate} = [draw, very thick, minimum height=15em, minimum width=6.5em, fill=white, rectangle]
-\tikzset{ext/.pic={
-\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
-\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
-},
-point/.style={
-    thick,
-    draw=red,
-    cross out,
-    inner sep=0pt,
-    minimum width=4pt,
-    minimum height=4pt,
-}}
-%
-% Position Threads
-%
-\node[thread, name=brMainThread] {Browser\\Main Thread\\(UI Thread)};
-\node[thread, name=brWorkerThread, right of=brMainThread, xshift=6em] {Browser\\Worker Thread};
-\node[thread, name=rdWorkerThread, right of=brWorkerThread, xshift=6em]{Renderer\\Worker Thread};
-\node[thread, name=rdMainThread, right of=rdWorkerThread, xshift=6em]{Renderer\\Main Thread};
-\node[thread, name=fontdThread, right of=rdMainThread, xshift=6em]{fontd};
-%
-% Position Nodes
-%
-% Browser Main thread
-\node[state, name=writePipe1, below of=brMainThread, node distance=5em] {Write\_pipe};
-\node[state, name=cvTimedWait1, below of=writePipe1, node distance=1.5em] {Timed\_wait};
+\tikzstyle{every node}=[font=\Large]
+\tikzstyle{app} = [draw, very thick, minimum height=40em, minimum width=20em, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{actionpoint} = [minimum width = 1em, fill = white]
+\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 0.5em, minimum height =0.5em]
+%\tikzset{
+%%ext/.pic={
+%%\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
+%%\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
+%%},
+%point/.style={
+%    thick,
+%    draw=red,
+%    cross out,
+%    inner sep=0pt,
+%    minimum width=4pt,
+%    minimum height=4pt,
+%}}
 
-\node[state, name=recvSignal1, below of=cvTimedWait1, node distance=16em ] {Recv\_signal};
+%draw applications
+\node [app, name = browser]{};
+\node (browsertag)[minimum width = 20em, above = -2em of browser] {Chromium Browser};
+\node (browserend)[minimum width = 20em, below = 38em of browsertag] {};
+\node (bt1begin)[minimum width = 8em, below left = 3em and -10em of browsertag]{main thread};
+\node (bt1end)[minimum width = 8em, below left = 38em and -10em of browsertag]{};
+\node (bt2begin)[minimum width = 8em, below right = 3em and -10em of browsertag]{worker thread};
+\node (bt2end)[minimum width = 8em, below right = 38em and -10em of browsertag]{};
+\draw [solid] (bt1begin) -- (bt1end);
+\draw [solid] (bt2begin) -- (bt2end);
+\node (1)[actionpoint, below of = bt1begin, node distance = 8em]{1};
+\node (2)[actionpoint, below of = bt2begin, node distance = 9em]{2};
+\node (9)[actionpoint, below of = 2, node distance = 16em] {9};
+\node (10)[actionpoint, below of = 1, minimum width = 6em, minimum height = 2em, node distance = 18em, rotate=270]{timed wait};
+%\node (11)[actionpoint, below of = 10, node distance = 4em]{};
 
-\node[state, name=writePipeSpin1, below of=recvSignal1, node distance=5em] {Write\_pipe};
-\node[state, name=cvTimedWaitSpin1, below of=writePipeSpin1, node distance=1.5em] {Timed\_wait};
+\node [app, name = renderer, right of = browser, node distance = 25em]{};
+\node (renderertag)[minimum width = 20em, above = -2em of renderer] {Chromium Renderer};
+\node (rendererend)[minimum width = 20em, below = 38em of renderertag]{};
+\node (bt3begin)[minimum width = 8em, below left = 3em and -10em of renderertag]{worker thread};
+\node (bt3end)[minimum width = 8em, below left = 38em and -10em of renderertag]{};
+\node (bt4begin)[minimum width = 8em, below right = 3em and -10em of renderertag]{main thread};
+\node (bt4end)[minimum width = 8em, below right = 38em and -10em of renderertag]{};
+\draw [solid] (bt3begin) -- (bt3end);
+\draw [solid] (bt4begin) -- (bt4end);
+\node (3)[actionpoint, below of = bt3begin, node distance = 10em]{3};
+\node (4)[actionpoint, below of = bt4begin, node distance = 11em]{4};
+\node (7)[actionpoint, below of = 4, node distance = 11em, rotate=270] {sema};
+\node (8)[actionpoint, below of = 3, node distance = 13em]{8};
 
-\node[largestate, name=timeOutSpin1, below of=cvTimedWaitSpin1, node distance=12.5em] {Time Out!};
-\node[state, name=recvMsgSpin1, below of=timeOutSpin1, node distance=12.5em ] {Recv\_msg};
+\node [app, name = fontd, right of = renderer, node distance = 25em]{};
+\node (fontdtag)[minimum width = 20em, above = -2em of fontd] {fontd};
+\node (fontdend)[minimum width = 20em, below = 38em of fontdtag]{};
+\node (bt5begin)[minimum width = 20em, below = 3em of fontdtag]{worker thread};
+\node (bt5end)[minimum width = 20em, below = 38em of fontdtag]{};
+\draw [solid] (bt5begin) -- (bt5end);
+\node (5)[actionpoint, below of = bt5begin, node distance = 14em] {5};
+\node (6)[actionpoint, below of = 5, node distance = 3em] {6};
 
-% Browser Worker thread
-\node[state, name=readPipe2, below of=brWorkerThread, node distance=5.5em]{Read\_pipe};
-\node[state, name=writePipe2, below of=readPipe2, node distance=1.5em]{Write\_pipe};
-\node[state, name=waitOnKq2, below of=writePipe2, node distance=1.5em]{Wait\_kq};
+\draw [->] (1) -- (2);
+\draw [->] (2) -- (3);
+\draw [->] (3) -- (4);
+\draw [->] (4) -- (5);
+\coordinate[name = notarrive7, point, right of = 7, node distance = 1em];
+\draw [->] (6) -- (notarrive7);
+\coordinate[name = before7, above of = 7, node distance = 1em]{};
+\draw [->] (before7) -- (8);
+\draw [->] (8) -- (9);
+\coordinate[name = notarrive10, point, right of = 10, node distance = 1em]{};
+\draw [->] (9) -- (notarrive10);
 
-\node[state, name=readPipe22, below of=waitOnKq2, node distance=12em]{Read\_pipe};
-\node[state, name=cvSignal2, below of=readPipe22, node distance=1.5em]{Signal\_cv};
-\node[state, name=waitOnKq22, below of=cvSignal2, node distance=1.5em]{Wait\_kq};
-
-\node[state, name=readPipeSpin2, below of=waitOnKq22, node distance=5em] {Read\_pipe};
-\node[state, name=writePipeSpin2, below of=readPipeSpin2, node distance=1.5em]{Write\_Pipe};
-\node[state, name=waitOnKqSpin2, below of=writePipeSpin2, node distance=1.5em]{Wait\_kq};
-
-\node[state, name=recvMsgSpin2, below of=waitOnKqSpin2, node distance=15em]{Recv\_msg};
-\node[state, name=sendMsgSpin2, below of=recvMsgSpin2, node distance=1.5em]{Send\_msg};
-\node[state, name=waitOnKqSpin22, below of=sendMsgSpin2, node distance=1.5em]{Wait\_kq};
-
-% Render Worker thread
-\node[state, name=readPipe3, below of=rdWorkerThread, node distance=8em] {Read\_pipe};
-\node[state, name=writePipe3, below of=readPipe3, node distance=1.5em]{Write\_pipe};
-\node[state, name=waitOnKq3, below of=writePipe3, node distance=1.5em]{Wait\_kq};
-
-\node[state, name=readPipe32, below of=waitOnKq3, node distance=7.5em]{Read\_pipe};
-\node[state, name=writePipe32, below of=readPipe32, node distance=1.5em]{Write\_pipe};
-\node[state, name=waitOnMsg3, below of=writePipe32, node distance=1.5em]{Wait\_msg};
-
-\node[state, name=readPipeSpin3, below of=waitOnMsg3, node distance=10em] {Read\_pipe};
-\node[state, name=writePipeSpin3, below of=readPipeSpin3, node distance=1.5em]{Write\_pipe};
-\node[state, name=waitOnKqSpin3, below of=writePipeSpin3, node distance=1.5em]{Wait\_kq};
-
-\node[state, name=recvMsgSpin3, below of=waitOnKqSpin3, node distance=8em]{Recv\_msg};
-\node[state, name=sendMsgSpin3, below of=recvMsgSpin3, node distance=1.5em]{Send\_msg};
-
-% Render Main thread
-\node[state, name=readPipe4, below of=rdMainThread, node distance=10em]{Read\_pipe};
-\node[state, name=sendMsg4, below of=readPipe4, node distance=1.5em]{Send\_msg};
-\node[state, name=waitOnMsg4, below of=sendMsg4, node distance=1.5em]{Wait\_msg};
-
-\node[state, name=recvMsg4, below of=waitOnMsg4, node distance=3em]{Recv\_msg};
-\node[state, name=writePipe4, below of=recvMsg4, node distance=1.5em]{Write\_Pipe};
-\node[state, name=waitOnMsg42, below of=writePipe4, node distance=1.5em]{Wait\_msg};
-
-\node[state, name=readPipeSpin4, below of=waitOnMsg42, node distance=15em]{Read\_pipe};
-\node[state, name=sendMsgSpin4, below of=readPipeSpin4, node distance=1.5em]{Send\_msg};
-\node[state, name=sendMsgSpin42, below of=sendMsgSpin4, node distance=1.5em]{Send\_msg};
-\node[state, name=waitSemaphoreSpin4, below of=sendMsgSpin42, node distance=1.5em]{Wait\_sema};
-
-\node[openstate, name=waitOverSpin4, below of=waitSemaphoreSpin4, node distance=8em]{wait > 4s};
-
-%fontd thread
-\node[state, name=recvMsg5, below of=fontdThread, node distance=12.5em]{Recv\_msg};
-\node[state, name=sendMsg5, below of=recvMsg5, node distance=1.5em]{Send\_msg};
-\node[state, name=waitMsg5, below of=sendMsg5, node distance=1.5em]{Wait\_msg};
-
-\node[state, name=recvMsgSpin5, below of=waitMsg5, node distance=20.5em]{Recv\_msg};
-\node[state, name=sendMsgSpin5, below of=recvMsgSpin5, node distance=1.5em]{Send\_msg};
-
-%
-% draw edges
-%
-% thread to its first state: solid line
-%
-\tikzstyle{solidline}=[thick]
-\draw[solidline] (brMainThread) -- (writePipe1);
-\draw[solidline] (brWorkerThread) -- (readPipe2);
-\draw[solidline] (rdWorkerThread) -- (readPipe3);
-\draw[solidline] (rdMainThread) -- (readPipe4);
-\draw[solidline] (fontdThread) -- (recvMsg5);
-%
-% edges between wait node and its following node: dot line with arrow
-%
-\tikzstyle{dotarrow}=[dashed, ->, >=stealth]
-\draw[dotarrow] (cvTimedWait1) -- (recvSignal1);
-\draw[dotarrow] (waitOnKq2) -- (readPipe22);
-\draw[dotarrow] (waitOnKq3) -- (readPipe32);
-\draw[dotarrow] (waitOnMsg4) -- (recvMsg4);
-
-\draw[dotarrow] (cvTimedWaitSpin1) -- (timeOutSpin1);
-\draw[dotarrow] (timeOutSpin1) -- (recvMsgSpin1);
-\draw[dotarrow] (waitOnKqSpin2) -- (recvMsgSpin2);
-\draw[dotarrow] (waitOnKqSpin3) -- (recvMsgSpin3);
-
-%
-% draw cooridnate line between two cases
-%
-\coordinate[name=beginspinline, below  of = recvSignal1, node distance = 3em];
-\coordinate[name=endspinline, below of = waitMsg5, node distance = 10em];
-\node[above of=endspinline] {Normal Case};
-\node[below of=endspinline] {Spinning Case};
-\draw[ thick, dashed] ([xshift = -5em]beginspinline) -- ([xshift = 5em]endspinline);
-
-%
-% line connection across case boundary 
-%
-\draw[solidline] (recvSignal1) --pic{ext} (writePipeSpin1);
-\draw[solidline] (waitOnKq22) --pic{ext} (readPipeSpin2);
-\draw[solidline] (waitOnMsg3) --pic{ext} (readPipeSpin3);
-\draw[solidline] (waitOnMsg42) --pic{ext} (readPipeSpin4);
-\draw[solidline] (waitMsg5) --pic{ext} (recvMsgSpin5);
-%
-% edges across threads: solid line with arrow
-%
-\tikzstyle{solidarrow}=[thick, ->]
-\draw[solidarrow](writePipe1) -- (readPipe2);
-\draw[solidarrow](writePipe2) -- (readPipe3);
-\draw[solidarrow](writePipe3) -- (readPipe4);
-\draw[solidarrow](sendMsg4) -- (recvMsg5);
-
-\draw[solidarrow](sendMsg5) --  node[draw,circle,above,minimum size = 1em]{4}(recvMsg4);
-\draw[solidarrow](writePipe4) -- node[draw,circle,above,minimum size = 1em]{3}(readPipe32);
-\draw[solidarrow](writePipe32) -- node[draw,circle,above,minimum size = 1em]{2}(readPipe22);
-\draw[solidarrow](cvSignal2) -- node[draw,circle,above,minimum size = 1em]{1}(recvSignal1);
-
-\draw[solidarrow](writePipeSpin1) -- (readPipeSpin2);
-\draw[solidarrow](writePipeSpin2)-- (readPipeSpin3);
-\draw[solidarrow](writePipeSpin3) -- (readPipeSpin4);
-\draw[solidarrow](sendMsgSpin4) -- (recvMsgSpin5);
-\coordinate[name = notarrive, point, below of = waitOverSpin4, node distance = 8em];
-\draw[thick, red](sendMsgSpin5.west) -- ++ (-10pt, -2pt) |- (notarrive.east);
-\draw[solidarrow](sendMsgSpin42.west) -- (recvMsgSpin3);
-\draw[solidarrow](sendMsgSpin3) -- (recvMsgSpin2);
-\draw[solidarrow](sendMsgSpin2.west) -- ++(-10pt, -2pt) |- (recvMsgSpin1.east);
-
-%
-% show where the spinning happens
-%
-\coordinate[name = spinning, below of = waitSemaphoreSpin4, node distance = 4em];
-\draw[ thick, dashed, red] ([xshift = -31em]spinning) -- ([xshift = 14em]spinning);
-\node[below of=sendMsgSpin5, node distance = 6em, red] {Spinning Beachball Appears};
-
-
-
-%
-% add foot notes
-%
-
+\node (findfirstrect)[minimum width = 40em, minimum height = 4em, right of = 1, node distance = 13em, rotate = 355] {TextInputClientMsg\_FirstRectForCharacterRange};
+\node (javascript)[minimum width = 4em, minimum height = 4em, above left = 0em and 2em of 7, rotate = 15] {Run\_Javascript};
 \end{tikzpicture}
+}
 \end{center}
-%\end{document}
+%%\end{document}
