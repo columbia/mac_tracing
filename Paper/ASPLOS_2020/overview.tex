@@ -478,13 +478,11 @@ reproducing.
 %%1,500 ms.  The timeout essentially converted a deadlock into a livelock.
 
 \subsection{Limitations}
-\xxx is designed to support interactive debugging of performance issues. To
-incrementally obtain more fine-grained event traces, it needs to rerun an
-application to reproduce a performance issue. Thus, if the issue is difficult to
-reproduce, we have to rely on the log collected by the lightweight system-wide
-tracing for debugging, and lose the benefits of interactivity. Fortunately, a
-performance issue that almost never reproduces is probably not as annoying as
-one that occurs frequently.
+\xxx is designed to support interactive debugging of performance
+issues. It sometimes requires the user to reproduce a performance issue so
+\xxx can capture more fine-grained event traces such as accesses to data
+flags.  Fortunately, a performance issue that almost never reproduces is
+probably not as annoying as one that occurs frequently.
 
 We implemented \xxx in the closed-source macOS which presents a harsh test
 for \xxx, but we have not ported \xxx to other operating systems yet. It is
@@ -492,4 +490,5 @@ possible that the ideas and techniques do not generalize to other operating
 systems. However, modern operating systems share many similarities, and good
 ideas tend to flow both ways, so we are hopeful that the ideas in \xxx are
 generally applicable. Similarly, the applications and performance issues used in
-our evaluation may be non-representative.
+our evaluation may be non-representative, though we strive to cover a
+diverse set of common applications ranging from browsers to text editors.
