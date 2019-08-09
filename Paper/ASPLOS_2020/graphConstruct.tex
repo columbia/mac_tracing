@@ -1,192 +1,290 @@
-\section{Argus Graph Computing}\label{sec:graphcomputing}
+\section{Handling Inaccuracies}\label{sec:graphcomputing}
 
-\subsection{Event Graph}\label{subsec:eventgraph}
+In this section, we first describe the basics of \xxx event graphs
+(\S\ref{subsec:eventgraph}), and then discuss how \xxx mitigates
+over-connections (\S\ref{}) and under-connections (\S\ref{}) in them.
 
-\xxx constructs dependency graphs with the events from tracing logs. Tracing
-logs contain sequence of events per thread. Each event stands for an execution
-step in a thread. They are grouped into nodes and IPCs, asynchronouns calls and
-thread wakeups serve as edges; some edges can be inside a single thread.
+\subsection{Event Graph Basics}\label{subsec:eventgraph}
 
-The events traced in \xxx are carefully selected for three main purposes:
-preserve semantics for the node, indentify node boundaries inside a thread,
-and provide connections between nodes. We classify them into three categories:
-semantics events, boundary events and connection events, as listed in
-Table~\ref{table:event_types}.
+To construct event graphs, \xxx collects three categories of events in its
+systems-wide event logs.  The first category contains semantical events,
+such as system calls, call stacks collected when certain operations such
+as macOS message operations are run, and user actions such as key presses.
+These events indicate what the developer intents might be, and are stored
+as contents in each vertex in the event graph.  They are primarily for
+providing information to user during diagnosis and for finding similar
+vertexes (\S\ref{sec:overview}).
 
-\begin{table}[ht]
-\begin{threeparttable}
-  \centering
-  \begin{tabularx}{\columnwidth}{|X|X|}
-  	\hline
-    \textbf{Event Type} & \textbf{Event Categories}\\
-	\hline
-	\hline
-		System\_call & Semantics\\ \hline
-		Back\_trace & Semantics\\ \hline
-		NSApp\_event\tnote{1} & Semantics \\ \hline
-		Wait & Semantics, Boundary \\ \hline
-		Interrupts & Boundary \\ \hline
-		Sharetime\_maintenance\tnote{2} & Boundary \\ \hline
-		Dispatch\_invoke\tnote{3} & Boundary \\ \hline
-		Runloop\_invoke & Boundary \\ \hline
-		Mach\_message & Boundary, Connection\\ \hline
-		Wake\_up & Connection \\ \hline
-		Timer & Connection \\ \hline
-		Dispatch\_enqueue & Connection \\ \hline
-		Runloop\_submit & Connection \\ \hline
-		Share\_flag\_read & Connection \\ \hline
-		Share\_flag\_write & Connection \\ \hline
-  \end{tabularx}
+The second category of events are boundary events that mark the beginning
+and ending of execution segments or vertices in the graph.  \xxx handles
+common callback invocations such as \vv{dispatch\_invoke} and
+\vv{runloop\_invoke} and mark their entry and return as boundaries.
 
-	\begin{tablenotes}
-		\footnotesize
-		\item [1] User input events dispatched to the Application.
-		\item [2] Kernel invoked a routine to update timeshare quota. 
-		\item [3] Invoke callback function for works from dispatch queue.
-	\end{tablenotes}
- \end{threeparttable}
-\caption{Event Type Categories. }
-\label{table:event_types}
-\end{table}
+The third category of events are for forming edges in the graph.  For
+instance, an operation that installs a callback is connected to the
+execution of the callback.  A message send is connected to a message
+receive.  The arming of a timer is connected to the execution of the timer
+callback.  A unique design in \xxx is to trace general wake-up and wait
+operations inside the kernel to ensure coverage across many diverse
+user-level, possibly custom wake-up and wait operations because their
+implementations almost always use kernel wake-up wand wait.  This approach
+necessarily includes spurious edges in the graph, including those due to
+mutual exclusion; \xxx handles them by querying the user when it
+encounters a node with multiple incoming causal edges during diagnosis
+(see \S\ref{sec:overview}).  We also observed that a waiting kernel thread
+is frequently woken up to perform tasks such as interrupt handling and
+scheduler maintenance; \xxx recognizes them and culls them out from the
+graph automatically.
 
-Given the prevalent of multi-threading and multi-processing programs, bugs are
-much more complicated. The long opening bugs are usually have several threads
-involve, even across process boundaries. As an example, the always timeout on
-particular synchronization primitive in one thread usually need to trace back to
-find the other thread that was responsible for signal the primitive. Compared
-to the existing debugging tools like lldb and spindump, the dependency graph is
-useful in that 1) it provides thread relationships all over the system across
-process boundary and timing boundary and 2) it records execution history for an
-input event before users capture hangs with their eyes.
+%% \xxx constructs dependency graphs with the events from tracing logs. Tracing
+%% logs contain sequence of events per thread. Each event stands for an execution
+%% step in a thread. They are grouped into nodes and IPCs, asynchronouns calls and
+%% thread wakeups serve as edges; some edges can be inside a single thread.
 
-\subsection{Graph Computing Algorithm}\label{subsec:graphcomputing}
+%% The events traced in \xxx are carefully selected for three main purposes:
+%% preserve semantics for the node, indentify node boundaries inside a thread,
+%% and provide connections between nodes. We classify them into three categories:
+%% semantics events, boundary events and connection events, as listed in
+%% Table~\ref{table:event_types}.
 
-In the section, we describe the algorithm \xxx uses to generate an event graph.
-The algrithm has two main steps: construct nodes with heuristics based on
-boundary events, and generate edges from the connection events.
+%% \begin{table}[ht]
+%% \begin{threeparttable}
+%%   \centering
+%%   \begin{tabularx}{\columnwidth}{|X|X|}
+%%   	\hline
+%%     \textbf{Event Type} & \textbf{Event Categories}\\
+%% 	\hline
+%% 	\hline
+%% 		System\_call & Semantics\\ \hline
+%% 		Back\_trace & Semantics\\ \hline
+%% 		NSApp\_event\tnote{1} & Semantics \\ \hline
+%% 		Wait & Semantics, Boundary \\ \hline
+%% 		Interrupts & Boundary \\ \hline
+%% 		Sharetime\_maintenance\tnote{2} & Boundary \\ \hline
+%% 		Dispatch\_invoke\tnote{3} & Boundary \\ \hline
+%% 		Runloop\_invoke & Boundary \\ \hline
+%% 		Mach\_message & Boundary, Connection\\ \hline
+%% 		Wake\_up & Connection \\ \hline
+%% 		Timer & Connection \\ \hline
+%% 		Dispatch\_enqueue & Connection \\ \hline
+%% 		Runloop\_submit & Connection \\ \hline
+%% 		Share\_flag\_read & Connection \\ \hline
+%% 		Share\_flag\_write & Connection \\ \hline
+%%   \end{tabularx}
 
-A node is a sequence of events derived from the execution of a task in a thread.
-As shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
-thread and applies heuristics when a boundary event is checked. \xxx provides
-five default heuristics. Four of them share the idea of general cuasual tracing,
-one is used to work around unknown programming paradigms, and more are expected
-from users to improve graphs. We discuss them in below.
+%% 	\begin{tablenotes}
+%% 		\footnotesize
+%% 		\item [1] User input events dispatched to the Application.
+%% 		\item [2] Kernel invoked a routine to update timeshare quota. 
+%% 		\item [3] Invoke callback function for works from dispatch queue.
+%% 	\end{tablenotes}
+%%  \end{threeparttable}
+%% \caption{Event Type Categories. }
+%% \label{table:event_types}
+%% \end{table}
 
-As listed in (\S\ref{sec:inherentinaccuracy}), event sequences
-for interrupt processing and kernel maintainance are removed from
-threads in line ~\ref{graphcomputing:1.a}. The second heuristics in line
-~\ref{graphcomputing:1.b} treats a wait event as an end of a node. An wait event
-usually indicates a thread switches to other tasks, but it is not always true
-considering a thread may park due to low thread priority. One of the examples
-in MacOS is the pause of worker threads draining a low priority diapatch queue.
-Dispatch queues are FIFO queues to which an application can submit tasks in
-the form of block objects. Wait events should not divide the block objects,
-otherwise it may result in a missing connection. To save the intergrity of block
-objects, \xxx keeps a counter \vv{callout\_level} to mark if the current event
-is inside a block object. Only the begin and end of Dispatch\_invoke are served
-as the boundary for the node, as is shown in line~\ref{graphcomputing:1.c}.
-The hueristics also applies to runloop. Runloop is an event processing loop
-that used to schedule work and coordinate the receipt of incoming events.
-The begin and end of the work invocation are served as boundaries. The last
-default heuristics in line~\ref{graphcomputing:1.e} is used to work around the
-difficulty of exploiting batch processing programming paradigms completely, as
-listed in follows (\S\ref{sec:inherentinaccuracy}). \xxx makes use of mach
-messages to avoid clustering multiple tasks due to unknown batch processing. It
-defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
-for every node. For every mach message, the algorithm checks whether its peer
-process exists in \vv{IPC\_peer\_set}, and adds the message into the current
-node if the condition is true or the set is empty. Otherwise it adds an
-ending boundary for current node and constructs a new node beginning with the
-mach\_message event.
+Compared to tools such as \vv{Spindump} that capture only the current
+system state, event graphs capture the causal path of events, enabling
+users to trace across threads and process to events happened in the past
+(hence cannot be captured by \vv{Spindump}) that explain present
+anomalies.
 
-Edges connect nodes, both intra-thread and inter-thread, with connection
-events. \xxx walks through event type in connection category to apply heuritics as
-follows. First, the return from a wait operation causally depends on the wake-up
-operation. An edge is defined from the wake-up event to the first event after
-the wait returns. \xxx also add a weak edges from the wait event to the wake-up
-event in line ~\ref{graphcomputing:2.a}. Mach message is the core of ipc
-mechanism implemented in kernel, upon which higher level RPC are built. \xxx
-connects the sender and receiver of a mach message. For messages that expect a
-reply, \xxx also connects the receiver of the original message and the sender
-of the reply message in line ~\ref{graphcomputing:2.b}. As discussed above,
-dispatch queue and runloop are popular batch processing programming paradigms
-in MacOS, \xxx connects submissions of a task and executions of the task, which
-are listed in line ~\ref{graphcomputing:2.c} and line~\ref{graphcomputing:2.d}
-respectively. Similarly, \xxx adds edge from a timer armed event to its
-triggered event in line ~\ref{graphcomputing:2.e}. Shared flag can either be
-traced with binary instrument, such as \vv{need\_display} flag for CoreAnimation
-in (\S\ref{sec:inherentinaccuracy}), or with breakpoint watcher command line
-tool provided by \xxx. Edges from the flag written to its read are added from
-line ~\ref{graphcomputing:2.f}. Since share variables are hard to completely
-exploit, and the causality can be more complicated than the writer-reader
-pattern, user interaction is expected.
+%% Given the prevalent of multi-threading and multi-processing programs, bugs are
+%% much more complicated. The long opening bugs are usually have several threads
+%% involve, even across process boundaries. As an example, the always timeout on
+%% particular synchronization primitive in one thread usually need to trace back to
+%% find the other thread that was responsible for signal the primitive. Compared
+%% to the existing debugging tools like lldb and spindump, the dependency graph is
+%% useful in that 1) it provides thread relationships all over the system across
+%% process boundary and timing boundary and 2) it records execution history for an
+%% input event before users capture hangs with their eyes.
 
-Finally, a event graph returns and is subject to the improvement with
-more user input heuristics.
 
-\begin{algorithm}[ht!]
-\caption{\xxx Compute Graph algorithm.}
-\label{alg:graphcomputing}
-\begin{algorithmic}[1]
-\Require{Heuristics set + parsed tracing events}
-\Ensure{Control flow graph}
-\Statex
-\Function{ComputeGraph}{}
-\State {$callout\_level$ $\gets$ $0$}
-\State {$IPC\_peer\_set$ $\gets$ $\{\}$}
-\State {$current\_node$ $\gets$ $New Node$}
-\For{Event: Events in a thread}
-    \Switch {EventType}
-	\Case {Interrupt \Or Timeshare\_maintenance} \label{graphcomputing:1.a}
-		\State {$Isolate\_event\_sequence\_before\_return\_into\_a\_new\_node$}
-	\EndCase
-	\Case {Wait} \label{graphcomputing:1.b}
-		\If {$callout\_level$ $==$ {$0$}} 
-			\State {$current\_node$.$add(end\_boundary)$}
-		\EndIf
-	\EndCase
-	\Case {Dispatch\_invoke \Or Runloop\_invoke} \label{graphcomputing:1.c}
-	 	\State {$Divide\_each\_callout\_into\_a_node$}
-	\EndCase
-	\Case {Mach\_message}\label{graphcomputing:1.d}
-		\If {$IPC\_peer\_set$ $\neq$ $\emptyset$ \And $peer$ $\notin$ $IPC\_peer\_set$} 
-			\State {$current\_node$.$add(end\_boundary)$}
-		\EndIf
-		\State {$update$ $IPC\_peer\_set$}
-	\EndCase
-	\EndSwitch
-	\State {Other Heuristics}\label{graphcomputing:1.e}
-\EndFor
-\For{Event: Connection Events}
-	\Switch {EventType}
-	\Case {Wake\_up}\label{graphcomputing:2.a}
-		\State{$AddWeakEdge(wait, wake\_up)$}
-		\State{$AddEdge(wake\_up, first\_event\_after\_wait\_returns)$}
-	\EndCase
-	\Case {Mach\_message}\label{graphcomputing:2.b}
-		\State{$AddEdge(msg(send), msg(receive))$}
-		\If {needs reply}
-			\State {$AddEdge(msg(receive), msg(reply\_send))$}
-		\EndIf
-	\EndCase
-	\Case {Dispatch\_enqueue}\label{graphcomputing:2.c}
-		\State{$AddEdge(Dispatch\_enqueue, Dispatch\_invoke)$}
-	\EndCase
-	\Case {Runloop\_submit}\label{graphcomputing:2.d}
-		\State {$AddEdge(Runloop\_submit, RunLoop\_invoke)$}
-	\EndCase
-	\Case {Timer}\label{graphcomputing:2.e}
-		\State {$AddEdge(Timer\_armed, Timer\_callout)$}
-	\EndCase
-	\Case {Share\_flag\_read}\label{graphcomputing:2.f}
-		\State {$AddEdge(Share\_flag\_write, Share\_flag\_read)$}
-	\EndCase
-	\EndSwitch
-	\State {Other Heuristics}
-\EndFor
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
+\subsection{Mitigating Over-Connections}\label{subsec:fix-over}
+
+From a high-level, \xxx deals with over-connections by heuristically
+splitting an execution segment that appears mixing handling of multiple
+requests.  It adds weak causal edges between the split segments in case
+the splitting was incorrect.  When a weak edge is encountered during
+diagnosis, it queries the user to decide whether to follow the weak edge
+or stop (\S\ref{sec:overview}).
+
+Specifically, \xxx splits based three criteria.  First, \xxx recognizes a
+small set of well-known batch processing patterns such as
+\vv{dispatch\_mig\_server()} in \S\ref{sec:inaccuracy} and splits the
+batch into individual items.  Second, when a wait operation such as
+\v{recv()} blocks, \xxx splits the segment at the entry of the blocking
+wait.  The rationale is that blocking wait is typically done at the last
+during one step of event processing.  Third, if a segment communicates to
+too many peering processes, \xxx splits the segment when the set of peers
+differs.  Specifically, for each message, \xxx maintains a set of two
+peers including (1) the direct sender or receiver of the message and (2)
+the beneficiary of the message (macOS allows a process to send or receive
+messages on behalf of a third process).  \xxx splits when two consecutive
+message operations have non-overlapping peer sets.
+
+\subsection{Mitigating Under-Connections}\label{subsec:fix-under}
+
+Under-connections are primarily due to data dependencies.  Currently \xxx
+queries the user to identify the memory locations of the data flags.It
+is conceivable to leverage memory protection techniques to infer them
+automatically, as demonstrated in previous record-replay
+%% https://www.usenix.org/legacy/events/usenix05/tech/general/king/king.pdf
+%% https://web.eecs.umich.edu/~pmchen/papers/dunlap08.pdf
+work~\cite{xxx}, we leave it for future work because it is out of the
+scope of this paper.  Once the user identifies a data flag, \xxx traces it
+using either binary instrument, such as the \vv{need\_display} flag in
+CoreAnimation (\S\ref{sec:inherentinaccuracy}), or with watchpoints.  \xxx
+add a causal edge between a write to a data flag to the corresponding read
+to the flag.
+
+%% \subsection{Graph Computing Algorithm}\label{subsec:graphcomputing}
+
+
+
+
+%% In implementation, \xxx handles the following types of spurious edges.
+
+%% \begin{itemize}
+
+%% \item interrupt processing and kernel sharetime maintanance that take over
+%% current thread context.
+
+%% \item timer expiration in the kernel which clears up all the waiting threads on
+%% an event source.
+
+%% \end{itemize}
+
+
+
+
+
+%% In the section, we describe the algorithm \xxx uses to generate an event graph.
+%% The algrithm has two main steps: construct nodes with heuristics based on
+%% boundary events, and generate edges from the connection events.
+
+%% A node is a sequence of events derived from the execution of a task in a thread.
+%% As shown in Algorithm ~\ref{alg:graphcomputing}, \xxx checks events per
+%% thread and applies heuristics when a boundary event is checked. \xxx provides
+%% five default heuristics. Four of them share the idea of general cuasual tracing,
+%% one is used to work around unknown programming paradigms, and more are expected
+%% from users to improve graphs. We discuss them in below.
+
+%% As listed in (\S\ref{sec:inherentinaccuracy}), event sequences
+%% for interrupt processing and kernel maintainance are removed from
+%% threads in line ~\ref{graphcomputing:1.a}. The second heuristics in line
+%% ~\ref{graphcomputing:1.b} treats a wait event as an end of a node. An wait event
+%% usually indicates a thread switches to other tasks, but it is not always true
+%% considering a thread may park due to low thread priority. One of the examples
+%% in MacOS is the pause of worker threads draining a low priority diapatch queue.
+%% Dispatch queues are FIFO queues to which an application can submit tasks in
+%% the form of block objects. Wait events should not divide the block objects,
+%% otherwise it may result in a missing connection. To save the intergrity of block
+%% objects, \xxx keeps a counter \vv{callout\_level} to mark if the current event
+%% is inside a block object. Only the begin and end of Dispatch\_invoke are served
+%% as the boundary for the node, as is shown in line~\ref{graphcomputing:1.c}.
+%% The hueristics also applies to runloop. Runloop is an event processing loop
+%% that used to schedule work and coordinate the receipt of incoming events.
+%% The begin and end of the work invocation are served as boundaries. The last
+%% default heuristics in line~\ref{graphcomputing:1.e} is used to work around the
+%% difficulty of exploiting batch processing programming paradigms completely, as
+%% listed in follows (\S\ref{sec:inherentinaccuracy}). \xxx makes use of mach
+%% messages to avoid clustering multiple tasks due to unknown batch processing. It
+%% defines \vv{IPC\_peer\_set} to compute the set of mach message receivers/senders
+%% for every node. For every mach message, the algorithm checks whether its peer
+%% process exists in \vv{IPC\_peer\_set}, and adds the message into the current
+%% node if the condition is true or the set is empty. Otherwise it adds an
+%% ending boundary for current node and constructs a new node beginning with the
+%% mach\_message event.
+
+%% Edges connect nodes, both intra-thread and inter-thread, with connection
+%% events. \xxx walks through event type in connection category to apply heuritics as
+%% follows. First, the return from a wait operation causally depends on the wake-up
+%% operation. An edge is defined from the wake-up event to the first event after
+%% the wait returns. \xxx also add a weak edges from the wait event to the wake-up
+%% event in line ~\ref{graphcomputing:2.a}. Mach message is the core of ipc
+%% mechanism implemented in kernel, upon which higher level RPC are built. \xxx
+%% connects the sender and receiver of a mach message. For messages that expect a
+%% reply, \xxx also connects the receiver of the original message and the sender
+%% of the reply message in line ~\ref{graphcomputing:2.b}. As discussed above,
+%% dispatch queue and runloop are popular batch processing programming paradigms
+%% in MacOS, \xxx connects submissions of a task and executions of the task, which
+%% are listed in line ~\ref{graphcomputing:2.c} and line~\ref{graphcomputing:2.d}
+%% respectively. Similarly, \xxx adds edge from a timer armed event to its
+%% triggered event in line ~\ref{graphcomputing:2.e}. Shared flag can either be
+%% traced with binary instrument, such as \vv{need\_display} flag for CoreAnimation
+%% in (\S\ref{sec:inherentinaccuracy}), or with breakpoint watcher command line
+%% tool provided by \xxx. Edges from the flag written to its read are added from
+%% line ~\ref{graphcomputing:2.f}. Since share variables are hard to completely
+%% exploit, and the causality can be more complicated than the writer-reader
+%% pattern, user interaction is expected.
+
+%% Finally, a event graph returns and is subject to the improvement with
+%% more user input heuristics.
+
+%% \begin{algorithm}[ht!]
+%% \caption{\xxx Compute Graph algorithm.}
+%% \label{alg:graphcomputing}
+%% \begin{algorithmic}[1]
+%% \Require{Heuristics set + parsed tracing events}
+%% \Ensure{Control flow graph}
+%% \Statex
+%% \Function{ComputeGraph}{}
+%% \State {$callout\_level$ $\gets$ $0$}
+%% \State {$IPC\_peer\_set$ $\gets$ $\{\}$}
+%% \State {$current\_node$ $\gets$ $New Node$}
+%% \For{Event: Events in a thread}
+%%     \Switch {EventType}
+%% 	\Case {Interrupt \Or Timeshare\_maintenance} \label{graphcomputing:1.a}
+%% 		\State {$Isolate\_event\_sequence\_before\_return\_into\_a\_new\_node$}
+%% 	\EndCase
+%% 	\Case {Wait} \label{graphcomputing:1.b}
+%% 		\If {$callout\_level$ $==$ {$0$}} 
+%% 			\State {$current\_node$.$add(end\_boundary)$}
+%% 		\EndIf
+%% 	\EndCase
+%% 	\Case {Dispatch\_invoke \Or Runloop\_invoke} \label{graphcomputing:1.c}
+%% 	 	\State {$Divide\_each\_callout\_into\_a_node$}
+%% 	\EndCase
+%% 	\Case {Mach\_message}\label{graphcomputing:1.d}
+%% 		\If {$IPC\_peer\_set$ $\neq$ $\emptyset$ \And $peer$ $\notin$ $IPC\_peer\_set$} 
+%% 			\State {$current\_node$.$add(end\_boundary)$}
+%% 		\EndIf
+%% 		\State {$update$ $IPC\_peer\_set$}
+%% 	\EndCase
+%% 	\EndSwitch
+%% 	\State {Other Heuristics}\label{graphcomputing:1.e}
+%% \EndFor
+%% \For{Event: Connection Events}
+%% 	\Switch {EventType}
+%% 	\Case {Wake\_up}\label{graphcomputing:2.a}
+%% 		\State{$AddWeakEdge(wait, wake\_up)$}
+%% 		\State{$AddEdge(wake\_up, first\_event\_after\_wait\_returns)$}
+%% 	\EndCase
+%% 	\Case {Mach\_message}\label{graphcomputing:2.b}
+%% 		\State{$AddEdge(msg(send), msg(receive))$}
+%% 		\If {needs reply}
+%% 			\State {$AddEdge(msg(receive), msg(reply\_send))$}
+%% 		\EndIf
+%% 	\EndCase
+%% 	\Case {Dispatch\_enqueue}\label{graphcomputing:2.c}
+%% 		\State{$AddEdge(Dispatch\_enqueue, Dispatch\_invoke)$}
+%% 	\EndCase
+%% 	\Case {Runloop\_submit}\label{graphcomputing:2.d}
+%% 		\State {$AddEdge(Runloop\_submit, RunLoop\_invoke)$}
+%% 	\EndCase
+%% 	\Case {Timer}\label{graphcomputing:2.e}
+%% 		\State {$AddEdge(Timer\_armed, Timer\_callout)$}
+%% 	\EndCase
+%% 	\Case {Share\_flag\_read}\label{graphcomputing:2.f}
+%% 		\State {$AddEdge(Share\_flag\_write, Share\_flag\_read)$}
+%% 	\EndCase
+%% 	\EndSwitch
+%% 	\State {Other Heuristics}
+%% \EndFor
+%% \EndFunction
+%% \end{algorithmic}
+%% \end{algorithm}
 
 %%\begin{figure}[tb]
 %%\footnotesize\begin{verbatim}
@@ -230,29 +328,31 @@ more user input heuristics.
 %%\end{figure}
 
 
-\subsection{User Interactions}\label{subsec:userinteraction}
-%%Main point for the subsection: why we need user interaction, what the user can
-%%do and how it helps
-%% Para1 : why we need user interaction
-%% Para2 : what the user can do
-%% Para3 : how it helps causality tracing
-In addition to batching processing and data dependency, the spurious edge
-introduced by mutex lock is also a challenge in debugging. The synchronization
-on mutex lock reflects one thread wakes up the other thread. The scenario can
-either be a producer-consumer problem or merely mutual exclusion. Making the
-graph completely sound without user interaction is almost impossible given the
-essential attribute of commercial operating system as a grey box.
+%% \subsection{User Interactions}\label{subsec:userinteraction}
+%% %%Main point for the subsection: why we need user interaction, what the user can
+%% %%do and how it helps
+%% %% Para1 : why we need user interaction
+%% %% Para2 : what the user can do
+%% %% Para3 : how it helps causality tracing
+%% In addition to batching processing and data dependency, the spurious edge
+%% introduced by mutex lock is also a challenge in debugging. The synchronization
+%% on mutex lock reflects one thread wakes up the other thread. The scenario can
+%% either be a producer-consumer problem or merely mutual exclusion. Making the
+%% graph completely sound without user interaction is almost impossible given the
+%% essential attribute of commercial operating system as a grey box.
 
-As we mentioned above, to figure out all over connections and under connections
-before hand is almost impossible. Instead, users can find out the discrepancy
-in event graph after the initial graph computing. For example, we noticed that
-two unrelated applications connects to one node in the graph, which leads to the
-manifestation of kernel thread batch processing on timers. Like other causality
-tracing approaches, \xxx is a general framework for macOS and tested on limited
-programming paradigms. Allowing user interaction makes its graph more practical
-and useful case by case.
+%% As we mentioned above, to figure out all over connections and under connections
+%% before hand is almost impossible. Instead, users can find out the discrepancy
+%% in event graph after the initial graph computing. For example, we noticed that
+%% two unrelated applications connects to one node in the graph, which leads to the
+%% manifestation of kernel thread batch processing on timers. Like other causality
+%% tracing approaches, \xxx is a general framework for macOS and tested on limited
+%% programming paradigms. Allowing user interaction makes its graph more practical
+%% and useful case by case.
 
-Users can gradually inject their knowledge to improve the graph in two ways.
-They can either add heuristics to the graph computing, or use binary instrument
-with the APIs provided by \xxx to expand the boundary or connection event
-categories.
+%% Users can gradually inject their knowledge to improve the graph in two ways.
+%% They can either add heuristics to the graph computing, or use binary instrument
+%% with the APIs provided by \xxx to expand the boundary or connection event
+%% categories.
+
+
