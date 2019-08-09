@@ -4,8 +4,8 @@
 %%\usetikzlibrary{shapes, shapes.misc}
 %%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
 %%\usetikzlibrary{patterns}
-
-
+%%
+%%
 %%\begin{document}
 \begin{center}
 \resizebox{\columnwidth}{!}{%
@@ -25,22 +25,30 @@
 \node [systemComp, name = os, below of = libs, node distance = 3em, pattern= north west lines, pattern color = blue] {Argus Instrumented OS};
 
 % draw Tracing Event log
-\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=20em]{};
+\node (TracingEventLog) [minimum height=3em, minimum width=20em, right of=software3, node distance=22em]{};
 %%{TracingEventLog};
-\node (log) [doc, below of=TracingEventLog, node distance=3em] {\#timestamp, event\_type, att1, att2...\\30.4 Mach\_message 0x4ea20 0x3...\\31.7 Mach\_message 0x4ea20 0x3...\\33.2 Wake\_up 0xea45 0x16...};
+\node (log) [doc, below of=TracingEventLog, node distance=3em] {\#timestamp, event\_type, attr1, attr2...\\30.4 Mach\_message, tid1, tid2 ..\\31.7 Mach\_message tid0, tid2...\\33.2 Wake\_up tid2, tid3...\\34.2 Mach\_message tid3, tid2...\\34.9 Wake\_Up tid2, tid0...};
 \draw [vecarrow] (libs.east)+(0.5, 0) -- (log.west);
 
 %draw Interactive Debugger 
 \node (InteractiveDebugger) [draw, thick, minimum height=30em, minimum width=30em, pattern= north west lines, pattern color = blue!40!, below left = 2em and 0em of log] {};
 \node (debugger)[minimum width=40em, above = -3em of InteractiveDebugger]{Interactive Debugger};
 \node (graph) [draw, thick, minimum height = 20em, minimum width = 20em, below left = 7em and 3em of log]{};
-\node [minimum width = 20em, above = -3em of graph]{graph};
+\node [minimum width = 10em, above = -3em of graph, label=right:{graph}]{};
 \node (node1) [draw, thick, minimum height = 3em, minimum width = 1em, above left = -5em and -5em of graph]{0};
 \node (node2) [draw, thick, minimum height = 4em, minimum width = 1em, above left = -5em and -9em of graph]{1};
 \node (node3) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -9em and -12em of graph]{2};
 \node (node4) [draw, thick, minimum height = 3em, minimum width = 1em, above left = -14em and -17em of graph]{3};
 \node (node5) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -17em and -12em of graph]{4};
+\node (miss) [minimum height = 2em, minimum width = 1em, above left = -19em and -9em of graph]{};
 \node (node6) [draw, thick, minimum height = 2em, minimum width = 1em, above left = -20em and -5em of graph]{5};
+\node (miss2) [minimum width = 1em, above left = -18em and -17em of graph]{};
+
+\draw [->, dotted] (node6) -- (node1) node[midway]{tid0};
+\draw [-, dotted] (miss) -- (node2) node[midway]{tid1};
+\draw [->, dotted] (node5) -- (node3) node[midway]{tid2};
+\draw [-, dotted](miss2) -- (node4) node[midway]{tid3};
+
 
 \draw[->] (node1.south) -- node{0}(node3.north);
 \draw[->] (node2.south) -- node{1}(node3.west);
@@ -74,10 +82,10 @@
 \draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
 
 \draw [->, thick, out=150, in=30] (query3.north west) to node{which edge?} (user.south);
-\draw [->, thick, out=310, in=230] (user.south) to node{edge 1} (query4.north);
+\draw [->, thick, out=310, in=230] (user.south) to node{edge 0} (query4.north);
 
 
 \end{tikzpicture}
 }
 \end{center}
-%%\end{document}
+%\end{document}
