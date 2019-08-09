@@ -1,6 +1,6 @@
-\begin{algorithm}[ht!]
-    \caption{Diagnosis algorithm.}
-    \label{alg:alg-diagnosis}
+\begin{algorithm}
+\caption{Diagnosis algorithm.}
+\label{alg:alg-diagnosis}
 \begin{algorithmic}[1]
 \Require{g - EventGraph; spinning\_node - the node in the UI thread when the spinning cursor occurs}
 \Ensure{root\_cause\_nodes-collecting root casuse nodes for user inspect}
@@ -16,7 +16,7 @@
 			\State {Require users to annotate data flag}
 			\State {abort()}
 		\EndIf
-		%\LineComment {Fall through}
+		\LineComment {Fall through}
 	\EndCase
 	\Case {LongWait}
 		%\LineComment {find a baseline case where the wait returns quickly}
@@ -26,7 +26,7 @@
 		\State {similar\_nodes $\gets$ nodes have similar event sequences to spinning\_node}
 		\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
 		\State {baseline\_path $\gets$ InteractiveSlice(baseline\_node)} 	
-		\For {t $\gets$ $\{$threads in baseline\_path$\}$}
+		\For {each t in $\{$threads in baseline\_path$\}$}
 			\State {$node_t$ $\gets$ node in t before $T_{spinning}$}
 			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
@@ -34,41 +34,38 @@
 					\State{Continue}
 				\EndIf
 				\State {root\_cause\_nodes.append($node_t$)}
-				\State {root\_cause\_nodes.append(Diagnose(g, last\_node))}
+				\State {root\_cause\_nodes.append(Diagnose(g, $node_t$)}
 			\EndIf
 			\LineComment{if t is normal running, disgnose the next thread}
 		\EndFor
 	\EndCase
   \EndSwitch
 \EndFunction
-\end{algorithmic}
-\end{algorithm}
+%%\end{algorithmic}
+%%\end{algorithm}
 
-
-\begin{algorithm}[ht!]
-    \caption{InteractiveSlicing algorithm.}
-    \label{alg:alg-interactiveslicing}
-\begin{algorithmic}[1]
-\Require{g - EventGraph; node - the node user wants to slice from}
-\Ensure{slice - causual path for node}
+%\begin{algorithm}
+%\caption{InteractiveSlicing algorithm.}
+%\label{alg:alg-interactiveslicing}
+%\begin{algorithmic}[1]
+%\Require{g - EventGraph; node - the node user wants to slice from}
+%\Ensure{slice - causual path for node}
 \Statex
-\Function{InteractiveSlicing}{EventGraph g, Node *node}
+\Function{InteractiveSlicing}{g, node}
 \Loop
-	\State{slice.append(node)}
-	\If{node.parent().size() > 1}
-		\State{node $\gets$ User.pick(candidates)}
-		\If{node.NotExist()}
-			\State\Return {slice}
-		\EndIf
-	\ElsIf{node.parent().size() == 1}
-		\State{node $\gets$ node.parent().front()}
-	\ElsIf{node.WeakEdges().size() > 0}
-		\State{node $\gets$ User.Pick(weak edges)}
-		\If{node.NotExist()}
-			\State\Return {slice}
-		\EndIf
-	\Else \Comment{The very beginning dangle node of current thread}
-		\State\Return {slice}
+	\State{path\_slice.append(node)}
+	\If {node has 1 incoming edge}
+		\State{node $\gets$ predecessor node}
+	\ElsIf {node has multiple incoming edges}
+		\State{node $\gets$ ask user to pick from predecessors}
+	\ElsIf {node had weak edges}
+		\State{node $\gets$ ask user to pick from predecessors}
+	\Else \LineComment{The first node of current thread}
+		\State\Return {path\_slice}
+	\EndIf
+	\If {node is invalid}
+	\LineComment{user chooses to stop traversal}
+		\State\Return {path\_slice}
 	\EndIf
 \EndLoop
 \EndFunction
