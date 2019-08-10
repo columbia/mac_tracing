@@ -23,9 +23,9 @@
 		%\LineComment {slice baseline path and check the path thread to thread}
 		%\LineComment {check its nearest (to spinning timestamp) node}
 		%\State {$T_{spinning}$ $\gets$ timestamp of spinning in spinning\_node}
-		\State {similar\_nodes $\gets$ nodes have similar event sequences to spinning\_node}
-		\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
-		\State {baseline\_path $\gets$ InteractiveSlice(baseline\_node)} 	
+		\State {similar\_node $\gets$ node has similar event sequence to spinning\_node}
+		%\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
+		\State {baseline\_path $\gets$ InteractiveSlice(similar\_node)} 	
 		\For {each t in $\{$threads in baseline\_path$\}$}
 			\State {$node_t$ $\gets$ node in t before spinning\_node gets spinning}
 			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
