@@ -29,10 +29,10 @@
 		\For {each t in $\{$threads in baseline\_path$\}$}
 			\State {$node_t$ $\gets$ node in t before spinning\_node gets spinning}
 			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
-				\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
-				\If {is\_related\_to\_bug $\not=$ True}
-					\State{Continue}
-				\EndIf
+				%\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
+				%\If {is\_related\_to\_bug $\not=$ True}
+				%	\State{Continue}
+				%\EndIf
 				\State {root\_cause\_nodes.append($node_t$)}
 				\State {root\_cause\_nodes.append(Diagnose(g, $node_t$)}
 			\EndIf
