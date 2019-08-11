@@ -1,10 +1,12 @@
 \documentclass{article}
 \usepackage{tikzpeople}
 \usepackage{tikz}
+\usepackage{graphicx}
 \usetikzlibrary{shapes, shapes.misc}
 \usetikzlibrary{arrows, arrows.meta, decorations.markings}
 \usetikzlibrary{patterns}
-\usetikzlibrary{positioning}
+%\usetikzlibrary{positioning}
+
 
 \makeatletter
 % copied from the manual
@@ -53,7 +55,6 @@
 }%
 \makeatother
 
-
 \begin{document}
 \begin{center}
 \resizebox{\columnwidth}{!}{%
@@ -71,21 +72,20 @@
 \draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
 }}
 
-%draw MacOS components
-\node [apps, name = software1] at (0, 0) {chromium};% {\includegraphics[width=20pt]{./chromium_logo.png}};
+%%draw MacOS components
+\node [apps, name = software1] at (0, 0) {\includegraphics[width=20pt]{./chromium_logo.png}};
 \node [apps, name = software2, right of=software1, node distance=50pt] {daemon1};
 \node [apps, name = software3, right of=software2, node distance=50pt] {daemon2};
 \node [systemComp, name = libs, below of = software2, node distance =30pt] {Argus Instrumented Libraries};
 \node [systemComp, name = os, below of = libs, node distance =30pt] {Argus Instrumented OS};
 
-% draw Tracing Event log
+%% draw Tracing Event log
 \node (TracingEventLog) [minimum height=30pt, minimum width=200pt, right of=software3, node distance=220pt]{};
-%%{TracingEventLog};
-\node (log) [doc, below of=TracingEventLog, node distance=30pt] {\#timestamp, event\_type, attr1, attr2...\\30.4, sendMessge, tid1, tid2 ..\\31.7, wakeUp, tid0, tid2...\\33.2, wakeUp, tid2, tid3...\\34.2, sendMessage, tid3, tid2...\\34.9, wakeUp, tid2, tid0...\\ ... ... \\};
+\node (log) [doc, below of=TracingEventLog, node distance=30pt] {\#timestamp, event\_type, attr1, attr2...\\30.4, sendMessge, tid1, tid2 ..\\31.7, wakeUp, tid0, tid2...\\33.2, wakeUp, tid2, tid3...\\34.2, sendMessage, tid3, tid2...\\34.9, wakeUp, tid2, tid0...\\ ... ... };
 \draw [vecarrow] (libs.east)+(0.5, 0) -- (log.west);
 
 %draw Interactive Debugger 
-\node (InteractiveDebugger) [systemComp, rounded corners=20pt, minimum height=250pt, minimum width=280pt, below left = 40pt and -160pt of log] {};
+\node (InteractiveDebugger) [systemComp, rounded corners=20pt, minimum height=250pt, minimum width=280pt, below left = 20pt and -160pt of log] {};
 \node (debugger)[minimum width=220pt, above = -30pt of InteractiveDebugger]{Interactive Debugger};
 \node (graph) [minimum height = 180pt, minimum width = 200pt, below = 10pt of debugger] {};
 \node (shape) [doc, minimum height = 180pt, minimum width = 200pt, below = 10pt of debugger]{};
@@ -110,7 +110,7 @@
 \node(rdw1) [gnode, below = 30pt of rdw0]{msg\\msg};
 \node(rdm0) [gnode, below = 40pt of t3s]{read\\msg};
 \node(rdm1) [gnode, minimum height = 20pt, below = 20pt of rdm0]{write\\msg};
-\node(rdm2) [draw, thick, fill = blue!20, minimum height = 10pt, below = 18pt of rdm1, font=\scriptsize]{msg\\sema\_wait};
+\node(rdm2) [gnode, thick, fill = blue!20, minimum height = 10pt, below = 18pt of rdm1, font=\scriptsize]{msg\\sema\_wait};
 \node(fontd0) [gnode, minimum height=20pt, below = 50pt of t4s]{msg\\msg};
 
 \draw[-, solid](t0s.south) -- (brw0);
@@ -142,29 +142,27 @@
 \draw [vecarrow] (log.south) -- (InteractiveDebugger);
 
 \node (legend)[minimum height =180pt, minimum width = 80pt, right of = InteractiveDebugger, node distance= 200pt]{};
-\node (1)[below left = -20pt and -50pt of legend] {};
+\node (1)[below left = -20pt and -20pt of legend] {};
 \node (2)[right=8pt of 1]{};
 \draw [-, solid] (1.east) -- (2);
-\node [left = 10pt of 2, font=\small]{thread\_running};
+\node [right= 10pt of 1, font=\small]{thread\_running};
 
-\node (3)[below left = -30pt and -50pt of legend] {};
+\node (3)[below left = -30pt and -20pt of legend] {};
 \node (4)[right=8pt of 3]{};
 \draw [-, dotted] (3.east) -- (4);
-\node [left =10pt of 3, font=\small]{thread\_wait};
+\node [right =10pt of 3, font=\small]{thread\_wait};
 
-\node (5)[below left = -40pt and -50pt of legend] {};
+\node (5)[below left = -40pt and -20pt of legend] {};
 \node (6)[right =8pt of 5]{};
 \draw [->] (5.east) -- (6);
-\node [left =10pt of 5, font=\small]{edge};
+\node [right =10pt of 5, font=\small]{edge};
 
-\node [draw, solid, minimum width = 8pt, minimum height = 4pt, below left = -60pt and -50pt of legend, label={[font=\small]left:node}]{};
-
-
+\node [draw, solid, minimum width = 10pt, minimum height = 3pt, below left = -50pt and -30pt of legend, label={[font=\small]right:node}]{};
 
 %draw interactive Debugging part
-\node (user)[alice, minimum size=30pt, left = 100pt of InteractiveDebugger, node distance=100pt]{};
-\node (query1)[above left = -80pt and -10pt of InteractiveDebugger]{};
-\node (query2)[above left = -100pt and -10pt of InteractiveDebugger]{};
+\node (user)[alice, minimum size=30pt, left = 100pt of InteractiveDebugger]{};
+%\node (query1)[above left = -80pt and -10pt of InteractiveDebugger]{};
+%\node (query2)[above left = -100pt and -10pt of InteractiveDebugger]{};
 \node (query3)[below left = -100pt and -10pt of InteractiveDebugger]{};
 \node (query4)[below left = -80pt and -10pt of InteractiveDebugger]{};
 %\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
@@ -172,8 +170,7 @@
 \draw [->, thick, out=150, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
 \draw [->, thick, out=310, in=230] (user.south) to node[above]{e0} (query4.north);
 
-
-\node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 50pt of InteractiveDebugger]{};
+\node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
 \node (blockrenderer) [draw, solid, minimum height = 10pt, fill=blue!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
 \node (blockbrowser) [draw, solid, minimum height = 10pt, below left = -80pt and -200pt of result, label=below:browser thread blocks on condition variable]{msg cv\_wait};
 
@@ -181,7 +178,6 @@
 %\node (text1)[below = 50pt of = blockbrowser] {browser thread \\blocks on conditional variable};
 
 \draw [vecarrow] (InteractiveDebugger.south) -- (result);
-
 \end{tikzpicture}
 }
 \end{center}
