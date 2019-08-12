@@ -145,7 +145,7 @@
 \draw[->] (k0.east) -- node[font=\small, minimum width=5pt, above]{e1} (rdw0.west);
 \draw[->] (rdw0.east) -- (rdm0.west);
 \draw[->] (rdm0.east) -- (fontd0.west);
-\draw[->] (fontd0.west) -- (rdm1.east);
+\draw[->] (fontd0.south) -- (rdm1.east);
 \draw[->] (rdm1.west) -- (rdw1.east);
 \draw[->] (rdw1.west) -- (brw2.east);
 
@@ -189,8 +189,10 @@
 
 \node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
 \node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
-\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -200pt of result, label=below:browser thread blocks on condition variable]{msg cv\_wait};
+\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -200pt of result, label=above:browser thread blocks on condition variable]{msg cv\_wait};
 
+\draw[->, out=330, in = 45](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
+\draw[->, out=230, in = 135](blockbrowser.west) -- pic{ext} (blockrenderer.west);
 %\node (text1)[below = 50pt of = blockrenderer] {renderer thread \\blocks on semaphore};
 %\node (text1)[below = 50pt of = blockbrowser] {browser thread \\blocks on conditional variable};
 
