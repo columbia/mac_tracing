@@ -1,5 +1,86 @@
 
+\section{Performance Evaluation}\label{sec:evaluation}
+
+In this section we present the performance impact of the live deployment of
+\xxx. We deployed \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU
+with 2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
+
+As we use the ring buffer to collect events, the space cost for disk is fixed
+to the configured size 2G by default. The memory used to collect tracing
+items is fixed to 512M by Apple internal, so the memory overhead is pretty low
+with regards to the memory usage of modern applications. We measure the the CPU
+overhead and throughput of \xxx by running benchmarks in our machine with the
+tracing disabled and enabled respectively.
+
+%which we name them bare\_run and tracing\_run.
+
+\paragraph{iBench}
+\begin{table}[H]
+\footnotesize
+\begin{tabular}{l|ccccc}
+\hline
+ & 1st & 2nd & 3rd & 4th & 5th\\
+\hline
+ without \xxx& 5.98 & 6.23 & 6.18 & 6.05 & 6.28\\
+ with \xxx& 6.29 & 6.01 & 6.09 & 6.28 & 6.01\\
+\hline
+average overhead& \multicolumn{5}{c}{0.13\%}\\
+\hline
+\end{tabular}
+\caption{Score From iBench}
+\label{tab:ibench}
+\end{table}
+
+We first show the five runs of iBench for both cases to evaluation the overall performance.
+The machine is clean
+booted for each run, and the higher score means it perfoms better. As shown in
+Table\ref{tab:ibench}, their performance are almost of no difference.
+
+\paragraph{I/O Throughput}
+
+Next, we evaluation the throughput with bonnie++ and iozone on \xxx. As shown in
+the Table~\ref{tab:iothroughput},\xxx only add 5\% overhead in average on the io
+throughput on disk.
+
+\begin{table}[h]
+\footnotesize
+\centering
+\begin{tabular}{ll|rrr}
+\hline
+ & kb/s & With Argus & Without Argus & overhead\\
+ \hline
+bonnie++ &read char & 21922 & 22149 & 0.01\\
+ seq& read block & 226931 & 244089 & 0.07\\
+ & rewrite & 246807 & 267491 & 0.08\\
+ & write char & 22924 & 22936 & 0.00\\
+ & write block & 4073361 & 4396387 & 0.07\\
+ seq& file create & 17391 & 17381 & 0.00\\
+ & file delete & 18089 & 19401 & 0.07\\
+ random& create & 17472 & 17887 & 0.02\\
+ & delete & 8849 & 9567 & 0.08\\
+iozone & initial write & 1199453 & 1318572 & 0.09\\
+ & rewerite & 3663066 & 4059912 & 0.10\\
+ \hline
+ & average & & & 0.05\\
+ \hline
+\end{tabular}
+\caption{IO throughput with bonnie++ and iozone}
+\label{tab:iothroughput}
+\end{table}
+
+
+\paragraph{CPU}
+
+We also perform the evaluation the cpu overhead on chromium benchmarks by
+comparing the time usage. The result is shown in Table~\ref{tab:chromium
+benchmark}. As \xxx collect data in kernel, the sys overhead is relatively
+high. Given that most of time are spend in user mode when users use
+browser, the overhead overall are mostly under 5\%, except for the
+\vv{dummy\_benchmark.histogram}. The overhead for real, user and sys are 7\%,
+5\% and 40\% respectively.
+
 \begin{table*}[ht]
+\footnotesize
 \centering
 \begin{tabular}{l|rrr|rrr|ccc}
 	\hline
@@ -28,50 +109,3 @@ AVERAGE & \multicolumn{3}{c}{-} &  \multicolumn{3}{c}{-}  & 0.07 & 0.05 & 0.4\\
 \caption{Chromium benchmark}
 \label{tab:chromium benchmark}
 \end{table*}
-
-\section{Performance Evaluation}\label{sec:evaluation}
-
-In this section we present the performance impact of the live deployment of
-\xxx. We deployed \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU
-with 2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
-
-As we use the ring buffer to collect events, the space cost for disk is fixed
-to the configured size 2G by default. The memory used to collect tracing
-items is fixed to 512M by Apple internal, so the memory overhead is pretty low
-with regards to the memory usage of modern applications. We measure the the CPU
-overhead and throughput of \xxx by running benchmarks in our machine with the
-tracing disabled and enabled respectively.
-
-%which we name them bare\_run and tracing\_run.
-
-\paragraph{iBench}
-\begin{table}[H]
-\begin{tabular}{l|ccccc}
-\hline
- & 1st & 2nd & 3rd & 4th & 5th\\
-\hline
- without \xxx& 5.98 & 6.23 & 6.18 & 6.05 & 6.28\\
- with \xxx& 6.29 & 6.01 & 6.09 & 6.28 & 6.01\\
-\hline
-average overhead& \multicolumn{5}{c}{0.13\%}\\
-\hline
-\end{tabular}
-\caption{Score From iBench}
-\label{tab:ibench}
-\end{table}
-
-We first show the five runs of iBench for both cases to evaluation the overall performance.
-The machine is clean
-booted for each run, and the higher score means it perfoms better. As shown in
-Table\ref{tab:ibench}, their performance are almost of no difference.
-
-\paragraph{TPC-C}
-Next, we evaluation the throughput with tpc-c on \xxx with local mysql service.
-
-\paragraph{Chromium Benchmark}
-We also perform the evaluation on benchmark of Chromium, while recording the
-time usage. The result is shown in Table~\ref{tab:chromium benchmark}.
-%\paragraph{Conclusion}
-%As shown in Table~\ref{tab:chromium benchmark}, 
-The overhead for real, user and
-sys are 7\%, 5\% and 40\% respectively.
