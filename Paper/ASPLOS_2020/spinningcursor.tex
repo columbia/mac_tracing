@@ -1,11 +1,10 @@
-\subsection{Spinning Node detection}
-
-When the spinning cursor shows up, a hang reporting tool, spindump usually
+%\subsection{Spinning Node detection}
+When the spinning cursor shows up, a hang reporting tool, \spindump usually
 kicks in automatically to sample callstacks for debugging. To figure out the
 spinning node in the main thread, we turn to the event graph, and slice path
-backward from the launch of spindump.
+backward from the launch of \spindump.
 
-The path shows the spindump is launched after receiving a message from
+The path shows the \spindump is launched after receiving a message from
 WindowServer, which received a message from the NSEvent thread of the freezing
 app. The Back\_trace events attached to the messages further reveal NSEvent
 thread per process fetches CoreGraphics events from WindowServer, converts and
