@@ -191,6 +191,21 @@ slicing in Table~\ref{table:texteditapps}. The path usually involves several
 daemons, Figure~\ref{fig:diagramXXX} illustrates the spinning case of XXX to
 represent cases in this category.
 
+\paragraph{7-Microsoft Word}
+
+In bug 7-MSWord, the length of path interactively sliced from the \spinningnode
+is 76, while the automatically slicing generates a path of 136 vertices. We
+compared the path and find out the difference exists in the choosing of the
+predecessor for the third vertex in paths.
+
+In the vertex, user can learned from the callstack that Microsoft Word launches
+a service NSServiceControllerCopyServiceDictionarie after woken by another
+thread of itself. The thread continues to send message to \vv{launchd} to add
+service and get a reply message there. With the most recent heuristics in
+automatically slicing, \xxx choose \vv{launchd} as its precedessor, while the
+user can identify that the execution segment is working for the request from the
+thread of itself.
+
 \begin{table}[H]
 \footnotesize
 \centering
