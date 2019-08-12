@@ -6,7 +6,7 @@ these spinning-cursor cases.
 
 We studied how WindowsServer and NSEvent thread per application coordinate to
 determine when a spinning cursor needs to be displayed because it is fundamental
-in understanding all spinning cursor cases yet not straightforward. Two data
+in understanding all spinning-cursor cases yet not straightforward. Two data
 flags ``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}''
 are involved. We refer to this case XXXBug-ID.
 
@@ -129,36 +129,37 @@ are involved. We refer to this case XXXBug-ID.
 %Start a new paragraph
 %"TableXXX shows the results.  [Here we should show the big table, and talk about the high-level bits.]"
 
-We compared \xxx with traditional causual tracing methods~\cite{} on edges and
-vertices \xxx mitigated. and studied the ratios of over-connection vertices
+We compared \xxx with traditional causual tracing methods~\cite{XXXX} on edges
+and vertices \xxx mitigated. and studied the ratios of over-connection vertices
 avoided with message peers hueristically, and the under-connection edgs added by
 both data flags and wait event inside a block. User interactions are critical in
 the path slicing due to the inherent incorrect in the graph. Our results shows
 the user interaction does not overwhelm the debugging process while it makes
 the debugging much more efficient. Table~\ref{table:results} demonstrates our
-results with the critical path sliced with \xxx, which is much shorter than the
-ones generated automatically by choosing the nearest edge hueristically.
+results with the length of path sliced with \xxx, which is much shorter than the
+one generated automatically by heuristically choosing the most recent edges when
+multiple predecessors.
 
 
 \begin{table*}[ht]
 \footnotesize
 \centering
   \begin{tabularx}{\textwidth}{l|cccccc}
- 	   & rate of vertixes   & rate of vertixes  &           & length of           & length of    & \# of\\
-       & filted by          & preserved by      & \# of     & baseline/spinning& baseline/spinning&user\\
-Bug ID & message hueristics & wait hueristics& data flag & path slicing        & length of  &interaction \\
+ 	   & rate of vertices   & rate of edgs&           & length of \xxx      & length of auto      & \# of\\
+       & filted by          & by          & \# of     & baseline/spinning   & baseline/spinning   &user\\
+Bug ID & batchprocessing    & data flag   & data flag & path slicing        & path slicing        &interaction \\
 \hline
 \hline
  1-SystemPreferences&&&&&&\\
- 2-SequelPro & 0.3\% & 0.21\% & 3 & 5 &  & 2  \\
- 3-TeXStudio & 4.8\% & 1.7\% & 3 & 6 &  & 3 \\
+ 2-SequelPro & \% & \% & 3 & 5 &  & 2  \\
+ 3-TeXStudio & \% & \% & 3 & 6 &  & 3 \\
  4-Installer &&&&&& \\
  5-Notes &&&&&& \\
- 6-TextEdit(copy)&2.9\% &13.6\% & 3 & 21 & & 5\\
- 7-MSWord(copy)&6.7\%&1.0\%& 3 &67& & 22\\
- 8-SublimeText(copy)&4.0\%& 0.9\%&3 & 3 & & 1\\
- 9-TextMate(paste) & 4.2\% & 4.2\% &3 & 23& & 0\\
- 10-CotEditor(paste) & 4.8\%& 5.3\%& 3 & 4 & & 1\\
+ 6-TextEdit(copy)&\% &\% & 3 & 21 & & 5\\
+ 7-MSWord(copy)&\%&\%& 3 &67& & 22\\
+ 8-SublimeText(copy)&\%&\%&3 & 3 & & 1\\
+ 9-TextMate(paste) & \%&\% &3 & 23& & 0\\
+ 10-CotEditor(paste) & \%& \%& 3 & 4 & & 1\\
 \hline
   \end{tabularx}
   \caption{Graph Comparison}
@@ -170,7 +171,7 @@ In the remaining of this section, we present the case studies by category in (\S
 
 \subsection{Long Running}
 
-In this section, we discuss the cases where the spinning node is busy on the
+In this section, we discuss the cases where the \spinningnode is busy on the
 CPU. Most of the text editing apps fall into this bug category. We studied
 TeXstudio, TextEdit, Microsoft Word, Sublime Text, Text Mate and CotEditor to
 reveal their root causes.
@@ -182,64 +183,130 @@ reveal their root causes.
 
 Select, copy, paste, delete, insert and save are common operations for text
 editing. However, these operations on a large acontext usually trigger spinning
-cursors. Depending on their implementations, Softwares like XXX successfully
-avoid hangs on XXX operation. \xxx can helps the developer to figure out the
-more efficient way to implement those operations. We briefly list the reports
-from the spinning node and its corresponding user input from the path slicing
-here. The path usually involves several daemons, Figure~\ref{XXX} illustrates
-the spinning case in XXX.
+cursors. Depending on their implementations, CotEditor and TextMate successfully
+avoid hangs on copy and selection operation. \xxx can helps the developer to
+figure out the more efficient way to fulfill editing operations. We briefly list
+the reports from \spinningnode and corresponding user input event from the path
+slicing in Table~\ref{table:texteditapps}. The path usually involves several
+daemons, Figure~\ref{fig:diagramXXX} illustrates the spinning case of XXX to
+represent cases in this category.
 
-\begin{itemize}
-  \item \textbf{Notes}:
-	  While launching the Notes, it is busy with
-	  \vv{NSDetectScrollDevicesThenInvokeOnMainQueue}.
+\begin{table}[H]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|l|l}
+                  &                     &\\%&\textbf{root cause}\\%& \textbf{involved daemons}\\
+  \textbf{BUG-ID} & \textbf{costly API} &UI\\%&\textbf{UI}\\%& \textbf{involved daemons}\\
+  \hline
+  \hline
+  5-Notes         & \begin{tabular}{@{}l@{}}
+  					\vv{1)NSDetectScrollDevices}\\
+					\vv{\xspace ThenInvokeOnMainQueue}\\
+					\end{tabular}
+				  &-
+				  \\
+  \hline
+  6-TexEdit       & \begin{tabular}{@{}l@{}}
+  					\vv{1)[NSTextView(NSPasteboard) \_write}\\
+					\vv{\xspace RTFDInRanges:toPasteboard:]}\\
+					\vv{2)get\_vImage\_converter}\\
+  					\vv{3)get\_full\_conversion\_code\_fragment}\\
+					\end{tabular}
+				  & \vv{key c}
+				  \\
+  \hline
+  7-MSWord        & \begin{tabular}{@{}l@{}}
+					\vv{1)-[NSPasteboard setData:}\\
+					\vv{\xspace forType:index:usesPboardTypes:]}\\
+ 					\vv{2)\_CFStringCreateImmutableFunnel3}\\
+  					\vv{3)platform\_memmove}\\
+					\vv{4)lseek}, \vv{5)fstat64}, \vv{6)fcntl}\\
+					\end{tabular}
+				  & \vv{key c}
+				  \\
+  \hline
 
-  \item \textbf{TextEdit}:
-	  \xxx reports CPU busy on the storage of characters \vv{[NSBigMutableString\
-	  getCharacters:range:]} and \vv{NSFastFillAllGlyphHolesForCharacterRange} for
-	  selection.
+  8-SublimeText   & \begin{tabular}{@{}l@{}} 
+					\vv{1)px\_copy\_to\_clipboard}\\
+  					\vv{2)\_\_CFToUTF8Len}\\
+  					\end{tabular}
+				  & \vv{key c}
+				  \\
+  \hline
+  9-TextMate      & \begin{tabular}{@{}l@{}}
+  					\vv{1)-[OakTextView paste:]}\\
+					\vv{2)CFAttributedStringSet}\\
+					\vv{3)TASCIIEncoder::Encode}\\
+  					\end{tabular}
+				  & \vv{key v}
+				  \\
+  \hline
 
-	  When copy spins, \xxx reports
-	  \vv{get\_vImage\_converter} and \vv{get\_full\_conversion\_code\_fragment}
-	  occupy the main thread to finish \vv{[NSTextView(NSPasteboard)\
-	  \_writeRTFDInRanges:toPasteboard:]}.
-	  
-	  Paste operation causes the main thread overwhelmed by \vv{\_RTFGetToken}
-	  and \vv{platform\_memmove}. Both of them are called by the handler
-	  \vv{-[NSTextView(NSPasteboard)\ \_readSelectionFromPasteboard:types:]}
+  10-CotEditor    & \begin{tabular}{@{}l@{}}
+  					\vv{1)CFStorageGetValueAtIndex}\\
+					\vv{2)-[NSBigMutableString}\\
+					\vv{\xspace characterAtIndex:]}\\
+  					\end{tabular}
+				  & \vv{key v}
+				  \\
+  \hline
+  \end{tabularx}
+  \caption{Root cause of spinning cursor in editing Apps}
+  \label{table:texteditapps}
+\end{table}
 
-  \item \textbf{Microsoft Words}:
-	  Both copy and paste in Microsoft Words are overwhelmed by system calls
-	  \vv{lseek}, \vv{fstat64}, \vv{fcntl} on the same file descriptor.
-	  In copy operation, \vv{\_\_CFStringCreateImmutableFunnel3} and
-	  \vv{platform\_memmove} are invoked for \vv{-[NSPasteboard\
-	  \_setData:forType:index:usesPboardTypes:]}, while the paste operation is
-	  dominated by \vv{platform\_memmove} and \vv{}.
 
-  \item \textbf{Sublime Text}:
-	  Copy in SublimeText is busy encoding characters with \vv{\_\_CFToUTF8Len They}
-	  are called from handler \vv{px\_copy\_to\_clipboard}.
-
-	  Paste is dominated by \vv{decode\_utf8}, \vv{convert\_utf8\_to\_utf32}, string
-	  \vv{append} and \vv{platform\_memmove} from \vv{px\_copy\_from\_clipboard}.
-
-	  Delete on Sublime Text causes its main thread is busy processing
-	  \vv{TokenStorage::substr}.
-
-  \item \textbf{TextMate}:
-	  TextMate only spins on the paste operation in our experiments, the main
-	  thread is busy with \vv{-[OakTextView paste:]} which iterates through
-	  paragraphs, fetches characters and processed with \vv{CFAttributedStringSet} and
-	  \vv{TASCIIEncoder::Encode}.
-
-  \item \textbf{CotEditor}:
-	  Similar to TextMate, CotEditor does not spinning on copy. In paste and hitting
-	  a return key cause the main thread busy on processing \vv{-[NSBigMutableString
-	  characterAtIndex:]} and \vv{CFStorageGetValueAtIndex} in the call stacks.
-\end{itemize}
+%\begin{itemize}
+%  \item \textbf{Notes}:
+%	  While launching the Notes, it is busy with
+%	  \vv{NSDetectScrollDevicesThenInvokeOnMainQueue}.
+%
+%  \item \textbf{TextEdit}:
+%	  \xxx reports CPU busy on the storage of characters \vv{[NSBigMutableString\
+%	  getCharacters:range:]} and \vv{NSFastFillAllGlyphHolesForCharacterRange} for
+%	  selection.
+%
+%	  When copy spins, \xxx reports
+%	  \vv{get\_vImage\_converter} and \vv{get\_full\_conversion\_code\_fragment}
+%	  occupy the main thread to finish \vv{[NSTextView(NSPasteboard)\
+%	  \_writeRTFDInRanges:toPasteboard:]}.
+%	  
+%	  Paste operation causes the main thread overwhelmed by \vv{\_RTFGetToken}
+%	  and \vv{platform\_memmove}. Both of them are called by the handler
+%	  \vv{-[NSTextView(NSPasteboard)\ \_readSelectionFromPasteboard:types:]}
+%
+%  \item \textbf{Microsoft Words}:
+%	  Both copy and paste in Microsoft Words are overwhelmed by system calls
+%	  \vv{lseek}, \vv{fstat64}, \vv{fcntl} on the same file descriptor.
+%	  In copy operation, \vv{\_\_CFStringCreateImmutableFunnel3} and
+%	  \vv{platform\_memmove} are invoked for \vv{-[NSPasteboard\
+%	  \_setData:forType:index:usesPboardTypes:]}, while the paste operation is
+%	  dominated by \vv{platform\_memmove} and \vv{}.
+%
+%  \item \textbf{Sublime Text}:
+%	  Copy in SublimeText is busy encoding characters with \vv{\_\_CFToUTF8Len They}
+%	  are called from handler \vv{px\_copy\_to\_clipboard}.
+%
+%	  Paste is dominated by \vv{decode\_utf8}, \vv{convert\_utf8\_to\_utf32}, string
+%	  \vv{append} and \vv{platform\_memmove} from \vv{px\_copy\_from\_clipboard}.
+%
+%	  Delete on Sublime Text causes its main thread is busy processing
+%	  \vv{TokenStorage::substr}.
+%
+%  \item \textbf{TextMate}:
+%	  TextMate only spins on the paste operation in our experiments, the main
+%	  thread is busy with \vv{-[OakTextView paste:]} which iterates through
+%	  paragraphs, fetches characters and processed with \vv{CFAttributedStringSet} and
+%	  \vv{TASCIIEncoder::Encode}.
+%
+%  \item \textbf{CotEditor}:
+%	  Similar to TextMate, CotEditor does not spinning on copy. In paste and hitting
+%	  a return key cause the main thread busy on processing \vv{-[NSBigMutableString
+%	  characterAtIndex:]} and \vv{CFStorageGetValueAtIndex} in the call stacks.
+%\end{itemize}
 
 \subsection{Repeated Yield and Long Wait}
-In this section, we discuss the cases where the spinning node is blocking on
+In this section, we discuss the cases where the \spinningnode is blocking on
 wait event or yielding loop, correponding to \textbf{Long Wait} and \textbf{Repeated Yield}.
 \paragraph{SequelPro}
 \input{sequelpro}

@@ -4,17 +4,17 @@ bib file, the TexStudio hanged for mimutes. The issue was closed by author for
 incomplete information to reproduce. We reproduced the bug with a large bib file
 editing and collected the data. With the file opened in a tab, every time we
 touched the bib file through other editor, vim for example, it shows a spinning
-beachball on the window.
+cursor on the window.
 
-\xxx figures out the spinning node is busy processing. Slicing the path from the
+\xxx figures out the \spinningnode is busy processing. Slicing the path from the
 busy node, \xxx reaches the daemon ``\vv{fseventd}'' and figures out the busy
 processing invoked by the callback function from the daemon. The advantage of
 \xxx over other debugging tools is it helps to narrow down the root cause with
 the path. If the user reported the infomation with \xxx, it should have provided
 the author more hints to reproduce the bug successfully.
 
-%%Another operation triggering spinning beachball in TeXstudio is pasting
-%%a large amount of context in any file. The spinning node is busy with
+%%Another operation triggering spinning cursor in TeXstudio is pasting
+%%a large amount of context in any file. The \spinningnode is busy with
 %%\textit{QEditor::insertFromMimeData(QMimeData const*)}, which always invokes
 %%\textit{match(QNFAMatchContext*, QChar const*, int, QNFAMatchNotifier)}. Path
 %%slicing by \xxx attributes it to the user's keyboard inputs of cmd+v. The
