@@ -1,13 +1,12 @@
-System Preferences provides a central location in macOS to customize system
-settings, inclduing the configuration of additional monitors. A tool called
-DisableMonitor~\cite{disablemonitor}, distributed via GitHub completes its
-function with enable/disable monitors online. We blocked on the spinning
-beachball when we disabled an external monitor, and rearrange the windows in the
-``Display'' panel afterward.
+System Preferences provides a central location in macOS to customize
+system settings, inclduing configuring additional monitors. A tool called
+DisableMonitor~\cite{disablemonitor} completes its function with enable/disable
+monitors online. We blocked on the spinning cursor while disabling an external
+monitor and rearranging windows in ``Display'' panel.
 
-We collected data with the \xxx, which contains 1) with external monitor
-on and rearrange the windows, and 2) disable the external monitor and
-rearrange the windows. The spinning node in the main UI thread is dominated by
+We collected data with the \xxx, which contains 1) enable the external
+monitor and rearrange the windows, and 2) disable the external monitor and
+rearrange the windows. The \spinningnode in the main UI thread is dominated by
 \textit{mach\_msg} and \textit{thread\_switch}, which falls into the category of
 yielding loop. We finds two missing shared variables via the reverse engineering
 and ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'',
@@ -20,11 +19,11 @@ main thread of System Preferences receives a datagram which set the variable
 display reconfiguration, while in case 2) the main thread yields and sends
 message for the available of such datagram ping until timed out.
 
-Our FindSimilarNode reports a lot of similar node due to the limit of semantics
-in the node. As a result, we instruct \xxx to extends the comparison with its
-proceeding nodes in the main thread. In conclusion, the bug is from the design
+Our FindSimilarNode reports a lot of \similarnodes due to the limit of semantics
+in the vertex. As a result, we instruct \xxx to extends the comparison with its
+proceeding vertices in the main thread. In conclusion, the bug is from the design
 in CoreGraphics library and would have to fixed by Apple. We verified the bug by
-a dynamic binary fixing with lldb script.
+coming up a dynamic binary patch with lldb.
 
 %%Given the information, we launched the interactive debugging by feeding
 %%the debugging script with those APIs mentioned above. We set the

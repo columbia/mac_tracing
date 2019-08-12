@@ -1,9 +1,9 @@
 When Installer pops up a window for privileged permission during the
 installation of \texttt{jdk-7u80-macosx-x64}, moving the cursor out of the popup
-window triggers spinning beachball. Examing the spinning node reported by \xxx, it is easy to figure out the main
-thread blocks in \textit{[IFRunnerProxy\ requestKeyForRights:askUser:]}. The
-function sends a synchronous message to daemon \textit{authd}. The root cause
-is the authentication of user's previledge synchronously in the main thread,
-instead of the handler for moving cursor.
+window triggers spinning cursor. Examing the \spinningnode reported by \xxx,
+it is easy to figure out the main thread blocks in \textit{[IFRunnerProxy\
+requestKeyForRights:askUser:]}. The function sends a synchronous message to
+daemon \textit{authd}. The root cause is the authentication of user's previledge
+synchronously in the main thread, instead of the handler for moving cursor.
 %with \textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
 
