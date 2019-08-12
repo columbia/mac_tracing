@@ -2,45 +2,41 @@
 \caption{Diagnosis algorithm.}
 \label{alg:alg-diagnosis}
 \begin{algorithmic}[1]
-\Require{g - EventGraph; spinning\_node - the node in the UI thread when the spinning cursor occurs}
-\Ensure{root\_cause\_nodes-collecting root casuse nodes for user inspect}
+\Require{g - EventGraph; \algspinningnode - the vertex in the UI thread when the spinning cursor occurs}
+\Ensure{\algrootcausenodes-collecting root casuse vertices for user inspect}
 \Statex
-\Function{Diagnose}{g, spinning\_node}
-  \Switch {spinning\_node.block\_type}
+\Function{Diagnose}{g, \algspinningnode}
+  \Switch {\algspinningnode.block\_type}
     \Case {LongRunning}
-		\State {slice $\gets$ InteractiveSlice(spinning\_node)}
-		\State\Return {node contains UI event}
+		\State {slice $\gets$ InteractiveSlice(\algspinningnode)}
+		\State\Return {vertex contains UI event}
 	\EndCase
 	\Case {RepeatedYield}
-		\If {DataFlagEvent $\notin$ $\{$event types in spinning\_node$\}$}
+		\If {DataFlagEvent $\notin$ $\{$event types in \algspinningnode$\}$}
 			\State {Require users to annotate data flag}
 			\State {abort()}
 		\EndIf
 		\LineComment {Fall through}
 	\EndCase
 	\Case {LongWait}
-		%\LineComment {find a baseline case where the wait returns quickly}
-		%\LineComment {slice baseline path and check the path thread to thread}
-		%\LineComment {check its nearest (to spinning timestamp) node}
-		%\State {$T_{spinning}$ $\gets$ timestamp of spinning in spinning\_node}
-		\State {similar\_node $\gets$ node has similar event sequence to spinning\_node}
-		%\State {baseline\_node $\gets$ ask user to pick from similar\_nodes} 
-		\State {baseline\_path $\gets$ InteractiveSlice(similar\_node)} 	
+		\State {\algsimilarnode $\gets$ vertex has similar event sequence to \algspinningnode}
+		%\State {baseline\_vertex $\gets$ ask user to pick from \algsimilarnodes} 
+		\State {baseline\_path $\gets$ InteractiveSlice(\algsimilarnode)} 	
 		\For {each t in $\{$threads in baseline\_path$\}$}
-			\State {$node_t$ $\gets$ node in t before spinning\_node gets spinning}
-			\If {$node_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
+			\State {$vertex_t$ $\gets$ vertex in t before \algspinningnode gets spinning}
+			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				%\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
 				%\If {is\_related\_to\_bug $\not=$ True}
 				%	\State{Continue}
 				%\EndIf
-				\State {root\_cause\_nodes.append($node_t$)}
-				\State {root\_cause\_nodes.append(Diagnose(g, $node_t$)}
+				\State {\algrootcausenodes.append($vertex_t$)}
+				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
 			\EndIf
 			\LineComment{if t is normal running, disgnose the next thread}
 		\EndFor
 	\EndCase
   \EndSwitch
-  \State\Return{root\_cause\_nodes}
+  \State\Return{\algrootcausenodes}
 \EndFunction
 %%\end{algorithmic}
 %%\end{algorithm}
@@ -52,20 +48,20 @@
 %\Require{g - EventGraph; node - the node user wants to slice from}
 %\Ensure{slice - causual path for node}
 \Statex
-\Function{InteractiveSlicing}{g, node}
+\Function{InteractiveSlicing}{g, vertex}
 \Loop
-	\State{path\_slice.append(node)}
-	\If {node has 1 incoming edge}
-		\State{node $\gets$ predecessor node}
-	\ElsIf {node has multiple incoming edges}
-		\State{node $\gets$ ask user to pick from predecessors}
-	\ElsIf {node had weak edges}
-		\State{node $\gets$ ask user to pick from predecessors}
-	\Else \LineComment{The first node of current thread}
+	\State{path\_slice.append(vertex)}
+	\If {vertex has 1 incoming edge}
+		\State{vertex $\gets$ predecessor vertex}
+	\ElsIf {vertex has multiple incoming edges}
+		\State{vertex $\gets$ ask user to pick from predecessors}
+	\ElsIf {vertex had weak edges}
+		\State{vertex $\gets$ ask user to pick from predecessors}
+	\Else \LineComment{The first vertex of current thread}
 		\State\Return {path\_slice}
 	\EndIf
-	\If {node is invalid}
-	\LineComment{user chooses to stop traversal}
+	\If {vertex is invalid}
+	\LineComment{user chooses to stop traversal with invalid input}
 		\State\Return {path\_slice}
 	\EndIf
 \EndLoop

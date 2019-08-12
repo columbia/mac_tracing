@@ -28,7 +28,7 @@ reflect causality.  Similarly, they assume that the execution segment from the
 beginning of a callback invocation to the end is entirely for handling the
 request that causes the callback to be
 installed~\cite{zhang2013panappticon, ravindranath2012appinsight}.
-Compared to debuggers such as \vv{Spindump} that capture only the current
+Compared to debuggers such as \spindump that capture only the current
 system state, causal tracing is quite effective at aiding developers to
 understand complex causal behaviors and pinpoint real-world performance
 issues.
@@ -112,7 +112,7 @@ public. Our results show that \xxx is effective: it helped us
 non-developers of the applications find all root causes of the issues,
 including the Chromium issue that remained open for seven years.  \xxx
 needs only XXX user queries per issue but they are crucial in aiding
-diagnosis. \xxx is also fast: its systems-wide tracing incurs only 1\% CPU
+diagnosis. \xxx is also fast: its systems-wide tracing incurs only \cpuoverhead CPU
 overhead overall.
 
 %% consider adding comparison to prior approaches

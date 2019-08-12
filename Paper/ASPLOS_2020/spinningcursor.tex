@@ -1,12 +1,9 @@
-%\subsection{Spinning Node detection}
-\indent
-%Spinning beachball is a painful sight for Mac users, signifying that an
-%application is non-responsive and leaving the user at a loss and unable to do
-%anything productive.
-When the spinning beachball shows up, a hang reporting tool, spindump usually
-kicks in automatically to sample for debugging. To figure out the spinning
-node in the main thread, we turn to the event graph, and slice path backward
-from the launch of spindump.
+\subsection{Spinning Node detection}
+
+When the spinning cursor shows up, a hang reporting tool, spindump usually
+kicks in automatically to sample callstacks for debugging. To figure out the
+spinning node in the main thread, we turn to the event graph, and slice path
+backward from the launch of spindump.
 
 The path shows the spindump is launched after receiving a message from
 WindowServer, which received a message from the NSEvent thread of the freezing

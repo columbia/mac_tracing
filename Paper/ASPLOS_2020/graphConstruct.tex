@@ -13,7 +13,7 @@ as macOS message operations are run, and user actions such as key presses.
 These events indicate what the developer intents might be, and are stored
 as contents in each vertex in the event graph.  They are primarily for
 providing information to user during diagnosis and for finding similar
-vertexes (\S\ref{sec:overview}).
+vertices (\S\ref{sec:overview}).
 
 The second category of events are boundary events that mark the beginning
 and ending of execution segments or vertices in the graph.  \xxx handles
@@ -83,10 +83,10 @@ graph automatically.
 %% \label{table:event_types}
 %% \end{table}
 
-Compared to tools such as \vv{Spindump} that capture only the current
+Compared to tools such as \spindump that capture only the current
 system state, event graphs capture the causal path of events, enabling
 users to trace across threads and process to events happened in the past
-(hence cannot be captured by \vv{Spindump}) that explain present
+(hence cannot be captured by \spindump) that explain present
 anomalies.
 
 %% Given the prevalent of multi-threading and multi-processing programs, bugs are
@@ -113,7 +113,7 @@ Specifically, \xxx splits based three criteria.  First, \xxx recognizes a
 small set of well-known batch processing patterns such as
 \vv{dispatch\_mig\_server()} in \S\ref{sec:inaccuracy} and splits the
 batch into individual items.  Second, when a wait operation such as
-\v{recv()} blocks, \xxx splits the segment at the entry of the blocking
+\vv{recv()} blocks, \xxx splits the segment at the entry of the blocking
 wait.  The rationale is that blocking wait is typically done at the last
 during one step of event processing.  Third, if a segment communicates to
 too many peering processes, \xxx splits the segment when the set of peers
