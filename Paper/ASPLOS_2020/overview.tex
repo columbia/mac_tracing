@@ -32,39 +32,6 @@ Next, we describe how \xxx assists the user to diagnose a performance issue.
 
 \subsection{Diagnosis with Graph}\label{subsec:debug}
 
-%% \begin{algorithm}[ht!]
-%%     \caption{Main \xxx algorithm.}
-%%     \label{alg:alg-main}
-%% \begin{algorithmic}[1]
-%% \Require{Program to run}
-%% \Ensure{Sequence of UI events triggered the performance problem 
-%% 		+ Nodes from Event Graph}
-%% \Statex
-%% \Function{\xxx Main}{}
-%% \State {$TracingEvents$ $\gets$ Run program under \xxx,
-%% 		trigger baseline case (if possible) and buggy test case}\label{algmain:collectdata}
-%% \State {$HeuristicsSet$ $\gets$ $\{default$ $ $ $heuristics\}$}
-%% \State {$EventGraph$ $\gets$ ComputeGraph($HeuristicsSet$, $TracingEvents$)}
-%% \label{algmain:recompute}
-%% \State {$SpinningNode$ $\gets$ search $EventGraph$}\label{algmain:findspinningnode}
-%% \If {IsCPUBusyExecuting($SpinningNode$)} 
-%% 	\State{run backward traversal of main thread until UI event found}\label{algmain:1st}
-%% \Else
-%% 	\While{NotFound(BlockingFromUI \Or CircularDependency)}
-%% 	\State{$N_0$ $\gets$ $SpinningNode$}\label{algmain:2and3begin}
-%% 	\State{$N_1$ $\gets$ FindSimilarNode($EventGraph$, $N_0$)}
-%% 	\State{call AssistedGraphDiff($EventGraph$, $N_0$, $N_1$)}
-%% 	\State{ManuallyAdjust($N_0$, $N_1$)}
-%% 	\If {new\_hueristics were added}
-%% 		\State \Goto{algmain:recompute}
-%% 	\EndIf\label{algmain:2and3end}
-%% 	\EndWhile
-%% \EndIf
-%% \State{Return set of UI events and root cause related Nodes}
-%% \EndFunction
-%% \end{algorithmic}
-%% \end{algorithm}
-
 \input{ArgusAlgorithm}
 
 Consider a common performance bug on macOS, the \emph{spinning cursor},
@@ -73,7 +40,7 @@ any UI events for over two seconds.  To initialize debugging a spinning
 cursor, \xxx first constructs an event graph from the system-wide event
 log recorded.  It then queries the event graph to find the ongoing event
 in the application's main thread concurrent to the display of the spinning
-cursor.  Given the event graph and the spinning node, \xxx runs
+cursor.  Given the event graph and the \spinningnode, \xxx runs
 Algorithm~\ref{alg:alg-diagnosis} to interactively pinpoint the root
 cause.
 
@@ -87,19 +54,19 @@ are three potential cases.
     \xxx traverses the event graph backwards to find a slice originating
     from the offending UI event to the long running CPU operations.  This
     slice is particularly useful for further diagnosing the bug.  As shown
-    in FunctionXXX, \xxx may encounter nodes with multiple incoming edges
+    in FunctionXXX, \xxx may encounter vertices with multiple incoming edges
     or weak edges that may not reflect causality when traversing the
     graph.  It queries the user to resolve them.
 
   \item \textbf{RepeatedYield} (lines~XX-XX). The main thread is in a
     yield loop, which is highly indicative it is waiting on a data flag
     (\eg, ``while(!done) thread\_switch();'').  If \xxx cannot find any
-    record of data flags in the spinning node, it terminates debugging by
+    record of data flags in the \spinningnode, it terminates debugging by
     prompting the user to identify data flags and re-trace the
     application.  Here we assume that the performance issue reproduces
     with a reasonable probability because, fortunately, a one-off issue
     that never reproduces is not as annoying as one that occurs
-    frequently.  If \xxx finds the data flag the spinning node is waiting
+    frequently.  If \xxx finds the data flag the \spinningnode is waiting
     for, it falls through to the next case.
 
   \item \textbf{LongWait} (lines~XX-XX). The main thread is in a lengthy
@@ -107,23 +74,23 @@ are three potential cases.
     case by finding a baseline scenario where the wake-up indeed arrives,
     and then figures out which wake-up edge is missing in the spinning
     scenario along the expected wake-up path.  Specifically, \xxx first
-    finds a similar node to the spinning one based solely on the
-    semantical events such as system calls in each node.  It then
-    traverses backwards from the similar node to find the baseline wake-up
-    path.  For each thread in the wake-up path, it examines the node in
-    the thread right before the spinning node waits.  If this node is also
-    abnormal, \xxx appends it to the path of root cause nodes, and applies
+    finds a \similarnode to the spinning one based solely on the
+    semantical events such as system calls in each vertex.  It then
+    traverses backwards from the \similarnode to find the baseline wake-up
+    path.  For each thread in the wake-up path, it examines the vertex in
+    the thread right before the \spinningnode waits.  If this vertex is also
+    abnormal, \xxx appends it to the path of \rootcausenodes, and applies
     Function DiagnoseXX recursively diagnose ``the culprit of the
-    culprit.''  For each such node, it queries the user to determine
+    culprit.''  For each such vertex, it queries the user to determine
     whether to proceed or stop because based on our experience the user
-    needs to inspect only a few nodes to find the root cause.
+    needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
 
 Based on our results and experience, the first case is the most common,
 but the second and third represent more severe bugs. Long-running CPU
 operations tend to be more straightforward to diagnose with existing tools
-such as \vv{Spindump} except they do not connect the CPU operations back
+such as \spindump except they do not connect the CPU operations back
 to UI events.  Repeated yielding or long waiting cases involve multiple
 threads and processes, and are extremely hard to understand and fix even
 for the application's original developers.  Therefore, issues remain
@@ -398,9 +365,9 @@ Tools that require manual schema~\cite{barham2004using, reynolds2006pip}, would
 be prohibitive because developers would have to provide schema for all involved
 applications and daemons.
 
-Next she ran \xxx to find the spinning node in the main thread of the browser
+Next she ran \xxx to find the \spinningnode in the main thread of the browser
 process. \xxx returned a \vv{Wait} event on condition variable with timeout that
-blocked the main thread for a few seconds. Thus \xxx compares the spinning node
+blocked the main thread for a few seconds. Thus \xxx compares the \spinningnode
 to a similar one in normal case where the \vv{Wait} was signaled quickly with
 Algorithm~\ref{alg:alg-findsimilarnode}. \xxx reported three, and confirmed with
 the user which one she wanted.
@@ -419,7 +386,7 @@ diagnosis and recursively applied \xxx to the wait in \vv{renderer}, and got
 the wake-up path. The culprit that delayed the semaphore was the timeouts in
 the browser's main thread. At this point, a circular wait formed. To understand
 what exactly happens in the situation, she inspected the full call stacks by
-\xxx scripts, taking the reported nodes from the renderer and the browser as
+\xxx scripts, taking the reported vertice from the renderer and the browser as
 input. Inspection reveals that the \vv{renderer} requested the browser's help to
 render Javascript and waited for reply with semaphore. The browser was waiting
 for the \vv{renderer} to return the string bounding box and the \vv{renderer}

@@ -66,7 +66,7 @@ the loading.
 As described in (\S\ref{subsec:userinteraction}), under-connection due
 to the missing data dependency requires users' interaction. \xxx
 provides a command line tool which sets the watch point registers to record
-data\_flag\_write and data\_flag\_read events in ad-hoc manner. This is one
+\dataflagwrite and \dataflagread events in ad-hoc manner. This is one
 way users can easily collect the tracing events, and the more tech-savvy users
 can also instrument the binary. The tool takes the process id, path to image
 where the variable is defined and the symbol of the variable as input. We
@@ -83,27 +83,33 @@ loaded correctly into the address space of our target application. The handler
 invokes the event tracing API from Apple to record the value of the data flag
 and the operation type: read or write.
 
-\subsection{Baseline Case Discovery }
+\subsection{Find baseline scenario}
 
-\xxx begins with identifying the spinning case and normal case for the root
-cause diagnosis of \textbf{LongWait} and \textbf{RepeatedYield} cases. It
-identifies the vertexes from the same high level semantics with semantical
-events, including system calls, call stacks, user actions, and the connection
-events including messages flowing through threads, dipatch queue and runloop
-operations, data flags read/write. At the same time, it differentiate the
-different execution results by comparing the execution time in the vertexes and
-blocking time in wait events.
+\xxx finds a baseline scenario to figure out the missing wake-up edge in
+spinning case. It begins from identifying a vertex which shares
+the same high level semantics of the \spinningnode but bares
+different execution results. 
 
-\xxx compares the content of the event attributes, for example, the system call
-number on sementical events and compares peers for connection events. Depending
-on the report detail of the spinning node, user can change the comparing metrics
-or request \xxx to compare proceeding nodes to narrow down the result set
-reported. If multiple normal cases are identifies, \xxx usually choose the most
-recent one hueristicstically.
+
+\xxx identifies the high level semantics of vertices with semantical events
+in vertices, including system calls, call stacks, user actions. \xxx compares
+their sequential order and the event attributes unchanged in runtime. For
+example, \xxx compares the system call number and symbols in callstack.
+To improve the accuracy, \xxx also checks the events for forming edges in
+graph, including messages, dipatch queue operations, runloop operations,
+\dataflagread and \dataflagwrite, as they might reveals the low level behaviors
+of developer intent. \xxx compares their peers. Depending on the report detail
+of \spinningnode, user can request \xxx to compare proceeding vertices to
+improve accuracy of finding the same semantic vertices.
+
+By default, \xxx compares the execution time and the wait results to manifest
+different execution results. If multiple \similarnode are identified,
+\xxx usually asks users for a comfirmation, or choose the most recent one
+hueristicstically.
 
 \subsection{Capturing Instructions for Diagnosis}
 
-Users may need to gather more information, such as instructions exected to
+Users may need to gather more information, such as instructions executed to
 verify and come up a binary patch. \xxx integrates with lldb to capture
 instructions executed and add them to the nodes in the event graph. It generates
 the debugging scripts with the light weight call stack from the root cause

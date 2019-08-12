@@ -11,8 +11,7 @@ other.  In this section, we present several inherently inaccurate patterns
 we observed and their examples in macOS.
 
 
-\subsection{Over Connections}\hfill\\
-
+\subsection{Over Connections}%\hfill\\
 Over connections usually occur when (1) intra-thread boundaries are
 missing due to unknown batch processing programming paradigms or (2)
 superfluous wake-ups that do not always imply causality.
@@ -105,7 +104,7 @@ is not always, intended as causality.  However, without knowing the
 developer intent, any wake-up is typically treated as causality by
 traditional causal tracing tools.
 
-\subsection{Under Connections}\hfill\\
+\subsection{Under Connections}%\hfill\\
 
 We observe that under connections mostly result from missing data
 dependencies.  This pattern is more general than shared-memory flags in ad

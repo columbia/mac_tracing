@@ -180,19 +180,19 @@
 \node (user)[left = 100pt of InteractiveDebugger]{};
 %\node (query1)[above left = -80pt and -10pt of InteractiveDebugger]{};
 %\node (query2)[above left = -100pt and -10pt of InteractiveDebugger]{};
-\node (query3)[below left = -100pt and -10pt of InteractiveDebugger]{};
-\node (query4)[below left = -80pt and -10pt of InteractiveDebugger]{};
+\node (query3)[below left = -150pt and -10pt of InteractiveDebugger]{};
+\node (query4)[below left = -100pt and -10pt of InteractiveDebugger]{};
 %\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
 %\draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
-\draw [->, thick, out=150, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
-\draw [->, thick, out=310, in=230] (user.south) to node[above]{e0} (query4.north);
+\draw [vecarrow, out=130, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
+\draw [vecarrow, out=280, in=230] (user.south) to node[above]{e0} (query4.north);
 
 \node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
 \node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
 \node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -200pt of result, label=above:browser thread blocks on condition variable]{msg cv\_wait};
 
-\draw[->, out=330, in = 45](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
-\draw[->, out=230, in = 135](blockbrowser.west) -- pic{ext} (blockrenderer.west);
+%\draw[->, out=330, in = 45](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
+%\draw[->, out=230, in = 135](blockbrowser.west) -- pic{ext} (blockrenderer.west);
 %\node (text1)[below = 50pt of = blockrenderer] {renderer thread \\blocks on semaphore};
 %\node (text1)[below = 50pt of = blockbrowser] {browser thread \\blocks on conditional variable};
 
