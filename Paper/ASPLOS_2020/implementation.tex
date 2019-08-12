@@ -83,23 +83,6 @@ loaded correctly into the address space of our target application. The handler
 invokes the event tracing API from Apple to record the value of the data flag
 and the operation type: read or write.
 
-\subsection{Capturing Instructions for Diagnosis}
-
-Users may need to gather more information, such as instructions exected to
-verify and come up a binary patch. \xxx integrates with lldb to capture
-instructions executed and add them to the nodes in the event graph. It generates
-the debugging scripts with the light weight call stack from the root cause
-nodes.
-
-The debugging scripts go through the instructions of apps and frameworks step
-by step to capture the parameters tainted by user inputs. At each beginning of
-a function call, the script records a full call stack for it. Considering the
-overhead and usefulness, it steps over and only records the return value of APIs
-from libraries with a filename extension \vv{.dylib}.
-
-The supplementary information are subject to the users review to pinpoint the
-root cause of spinning beachball on macOS.
-
 \subsection{Baseline Case Discovery }
 
 \xxx begins with identifying the spinning case and normal case for the root
@@ -118,30 +101,20 @@ or request \xxx to compare proceeding nodes to narrow down the result set
 reported. If multiple normal cases are identifies, \xxx usually choose the most
 recent one hueristicstically.
 
-%\begin{algorithm}[ht!]
-%    \caption{\xxx Find similar node algorithm.}
-%    \label{alg:alg-findsimilarnode}
-%\begin{algorithmic}[1]
-%%%  Output: Similar node set
-%\Require{EventTypesSet + SpinningNode + Graph}
-%\Ensure{SimilarNodeSet}
-%\Statex
-%\Function{FindSimilarNode}{}
-%\State{$thread$ $\gets$ thread of $Node_{blocking}$}
-%\For {$Node_i$ in $thread$ other than $Node_{blocking}$}
-%	\For{$iter_i$ $\gets$ NextEventInEventTypeSet($Node_i$)
-%		\And $iter_b$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
-%		\If{CompareEvent($Event$($iter_b$), $Event$($iter_i$)) $==$ False}
-%			\State{Break}
-%		\EndIf
-%	\EndFor
-%	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
-%		\If {wresult of $Node_i$ $\neq$ wresult of $Node_{blocking}$
-%		\Or timespan of $Node_{blocking}$ - timespan of $Node_i$ $\geq$ threshhold}
-%			\State{Put $Node_i$ into $SimilarNodeSet$}
-%		\EndIf
-%	\EndIf
-%\EndFor
-%\EndFunction
-%\end{algorithmic}
-%\end{algorithm}
+\subsection{Capturing Instructions for Diagnosis}
+
+Users may need to gather more information, such as instructions exected to
+verify and come up a binary patch. \xxx integrates with lldb to capture
+instructions executed and add them to the nodes in the event graph. It generates
+the debugging scripts with the light weight call stack from the root cause
+nodes.
+
+The debugging scripts go through the instructions of apps and frameworks step
+by step to capture the parameters tainted by user inputs. At each beginning of
+a function call, the script records a full call stack for it. Considering the
+overhead and usefulness, it steps over and only records the return value of APIs
+from libraries with a filename extension \vv{.dylib}.
+
+The supplementary information are subject to the users review to pinpoint the
+root cause of spinning beachball on macOS.
+
