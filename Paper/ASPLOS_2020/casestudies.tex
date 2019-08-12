@@ -16,13 +16,14 @@ are involved. We refer to this case XXXBug-ID.
 \begin{table}[ht]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|c|c}
+  \begin{tabularx}{\columnwidth}{l|cc}
     \hline
     \textbf{Bug ID} & \textbf{Application} & \textbf{Bug description}\\
     \hline
+	\hline
 	 0 & WindowServer & display spinning cursor\\
     \hline
-	 1 & \begin{tabular}{@{}c@{}} 
+	 1-SystemPref & \begin{tabular}{@{}c@{}} 
 	 System Preferences\\
 	 %:system settings\\
 	 %customization app.
@@ -35,7 +36,7 @@ are involved. We refer to this case XXXBug-ID.
 	 \end{tabular}
 	 \\
      \hline
-	 2 & \begin{tabular}{@{}c@{}} 
+	 2-SequelPro& \begin{tabular}{@{}c@{}} 
 	 Sequel Pro
 	 \end{tabular}
 	 & \begin{tabular}{@{}c@{}}
@@ -44,7 +45,7 @@ are involved. We refer to this case XXXBug-ID.
 	 \end{tabular}
 	 \\
      \hline
-	 3 & \begin{tabular}{@{}c@{}} 
+	 3-TexStudio & \begin{tabular}{@{}c@{}} 
 	 TeXStudio
 	 %: LaTeX editor
 	 \end{tabular}
@@ -55,7 +56,7 @@ are involved. We refer to this case XXXBug-ID.
 	 \end{tabular}
 	 \\
      \hline
-	 4 & \begin{tabular}{@{}c@{}} 
+	 4-Installer & \begin{tabular}{@{}c@{}} 
 	 Installer
 	 \end{tabular}
 	 & \begin{tabular}{@{}c@{}}
@@ -65,10 +66,8 @@ are involved. We refer to this case XXXBug-ID.
 	 \end{tabular}
 	 \\
      \hline
-	 5 & \begin{tabular}{@{}c@{}} 
+	 5-Notes& \begin{tabular}{@{}c@{}} 
 	 Notes\\
-	 %note-taking \\
-	 %app from Apple 
 	 \end{tabular}
 	 & \begin{tabular}{@{}c@{}}
 	 launching Notes with \\
@@ -77,43 +76,40 @@ are involved. We refer to this case XXXBug-ID.
 	 \end{tabular}
 	 \\
      \hline
-	 6 & \begin{tabular}{@{}c@{}}
+	 6-TextEdit & \begin{tabular}{@{}c@{}}
 	 TextEdit
-	 %:rich text\\
-	 %editing app from Apple
 	 \end{tabular}
 	 & \begin{tabular}{@{}c@{}}
-	 Select, copy, paste\\%delete, insert and save
-	 on text over 30M\\
+	 copy on text over 30M\\
 	 cause freeze.
 	 \end{tabular}
 	 \\
      \hline
-	 7 & \begin{tabular}{@{}c@{}}
+	 7-MSWord & \begin{tabular}{@{}c@{}}
 	 Microsoft Words
 	 \end{tabular}
 	 & \begin{tabular}{@{}c@{}}
-	 copy and paste on\\
-	 document over 400\\
+	 copy a whole document\\
+	 over 400\\
 	 pages cause hang.
 	 \end{tabular}
 	 \\
      \hline
-	 8 & Sublime Text
+	 8-SlText & Sublime Text
 	 & \begin{tabular}{@{}c@{}}
 	 Copy and paste in file\\
 	 over 49000 lines.
 	 \end{tabular}
 	\\
     \hline
-	 9 & TextMate 
+	 9-TextMate & TextMate 
 	 & \begin{tabular}{@{}c@{}}
 	 Paste text over 4000\\
 	 lines causes spinning.
 	 \end{tabular}
 	\\
     \hline
-	 10 & CotEditor
+	 10-CotEditor & CotEditor
 	 & \begin{tabular}{@{}c@{}}
 	 Paste in file over 4000\\
 	 lines causes spinning.
@@ -150,14 +146,14 @@ multiple predecessors.
 Bug ID & batchprocessing    & data flag   & data flag & path slicing        & path slicing        &interaction \\
 \hline
 \hline
- 1-SystemPreferences&&&&&&\\
+ 1-SystemPref&&&&&&\\
  2-SequelPro & \% & \% & 3 & 5 &  & 2  \\
  3-TeXStudio & \% & \% & 3 & 6 &  & 3 \\
  4-Installer &&&&&& \\
  5-Notes &&&&&& \\
  6-TextEdit(copy)&\% &\% & 3 & 21 & & 5\\
- 7-MSWord(copy)&\%&\%& 3 &67& & 22\\
- 8-SublimeText(copy)&\%&\%&3 & 3 & & 1\\
+ 7-MSWord(copy)&\%&\%& 3 & 67 & 136 & 22\\
+ 8-SlText(copy)&\%&\%&3 & 3 & & 1\\
  9-TextMate(paste) & \%&\% &3 & 23& & 0\\
  10-CotEditor(paste) & \%& \%& 3 & 4 & & 1\\
 \hline
@@ -195,7 +191,7 @@ represent cases in this category.
 
 In bug 7-MSWord, the length of path interactively sliced from the \spinningnode
 is 67, while the automatically slicing generates a path of 136 vertices. We
-compared the path and find out the difference exists in the choosing of the
+compared the path and find out the earliest difference exists in the choosing of the
 predecessor for the third vertex in paths.
 
 In the vertex, user can learned from the callstack that Microsoft Word launches
@@ -204,7 +200,7 @@ thread of itself. The thread continues to send message to \vv{launchd} to add
 service and get a reply message there. With the most recent heuristics in
 automatically slicing, \xxx choose \vv{launchd} as its precedessor, while the
 user can identify that the execution segment is working for the request from the
-thread of itself.
+thread of itself. Along the path exists multiple such patterns.
 
 \begin{table}[H]
 \footnotesize
@@ -241,7 +237,7 @@ thread of itself.
 				  \\
   \hline
 
-  8-SublimeText   & \begin{tabular}{@{}l@{}} 
+  8-SlText   & \begin{tabular}{@{}l@{}} 
 					\vv{1)px\_copy\_to\_clipboard}\\
   					\vv{2)\_\_CFToUTF8Len}\\
   					\end{tabular}
@@ -256,7 +252,6 @@ thread of itself.
 				  & \vv{key v}
 				  \\
   \hline
-
   10-CotEditor    & \begin{tabular}{@{}l@{}}
   					\vv{1)CFStorageGetValueAtIndex}\\
 					\vv{2)-[NSBigMutableString}\\
@@ -271,58 +266,11 @@ thread of itself.
 \end{table}
 
 
-%\begin{itemize}
-%  \item \textbf{Notes}:
-%	  While launching the Notes, it is busy with
-%	  \vv{NSDetectScrollDevicesThenInvokeOnMainQueue}.
-%
-%  \item \textbf{TextEdit}:
-%	  \xxx reports CPU busy on the storage of characters \vv{[NSBigMutableString\
-%	  getCharacters:range:]} and \vv{NSFastFillAllGlyphHolesForCharacterRange} for
-%	  selection.
-%
-%	  When copy spins, \xxx reports
-%	  \vv{get\_vImage\_converter} and \vv{get\_full\_conversion\_code\_fragment}
-%	  occupy the main thread to finish \vv{[NSTextView(NSPasteboard)\
-%	  \_writeRTFDInRanges:toPasteboard:]}.
-%	  
-%	  Paste operation causes the main thread overwhelmed by \vv{\_RTFGetToken}
-%	  and \vv{platform\_memmove}. Both of them are called by the handler
-%	  \vv{-[NSTextView(NSPasteboard)\ \_readSelectionFromPasteboard:types:]}
-%
-%  \item \textbf{Microsoft Words}:
-%	  Both copy and paste in Microsoft Words are overwhelmed by system calls
-%	  \vv{lseek}, \vv{fstat64}, \vv{fcntl} on the same file descriptor.
-%	  In copy operation, \vv{\_\_CFStringCreateImmutableFunnel3} and
-%	  \vv{platform\_memmove} are invoked for \vv{-[NSPasteboard\
-%	  \_setData:forType:index:usesPboardTypes:]}, while the paste operation is
-%	  dominated by \vv{platform\_memmove} and \vv{}.
-%
-%  \item \textbf{Sublime Text}:
-%	  Copy in SublimeText is busy encoding characters with \vv{\_\_CFToUTF8Len They}
-%	  are called from handler \vv{px\_copy\_to\_clipboard}.
-%
-%	  Paste is dominated by \vv{decode\_utf8}, \vv{convert\_utf8\_to\_utf32}, string
-%	  \vv{append} and \vv{platform\_memmove} from \vv{px\_copy\_from\_clipboard}.
-%
-%	  Delete on Sublime Text causes its main thread is busy processing
-%	  \vv{TokenStorage::substr}.
-%
-%  \item \textbf{TextMate}:
-%	  TextMate only spins on the paste operation in our experiments, the main
-%	  thread is busy with \vv{-[OakTextView paste:]} which iterates through
-%	  paragraphs, fetches characters and processed with \vv{CFAttributedStringSet} and
-%	  \vv{TASCIIEncoder::Encode}.
-%
-%  \item \textbf{CotEditor}:
-%	  Similar to TextMate, CotEditor does not spinning on copy. In paste and hitting
-%	  a return key cause the main thread busy on processing \vv{-[NSBigMutableString
-%	  characterAtIndex:]} and \vv{CFStorageGetValueAtIndex} in the call stacks.
-%\end{itemize}
-
 \subsection{Repeated Yield and Long Wait}
 In this section, we discuss the cases where the \spinningnode is blocking on
 wait event or yielding loop, correponding to \textbf{Long Wait} and \textbf{Repeated Yield}.
+\paragraph{Spinning curosr}
+\input{spinningcursor}
 \paragraph{SequelPro}
 \input{sequelpro}
 \paragraph{Installer}
