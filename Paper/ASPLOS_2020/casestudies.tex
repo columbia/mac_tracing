@@ -141,21 +141,21 @@ heuristically choosing the most recent edges if multiple predecessors.
 \footnotesize
 \centering
   \begin{tabularx}{\textwidth}{l|cccccc}
- 	   & rate of vertices   & rate of edgs&           & length of \xxx      & length of auto      & \# of\\
-       & filted by          & by          & \# of     & baseline/spinning   & baseline/spinning   &user\\
-Bug ID & batchprocessing    & data flag   & data flag & path slicing        & path slicing        &interaction \\
+ 	   & rate of vertices     & rate of edges added &          & length of \xxx      & \# of        & length of auto\\
+       & divided by           & by share flag and   & \# of    & baseline/spinning   & user         & baseline/spinning\\
+Bug ID & \xxx msg heuristics  & \xxx wait hueristics& data flag & path slicing        & interaction  & path slicing \\
 \hline
 \hline
- 1-SystemPref&&&&&&\\
- 2-SequelPro & \% & \% & 3 & 5 &  & 2  \\
- 3-TeXStudio & \% & \% & 3 & 6 &  & 3 \\
- 4-Installer &&&&&& \\
- 5-Notes &&&&&& \\
- 6-TextEdit(copy)&\% &\% & 3 & 21 & & 5\\
- 7-MSWord(copy)&\%&\%& 3 & 67 & 136 & 22\\
- 8-SlText(copy)&\%&\%&3 & 3 & & 1\\
- 9-TextMate(paste) & \%&\% &3 & 23& & 0\\
- 10-CotEditor(paste) & \%& \%& 3 & 4 & & 1\\
+ 1-SystemPref&  &  & 5 &   &   & \\
+ 2-SequelPro &  &  & 3 & 5 & 2 & \\
+ 3-TeXStudio &  &  & 3 & 6 & 3 & \\
+ 4-Installer &  &  &   &   &   & \\
+ 5-Notes     &  &  &   &   &   & \\
+ 6-TextEdit(copy)   &  &  & 3 & 21 & 5  & 21\\
+ 7-MSWord(copy)     &  &  & 3 & 67 & 12 & 136\\
+ 8-SlText(copy)     &  &  & 3 & 3  & 1  & \\
+ 9-TextMate(paste)  &  &  & 3 & 23 & 0  & \\
+ 10-CotEditor(paste)&  &  & 3 & 4  & 1  & \\
 \hline
   \end{tabularx}
   \caption{Graph Comparison}
