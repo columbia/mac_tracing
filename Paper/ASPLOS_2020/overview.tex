@@ -8,15 +8,24 @@
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
 \end{figure}
-
 In this section, we describe the steps a user takes to investigate a performance
-anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
-consists of two phases. A user runs command ``\vv{\xxx start}'' to enter the
-system-wide tracing phase, within which \xxx logs events as listed in Table
-~\ref{table:event_types} (\S\ref{subsec:eventgraph}). Whenever a user detects
-a performance issue such as a spinning cursor, she runs ``\vv{\xxx debug}'' to
-enter the diagnosis phase.
+anomaly with \xxx. Figure~\ref{fig:argus-overview} shows an example of a user
+investigating a performance problem in Chromium.
+- sys-wide tracing => log
+- event graph
+- interactive search "find root cause"
+- root cause is two nodes, across multiple threads
 
+
+%
+%In this section, we describe the steps a user takes to investigate a performance
+%anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
+%consists of two phases. A user runs command ``\vv{\xxx start}'' to enter the
+%system-wide tracing phase, within which \xxx logs events as listed in Table
+%~\ref{table:event_types} (\S\ref{subsec:eventgraph}). Whenever a user detects
+%a performance issue such as a spinning cursor, she runs ``\vv{\xxx debug}'' to
+%enter the diagnosis phase.
+%
 %%In the cases we consider, the flow of information across threads and processes
 %%is essential to discovering the system state that leads to a performance bug.
 %%\xxx recovers UI actions from logged data rather than being told the actions
@@ -29,6 +38,8 @@ and inferences are performed within this graph, in a semi-automated fashion:
 flow through the system, and it judicially queries the user for guidance.
 % The event graph is described in further detail in \S\ref{subsec:eventgraph}.
 Next, we describe how \xxx assists the user to diagnose a performance issue.
+
+%fwd ref section on chromium, but first, how search event graph
 
 \subsection{Diagnosis with Graph}\label{subsec:debug}
 
