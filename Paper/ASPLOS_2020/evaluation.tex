@@ -1,22 +1,21 @@
-
 \section{Performance Evaluation}\label{sec:evaluation}
 
 In this section we present the performance impact of the live deployment of
-\xxx. We deployed \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU
-with 2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
+\xxx. We deploye \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU with
+2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
 
-As we use the ring buffer to collect events, the space cost for disk is fixed
-to the configured size 2G by default. The memory used to collect tracing
-items is fixed to 512M by Apple internal, so the memory overhead is pretty low
-with regards to the memory usage of modern applications. We measure the the CPU
-overhead and throughput of \xxx by running benchmarks in our machine with the
-tracing disabled and enabled respectively.
-
-%which we name them bare\_run and tracing\_run.
+\xxx has a very small space overhead with the configuration of its tracing
+tool. It uses the ring buffer with configured 2G by default to collect tracing
+events. The memory used to store events is fix to 512M by Apple, which is pretty
+low with regards to the memory usage of modern applications. In the remaining
+of this section, we measure \xxx's overhead overall with iBench scores, IO
+throughtput degradation with bonnie++, iozone and CPU overhead with chromium
+benchmarks.
 
 \paragraph{iBench}
-\begin{table}[H]
+\begin{table}[h]
 \footnotesize
+\centering
 \begin{tabular}{l|ccccc}
 \hline
  & 1st & 2nd & 3rd & 4th & 5th\\
@@ -31,16 +30,19 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \label{tab:ibench}
 \end{table}
 
-We first show the five runs of iBench for both cases to evaluation the overall performance.
-The machine is clean
-booted for each run, and the higher score means it perfoms better. As shown in
-Table\ref{tab:ibench}, their performance are almost of no difference.
+We first show the five runs of iBench with and without \xxx to evaluate the
+overall performance. The machine is clean booted for each run, and the higher
+score means it perfoms better. As shown in Table\ref{tab:ibench}, their
+performance are almost of no difference, only 0.13\% degradation on average.
 
-\paragraph{I/O Throughput}
+\paragraph{IO Throughput}
 
-Next, we evaluation the throughput with bonnie++ and iozone on \xxx. As shown in
-the Table~\ref{tab:iothroughput},\xxx only add 5\% overhead in average on the io
-throughput on disk.
+Next, we evaluate the IO throughput with bonnie++ and iozone. As shown in the
+Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
+by characters with and without \xxx are almost same. Read and write by block
+imposes less than 10\% overhead in the both microbenchmarks, bonni++ and iozone.
+With the selected event types in our system, the tracing tool integrated in \xxx
+only adds 5\% IO overhead on average.
 
 \begin{table}[h]
 \footnotesize
@@ -49,19 +51,23 @@ throughput on disk.
 \hline
  & kb/s & With Argus & Without Argus & overhead\\
  \hline
-bonnie++ &read char & 21922 & 22149 & 0.01\\
- seq& read block & 226931 & 244089 & 0.07\\
+\textbf{bonnie++}&read char & 21922 & 22149 & 0.01\\
+ seqential& read block & 226931 & 244089 & 0.07\\
  & rewrite & 246807 & 267491 & 0.08\\
  & write char & 22924 & 22936 & 0.00\\
  & write block & 4073361 & 4396387 & 0.07\\
+ \hline
  seq& file create & 17391 & 17381 & 0.00\\
  & file delete & 18089 & 19401 & 0.07\\
+ \hline
  random& create & 17472 & 17887 & 0.02\\
  & delete & 8849 & 9567 & 0.08\\
-iozone & initial write & 1199453 & 1318572 & 0.09\\
+ \hline
+ \hline
+\textbf{iozone} & initial write & 1199453 & 1318572 & 0.09\\
  & rewerite & 3663066 & 4059912 & 0.10\\
  \hline
- & average & & & 0.05\\
+ & average & - & - & 0.05\\
  \hline
 \end{tabular}
 \caption{IO throughput with bonnie++ and iozone}
@@ -71,13 +77,13 @@ iozone & initial write & 1199453 & 1318572 & 0.09\\
 
 \paragraph{CPU}
 
-We also perform the evaluation the cpu overhead on chromium benchmarks by
-comparing the time usage. The result is shown in Table~\ref{tab:chromium
-benchmark}. As \xxx collect data in kernel, the sys overhead is relatively
-high. Given that most of time are spend in user mode when users use
-browser, the overhead overall are mostly under 5\%, except for the
-\vv{dummy\_benchmark.histogram}. The overhead for real, user and sys are 7\%,
-5\% and 40\% respectively.
+We evaluate \xxx's CPU overhead with chromium benchmarks by recording their time
+usage on real, user and sys. Althought the sys time overhead is realatively
+high due to the tracing events usually across the kernel boundary, they are not
+tiggered too frequently in our daily software usage, including browsers. The
+time cost is mostly under 5\%, except the \vv{dummy\_benchmark.histogram}. As
+shown in Table ~\ref{tab:chromium benchmark}, the time overhead for real, user
+and sys are 7\%, 5\% and 40\% respectively.
 
 \begin{table*}[ht]
 \footnotesize
