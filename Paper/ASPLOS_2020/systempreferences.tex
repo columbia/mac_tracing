@@ -4,14 +4,13 @@ DisableMonitor~\cite{disablemonitor} completes its function with enable/disable
 monitors online. We blocked on the spinning cursor while disabling an external
 monitor and rearranging windows in ``Display'' panel.
 
-We collected data with the \xxx, which contains 1) enable the external
+We collected data with \xxx. The log contains 1) enable the external
 monitor and rearrange the windows, and 2) disable the external monitor and
 rearrange the windows. The \spinningnode in the main UI thread is dominated by
 \textit{mach\_msg} and \textit{thread\_switch}, which falls into the category of
 yielding loop. We finds two missing shared variables via the reverse engineering
 and ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'',
-which are userd to signify the display configuration status.
-
+which are used to signify the display configuration status.
 \xxx compares the two cases and reveals in both cases the first variable is
 set to indicate the begin of display configuration. However, in case 1) the
 main thread of System Preferences receives a datagram which set the variable
@@ -19,11 +18,14 @@ main thread of System Preferences receives a datagram which set the variable
 display reconfiguration, while in case 2) the main thread yields and sends
 message for the available of such datagram ping until timed out.
 
-\xxx reports a lot of \similarnodes due to the limit of semantics
-in the vertex. As a result, we instruct \xxx to extends the comparison with its
-proceeding vertices in the main thread. In conclusion, the bug is from the design
-in CoreGraphics library and would have to fixed by Apple. We verified the bug by
-coming up a dynamic binary patch with lldb.
+%\xxx reports a lot of \similarnodes due to the limit of semantics
+%in the vertex. As a result, we instruct \xxx to extends the comparison with its
+%proceeding vertices in the main thread.
+In conclusion, we discovered that the bug is inherent in the design of the
+CoreGraphics library, and would have to fixed by Apple. We verified this
+diagnosis by creating a dynamic binary patch with lldb to fix the deadlock. The
+patched library makes DisableMonitor work correctly, while preserving correct
+behavior for other applications.
 
 %%Given the information, we launched the interactive debugging by feeding
 %%the debugging script with those APIs mentioned above. We set the

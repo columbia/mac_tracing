@@ -1,0 +1,111 @@
+
+%TableXXX describes these spinning-cursor cases.
+%Should have a table for issue description
+%Bug ID |  Application  |  Bug Description
+\begin{table}[ht]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|cl}
+    \hline
+    \textbf{Bug ID} & \textbf{Application} & \textbf{Bug description}\\
+    \hline
+	\hline
+	 0 & WindowServer & display spinning cursor\\
+    \hline
+	 1-SystemPref & \begin{tabular}{@{}l@{}} 
+	 System Preferences\\
+	 %:system settings\\
+	 %customization app.
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 Disabling an online\\
+	 external monitor and\\
+	 rearranging windows\\
+	 cause the freeze.
+	 \end{tabular}
+	 \\
+     \hline
+	 2-SequelPro& \begin{tabular}{@{}l@{}} 
+	 Sequel Pro
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 Lost connection freezes\\
+	 the whole application.
+	 \end{tabular}
+	 \\
+     \hline
+	 3-TexStudio & \begin{tabular}{@{}l@{}} 
+	 TeXStudio
+	 %: LaTeX editor
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 Modification on bib file\\
+	 from vim causes the main\\
+	 window spinning.
+	 \end{tabular}
+	 \\
+     \hline
+	 4-Installer & \begin{tabular}{@{}l@{}} 
+	 Installer
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 Move cursor out of the\\
+	 authentication window \\
+	 causes spinning.
+	 \end{tabular}
+	 \\
+     \hline
+	 5-Notes& \begin{tabular}{@{}l@{}} 
+	 Notes\\
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 launching Notes with \\
+	 a saved relatively\\
+	 long note.\\
+	 \end{tabular}
+	 \\
+     \hline
+	 6-TextEdit & \begin{tabular}{@{}l@{}}
+	 TextEdit
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 copy on text over 30M\\
+	 cause freeze.
+	 \end{tabular}
+	 \\
+     \hline
+	 7-MSWord & \begin{tabular}{@{}l@{}}
+	 Microsoft Words
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 copy a whole document\\
+	 over 400\\
+	 pages cause hang.
+	 \end{tabular}
+	 \\
+     \hline
+	 8-SlText & Sublime Text
+	 & \begin{tabular}{@{}l@{}}
+	 Copy and paste in file\\
+	 over 49000 lines.
+	 \end{tabular}
+	\\
+    \hline
+	 9-TextMate & TextMate 
+	 & \begin{tabular}{@{}l@{}}
+	 Paste text over 4000\\
+	 lines causes spinning.
+	 \end{tabular}
+	\\
+    \hline
+	 10-CotEditor & CotEditor
+	 & \begin{tabular}{@{}l@{}}
+	 Paste in file over 4000\\
+	 lines causes spinning.
+	 \end{tabular}
+	\\
+	 \hline
+  \end{tabularx}
+  \caption{Bug Descriptions}
+  \label{table:bugs-desc}
+\end{table}
