@@ -1,18 +1,4 @@
-\section{Performance Evaluation}\label{sec:evaluation}
 
-In this section we present the performance impact of the live deployment of
-\xxx. We deploye \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU with
-2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
-
-\xxx has a very small space overhead with the configuration of its tracing
-tool. It uses the ring buffer with configured 2G by default to collect tracing
-events. The memory used to store events is fixed to 512M by Apple, which is pretty
-low with regards to the memory usage of modern applications. In the remaining
-of this section, we measure \xxx's overhead overall with iBench scores, IO
-throughtput degradation with bonnie++, iozone and CPU overhead with chromium
-benchmarks.
-
-\paragraph{iBench}
 \begin{table}[h]
 \footnotesize
 \centering
@@ -30,19 +16,6 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \label{tab:ibench}
 \end{table}
 
-We first show the five runs of iBench with and without \xxx to evaluate the
-overall performance. The machine is clean booted for each run, and the higher
-score means it perfoms better. As shown in Table\ref{tab:ibench}, their
-performance are almost of no difference, only 0.13\% degradation on average.
-
-\paragraph{IO Throughput}
-
-Next, we evaluate the IO throughput with bonnie++ and iozone. As shown in the
-Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
-by characters with and without \xxx are almost same. Read and write by block
-imposes less than 10\% overhead in the both microbenchmarks, bonni++ and iozone.
-With the selected event types in our system, the tracing tool integrated in \xxx
-only adds 5\% IO overhead on average.
 
 \begin{table}[h]
 \footnotesize
@@ -75,16 +48,6 @@ only adds 5\% IO overhead on average.
 \end{table}
 
 
-\paragraph{CPU}
-
-We evaluate \xxx's CPU overhead with chromium benchmarks by recording their time
-usage on real, user and sys. Although the sys time overhead is realatively
-high due to the tracing events usually across the kernel boundary, they are not
-tiggered too frequently in our daily software usage, including browsers. The
-time cost is mostly under 5\%, except the \vv{dummy\_benchmark.histogram}. As
-shown in Table ~\ref{tab:chromium benchmark}, the time overhead for real, user
-and sys are 7\%, 5\% and 40\% respectively.
-
 \begin{table*}[ht]
 \footnotesize
 \centering
@@ -115,3 +78,45 @@ AVERAGE & \multicolumn{3}{c}{-} &  \multicolumn{3}{c}{-}  & 0.07 & 0.05 & 0.4\\
 \caption{Chromium benchmark}
 \label{tab:chromium benchmark}
 \end{table*}
+
+\section{Performance Evaluation}\label{sec:evaluation}
+
+In this section we present the performance impact of the live deployment of
+\xxx. We deploye \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU with
+2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
+
+\xxx has a very small space overhead with the configuration of its tracing
+tool. It uses the ring buffer with configured 2G by default to collect tracing
+events. The memory used to store events is fixed to 512M by Apple, which is pretty
+low with regards to the memory usage of modern applications. In the remaining
+of this section, we measure \xxx's overhead overall with iBench scores, IO
+throughtput degradation with bonnie++, iozone and CPU overhead with chromium
+benchmarks.
+
+\paragraph{iBench}
+
+We first show the five runs of iBench with and without \xxx to evaluate the
+overall performance. The machine is clean booted for each run, and the higher
+score means it perfoms better. As shown in Table\ref{tab:ibench}, their
+performance are almost of no difference, only 0.13\% degradation on average.
+
+\paragraph{IO Throughput}
+
+Next, we evaluate the IO throughput with bonnie++ and iozone. As shown in the
+Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
+by characters with and without \xxx are almost same. Read and write by block
+imposes less than 10\% overhead in the both microbenchmarks, bonni++ and iozone.
+With the selected event types in our system, the tracing tool integrated in \xxx
+only adds 5\% IO overhead on average.
+
+
+\paragraph{CPU}
+
+We evaluate \xxx's CPU overhead with chromium benchmarks by recording their time
+usage on real, user and sys. Although the sys time overhead is realatively
+high due to the tracing events usually across the kernel boundary, they are not
+tiggered too frequently in our daily software usage, including browsers. The
+time cost is mostly under 5\%, except the \vv{dummy\_benchmark.histogram}. As
+shown in Table ~\ref{tab:chromium benchmark}, the time overhead for real, user
+and sys are 7\%, 5\% and 40\% respectively.
+
