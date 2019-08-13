@@ -58,38 +58,57 @@ the loading.
 %\subsection{User Interaction}\label{subsec:tcp}
 %\para{Tracing Custom Primitives}
 
-\subsection{Tracing Data flags} \label{subsec:tcp}
+\subsection{Tracing Data Flags} \label{subsec:tcp}
 %%XXX give a simple command line example of how a user can ask \xxx to trace a
 %%data flag
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
 As described in (\S\ref{subsec:userinteraction}), under-connection due
-to the missing data dependency requires users' interaction. \xxx
-provides a command line tool which sets the watch point registers to record
-\dataflagwrite and \dataflagread events in ad-hoc manner. This is one
-way users can easily collect the tracing events, and the more tech-savvy users
-can also instrument the binary. The tool takes the process id, path to image
-where the variable is defined and the symbol of the variable as input. We
-show the simple example how a user ask \xxx to trace \vv{\_gOutMsgPending} in the
-following command.
+to the missing data dependency requires users' interaction.
+Users specify that reads and writes to a given global variable should be considered data dependencies.
+Global-variable tracing is possible through \xxx's binary rewriting, but we also provide a
+simple command line tool which uses watchpoint registers to record
+\dataflagwrite and \dataflagread events. The tool takes as input the process ID,
+path to the relevant binary image, and the symbol name of the global variable. Here is
+a simple example of how a user would ask \xxx to trace \vv{\_gOutMsgPending}:
 
 \begin{lstlisting}
-./bp_watch pidofWindowServer Path/to/CoreGraphics\
+./bp_watch pidofWindowServer Path/to/CoreGraphics \
 	_gOutMsgPending
 \end{lstlisting}
 
-\xxx hooks the watch point break handler in CoreFoundation to make sure that it is
-loaded correctly into the address space of our target application. The handler
-invokes the event tracing API from Apple to record the value of the data flag
-and the operation type: read or write.
+At load time, \xxx hooks the watchpoint break handler in CoreFoundation to
+make sure that it is loaded correctly into the address space of our target
+application. The handler invokes Apple's event tracing API to record the value
+of the data flag and the operation type (read or write).
+
+\subsection{Tracing Instructions and Calls}
+
+Users may need to gather more information, such as individual instructions and call stacks, to
+come up with and verify a binary patch. \xxx integrates with \vv{lldb} to capture this information
+and add it to the corresponding nodes in the event graph.
+
+We gather call stacks only at relevant locations, to reduce the data collection overhead.
+%We generate
+%debugging scripts with lightweight call stacks from the \rootcausenodes.
+Our \vv{lldb} scripts go through the instructions of apps and frameworks step by
+step to capture the parameters tainted by user inputs. Only at each beginning of
+a function call does the script record a full call stack. We also step over and
+record the return value of APIs from low-level libraries (i.e. those with the
+filename extension \vv{.dylib}).
+
+The combination of instruction-level tracing and occasional call-stacks offers
+more than enough detail to diagnose even the most arcane issues, and in our
+experience has been very helpful in multiple steps of an \xxx diagnosis.
+%The supplementary information are subject to the users review to pinpoint the
+%root cause of spinning beachball on macOS.
 
 \subsection{Find baseline scenario}
 
 \xxx finds a baseline scenario to figure out the missing wake-up edge in
 spinning case. It begins from identifying a vertex which shares
-the same high level semantics of the \spinningnode but bares
+the same high level semantics of the \spinningnode but exposes
 different execution results. 
-
 
 \xxx identifies the high level semantics of vertices with semantical events
 in vertices, including system calls, call stacks, user actions. \xxx compares
@@ -97,29 +116,12 @@ their sequential order and the event attributes unchanged in runtime. For
 example, \xxx compares the system call number and symbols in callstack.
 To improve the accuracy, \xxx also checks the events for forming edges in
 graph, including messages, dipatch queue operations, runloop operations,
-\dataflagread and \dataflagwrite, as they might reveals the low level behaviors
+\dataflagread and \dataflagwrite, as they might reveal the low-level behaviors
 of developer intent. \xxx compares their peers. Depending on the report detail
 of \spinningnode, user can request \xxx to compare proceeding vertices to
 improve accuracy of finding the same semantic vertices.
 
 By default, \xxx compares the execution time and the wait results to manifest
 different execution results. If multiple \similarnode are identified,
-\xxx usually asks users for a comfirmation, or choose the most recent one
-hueristicstically.
-
-\subsection{Capturing Instructions for Diagnosis}
-
-Users may need to gather more information, such as instructions executed to
-verify and come up a binary patch. \xxx integrates with lldb to capture
-instructions executed and add them to the nodes in the event graph. It generates
-the debugging scripts with the light weight call stack from the \rootcausenodes.
-
-The debugging scripts go through the instructions of apps and frameworks step
-by step to capture the parameters tainted by user inputs. At each beginning of
-a function call, the script records a full call stack for it. Considering the
-overhead and usefulness, it steps over and only records the return value of APIs
-from libraries with a filename extension \vv{.dylib}.
-
-The supplementary information are subject to the users review to pinpoint the
-root cause of spinning beachball on macOS.
-
+\xxx usually asks users for a confirmation, or choose the most recent one
+heuristically.
