@@ -185,7 +185,7 @@
 %\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
 %\draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
 \draw [vecarrow, out=130, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
-\draw [vecarrow, out=280, in=230] (user.south) to node[above]{e0} (query4.north);
+\draw [vecarrow, out=280, in=230] (user.south) + (0, -0.5) to node[below]{travers backward from e0} (query4.north);
 
 \node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
 \node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
