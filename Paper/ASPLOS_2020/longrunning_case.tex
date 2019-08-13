@@ -35,10 +35,11 @@ hueristics in \xxx, which chooses the most recent incomming edge. We observed
 in the vertex that a kernel thread was woken up from the wait on IO by another
 kernel thread; and it processed the timer armed by TextEdit and woke up the
 TextEdit. The first incoming edge is from the second kernel thread, and the
-second incoming edge is from TextEdit, from arming of timer and its processing.
-Humans can make decision on the vertex base on the event sequence. It implies
-that TextEdit first arms the timer for IO work, then kernel threads work for it,
-and finally it processes the timer and wakes up TextEdit when finished.
+second incoming edge is from TextEdit, from vertex where the timer armed to the
+one it is processed. Humans can make decision on the vertex base on the event
+sequence, which implies the story: TextEdit first arms the timer for IO work,
+then kernel threads work for it, and finally it processes the timer and wakes up
+TextEdit when finished.
 
 Although the automatic heuristics works for the particular simple tool, it is
 not general enough to make decision for all patterns on complex softwares.
