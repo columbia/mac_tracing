@@ -16,17 +16,15 @@ heuristically choosing the most recent edges if multiple predecessors.
 
 \input{spinningcursor}
 
-%Bug 0-Apple is ......
-
-%The spinning cursor is created when the main thread stops responding to events for two seconds.
-%Every application has an NSEvent thread, which coordinates with WindowsServer to display a spinning cursor when necessary. Two data
-%flags ``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}''
-%are involved.
 \input{bugdesc}
 
-
-%Start a new paragraph
-%"TableXXX shows the results.  [Here we should show the big table, and talk about the high-level bits.]"
+%Bug 0-Apple is ...... The spinning cursor is created when the main thread
+%stops responding to events for two seconds. Every application has an
+%NSEvent thread, which coordinates with WindowsServer to display a spinning
+%cursor when necessary. Two data flags ``\vv{is\_mainthread\_spinning}'' and
+%``\vv{dispatch\_to\_mainthread}'' are involved.
+%Start a new paragraph "TableXXX shows the results. [Here we should show the big
+%table, and talk about the high-level bits.]"
 
 
 \begin{table*}[ht]
@@ -56,125 +54,5 @@ Bug ID & \xxx msg heuristics  & \xxx wait hueristics& data flag & path slicing  
 
 %Last paragraph:
 %In the remaining of this section, we present the case studies by category in (\S\ref{XXX}). 
-
-\subsection{Long Running}
-
-In this section, we discuss the cases where the \spinningnode is busy on the
-CPU. Most of the text editing apps fall into this bug category. We studied
-TeXstudio, TextEdit, Microsoft Word, Sublime Text, Text Mate and CotEditor to
-reveal their root causes.
-
-\paragraph{TeXStudio}
-\input{texstudio}
-
-\paragraph{Other Editing Apps}
-
-Select, copy, paste, delete, insert and save are common operations for text
-editing. However, these operations on a large context usually trigger spinning
-cursors. Depending on their implementations, CotEditor and TextMate successfully
-avoid hangs on copy and selection operation. \xxx can helps the developer to
-figure out the more efficient way to implement event handlers. We briefly list
-the reports from \spinningnode, including the event handler and most costly
-functions. We also list corresponding user input event from the path slicing in
-Table~\ref{table:texteditapps}.
-
-%The path usually involves several
-%daemons, Figure~\ref{fig:diagramXXX} illustrates the spinning case of XXX to
-%represent cases in this category.
-
-\paragraph{7-MSWord}
-
-Microsoft Word is a large and complex piece of software. \xxx can analyze the event graph, but
-it identifies multiple possible root causes:
-the length of path interactively sliced from the \spinningnode
-is 67, while the automatic slicing generates a path of 136 vertices.
-%We rely on user interactions to help speed up the path slicing.
-
-We compared the path and find that the earliest difference exists in the
-predecessor of the third vertex in backward paths.
-In the vertex, user can learn from the callstack that Microsoft Word launches a
-service NSServiceControllerCopyServiceDictionarie after being woken by another
-MSWord thread; this thread then sends a message to \vv{launchd} to register the
-new service and waits for a reply message. With the most recent edge heuristics
-in automatic slicing, \xxx chose \vv{launchd} as its precedessor, but the user
-can more precisely identify that the execution segment is on behalf of the first
-thread. We rely on user interaction in this case to find the true root cause,
-since \xxx has identified multiple possibilities.
-
-\begin{table}[H]
-\footnotesize
-\centering
-  \begin{tabularx}{\columnwidth}{l|l|l}
-                  &                     &\\%&\textbf{root cause}\\%& \textbf{involved daemons}\\
-  \textbf{BUG-ID} & \textbf{costly API} &UI\\%&\textbf{UI}\\%& \textbf{involved daemons}\\
-  \hline
-  \hline
-  5-Notes         & \begin{tabular}{@{}l@{}}
-  					\vv{1)NSDetectScrollDevices}\\
-					\vv{\xspace ThenInvokeOnMainQueue}\\
-					\end{tabular}
-				  &-
-				  \\
-  \hline
-  6-TexEdit       & \begin{tabular}{@{}l@{}}
-  					\vv{1)[NSTextView(NSPasteboard) \_write}\\
-					\vv{\xspace RTFDInRanges:toPasteboard:]}\\
-					\vv{2)get\_vImage\_converter}\\
-  					\vv{3)get\_full\_conversion\_code\_fragment}\\
-					\end{tabular}
-				  & \vv{key c}
-				  \\
-  \hline
-  7-MSWord        & \begin{tabular}{@{}l@{}}
-					\vv{1)-[NSPasteboard setData:}\\
-					\vv{\xspace forType:index:usesPboardTypes:]}\\
- 					\vv{2)\_CFStringCreateImmutableFunnel3}\\
-  					\vv{3)platform\_memmove}\\
-					\vv{4)lseek}, \vv{5)fstat64}, \vv{6)fcntl}\\
-					\end{tabular}
-				  & \vv{key c}
-				  \\
-  \hline
-
-  8-SlText   & \begin{tabular}{@{}l@{}} 
-					\vv{1)px\_copy\_to\_clipboard}\\
-  					\vv{2)\_\_CFToUTF8Len}\\
-  					\end{tabular}
-				  & \vv{key c}
-				  \\
-  \hline
-  9-TextMate      & \begin{tabular}{@{}l@{}}
-  					\vv{1)-[OakTextView paste:]}\\
-					\vv{2)CFAttributedStringSet}\\
-					\vv{3)TASCIIEncoder::Encode}\\
-  					\end{tabular}
-				  & \vv{key v}
-				  \\
-  \hline
-  10-CotEditor    & \begin{tabular}{@{}l@{}}
-  					\vv{1)CFStorageGetValueAtIndex}\\
-					\vv{2)-[NSBigMutableString}\\
-					\vv{\xspace characterAtIndex:]}\\
-  					\end{tabular}
-				  & \vv{key v}
-				  \\
-  \hline
-  \end{tabularx}
-  \caption{Root cause of spinning cursor in editing Apps}
-  \label{table:texteditapps}
-\end{table}
-
-
-\subsection{Long Wait and Repeated Yield}
-In this section, we discuss the cases where the \spinningnode is blocking
-on wait event or yielding loop, corresponding to \textbf{Long Wait} and
-\textbf{Repeated Yield}.
-
-%\paragraph{Spinning cursor}
-%\input{spinningcursor}
-\paragraph{SequelPro}
-\input{sequelpro}
-\paragraph{Installer}
-\input{installer}
-\paragraph{SystemPreferences}
-\input{systempreferences}
+\input{longrunning_case.tex}
+\input{longwait_and_repeatedyield_case.tex}
