@@ -126,15 +126,15 @@ are involved. We refer to this case XXXBug-ID.
 %"TableXXX shows the results.  [Here we should show the big table, and talk about the high-level bits.]"
 
 We compared \xxx with traditional causual tracing methods~\cite{XXXX} on edges
-and vertices \xxx mitigated. and studied the ratios of over-connection vertices
-avoided with message peers hueristically, and the under-connection edgs added by
-both data flags and wait event inside a block. User interactions are critical in
-the path slicing due to the inherent incorrect in the graph. Our results shows
-the user interaction does not overwhelm the debugging process while it makes
-the debugging much more efficient. Table~\ref{table:results} demonstrates our
-results with the length of path sliced with \xxx, which is much shorter than the
-one generated automatically by heuristically choosing the most recent edges when
-multiple predecessors.
+and vertices \xxx mitigated, and studied the ratios of vertices divided by
+with message peers hueristically to reduce over-connection, and edges added
+by both data flags and wait event inside a block to avoid under-connection.
+User interactions are critical in the path slicing due to the inherent
+inaccurate in the graph. Our results shows the user interaction does not
+overwhelm the debugging process while makes the debugging much more efficient.
+Table~\ref{table:results} demonstrates our results with the length of path
+sliced with \xxx, which is much shorter than the one generated automatically by
+heuristically choosing the most recent edges if multiple predecessors.
 
 
 \begin{table*}[ht]
@@ -178,29 +178,33 @@ reveal their root causes.
 \paragraph{Other Editing Apps}
 
 Select, copy, paste, delete, insert and save are common operations for text
-editing. However, these operations on a large acontext usually trigger spinning
+editing. However, these operations on a large context usually trigger spinning
 cursors. Depending on their implementations, CotEditor and TextMate successfully
 avoid hangs on copy and selection operation. \xxx can helps the developer to
-figure out the more efficient way to fulfill editing operations. We briefly list
-the reports from \spinningnode and corresponding user input event from the path
-slicing in Table~\ref{table:texteditapps}. The path usually involves several
-daemons, Figure~\ref{fig:diagramXXX} illustrates the spinning case of XXX to
-represent cases in this category.
+figure out the more efficient way to implement event handlers. We briefly list
+the reports from \spinningnode, including the event handler and most costly
+functions. We also list corresponding user input event from the path slicing in
+Table~\ref{table:texteditapps}.
+
+%The path usually involves several
+%daemons, Figure~\ref{fig:diagramXXX} illustrates the spinning case of XXX to
+%represent cases in this category.
 
 \paragraph{7-MSWord}
 
+User interactions in \xxx help to speed up the path slicing.
 In bug 7-MSWord, the length of path interactively sliced from the \spinningnode
-is 67, while the automatically slicing generates a path of 136 vertices. We
-compared the path and find out the earliest difference exists in the choosing of the
-predecessor for the third vertex in paths.
+is 67, while the automatic slicing generates a path of 136 vertices. We
+compared the path and find out the earliest difference exists in the
+predecessor of the third vertex in backward paths.
 
-In the vertex, user can learned from the callstack that Microsoft Word launches
-a service NSServiceControllerCopyServiceDictionarie after woken by another
-thread of itself. The thread continues to send message to \vv{launchd} to add
-service and get a reply message there. With the most recent heuristics in
-automatically slicing, \xxx choose \vv{launchd} as its precedessor, while the
-user can identify that the execution segment is working for the request from the
-thread of itself. Along the path exists multiple such patterns.
+In the vertex, user can learn from the callstack that Microsoft Word launches a
+service NSServiceControllerCopyServiceDictionarie after woken by another thread
+of itself. The thread continues to send message to \vv{launchd} to add service
+and receive a reply message there. With the most recent edge heuristics in
+automatic slicing, \xxx choose \vv{launchd} as its precedessor, while the user
+can identify that the execution segment is working for the request from the
+thread intra process. Along the path exists multiple such patterns.
 
 \begin{table}[H]
 \footnotesize
@@ -266,9 +270,11 @@ thread of itself. Along the path exists multiple such patterns.
 \end{table}
 
 
-\subsection{Repeated Yield and Long Wait}
-In this section, we discuss the cases where the \spinningnode is blocking on
-wait event or yielding loop, correponding to \textbf{Long Wait} and \textbf{Repeated Yield}.
+\subsection{Long Wait and Repeated Yield}
+In this section, we discuss the cases where the \spinningnode is blocking
+on wait event or yielding loop, correponding to \textbf{Long Wait} and
+\textbf{Repeated Yield}.
+
 \paragraph{Spinning curosr}
 \input{spinningcursor}
 \paragraph{SequelPro}
