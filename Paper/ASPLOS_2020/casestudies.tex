@@ -2,132 +2,10 @@
 
 In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
 cases in \napps popular applications. Table~\ref{table:bugs-desc} describes
-these spinning-cursor cases.
-
-We studied how WindowsServer and NSEvent thread per application coordinate to
-determine when a spinning cursor needs to be displayed because it is fundamental
-in understanding all spinning-cursor cases yet not straightforward. Two data
-flags ``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}''
-are involved. We refer to this case XXXBug-ID.
-
-%TableXXX describes these spinning-cursor cases.
-%Should have a table for issue description
-%Bug ID |  Application  |  Bug Description
-\begin{table}[ht]
-\footnotesize
-\centering
-  \begin{tabularx}{\columnwidth}{l|cl}
-    \hline
-    \textbf{Bug ID} & \textbf{Application} & \textbf{Bug description}\\
-    \hline
-	\hline
-	 0 & WindowServer & display spinning cursor\\
-    \hline
-	 1-SystemPref & \begin{tabular}{@{}l@{}} 
-	 System Preferences\\
-	 %:system settings\\
-	 %customization app.
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 Disabling an online\\
-	 external monitor and\\
-	 rearranging windows\\
-	 cause the freeze.
-	 \end{tabular}
-	 \\
-     \hline
-	 2-SequelPro& \begin{tabular}{@{}l@{}} 
-	 Sequel Pro
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 Lost connection freezes\\
-	 the whole application.
-	 \end{tabular}
-	 \\
-     \hline
-	 3-TexStudio & \begin{tabular}{@{}l@{}} 
-	 TeXStudio
-	 %: LaTeX editor
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 Modification on bib file\\
-	 from vim causes the main\\
-	 window spinning.
-	 \end{tabular}
-	 \\
-     \hline
-	 4-Installer & \begin{tabular}{@{}l@{}} 
-	 Installer
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 Move cursor out of the\\
-	 authentication window \\
-	 causes spinning.
-	 \end{tabular}
-	 \\
-     \hline
-	 5-Notes& \begin{tabular}{@{}l@{}} 
-	 Notes\\
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 launching Notes with \\
-	 a saved relatively\\
-	 long note.\\
-	 \end{tabular}
-	 \\
-     \hline
-	 6-TextEdit & \begin{tabular}{@{}l@{}}
-	 TextEdit
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 copy on text over 30M\\
-	 cause freeze.
-	 \end{tabular}
-	 \\
-     \hline
-	 7-MSWord & \begin{tabular}{@{}l@{}}
-	 Microsoft Words
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 copy a whole document\\
-	 over 400\\
-	 pages cause hang.
-	 \end{tabular}
-	 \\
-     \hline
-	 8-SlText & Sublime Text
-	 & \begin{tabular}{@{}l@{}}
-	 Copy and paste in file\\
-	 over 49000 lines.
-	 \end{tabular}
-	\\
-    \hline
-	 9-TextMate & TextMate 
-	 & \begin{tabular}{@{}l@{}}
-	 Paste text over 4000\\
-	 lines causes spinning.
-	 \end{tabular}
-	\\
-    \hline
-	 10-CotEditor & CotEditor
-	 & \begin{tabular}{@{}l@{}}
-	 Paste in file over 4000\\
-	 lines causes spinning.
-	 \end{tabular}
-	\\
-	 \hline
-  \end{tabularx}
-  \caption{Bug Descriptions}
-  \label{table:bugs-desc}
-\end{table}
-
-
-%Start a new paragraph
-%"TableXXX shows the results.  [Here we should show the big table, and talk about the high-level bits.]"
-
+these spinning-cursor cases, which are detailed in the sections that follow.
 We compared \xxx with traditional causual tracing methods~\cite{XXXX} on edges
 and vertices \xxx mitigated, and studied the ratios of vertices divided by
-with message peers hueristically to reduce over-connection, and edges added
+with message peers heuristically to reduce over-connection, and edges added
 by both data flags and wait event inside a block to avoid under-connection.
 User interactions are critical in the path slicing due to the inherent
 inaccurate in the graph. Our results shows the user interaction does not
@@ -135,6 +13,20 @@ overwhelm the debugging process while makes the debugging much more efficient.
 Table~\ref{table:results} demonstrates our results with the length of path
 sliced with \xxx, which is much shorter than the one generated automatically by
 heuristically choosing the most recent edges if multiple predecessors.
+
+\input{spinningcursor}
+
+%Bug 0-Apple is ......
+
+%The spinning cursor is created when the main thread stops responding to events for two seconds.
+%Every application has an NSEvent thread, which coordinates with WindowsServer to display a spinning cursor when necessary. Two data
+%flags ``\vv{is\_mainthread\_spinning}'' and ``\vv{dispatch\_to\_mainthread}''
+%are involved.
+\input{bugdesc}
+
+
+%Start a new paragraph
+%"TableXXX shows the results.  [Here we should show the big table, and talk about the high-level bits.]"
 
 
 \begin{table*}[ht]
@@ -163,7 +55,7 @@ Bug ID & \xxx msg heuristics  & \xxx wait hueristics& data flag & path slicing  
 \end{table*}
 
 %Last paragraph:
-In the remaining of this section, we present the case studies by category in (\S\ref{XXX}). 
+%In the remaining of this section, we present the case studies by category in (\S\ref{XXX}). 
 
 \subsection{Long Running}
 
@@ -192,19 +84,22 @@ Table~\ref{table:texteditapps}.
 
 \paragraph{7-MSWord}
 
-User interactions in \xxx help to speed up the path slicing.
-In bug 7-MSWord, the length of path interactively sliced from the \spinningnode
-is 67, while the automatic slicing generates a path of 136 vertices. We
-compared the path and find out the earliest difference exists in the
-predecessor of the third vertex in backward paths.
+Microsoft Word is a large and complex piece of software. \xxx can analyze the event graph, but
+it identifies multiple possible root causes:
+the length of path interactively sliced from the \spinningnode
+is 67, while the automatic slicing generates a path of 136 vertices.
+%We rely on user interactions to help speed up the path slicing.
 
+We compared the path and find that the earliest difference exists in the
+predecessor of the third vertex in backward paths.
 In the vertex, user can learn from the callstack that Microsoft Word launches a
-service NSServiceControllerCopyServiceDictionarie after woken by another thread
-of itself. The thread continues to send message to \vv{launchd} to add service
-and receive a reply message there. With the most recent edge heuristics in
-automatic slicing, \xxx choose \vv{launchd} as its precedessor, while the user
-can identify that the execution segment is working for the request from the
-thread intra process. Along the path exists multiple such patterns.
+service NSServiceControllerCopyServiceDictionarie after being woken by another
+MSWord thread; this thread then sends a message to \vv{launchd} to register the
+new service and waits for a reply message. With the most recent edge heuristics
+in automatic slicing, \xxx chose \vv{launchd} as its precedessor, but the user
+can more precisely identify that the execution segment is on behalf of the first
+thread. We rely on user interaction in this case to find the true root cause,
+since \xxx has identified multiple possibilities.
 
 \begin{table}[H]
 \footnotesize
@@ -272,11 +167,11 @@ thread intra process. Along the path exists multiple such patterns.
 
 \subsection{Long Wait and Repeated Yield}
 In this section, we discuss the cases where the \spinningnode is blocking
-on wait event or yielding loop, correponding to \textbf{Long Wait} and
+on wait event or yielding loop, corresponding to \textbf{Long Wait} and
 \textbf{Repeated Yield}.
 
-\paragraph{Spinning curosr}
-\input{spinningcursor}
+%\paragraph{Spinning cursor}
+%\input{spinningcursor}
 \paragraph{SequelPro}
 \input{sequelpro}
 \paragraph{Installer}

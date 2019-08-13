@@ -1,17 +1,19 @@
 %\subsection{Spinning Node detection}
+
+\paragraph{How \xxx Detects Spinning Cursors}
 When the spinning cursor shows up, a hang reporting tool, \spindump usually
 kicks in automatically to sample callstacks for debugging. To figure out the
 \spinningnode in the main thread, we turn to the event graph, and slice path
 backward from the launch of \spindump.
 
-The path shows the \spindump is launched after receiving a message from
+The path shows that \spindump is launched after receiving a message from
 WindowServer, which received a message from the NSEvent thread of the freezing
 app. The call stack attached to the messages further reveal NSEvent thread per
 process fetches CoreGraphics events from WindowServer, converts and creates
 NSApp events for the main UI thread. If the main thread is not spinning, a timer
 is armed to count down for the NSApp event. If the main thread fails to process
 it before the timer fires, NSEvent thread sends a message to WindowServer
-via the API ``\vv{CGSConnectionSetSpinning}''from the timer handler, and
+via the API ``\vv{CGSConnectionSetSpinning}'' from the timer handler, and
 WindowServer notifies the CoreGraphics to draw a spinning cursor over the
 application window. Moreover, while exploiting how NSEvent thread communicates
 with the main thread, we found two variables, ``\vv{is\_mainthread\_spinning}''

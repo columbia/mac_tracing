@@ -1,16 +1,16 @@
 TeXstudio~\cite{texstudio} is an integrated writing environment for creating
 LaTeX documents from github. We noticed a user reported spinning cursor when he
-modified his bib file. Alghough the issue was closed by author for incomplete
-information to reproduce, we reproduced the bug with a large bib file opened in
-a tab. Each time we touched the file through other editor, vim for example, the
-application window shows a spinning cursor.
+modified his bib file. Alhough the issue was closed by the developer, due to insufficient
+information to reproduce the bug, we reproduced it with a large bib file opened in
+a tab. Each time we touched the file through another editor, vim for example, the
+application window showed a spinning cursor.
 
 \xxx figures out the \spinningnode is busy processing. Slicing the path from
-the vertex, \xxx reaches the daemon ``\vv{fseventd}'' and figures out the busy
-processing is invoked by the callback function from the daemon. The advantage of
+the vertex, \xxx reaches the daemon ``\vv{fseventd}'' and figures out that the long-running function
+is invoked by a callback function from this daemon. The advantage of
 \xxx over other debugging tools is it helps to narrow down the root cause with
-the path. If the user reported the infomation with \xxx, it should have provided
-the author more hints to reproduce the bug successfully.
+the path. If the user's bug report had included details captured with \xxx, it may have provided
+the developer with enough information to reproduce the bug successfully.
 
 %%Another operation triggering spinning cursor in TeXstudio is pasting
 %%a large amount of context in any file. The \spinningnode is busy with
