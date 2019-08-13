@@ -1,14 +1,13 @@
 TeXstudio~\cite{texstudio} is an integrated writing environment for creating
-LaTeX documents from github. We noticed a user reported bug when he modified his
-bib file, the TexStudio hanged for mimutes. The issue was closed by author for
-incomplete information to reproduce. We reproduced the bug with a large bib file
-editing and collected the data. With the file opened in a tab, every time we
-touched the bib file through other editor, vim for example, it shows a spinning
-cursor on the window.
+LaTeX documents from github. We noticed a user reported spinning cursor when he
+modified his bib file. Alghough the issue was closed by author for incomplete
+information to reproduce, we reproduced the bug with a large bib file opened in
+a tab. Each time we touched the file through other editor, vim for example, the
+application window shows a spinning cursor.
 
-\xxx figures out the \spinningnode is busy processing. Slicing the path from the
-busy node, \xxx reaches the daemon ``\vv{fseventd}'' and figures out the busy
-processing invoked by the callback function from the daemon. The advantage of
+\xxx figures out the \spinningnode is busy processing. Slicing the path from
+the vertex, \xxx reaches the daemon ``\vv{fseventd}'' and figures out the busy
+processing is invoked by the callback function from the daemon. The advantage of
 \xxx over other debugging tools is it helps to narrow down the root cause with
 the path. If the user reported the infomation with \xxx, it should have provided
 the author more hints to reproduce the bug successfully.
