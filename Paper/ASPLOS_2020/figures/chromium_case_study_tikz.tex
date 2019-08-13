@@ -1,18 +1,25 @@
-%%\documentclass{article}
-%%\usepackage{tikzpeople}
-%%\usepackage{tikz}
-%%\usetikzlibrary{shapes, shapes.misc}
-%%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
-%%\usetikzlibrary{patterns}
+%\documentclass{article}
+%\usepackage{tikzpeople}
+%\usepackage{tikz}
+%\usetikzlibrary{shapes, shapes.misc}
+%\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+%\usetikzlibrary{patterns}
 
-%%\begin{document}
+%\begin{document}
 \begin{center}
 \resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
-\tikzstyle{every node}=[font=\Large]
-\tikzstyle{app} = [draw, very thick, minimum height=40em, minimum width=20em, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{actionpoint} = [minimum width = 1em, fill = white]
-\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 0.5em, minimum height =0.5em]
+%\tikzstyle{every node}=[font=\Large]
+\tikzstyle{app} = [draw, very thick, minimum height=250pt, minimum width=100pt, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{appbegin} = [minimum width = 20pt, below = -230pt of #1]
+\tikzstyle{append} =[minimum width = 20pt, below = -20pt of #1]
+\tikzstyle{thread} = [minimum width = 8pt, font=\small]
+
+\tikzstyle{actionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, fill = white]
+\tikzstyle{blocked} = [minimum height = 10pt, pattern=north west lines, pattern color = black!20!, font=\scriptsize, rotate=270] 
+\tikzstyle{blockedactionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, pattern=north west lines, pattern color = black!20!] 
+
+\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 3pt, minimum height =3pt]
 %\tikzset{
 %%ext/.pic={
 %%\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
@@ -28,59 +35,80 @@
 %}}
 
 %draw applications
-\node [app, name = browser]{};
-\node (browsertag)[minimum width = 20em, above = -2em of browser] {Chromium Browser};
-\node (browserend)[minimum width = 20em, below = 38em of browsertag] {};
-\node (bt1begin)[minimum width = 8em, below left = 3em and -10em of browsertag]{main thread};
-\node (bt1end)[minimum width = 8em, below left = 38em and -10em of browsertag]{};
-\node (bt2begin)[minimum width = 8em, below right = 3em and -10em of browsertag]{worker thread};
-\node (bt2end)[minimum width = 8em, below right = 38em and -10em of browsertag]{};
-\draw [solid] (bt1begin) -- (bt1end);
-\draw [solid] (bt2begin) -- (bt2end);
-\node (1)[actionpoint, below of = bt1begin, node distance = 8em]{1};
-\node (2)[actionpoint, below of = bt2begin, node distance = 9em]{2};
-\node (9)[actionpoint, below of = 2, node distance = 16em] {9};
-\node (10)[actionpoint, below of = 1, minimum width = 6em, minimum height = 2em, node distance = 18em, rotate=270]{timed wait};
-%\node (11)[actionpoint, below of = 10, node distance = 4em]{};
+%%browser
+\node [app, name = browser, label=above:Chromium Browser]{};
+\node(browserbegin) [appbegin=browser]{};
+\node(browserend) [append=browser]{};
+\node (bt1begin)[thread, left of = browserbegin]{main};
+\node (bt1end)[thread, left of = browserend]{main}; 
+\node (bt2begin)[thread, right of = browserbegin]{worker};
+\node (bt2end)[thread,  right of = browserend]{worker};
 
-\node [app, name = renderer, right of = browser, node distance = 25em]{};
-\node (renderertag)[minimum width = 20em, above = -2em of renderer] {Chromium Renderer};
-\node (rendererend)[minimum width = 20em, below = 38em of renderertag]{};
-\node (bt3begin)[minimum width = 8em, below left = 3em and -10em of renderertag]{worker thread};
-\node (bt3end)[minimum width = 8em, below left = 38em and -10em of renderertag]{};
-\node (bt4begin)[minimum width = 8em, below right = 3em and -10em of renderertag]{main thread};
-\node (bt4end)[minimum width = 8em, below right = 38em and -10em of renderertag]{};
-\draw [solid] (bt3begin) -- (bt3end);
-\draw [solid] (bt4begin) -- (bt4end);
-\node (3)[actionpoint, below of = bt3begin, node distance = 10em]{3};
-\node (4)[actionpoint, below of = bt4begin, node distance = 11em]{4};
-\node (7)[actionpoint, below of = 4, node distance = 11em, rotate=270] {sema};
-\node (8)[actionpoint, below of = 3, node distance = 13em]{8};
+\node (1)[actionpoint, below of = bt1begin, node distance = 20pt]{};
+\node (2)[actionpoint, below of = bt2begin, node distance = 40pt]{};
+\node (9)[actionpoint, below of = 2, node distance = 110pt] {};
+\node (10)[blockedactionpoint, below of = 1, node distance = 140pt]{};
+\node (11)[blocked, below right = -2pt and 10pt of 10]{timed wait};
 
-\node [app, name = fontd, right of = renderer, node distance = 25em]{};
-\node (fontdtag)[minimum width = 20em, above = -2em of fontd] {fontd};
-\node (fontdend)[minimum width = 20em, below = 38em of fontdtag]{};
-\node (bt5begin)[minimum width = 20em, below = 3em of fontdtag]{worker thread};
-\node (bt5end)[minimum width = 20em, below = 38em of fontdtag]{};
-\draw [solid] (bt5begin) -- (bt5end);
-\node (5)[actionpoint, below of = bt5begin, node distance = 14em] {5};
-\node (6)[actionpoint, below of = 5, node distance = 3em] {6};
+\draw [solid] (bt1begin) -- (1.north);
+\draw [solid] (1.south) -- (10.north);
+\draw [dotted] (10.south) -- (bt1end);
+\draw [solid] (bt2begin) -- (2.north);
+\draw [solid] (2.south) -- (9.north);
+\draw [solid] (9.south) -- (bt2end);
 
-\draw [->] (1) -- (2);
+%%renderer
+\node [app, name = renderer, right of = browser, node distance = 150pt, label=above:Chromium Renderer]{};
+
+\node (rderbegin)[appbegin = renderer]{};
+\node (rderend)[append = renderer]{};
+
+\node (rt3begin)[thread, left of = rderbegin]{worker};
+\node (rt3end)[thread, left of = rderend]{worker};
+\node (rt4begin)[thread, right of = rderbegin]{main};
+\node [draw, below right = 9pt and 0.5pt of rt4begin, font=\scriptsize, rotate=270] {EventQueue};
+\node (rt4end)[thread, right of = rderend]{main};
+%\draw [solid] (bt3begin) -- (bt3end);
+%\draw [solid] (bt4begin) -- (bt4end);
+\node (3)[actionpoint, below of = rt3begin, node distance = 60pt]{};
+\node (4)[actionpoint, below of = rt4begin, node distance = 80pt]{};
+\node (7)[blockedactionpoint, below of = 4, node distance = 50pt]{};
+\node (12)[blocked, below right = -2pt and 10pt of 7]{semaphore wait};
+\node (8)[actionpoint, below of = 3, node distance = 80pt]{};
+\draw[solid] (rt3begin) -- (3.north);
+\draw[solid] (3.south) -- (8.north);
+\draw[solid] (8.south) -- (rt3end);
+\draw[solid] (rt4begin) -- (4.north);
+\draw[solid] (4.south) -- (7.north);
+\draw[dotted] (7.south) -- (rt4end);
+%
+\node [app, name = fontd, right of = renderer, node distance = 150pt, label=above:fontd]{};
+\node (fontdbegin)[appbegin =fontd] {};
+\node (fontdend)[append = fontd]{};
+\node (ft5begin)[thread, left of = fontdbegin]{};
+\node (ft5end)[thread, left of = fontdend]{};
+\node (5)[actionpoint, below of = ft5begin, node distance = 100pt] {};
+\node (6)[below of = 5, node distance = 10pt] {};
+%\draw [solid] (bt5begin) -- (bt5end);
+%
+\draw [->] (1) -- node[rotate=343]{mojo IPC}(2);
 \draw [->] (2) -- (3);
 \draw [->] (3) -- (4);
-\draw [->] (4) -- (5);
-\coordinate[name = notarrive7, point, right of = 7, node distance = 1em];
+\draw [->] (4) --node{mach IPC} (5);
+\coordinate[name = notarrive7, point, below right = 10pt and 10pt of 7]{};
 \draw [->] (6) -- (notarrive7);
-\coordinate[name = before7, above of = 7, node distance = 1em]{};
+\coordinate[name = before7, above of = 7, node distance = 10pt]{};
 \draw [->] (before7) -- (8);
 \draw [->] (8) -- (9);
-\coordinate[name = notarrive10, point, right of = 10, node distance = 1em]{};
+\coordinate[name = notarrive10, point, below right = 10pt and 10pt of 10]{};
 \draw [->] (9) -- (notarrive10);
+%
+\node (findfirstrect)[minimum width = 40pt, minimum height = 40pt, right of = 2, node distance = 50pt, rotate= 343] {TextInputClientMsg FirstRectForCharacterRange};
+\node (javascript)[minimum width = 20pt, minimum height = 20pt, below left = 0pt and 5pt of 7, rotate = 15] {Run\_Javascript};
 
-\node (findfirstrect)[minimum width = 40em, minimum height = 4em, right of = 1, node distance = 13em, rotate = 355] {TextInputClientMsg\_FirstRectForCharacterRange};
-\node (javascript)[minimum width = 4em, minimum height = 4em, above left = 0em and 2em of 7, rotate = 15] {Run\_Javascript};
+\node(legend)[ below of = fontdend]{legend for vertices, edges, mojo IPC and mach IPC};
+
 \end{tikzpicture}
 }
 \end{center}
-%%\end{document}
+%\end{document}

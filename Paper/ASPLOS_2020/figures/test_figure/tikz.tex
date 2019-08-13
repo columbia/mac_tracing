@@ -1,183 +1,113 @@
 \documentclass{article}
 \usepackage{tikzpeople}
 \usepackage{tikz}
-\usepackage{graphicx}
 \usetikzlibrary{shapes, shapes.misc}
 \usetikzlibrary{arrows, arrows.meta, decorations.markings}
 \usetikzlibrary{patterns}
-%\usetikzlibrary{positioning}
-
-
-\makeatletter
-% copied from the manual
-\pgfdeclareshape{document}{%
-    \inheritsavedanchors[from=rectangle] % this is nearly a rectangle
-    \inheritanchorborder[from=rectangle]
-    \inheritanchor[from=rectangle]{center}
-    \inheritanchor[from=rectangle]{north}
-    \inheritanchor[from=rectangle]{south}
-    \inheritanchor[from=rectangle]{west}
-    \inheritanchor[from=rectangle]{east}
-	\inheritanchor[from=rectangle]{south west}
-	\inheritanchor[from=rectangle]{north west}
-	\inheritanchor[from=rectangle]{south east}
-	\inheritanchor[from=rectangle]{north east}
-    % ... and possibly more
-    \backgroundpath{% this is new
-        % store lower right in xa/ya and upper right in xb/yb
-        \southwest \pgf@xa=\pgf@x \pgf@ya=\pgf@y
-        \northeast \pgf@xb=\pgf@x \pgf@yb=\pgf@y
-        \def\hangout{5pt}
-        % compute corner of "flipped page"
-        \pgf@xc=\pgf@xb \advance\pgf@xc by-\hangout % this should be a parameter
-        \pgf@yc=\pgf@yb \advance\pgf@yc by-\hangout
-        % construct main path
-        \pgfpathmoveto{\pgfpoint{\pgf@xa}{\pgf@ya}}
-        \pgfpathlineto{\pgfpoint{\pgf@xa}{\pgf@yb}}
-        \pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yb}}
-        \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
-        \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@ya}}
-        \pgfpathclose
-        % add little corner
-        \pgfpathmoveto{\pgfpoint{\pgf@xc}{\pgf@yb}}
-        \pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yc}}
-        \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
-        \pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yc}}
-        \pgfpathclose
-        % add lines
-        %\pgfmathsetmacro{\step}{round(abs(\pgf@yb-\pgf@ya)/6)}
-        %\pgfmathsetmacro{\lines}{round(abs(\pgf@yb-\pgf@ya)/\step)-1}
-        %\foreach \y in {1,...,\lines}{%
-        %    \pgfpathmoveto{\pgfpoint{\pgf@xa+\step*1pt+\hangout}{\pgf@yb-\y*\step*1pt}}
-        %    \pgfpathlineto{\pgfpoint{\pgf@xc-\step*1pt}{\pgf@yb-\y*\step*1pt}}
-        %}%  
-    }%
-}%
-\makeatother
 
 \begin{document}
 \begin{center}
 \resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
-\tikzstyle{every node}=[font=\Large]
-\tikzstyle{apps} = [draw, very thick, minimum height=30pt, minimum width=50pt, fill=white, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{systemComp} = [draw, very thick, minimum height=30pt, minimum width=150pt, pattern= north west lines, pattern color = black!20!, rectangle, font={\sffamily\bfseries}]
-\tikzstyle{doc} = [draw, thick, shape=document, align=left, color=black, minimum width=150pt, minimum height=40pt, inner sep=2ex]
-\tikzstyle{vecarrow} = [->, thick, line width=5pt]
-\tikzstyle{gthread} = [label={[font=\scriptsize, red]below:#1}]
-\tikzstyle{gnode} = [draw, thick, font=\scriptsize, align =left, minimum width=18pt, minimum height=36pt]
+%\tikzstyle{every node}=[font=\Large]
+\tikzstyle{app} = [draw, very thick, minimum height=250pt, minimum width=100pt, fill=white, rectangle, font={\sffamily\bfseries}]
+\tikzstyle{appbegin} = [minimum width = 20pt, below = -230pt of #1]
+\tikzstyle{append} =[minimum width = 20pt, below = -20pt of #1]
+\tikzstyle{thread} = [minimum width = 8pt, font=\small]
 
-\tikzset{ext/.pic={
-\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
-\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
-}}
+\tikzstyle{actionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, fill = white]
+\tikzstyle{blocked} = [minimum height = 10pt, pattern=north west lines, pattern color = black!20!, font=\scriptsize, rotate=270] 
+\tikzstyle{blockedactionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, pattern=north west lines, pattern color = black!20!] 
 
-%%draw MacOS components
-\node [apps, name = software1] at (0, 0) {\includegraphics[width=20pt]{./chromium_logo.png}};
-\node [apps, name = software2, right of=software1, node distance=50pt] {daemon1};
-\node [apps, name = software3, right of=software2, node distance=50pt] {daemon2};
-\node [systemComp, name = libs, below of = software2, node distance =30pt] {Argus Instrumented Libraries};
-\node [systemComp, name = os, below of = libs, node distance =30pt] {Argus Instrumented OS};
+\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 3pt, minimum height =3pt]
+%\tikzset{
+%%ext/.pic={
+%%\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
+%%\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
+%%},
+%point/.style={
+%    thick,
+%    draw=red,
+%    cross out,
+%    inner sep=0pt,
+%    minimum width=4pt,
+%    minimum height=4pt,
+%}}
 
-%% draw Tracing Event log
-\node (TracingEventLog) [minimum height=30pt, minimum width=200pt, right of=software3, node distance=220pt]{};
-\node (log) [doc, below of=TracingEventLog, node distance=30pt] {\#timestamp, event\_type, attr1, attr2...\\30.4, sendMessge, tid1, tid2 ..\\31.7, wakeUp, tid0, tid2...\\33.2, wakeUp, tid2, tid3...\\34.2, sendMessage, tid3, tid2...\\34.9, wakeUp, tid2, tid0...\\ ... ... };
-\draw [vecarrow] (libs.east)+(0.5, 0) -- (log.west);
+%draw applications
+%%browser
+\node [app, name = browser, label=above:Chromium Browser]{};
+\node(browserbegin) [appbegin=browser]{};
+\node(browserend) [append=browser]{};
+\node (bt1begin)[thread, left of = browserbegin]{main};
+\node (bt1end)[thread, left of = browserend]{main}; 
+\node (bt2begin)[thread, right of = browserbegin]{worker};
+\node (bt2end)[thread,  right of = browserend]{worker};
 
-%draw Interactive Debugger 
-\node (InteractiveDebugger) [systemComp, rounded corners=20pt, minimum height=250pt, minimum width=280pt, below left = 20pt and -160pt of log] {};
-\node (debugger)[minimum width=220pt, above = -30pt of InteractiveDebugger]{Interactive Debugger};
-\node (graph) [minimum height = 180pt, minimum width = 200pt, below = 10pt of debugger] {};
-\node (shape) [doc, minimum height = 180pt, minimum width = 200pt, below = 10pt of debugger]{};
-%\node [minimum width = 100pt, above = -20pt of graph, label=right:{graph}]{};
-\node(t0s)[gthread = browser, minimum width = 2pt, below left = -180pt and -50pt of graph, font=\scriptsize]{tid0};
-\node(t0e)[gthread = browser, minimum width = 2pt, below left = -20pt and -44pt of graph]{};
-\node(t1s)[gthread = kern\_task, minimum width = 2pt, below left = -180pt and -85pt of graph, font=\scriptsize]{tid1};
-\node(t1e)[gthread = kern\_task, minimum width = 2pt, below left = -20pt and -79pt of graph]{};
-\node(t2s)[gthread = renderer, minimum width = 2pt, below left = -180pt and -120pt of graph, font=\scriptsize]{tid2};
-\node(t2e)[gthread = renderer, minimum width = 2pt, below left = -20pt and -114pt of graph]{};
-\node(t3s)[gthread = renderer, minimum width = 2pt, below left = -180pt and -155pt of graph, font=\scriptsize]{tid3};
-\node(t3e)[gthread = renderer, minimum width = 2pt, below left = -20pt and -149pt of graph]{};
-\node(t4s)[gthread = fontd, minimum width = 2pt, below left = -180pt and -185pt of graph, font=\scriptsize]{tid4};
-\node(t4e)[gthread = fontd, minimum width = 2pt, below left = -20pt and -179pt of graph]{};
+\node (1)[actionpoint, below of = bt1begin, node distance = 20pt]{};
+\node (2)[actionpoint, below of = bt2begin, node distance = 40pt]{};
+\node (9)[actionpoint, below of = 2, node distance = 110pt] {};
+\node (10)[blockedactionpoint, below of = 1, node distance = 140pt]{};
+\node (11)[blocked, below right = -2pt and 10pt of 10]{timed wait};
 
-\node(brw0) [gnode, fill = blue!20, below = 20pt of t0s]{msg\\msg};
-\node(brw1) [gnode, below = 15pt of brw0]{write\\msg};
-\node(brw2) [gnode, below = 20pt of brw1]{read\\write};
-\node(k0) [gnode, fill = red!20, below = 25pt of t1s] {msg};
-\node(k1) [gnode, below = 50pt of k0] {msg\\wait};
-\node(rdw0) [gnode, fill = yellow!20, below = 30pt of t2s]{msg\\read\\msg};
-\node(rdw1) [gnode, below = 30pt of rdw0]{msg\\msg};
-\node(rdm0) [gnode, below = 40pt of t3s]{read\\msg};
-\node(rdm1) [gnode, minimum height = 20pt, below = 20pt of rdm0]{write\\msg};
-\node(rdm2) [gnode, thick, fill = blue!20, minimum height = 10pt, below = 18pt of rdm1, font=\scriptsize]{msg\\sema\_wait};
-\node(fontd0) [gnode, minimum height=20pt, below = 50pt of t4s]{msg\\msg};
+\draw [solid] (bt1begin) -- (1.north);
+\draw [solid] (1.south) -- (10.north);
+\draw [dotted] (10.south) -- (bt1end);
+\draw [solid] (bt2begin) -- (2.north);
+\draw [solid] (2.south) -- (9.north);
+\draw [solid] (9.south) -- (bt2end);
 
-\draw[-, solid](t0s.south) -- (brw0);
-\draw[-, dotted](brw0) -- (brw1);
-\draw[-, dotted](brw1) -- (brw2);
-%\draw[-, solid](brw2) --(t0e.south);
-\draw[-, solid](t1s.south) -- (k0);
-\draw[-, dotted](k0) -- (k1);
-\draw[-, solid](k1) -- (t1e.south);
-\draw[-, solid](t2s.south) -- (rdw0);
-\draw[-, dotted](rdw0) -- (rdw1);
-\draw[-, solid](rdw1) -- (t2e.south);
-\draw[-, solid](t3s.south) -- (rdm0);
-\draw[-, dotted](rdm0) -- (rdm1);
-\draw[-, solid](rdm1) --pic{ext}(rdm2);
-\draw[-, solid](t4s) -- (fontd0);
-\draw[-, dotted](rdm2) -- (t3e.south);
-\draw[-, solid](fontd0) --(t4e.south);
+%%renderer
+\node [app, name = renderer, right of = browser, node distance = 150pt, label=above:Chromium Renderer]{};
 
-\draw[->] (brw0.east) -- node[font=\scriptsize, minimum width=5pt, pos=0.1, below]{e0} (rdw0.west);
-\draw[->] (k0.east) -- node[font=\scriptsize, minimum width=5pt, above]{e1} (rdw0.west);
-\draw[->] (rdw0.east) -- (rdm0.west);
-\draw[->] (rdm0.east) -- (fontd0.west);
-\draw[->] (fontd0.west) -- (rdm1.east);
-\draw[->] (rdm1.west) -- (rdw1.east);
-\draw[->] (rdw1.west) -- (brw2.east);
+\node (rderbegin)[appbegin = renderer]{};
+\node (rderend)[append = renderer]{};
 
+\node (rt3begin)[thread, left of = rderbegin]{worker};
+\node (rt3end)[thread, left of = rderend]{worker};
+\node (rt4begin)[thread, right of = rderbegin]{main};
+\node [draw, below right = 9pt and 0.5pt of rt4begin, font=\scriptsize, rotate=270] {EventQueue};
+\node (rt4end)[thread, right of = rderend]{main};
+%\draw [solid] (bt3begin) -- (bt3end);
+%\draw [solid] (bt4begin) -- (bt4end);
+\node (3)[actionpoint, below of = rt3begin, node distance = 60pt]{};
+\node (4)[actionpoint, below of = rt4begin, node distance = 80pt]{};
+\node (7)[blockedactionpoint, below of = 4, node distance = 50pt]{};
+\node (12)[blocked, below right = -2pt and 10pt of 7]{semaphore wait};
+\node (8)[actionpoint, below of = 3, node distance = 80pt]{};
+\draw[solid] (rt3begin) -- (3.north);
+\draw[solid] (3.south) -- (8.north);
+\draw[solid] (8.south) -- (rt3end);
+\draw[solid] (rt4begin) -- (4.north);
+\draw[solid] (4.south) -- (7.north);
+\draw[dotted] (7.south) -- (rt4end);
+%
+\node [app, name = fontd, right of = renderer, node distance = 150pt, label=above:fontd]{};
+\node (fontdbegin)[appbegin =fontd] {};
+\node (fontdend)[append = fontd]{};
+\node (ft5begin)[thread, left of = fontdbegin]{};
+\node (ft5end)[thread, left of = fontdend]{};
+\node (5)[actionpoint, below of = ft5begin, node distance = 100pt] {};
+\node (6)[below of = 5, node distance = 10pt] {};
+%\draw [solid] (bt5begin) -- (bt5end);
+%
+\draw [->] (1) -- (2);
+\draw [->] (2) -- (3);
+\draw [->] (3) -- (4);
+\draw [->] (4) -- (5);
+\coordinate[name = notarrive7, point, below right = 10pt and 10pt of 7]{};
+\draw [->] (6) -- (notarrive7);
+\coordinate[name = before7, above of = 7, node distance = 10pt]{};
+\draw [->] (before7) -- (8);
+\draw [->] (8) -- (9);
+\coordinate[name = notarrive10, point, below right = 10pt and 10pt of 10]{};
+\draw [->] (9) -- (notarrive10);
+%
+\node (findfirstrect)[minimum width = 40pt, minimum height = 40pt, right of = 1, node distance = 100pt, rotate= 343] {TextInputClientMsg\_FirstRectForCharacterRange};
+\node (javascript)[minimum width = 40pt, minimum height = 40pt, above left = 0pt and 10pt of 7, rotate = 15] {Run\_Javascript};
 
-\draw [vecarrow] (log.south) -- (InteractiveDebugger);
+\node(legend)[ below of = fontdend]{legend for vertices, edges};
 
-\node (legend)[minimum height =180pt, minimum width = 80pt, right of = InteractiveDebugger, node distance= 200pt]{};
-\node (1)[below left = -20pt and -20pt of legend] {};
-\node (2)[right=8pt of 1]{};
-\draw [-, solid] (1.east) -- (2);
-\node [right= 10pt of 1, font=\small]{thread\_running};
-
-\node (3)[below left = -30pt and -20pt of legend] {};
-\node (4)[right=8pt of 3]{};
-\draw [-, dotted] (3.east) -- (4);
-\node [right =10pt of 3, font=\small]{thread\_wait};
-
-\node (5)[below left = -40pt and -20pt of legend] {};
-\node (6)[right =8pt of 5]{};
-\draw [->] (5.east) -- (6);
-\node [right =10pt of 5, font=\small]{edge};
-
-\node [draw, solid, minimum width = 10pt, minimum height = 3pt, below left = -50pt and -30pt of legend, label={[font=\small]right:node}]{};
-
-%draw interactive Debugging part
-\node (user)[alice, minimum size=30pt, left = 100pt of InteractiveDebugger]{};
-%\node (query1)[above left = -80pt and -10pt of InteractiveDebugger]{};
-%\node (query2)[above left = -100pt and -10pt of InteractiveDebugger]{};
-\node (query3)[below left = -100pt and -10pt of InteractiveDebugger]{};
-\node (query4)[below left = -80pt and -10pt of InteractiveDebugger]{};
-%\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
-%\draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
-\draw [->, thick, out=150, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
-\draw [->, thick, out=310, in=230] (user.south) to node[above]{e0} (query4.north);
-
-\node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
-\node (blockrenderer) [draw, solid, minimum height = 10pt, fill=blue!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
-\node (blockbrowser) [draw, solid, minimum height = 10pt, below left = -80pt and -200pt of result, label=below:browser thread blocks on condition variable]{msg cv\_wait};
-
-%\node (text1)[below = 50pt of = blockrenderer] {renderer thread \\blocks on semaphore};
-%\node (text1)[below = 50pt of = blockbrowser] {browser thread \\blocks on conditional variable};
-
-\draw [vecarrow] (InteractiveDebugger.south) -- (result);
 \end{tikzpicture}
 }
 \end{center}
