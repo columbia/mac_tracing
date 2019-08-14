@@ -1,4 +1,4 @@
-:\section{Overview}\label{sec:overview}
+::q\section{Overview}\label{sec:overview}
 
 \subsection{Argus Work Flow}
 \begin{figure}[tb]
@@ -10,15 +10,18 @@
 \end{figure}
 
 In this section, we describe the steps a user takes to investigate a performance
-anomaly with \xxx. Figure~\ref{fig:argus-overview} shows an example of a user
-investigating a performance problem in Chromium. The system wide tracing tool
-integrated in \xxx generates log file, which is the input of \xxx's event graph
-construction component. The generated event graph is used by the interactive
-debugger to slice causal path. It supports interactive search by providng
-information for user to make decision in case of multiple predecessors in a
-vertex. As shown in Figure~\ref{fig:argus-overview}, the debugger asks to choose
-one edge within a subgraph. the output from \xxx is the vertexs related to the
-root casue. In Chromium case, they are two vertices which form circularly wait.
+anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
+an example of a user investigating a performance problem in Chromium. The system
+wide tracing tool, which collects data from \xxx instrumented library and
+kernel, generates logs. They are transformed into an graph in \xxx's
+graph construction component. The generated graph is used by the interactive
+debugger for causal path slicing and diagnosis. \xxx supports interactive
+search, by providng information to the user and asking for decision, in case of
+multiple predecessors in a vertex. As shown in Figure~\ref{fig:argus-overview},
+the debugger asks user to choose one edge in a subgraph. After this step,
+\xxx performs diagnosis algorithm and reports the root cause vertices. In the
+example, the root cause is two vertices which form a circular wait acrossing
+multiple threads.
 
 %%debugging base of the interactive debugger.
 %- sys-wide tracing => log

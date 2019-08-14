@@ -4,12 +4,13 @@ window triggers spinning cursor. As we input the password directly before the
 round of triggering the spinning cusor, \xxx gets the baseline scenario for
 comparison.
 
-Examing the \spinningnode and its \similarnode, \xxx is easy to figure
-out the blocking thread of authd on semaphore, The diagnosis result was
-verified with the call stack. The main thread blocks in \vv{[IFRunnerProxy\
-requestKeyForRights:askUser:]} where a synchronous message to daemon \vv{authd}.
-The root cause is the authentication of user's previledge synchronously in the
-main thread, instead of the handler for moving cursor.
+Examing the \spinningnode and its \similarnode, \xxx figures out one thread from
+daemon \vv{authd} blocks on semaphore. The root cause is the authentication
+of user's previledge synchronously in the main thread, instead of the handler
+for moving cursor. The result was verified with \vv{lldb}. The main thread
+blocks in a synchronous message to \vv{authd} in API \vv{[IFRunnerProxy\
+requestKeyForRights:askUser:]}.
+
 
 We also discovered a communication pattern in \vv{Installer} indicating the
 crucial of interactive debugging in \xxx. It involves four vertices in four
