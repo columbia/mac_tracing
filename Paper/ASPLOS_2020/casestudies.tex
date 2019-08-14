@@ -4,15 +4,15 @@ In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
 cases in \napps popular applications. Table~\ref{table:bugs-desc} describes
 these spinning-cursor cases, which are detailed in the sections that follow.
 We compared \xxx with traditional causual tracing methods~\cite{XXXX} on edges
-and vertices \xxx mitigated, and studied the ratios of vertices divided by
-with message peers heuristically to reduce over-connection, and edges added
-by both data flags and wait event inside a block to avoid under-connection.
-User interactions are critical in the path slicing due to the inherent
-inaccurate in the graph. Our results shows the user interaction does not
-overwhelm the debugging process while makes the debugging much more efficient.
-Table~\ref{table:results} demonstrates our results with the length of path
-sliced with \xxx, which is much shorter than the one generated automatically by
-heuristically choosing the most recent edges if multiple predecessors.
+and vertices \xxx mitigated, and studied the ratios of over-connection filted
+with message peers heuristic. and connection added by data flags and wait
+hueristics to avoid under-connection. User interactions are critical in the path
+slicing due to the inherent inaccurate in the graph. Our results shows the user
+interaction does not overwhelm the debugging process while makes the debugging
+much more efficient. Table~\ref{table:results} demonstrates our results with the
+length of path sliced with \xxx, which is much shorter than the one generated
+automatically by heuristically choosing the most recent edges if multiple
+predecessors.
 
 \input{spinningcursor}
 
@@ -36,16 +36,16 @@ heuristically choosing the most recent edges if multiple predecessors.
 Bug ID & \xxx msg heuristics  & \xxx wait hueristics  & data flag & path slicing        & interaction  & path slicing \\
 \hline
 \hline
-SystemPreferences &  &  & 5 & &  & \\
-SequelPro & 0.0049 & 0.0035 & 3 & 5 & 2 & 264\\
-TeXStudio & 0.0243 & 0.0058 & 3 & 6 & 3 & \\
-installer & 0.0439 & 0.0283 & 3 & 6 & 2 & 36\\
-notes & 0.0297 & 0.1153 & 3 & &  & 42\\
-TextEdit(copy) & 0.0797 & 0.0072 & 3 & 21 & 3 & 21\\
-MSWord(copy) & 0.0672 & 0.0104 & 3 & 67 & 22 & 136\\
-SublimeText(copy) & 0.0407 & 0.0092 & 3 & 3 & 1 & \\
-TextMate(paste) & 0.0215 & 0.0218 & 3 & 23 & 0 & \\
-CotEditor & 0.0481 & 0.0532 & 3 & 4 & 1 & \\
+1-SystemPref &  &  & 5 & &  & \\
+2-SequelPro & 0.0049 & 0.0035 & 3 & 5 & 2 & 264\\
+3-TeXStudio & 0.0243 & 0.0058 & 3 & 6 & 3 & \\
+4-Installer & 0.0439 & 0.0283 & 3 & 6 & 2 & 36\\
+5-Notes & 0.0297 & 0.1153 & 3 & &  & 42\\
+6-TextEdit & 0.0797 & 0.0072 & 3 & 21 & 3 & 21\\
+7-MSWord & 0.0672 & 0.0104 & 3 & 67 & 22 & 136\\
+8-SlText & 0.0407 & 0.0092 & 3 & 3 & 1 & \\
+9-TextMate & 0.0215 & 0.0218 & 3 & 23 & 0 & \\
+10-CotEditor & 0.0481 & 0.0532 & 3 & 4 & 1 & \\
 
 \hline
   \end{tabularx}
