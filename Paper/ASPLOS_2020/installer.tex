@@ -1,9 +1,24 @@
-When Installer pops up a window for privileged permission during the
-installation of \texttt{jdk-7u80-macosx-x64}, moving the cursor out of the popup
-window triggers spinning cursor. Examing the \spinningnode reported by \xxx,
-it is easy to figure out the main thread blocks in \textit{[IFRunnerProxy\
-requestKeyForRights:askUser:]}. The function sends a synchronous message to
-daemon \textit{authd}. The root cause is the authentication of user's previledge
-synchronously in the main thread, instead of the handler for moving cursor.
-%with \textit{xpc\_connection\_send\_messag\_with\_reply\_sync}.
+When \vv{Installer} pops up a window for privileged permission during the
+installation of \vv{jdk-7u80-macosx-x64}, moving the cursor out of the popup
+window triggers spinning cursor. As we input the password directly before the
+round of triggering the spinning cusor, \xxx gets the baseline scenario for
+comparison.
 
+Examing the \spinningnode and its \similarnode, \xxx is easy to figure
+out the blocking thread of authd on semaphore, The diagnosis result was
+verified with the call stack. The main thread blocks in \vv{[IFRunnerProxy\
+requestKeyForRights:askUser:]} where a synchronous message to daemon \vv{authd}.
+The root cause is the authentication of user's previledge synchronously in the
+main thread, instead of the handler for moving cursor.
+
+We also discovered a communication pattern in \vv{Installer} indicating the
+crucial of interactive debugging in \xxx. It involves four vertices in four
+threads, vertex $Vertex_{main}$ in the main thread, and $Vertex_1$ to $Vertex_3$
+in three worker threads. First, the main thread wakes up three worker threads.
+Then one worker thread is scheduled to run. At its end, another worker thread,
+which waits on mutex lock, is woken in $Vertex_2$, which in turn wakes up the
+next worker thread in $Vertex_3$. While \xxx is slicing backward, $Vertex_3$
+has two incoming edges: one is from $Vertex_{main}$, and the other one is from
+$Vertex_2$. Since users can peek the edges before making decision, they are
+likely to figure out that the three worker threads contend with mutex lock, and
+all of them are the heirs of $Vertex_{main}$.
