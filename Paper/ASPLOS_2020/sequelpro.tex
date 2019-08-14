@@ -5,20 +5,17 @@ connection was lost and Sequel Pro tried re-connections.
 
 We collected tracing data in two cases: 1) network connected quickly when we
 login, and 2) Sequel Pro lost connection for a while. \xxx first identifies the
-\spinningnode from SequelPro's main thread. With the Algorithm FindSimilarNode,
-\xxx gets a baseline node($N_1$) in case 1). From there, \xxx goes along the
-weak edge, from wait event to wake\_up event, to figure out the vertex missing
-in case 2), and slices path backwards from the node($N_1$). \xxx carries out
-the comparison of the vertices in the thread after the normal vertex gets waken and
-before the spinning cursor shows up. The close examination tells that the
-main thread is waiting for the kernel thread, which in turn waits for the ssh
-thread.
+\spinningnode from SequelPro's main thread and \xxx gets a similar vertex in the
+baseline scenario(case 1)), and slices path backwards. With the threads in the
+baseline, \xxx searches them by turns to find the missing edge to \spinningnode
+The close examination tells that the main thread is waiting for the kernel
+thread, which in turn waits for the ssh thread.
 
 %\xxx helps to filter out overconnetions by dividing XXX combined batching node
 %with hueristics, and recovers XXX missing edges due to the shared flag. In the
 %diagnosis process, we get XXX similar node, XXX times of queries on backward
 %slicing , XXX vertices for inspect.
 
-%Such result could hardly figure out by lldb or
-%spindump as both of them only focus on the call stack snapshot for each process,
-%instead of providing the connections based the execution history system wide.
+Existing debugging tools like \vv{lldb} and \vv{spindump} could hardly figure
+out the root cause, in that both of them diagnose with only call stacks, which
+miss the dependency across process boundaries.

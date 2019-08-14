@@ -188,10 +188,17 @@
 \draw [vecarrow, out=280, in=230] (user.south) + (0, -0.5) to node[below]{travers backward from e0} (query4.north);
 
 \node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
-\node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -200pt of result, label=below:render thread blocks on semaphore]{msg sema\_wait};
-\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -200pt of result, label=above:browser thread blocks on condition variable]{msg cv\_wait};
 
-%\draw[->, out=330, in = 45](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
+\node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -220pt of result, align = center]{msg \\ sema\_wait};
+\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -220pt of result, align = center]{msg \\ cv\_wait};
+
+\node (result1) [minimum height = 10pt, below left = -80pt and -130pt of result, align = right] {renderer \\ waits browser \\to signal \\ semaphore};
+\node (result2) [minimum height = 10pt, below left = -80pt and -400pt of result, align = left] {browser \\ waits renderer \\to signal \\condition variable};
+
+\draw[->, thick] (blockbrowser.west) .. controls ([xshift=1cm]result1) .. pic{ext}(blockrenderer.west);
+\draw[->, thick] (blockrenderer.east) .. controls ([xshift=-2cm]result2) .. pic{ext}(blockbrowser.east);
+
+%\draw[->, bend right](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
 %\draw[->, out=230, in = 135](blockbrowser.west) -- pic{ext} (blockrenderer.west);
 %\node (text1)[below = 50pt of = blockrenderer] {renderer thread \\blocks on semaphore};
 %\node (text1)[below = 50pt of = blockbrowser] {browser thread \\blocks on conditional variable};
