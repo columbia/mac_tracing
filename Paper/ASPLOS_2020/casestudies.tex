@@ -31,21 +31,22 @@ heuristically choosing the most recent edges if multiple predecessors.
 \footnotesize
 \centering
   \begin{tabularx}{\textwidth}{l|cccccc}
- 	   & rate of vertices     & rate of edges added &          & length of \xxx      & \# of        & length of auto\\
-       & divided by           & by share flag and   & \# of    & baseline/spinning   & user         & baseline/spinning\\
-Bug ID & \xxx msg heuristics  & \xxx wait hueristics& data flag & path slicing        & interaction  & path slicing \\
+ 	   & rate of connections & rate of connections &          & length of \xxx      & \# of        & length of auto\\
+       & filted by        & added by share flag and & \# of    & baseline/spinning   & user         & baseline/spinning\\
+Bug ID & \xxx msg heuristics  & \xxx wait hueristics  & data flag & path slicing        & interaction  & path slicing \\
 \hline
 \hline
- 1-SystemPref&  &  & 5 &   &   & \\
- 2-SequelPro &  &  & 3 & 5 & 2 & \\
- 3-TeXStudio &  &  & 3 & 6 & 3 & \\
- 4-Installer &  &  &   &   &   & \\
- 5-Notes     &  &  &   &   &   & \\
- 6-TextEdit(copy)   &  &  & 3 & 21 & 5  & 21\\
- 7-MSWord(copy)     &  &  & 3 & 67 & 12 & 136\\
- 8-SlText(copy)     &  &  & 3 & 3  & 1  & \\
- 9-TextMate(paste)  &  &  & 3 & 23 & 0  & \\
- 10-CotEditor(paste)&  &  & 3 & 4  & 1  & \\
+SystemPreferences &  &  & 5 & &  & \\
+SequelPro & 0.0049 & 0.0035 & 3 & 5 & 2 & 264\\
+TeXStudio & 0.0243 & 0.0058 & 3 & 6 & 3 & \\
+installer & 0.0439 & 0.0283 & 3 & 6 & 2 & 36\\
+notes & 0.0297 & 0.1153 & 3 & &  & 42\\
+TextEdit(copy) & 0.0797 & 0.0072 & 3 & 21 & 3 & 21\\
+MSWord(copy) & 0.0672 & 0.0104 & 3 & 67 & 22 & 136\\
+SublimeText(copy) & 0.0407 & 0.0092 & 3 & 3 & 1 & \\
+TextMate(paste) & 0.0215 & 0.0218 & 3 & 23 & 0 & \\
+CotEditor & 0.0481 & 0.0532 & 3 & 4 & 1 & \\
+
 \hline
   \end{tabularx}
   \caption{Graph Comparison}
