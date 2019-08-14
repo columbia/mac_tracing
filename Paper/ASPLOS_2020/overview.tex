@@ -8,13 +8,23 @@
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
 \end{figure}
+
 In this section, we describe the steps a user takes to investigate a performance
 anomaly with \xxx. Figure~\ref{fig:argus-overview} shows an example of a user
-investigating a performance problem in Chromium.
-- sys-wide tracing => log
-- event graph
-- interactive search "find root cause"
-- root cause is two nodes, across multiple threads
+investigating a performance problem in Chromium. The system wide tracing tool
+integrated in \xxx generates log file, which is the input of \xxx's event graph
+construction component. The generated event graph is used by the interactive
+debugger to slice causal path. It supports interactive search by providng
+information for user to make decision in case of multiple predecessors in a
+vertex. As shown in Figure~\ref{fig:argus-overview}, the debugger asks to choose
+one edge within a subgraph. the output from \xxx is the vertexs related to the
+root casue. In Chromium case, they are two vertices which form circularly wait.
+
+%%debugging base of the interactive debugger.
+%- sys-wide tracing => log
+%- event graph
+%- interactive search "find root cause"
+%- root cause is two nodes, across multiple threads
 
 
 %
