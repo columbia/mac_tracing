@@ -29,7 +29,7 @@ enough information to reproduce the bug successfully.
 TexEdit is a simple word processing and text editing tool shipped by Apple, which
 often hangs on the editing of large files. 
 
-\xxx reveals the same causal path for the \spinningnode with heuristics as user
+\xxx reveals the same causal path with heuristics as with user
 interaction. We observed a communicating pattern in the vertices where a kernel
 thread was woken up from blocking IO by another kernel thread; and it processed
 the timer armed by TextEdit and woke up one of its threads. The first incoming

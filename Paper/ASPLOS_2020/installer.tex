@@ -9,8 +9,8 @@ the \spinningnode and its \similarnode, \xxx figures out the daemon
 \vv{authd} blocks on semaphore. The blocking synchronous authentication
 of user's previledge in the main thread (user stops input) is the root
 casue, instead of the cursor moving handler. The result was verified with
-\v{lldb}. The main thread sends a synchromous message via \vv{[IFRunnerProxy\
-requestKeyForRights:askUser:]} to authd.
+\vv{lldb}. The main thread sends a synchromous message via \vv{[IFRunnerProxy\
+requestKeyForRights:askUser:]} to \vv{authd}.
 
 
 We also discovered a communication pattern in \vv{Installer} underpinning the
