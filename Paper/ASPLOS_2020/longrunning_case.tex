@@ -26,11 +26,13 @@ enough information to reproduce the bug successfully.
 
 \paragraph{6-TextEdit}
 
-TexEdit is a simple word processing and text editing tool shipped by Apple, which
+TextEdit is a simple word processing and text editing tool shipped by Apple, which
 often hangs on the editing of large files. 
-
-\xxx reveals the same causal path with heuristics as with user
-interaction. We observed a communicating pattern in the vertices where a kernel
+When \xxx is used to diagnose this issue, the automated heuristics are frequently
+powerful enough to find the true root cause.
+%\xxx reveals the same causal path with heuristics as with user
+%interaction.
+The graph reveals a communicating pattern in the vertices where a kernel
 thread was woken up from blocking IO by another kernel thread; and it processed
 the timer armed by TextEdit and woke up one of its threads. The first incoming
 edge is from the second kernel thread, and the second incoming edge is from
@@ -39,10 +41,11 @@ make decision on the vertex base on the event sequence, which implies the story:
 TextEdit first arms the timer for IO work, then kernel threads work for it, and
 finally it processes the timer and wakes up TextEdit when finished.
 
-It is not surprising because the pattern of vetices in the case fits the
-hueristics in \xxx, which chooses the most recent incomming edge.
-Although the automatic heuristics works for the particular simple tool, it is
-not general enough to make decision for all patterns on complex softwares.
+The success of our automated analyses 
+is not surprising because the pattern of vetices fits our expected bug structure,
+where we choose the most recent incoming edge.
+Although the automatic heuristics works for this particular application, it is
+not general enough to succeed for all patterns in complex software.
 
 \paragraph{7-MSWord}
 
@@ -69,14 +72,14 @@ possibilities.
 
 Select, copy, paste, delete, insert and save are common operations for text
 editing. However, these operations on a large context usually trigger spinning
-cursors. Depending on their implementations, CotEditor and TextMate successfully
-avoid hangs on copy and selection operation. \xxx can helps the developer to
-figure out the more efficient way to implement event handlers. We briefly list
-the reports from \spinningnode, including the event handler and most costly
-functions. We also list corresponding user input event from the path slicing in
-Table~\ref{table:texteditapps}.
+cursors. Due to their implementation, CotEditor and TextMate successfully
+avoid hangs on copy and selection operations. \xxx can helps the developer
+to figure out the more efficient way to implement event handlers. In
+Table~\ref{table:texteditapps}, we list the reports from each application's
+\spinningnode, including the event handler and most costly functions, and the
+user input event (derived from path slicing) that triggers the hang.
 
-\begin{table}[H]
+\begin{table}[tb]
 \vspace{-0.2cm}
 \footnotesize
 \centering
