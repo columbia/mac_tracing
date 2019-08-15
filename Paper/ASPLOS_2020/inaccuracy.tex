@@ -1,5 +1,5 @@
 \section{Inherent Inaccuracies in Causal Tracing}\label{sec:inaccuracy}
-
+\input{patternfigure}
 As explained in \S\ref{sec:intro}, causal tracing builds a graph to
 connect execution segments on behalf of a request that spread across
 separate threads and processes.  Based on our experience building a causal
@@ -10,8 +10,7 @@ edges that do not really map to causality) -- and \emph{under-connections}
 other.  In this section, we present several inherently inaccurate patterns
 we observed and their examples in macOS.
 
-
-\subsection{Over Connections}%\hfill\\
+\subsection{Over Connections}
 Over connections usually occur when (1) intra-thread boundaries are
 missing due to unknown batch processing programming paradigms or (2)
 superfluous wake-ups that do not always imply causality.
@@ -33,38 +32,6 @@ distinct processes. Any application or daemon can implement its own server loop
 this way, which makes it fundamentally difficult to automatically infer event
 handling boundaries.
 
-\begin{figure}[ht!]
-\begin{minipage}[t]{.25\textwidth}
-\begin{lstlisting}
-//worker thread in fontd:
-//enqueue a block
-block = dispatch_mig_sevice;
-dispatch_async(block);
-\end{lstlisting}
-\end{minipage}\hfill
-\begin{minipage}[t]{.21\textwidth}
-\begin{lstlisting}
-//main thread in fontd:
-//dequeue blocks
-block = dequeue();
-dispatch_execute(block);
-\end{lstlisting}
-\end{minipage}
-
-\begin{minipage}[t]{0.48\textwidth}
-\begin{lstlisting}
-//implementation of dipatch_mig_server
-dispatch_mig_server()
-for(;;) //batch processing
-  mach_msg(send_reply, recv_request)
-  call_back(recv_request)
-  set_reply(send_reply)
-\end{lstlisting}
-\end{minipage}
-   %% \caption{Dispatch message batching}
-    \label{fig:dispatchmessagebatching}
-\end{figure}
-
 \paragraph{Batching in event processing}
 
 Message activities inside a system call are assumed to be related traditionally.
@@ -72,29 +39,6 @@ However, to presumably save on kernel boundary crossings, WindowServer MacOS
 system daemon uses a single system call to receive data and send data for an
 unrelated event from differnt processed in its event loop. This batch processing
 artificially makes many events appear dependent.
-
-\begin{figure}[ht!]
-\begin{lstlisting}
-//inside a single thread
-while() {
-  CGXPostReplyMessage(msg) {
-  // send _gOutMsg if it hasn't been sent
-    push_out_message(_gOutMsg)
-    _gOutMsg = msg
-    _gOutMessagePending = 1
-  }
-  CGXRunOneServicePass() {
-    if (_gOutMessagePending)
-      mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
-    else
-      mach_msg(MSG_RECV)
-    ... // process received message
-  }
-}
-\end{lstlisting}
-    %%\caption{Batching in event processing}
-    \label{fig:batchingineventprocessing}
-\end{figure}
 
 \paragraph{Mutual exclusion}
 
@@ -130,26 +74,6 @@ worker so accesses to these field flags need to be tracked.
 %%each using a watch point register. Instead, it uses instrumentation to modify
 %%the CoreAnimation library to trace events on these flags.
 
-\begin{figure}[ht!]
-\begin{minipage}[t]{.20\textwidth}
-\begin{lstlisting}
-//Worker thread:
-//needs to update UI:
-obj->need_display = 1
-\end{lstlisting}\hfill
-\end{minipage}
-\noindent\begin{minipage}[t]{.28\textwidth}
-\begin{lstlisting}
-//Main thread: 
-//traverse all CA objects
-if(obj->need_display == 1)
-  render(obj)
-\end{lstlisting}\hfill
-\end{minipage}
-    %%\caption{CoreAnimation shared flag}
-    \label{fig:casharedflag}
-\end{figure}
-
 \paragraph{Spinning cursor shared flag}
 As shown in Figure~\ref{fig:spinningcursorsharedflags},
 whenever the system determines that the main thread has hung for a certain
@@ -157,35 +81,3 @@ period, and the spinning beach ball should be displayed, a shared-memory flag
 is set. Access to the flag is controlled via a lock, i.e. the lock is used for
 mutual exclusion, and does not imply a happens before relationship.
 
-\begin{figure*}[ht!]
-\begin{minipage}[t]{0.5\textwidth}
-\begin{lstlisting}
-//NSEvent thread:
-CGEventCreateNextEvent() {
-  if (sCGEventIsMainThreadSpinning == 0x0)
-     if (sCGEventIsDispatchToMainThread == 0x1)
-       CFRunLoopTimerCreateWithHandler{
-         if (sCGEventIsDispatchToMainThread == 0x1)
-           sCGEventIsMainThreadSpinning = 0x1
-           CGSConnectionSetSpinning(0x1);
-       }
-}
-\end{lstlisting}
-\end{minipage}
-\begin{minipage}[t]{0.4\textwidth}
-\begin{lstlisting}
-//Main thread:
-{
-	... //pull events from event queue
-	Convert1CGEvent(0x1);
-	if (sCGEventIsMainThreadSpinning == 0x1){
-  		CGSConnectionSetSpinning(0x0);
-  		sCGEventIsMainThreadSpinning = 0x0;
-  		sCGEventIsDispatchedToMainThread = 0x0;
-	}
-}
-\end{lstlisting}
-\end{minipage}
-    \caption{Spinning Cursor Shared Flags}
-    \label{fig:spinningcursorsharedflags}
-\end{figure*}
