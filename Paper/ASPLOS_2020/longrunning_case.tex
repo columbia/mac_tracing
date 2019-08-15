@@ -10,37 +10,37 @@ reveal their root causes.
 \paragraph{3-TeXStudio}
 
 TeXstudio~\cite{texstudio} is an integrated writing environment for creating
-LaTeX documents from github. We noticed a user reported spinning cursor when he
-modified his bib file. Alhough the issue was closed by the developer, due to
+LaTeX documents. We noticed a user reported spinning cursor when he
+modified his bib file. Although the issue was closed by the developer, due to
 insufficient information to reproduce the bug, we reproduced it with a large bib
 file opened in a tab. Each time we touched the file through another editor, vim
 for example, the application window showed a spinning cursor.
 
-\xxx figures out the \spinningnode is busy processing. Slicing the path from
-the vertex, \xxx reaches the daemon ``\vv{fseventd}'' and figures out that the
-long-running function is invoked by a callback function from this daemon. The
-advantage of \xxx over other debugging tools is it helps to narrow down the root
-cause with the path. If the user's bug report had included details captured with
-\xxx, it may have provided the developer with enough information to reproduce
-the bug successfully.
+\xxx recognizes the \spinningnode belongs to the category of \textbf{Long
+Running}. Slicing causal path from the vertex, \xxx reaches daemon
+``\vv{fseventd}'' and figures out that the long-running function is invoked by a callback
+function from this daemon. The advantage of \xxx over other debugging tools is
+it helps to narrow down the root cause with the path. If the user's bug report
+had included details captured with \xxx, it may have provided the developer with
+enough information to reproduce the bug successfully.
 
 \paragraph{6-TextEdit}
 
-TexEdit is a simple word processing and text editing tool shipped by Apple. \xxx
-figured out the root cause by automatic slicing, which reveals the same path as
-the interactive version.
+TexEdit is a simple word processing and text editing tool shipped by Apple, which
+often hangs on the editing of large files. 
+
+\xxx reveals the same causal path for the \spinningnode with heuristics as user
+interaction. We observed a communicating pattern in the vertices where a kernel
+thread was woken up from blocking IO by another kernel thread; and it processed
+the timer armed by TextEdit and woke up one of its threads. The first incoming
+edge is from the second kernel thread, and the second incoming edge is from
+TextEdit(from vertex where the timer armed to where it is processed). Users can
+make decision on the vertex base on the event sequence, which implies the story:
+TextEdit first arms the timer for IO work, then kernel threads work for it, and
+finally it processes the timer and wakes up TextEdit when finished.
 
 It is not surprising because the pattern of vetices in the case fits the
-hueristics in \xxx, which chooses the most recent incomming edge. We observed
-in the vertex that a kernel thread was woken up from the wait on IO by another
-kernel thread; and it processed the timer armed by TextEdit and woke up the
-TextEdit. The first incoming edge is from the second kernel thread, and the
-second incoming edge is from TextEdit, from vertex where the timer armed to the
-one it is processed. Humans can make decision on the vertex base on the event
-sequence, which implies the story: TextEdit first arms the timer for IO work,
-then kernel threads work for it, and finally it processes the timer and wakes up
-TextEdit when finished.
-
+hueristics in \xxx, which chooses the most recent incomming edge.
 Although the automatic heuristics works for the particular simple tool, it is
 not general enough to make decision for all patterns on complex softwares.
 
@@ -53,16 +53,17 @@ generates a path of 136 vertices.
 
 %We rely on user interactions to help speed up the path slicing.
 
-We compared the path and find that the earliest difference exists in
-the predecessor of the third vertex in backward paths. In the vertex,
-user can learn from the callstack that Microsoft Word launches a service
-NSServiceControllerCopyServiceDictionarie after being woken by another MSWord
-thread; this thread then sends a message to \vv{launchd} to register the new
-service and waits for a reply message. With the most recent edge heuristics in
-automatic slicing, \xxx chose \vv{launchd} as its precedessor, but the user can
-more precisely identify that the execution segment is on behalf of the first
-thread. We rely on user interaction in this case to find the true root cause,
-since \xxx has identified multiple possibilities.
+We compared the path and find that the earliest difference exists in the
+predecessor of the third vertex in backward paths. In the vertex, user
+can learn from the callstack that \vv{Microsoft Word} launches a service
+\vv{NSServiceControllerCopyServiceDictionarie} after being woken by another
+\vv{Microsoft Word} thread; this thread then sends a message to \vv{launchd}
+to register the new service and waits for a reply message. With the most
+recent edge heuristics in automatic slicing, \xxx chose \vv{launchd} as its
+precedessor, but the user can more precisely identify that the execution segment
+is on behalf of the first thread. We rely on user interaction in this case
+to find the true root cause, since \xxx has identified multiple
+possibilities.
 
 \paragraph{Other Editing Apps}
 

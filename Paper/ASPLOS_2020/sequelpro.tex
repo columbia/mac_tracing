@@ -5,14 +5,14 @@ standard way, socket or ssh.
 We experienced the non-responsiveness of Sequel Pro while its network connection
 got lost and it tried re-connections. The tracing data collected by \xxx
 contains 1) a quick network connection during login, and 2) Sequel Pro lost
-connection for a while. During the diagnose process, although \xxx identified
-the \spinningnode and corresponding \similarnode with ease, it can hardly get
-the correct causal path in the baseline scenario without a user's interaction.
-The backward slicing on vertex, which has multiple incomming edges, including
-one from kernel thread, makes it hard to rely on heuristics. Our interactively
-search is extremely helpful in the step. Close examine of the \spinningnode
-based on the causual path tells that the main thread is waiting for the kernel
-thread, which in turn waits for the ssh thread.
+connection for a while. Although \xxx identified the \spinningnode and
+corresponding (baseline) \similarnode with ease, it can hardly get the correct
+causal path in the baseline scenario without a user's interaction. The backward
+slicing on vertex, which has multiple incomming edges, including one from
+kernel thread, makes it hard to rely on heuristics. Our interactively search is
+extremely helpful in the step, greatly reducing the noise in the path. Close
+examine of the \spinningnode based on the causual path tells that the main
+thread is waiting for the kernel thread, which in turn waits for the ssh thread.
 
 %\xxx helps to filter out overconnetions by dividing XXX combined batching node
 %with hueristics, and recovers XXX missing edges due to the shared flag. In the
@@ -20,5 +20,5 @@ thread, which in turn waits for the ssh thread.
 %slicing , XXX vertices for inspect.
 
 Existing debugging tools like \vv{lldb} and \vv{spindump} could hardly figure
-out the root cause, in that both of them diagnose with only call stacks, which
-miss the dependency across process boundaries.
+out the root cause, in that both of them diagnose with only call stacks, missing
+the dependency across process boundaries.
