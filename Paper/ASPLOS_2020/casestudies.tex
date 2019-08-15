@@ -3,16 +3,17 @@
 In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
 cases in \napps popular applications. Table~\ref{table:bugs-desc} describes
 these spinning-cursor cases, which are detailed in the sections that follow.
-We compared \xxx with traditional causual tracing methods~\cite{XXXX} on edges
-and vertices \xxx mitigated, and studied the ratios of over-connection filted
-with message peers heuristic. and connection added by data flags and wait
-hueristics to avoid under-connection. User interactions are critical in the path
-slicing due to the inherent inaccurate in the graph. Our results shows the user
+We compared \xxx with traditional causual tracing methods on edges
+and vertices \xxx mitigated. We studied the ratios of over-connection filted
+with message peers heuristics, and incognito under-connections disclosed by data flags and wait
+hueristics. 
+
+User interactions are critical in the path slicing due to the inherent
+inaccurate in the graph. Our results in Table~\ref{table:results} show the user
 interaction does not overwhelm the debugging process while makes the debugging
-much more efficient. Table~\ref{table:results} demonstrates our results with the
-length of path sliced with \xxx, which is much shorter than the one generated
-automatically by heuristically choosing the most recent edges if multiple
-predecessors.
+much more efficient, which is demonstrated with the length of path sliced
+with \xxx, which is much shorter than the one generated automatically with
+heuristics.
 
 \input{spinningcursor}
 

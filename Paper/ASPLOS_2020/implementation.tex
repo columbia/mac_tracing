@@ -1,5 +1,7 @@
 \section{Implementation}\label{sec:implementation}
-We now discuss how we collect tracing events from both kernel and libraries.
+
+In this section, we discuss how \xxx collects tracing events from both kernel
+and libraries, and user interactions which \xxx leverages to ease diagnosis.
 
 \subsection{Event Tracing}
 Current macOS systems support a system-wide tracing infrastructure built by
@@ -84,44 +86,39 @@ of the data flag and the operation type (read or write).
 
 \subsection{Tracing Instructions and Calls}
 
-Users may need to gather more information, such as individual instructions and call stacks, to
-come up with and verify a binary patch. \xxx integrates with \vv{lldb} to capture this information
-and add it to the corresponding nodes in the event graph.
+Users may need to gather more information, such as individual instructions and
+call stacks, to come up with and verify a binary patch. \xxx integrates with
+\vv{lldb} to capture this information and add it to the corresponding vertices
+in the event graph.
 
-We gather call stacks only at relevant locations, to reduce the data collection overhead.
-%We generate
-%debugging scripts with lightweight call stacks from the \rootcausenodes.
-Our \vv{lldb} scripts go through the instructions of apps and frameworks step by
-step to capture the parameters tainted by user inputs. Only at each beginning of
-a function call does the script record a full call stack. We also step over and
-record the return value of APIs from low-level libraries (i.e. those with the
-filename extension \vv{.dylib}).
+We gather call stacks only at relevant locations, to reduce the data collection
+overhead. Our \vv{lldb} scripts go through the instructions of apps and
+frameworks step by step to capture the parameters tainted by user inputs. Only
+at each beginning of a function call does the script record a full call stack.
+We also step over and record the return value of APIs from low-level libraries
+(i.e. those with the filename extension \vv{.dylib}).
 
 The combination of instruction-level tracing and occasional call-stacks offers
 more than enough detail to diagnose even the most arcane issues, and in our
 experience has been very helpful in multiple steps of an \xxx diagnosis.
-%The supplementary information are subject to the users review to pinpoint the
-%root cause of spinning beachball on macOS.
 
-\subsection{Find baseline scenario}
+\subsection{Find Baseline Scenario}
 
-\xxx finds a baseline scenario to figure out the missing wake-up edge in
-spinning case. It begins from identifying a vertex which shares
-the same high level semantics of the \spinningnode but exposes
-different execution results. 
+\xxx leverages a baseline scenario to discover missing wake-up edges in
+\textbf{Long Wait} cases. 
 
-\xxx identifies the high level semantics of vertices with semantical events
-in vertices, including system calls, call stacks, user actions. \xxx compares
-their sequential order and the event attributes unchanged in runtime. For
-example, \xxx compares the system call number and symbols in callstack.
-To improve the accuracy, \xxx also checks the events for forming edges in
-graph, including messages, dipatch queue operations, runloop operations,
-\dataflagread and \dataflagwrite, as they might reveal the low-level behaviors
-of developer intent. \xxx compares their peers. Depending on the report detail
-of \spinningnode, user can request \xxx to compare proceeding vertices to
-improve accuracy of finding the same semantic vertices.
+The baseline scenario is identified from the vertexes which share the same
+high level semantics as the \spinningnode, but exposes different execution
+results. \xxx recognizes high level semantics of vertices with semantical
+events, including system calls, call stacks, user actions. Their sequential
+order and runtime unrelated attributes are treated as hallmarks. For example,
+\xxx compares vertices with system call numbers and symbol names in call stacks.
+To improve the accuracy, \xxx also checks the events forming edges, including
+messages, dipatch queue operations, runloop operations, \dataflagread and
+\dataflagwrite, as they might reflect the low-level behaviors of developers'
+intent. More over, a user can also instruct \xxx to inspect proceeding vertices
+for accuracy purpose. By default, \xxx discriminate the execution results with
+the time cost and wait results.
 
-By default, \xxx compares the execution time and the wait results to manifest
-different execution results. If multiple \similarnode are identified,
-\xxx usually asks users for a confirmation, or choose the most recent one
-heuristically.
+If multiple \similarnode are identified, \xxx usually asks users for a
+confirmation, or choose the most recent one heuristically.
