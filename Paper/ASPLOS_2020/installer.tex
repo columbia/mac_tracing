@@ -1,16 +1,14 @@
-When \vv{Installer} pops up a window for privileged permission during the
-installation of \vv{jdk-7u80-macosx-x64}, moving the cursor out of the popup
-window triggers spinning cursor. As we input the password directly before the
-round of triggering the spinning cusor, \xxx gets the baseline scenario for
-comparison.
-
-Examing the \spinningnode and its \similarnode, \xxx figures out one thread from
-daemon \vv{authd} blocks on semaphore. The root cause is the authentication
-of user's previledge synchronously in the main thread, instead of the handler
-for moving cursor. The result was verified with \vv{lldb}. The main thread
-blocks in a synchronous message to \vv{authd} in API \vv{[IFRunnerProxy\
-requestKeyForRights:askUser:]}.
-
+Installer is an application included in macOS that extracts and installs
+files out of \vv{.pkg} packages. When \vv{Installer} pops up a window for
+privileged permission during the installation of \vv{jdk-7u80-macosx-x64},
+moving the cursor out of the popup window triggers spinning cursor. As we
+input the password directly before the round of triggering the spinning cusor,
+\xxx gets the baseline scenario for comparison. Examing the \spinningnode
+and its \similarnode, \xxx figures out one thread from daemon \vv{authd}
+blocks on semaphore. The root cause is the authentication of user's previledge
+synchronously in the main thread, instead of the handler for moving cursor. The
+result was verified with \vv{lldb}. The main thread blocks in a synchronous
+message to \vv{authd} in API \vv{[IFRunnerProxy\ requestKeyForRights:askUser:]}.
 
 We also discovered a communication pattern in \vv{Installer} indicating the
 crucial of interactive debugging in \xxx. It involves four vertices in four

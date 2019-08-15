@@ -1,26 +1,22 @@
 System Preferences provides a central location in macOS to customize
 system settings, inclduing configuring additional monitors. A tool called
-DisableMonitor~\cite{disablemonitor} completes its function with enable/disable
+\vv{DisableMonitor}~\cite{disablemonitor} completes its function with enable/disable
 monitors online. We blocked on the spinning cursor while disabling an external
-monitor and rearranging windows in ``Display'' panel.
+monitor and rearranging windows in \vv{Display} panel.
 
-We collected data with \xxx. The log contains 1) enable the external
-monitor and rearrange the windows, and 2) disable the external monitor and
-rearrange the windows. The \spinningnode in the main UI thread is dominated by
-\textit{mach\_msg} and \textit{thread\_switch}, which falls into the category of
-yielding loop. We finds two missing shared variables via the reverse engineering
-and ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'',
-which are used to signify the display configuration status.
-\xxx compares the two cases and reveals in both cases the first variable is
-set to indicate the begin of display configuration. However, in case 1) the
-main thread of System Preferences receives a datagram which set the variable
-``\vv{\_gCGDidReconfigureSeen}'' in \textit{display\_notify\_proc} and finish
-display reconfiguration, while in case 2) the main thread yields and sends
-message for the available of such datagram ping until timed out.
+The log collected with \xxx contains 1) baseline scenario where the displays
+are re-arranged with the enabled external monitor, and 2) spinning scenario in
+which we disable the external monitor with \vv{DisableMonitor} and re-arrange
+the displays. The \spinningnode in the main thread is dominated by systemcalls,
+\vv{mach\_msg} and \vv{thread\_switch}, which falls into the category of
+\textbf{Repeated Yield}. We discovered two missing data flags with \vv{lldb},
+``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'', which
+signify the status of configuration and break the loop of thead yielding.
+\xxx reveals in the baseline scenario, the main thread sets both of them
+after receiving specific datagrams from WindowServer. Conversly, setting of
+``\vv{\_gCGDidReconfigureSeen}'' is missing in the spining case, where the main
+thread yields repeatedly to send messages to WindowServer for such datagram.
 
-%\xxx reports a lot of \similarnodes due to the limit of semantics
-%in the vertex. As a result, we instruct \xxx to extends the comparison with its
-%proceeding vertices in the main thread.
 In conclusion, we discovered that the bug is inherent in the design of the
 CoreGraphics library, and would have to fixed by Apple. We verified this
 diagnosis by creating a dynamic binary patch with lldb to fix the deadlock. The
