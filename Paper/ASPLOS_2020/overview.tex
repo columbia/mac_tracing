@@ -14,7 +14,14 @@ anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
 an example of a user investigating a performance problem in Chromium. The system
 wide tracing tool, which collects data from \xxx instrumented library and
 kernel, generates logs. They are transformed into an graph in \xxx's
-graph construction component. The generated graph is used by the interactive
+graph construction component. 
+Central to our system is our \emph{event graph}, a generalized control-flow
+graph which includes inter-thread and inter-process dependencies.
+%Diagnosis
+%and inferences are performed within this graph, in a semi-automated fashion:
+%\xxx performs searches to trace logical events as they
+%flow through the system, and it judicially queries the user for guidance.
+The generated graph is used by the interactive
 debugger for causal path slicing and diagnosis. \xxx supports interactive
 search, by providng information to the user and asking for decision, in case of
 multiple predecessors in a vertex. As shown in Figure~\ref{fig:argus-overview},
@@ -22,14 +29,10 @@ the debugger asks user to choose one edge in a subgraph. After this step,
 \xxx performs diagnosis algorithm and reports the root cause vertices. In the
 example, the root cause is two vertices which form a circular wait acrossing
 multiple threads.
-
-%%debugging base of the interactive debugger.
 %- sys-wide tracing => log
 %- event graph
 %- interacjjkjjktive search "find root cause"
 %- root cause is two nodes, across multiple threads
-
-
 %
 %In this section, we describe the steps a user takes to investigate a performance
 %anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
@@ -43,13 +46,15 @@ multiple threads.
 %%is essential to discovering the system state that leads to a performance bug.
 %%\xxx recovers UI actions from logged data rather than being told the actions
 %%that a user performs, because not all of them may be relevant to the true bug.
-
-Central to our system is our \emph{event graph}, a generalized control-flow
-graph which includes inter-thread and inter-process dependencies. Diagnosis
-and inferences are performed within this graph, in a semi-automated fashion:
-\xxx performs searches to trace logical events as they
-flow through the system, and it judicially queries the user for guidance.
+%%
+%Central to our system is our \emph{event graph}, a generalized control-flow
+%graph which includes inter-thread and inter-process dependencies. 
+%Diagnosis
+%and inferences are performed within this graph, in a semi-automated fashion:
+%\xxx performs searches to trace logical events as they
+%flow through the system, and it judicially queries the user for guidance.
 % The event graph is described in further detail in \S\ref{subsec:eventgraph}.
+
 Next, we describe how \xxx assists the user to diagnose a performance issue.
 
 %fwd ref section on chromium, but first, how search event graph
@@ -114,18 +119,18 @@ are three potential cases.
 Based on our results and experience, the first case is the most common, but the
 second and third represent more severe bugs. Long-running CPU operations tend to
 be more straightforward to diagnose with existing tools such as \spindump except
-they do not connect the CPU operations back to UI events. Repeated yielding or
+they do not connect CPU operations back to UI events. Repeated yielding or
 long waiting cases involve multiple threads and processes, and are extremely
 hard to understand and fix even for the application's original developers.
 Therefore, issues remain unaddressed for years and significantly impact the
 user experience. Algorithm~\ref{alg:alg-diagnosis} is semi-automated but can
-integrate user input at each stage to leverage hypotheses or expert knowledge
+integrate user input to leverage hypotheses or expert knowledge
 as to why a hang may occur. Our results show that user inputs, albeit few, are
 crucial in this process (\S\ref{sec:casestudy}).
 
 \subsection{Chromium Spinning Cursor Example}
 
-\begin{figure}[h!]
+\begin{figure}[htb!]
     \centering
 	\input{figures/chromium_case_study_tikz.tex}
     \caption{Chromium Example}
@@ -153,14 +158,16 @@ challenging to diagnose because two applications Chromium and SCIM and many
 daemons ran and exchanged messages.  This issue was reported by other users for
 other non-English input methods, too.
 
+% issue, the user followed Figure 1.Figure~\ref{fig:argus-overview}
 To diagnose this issue with \xxx, the author started system-wide tracing, and
 then reproduced the spinning cursor with a Chinese search string typed via SCIM
 while the page was loading. It produced normal cases for the very first few
 characters, and the browser got blocked with the rest input as spinning cases.
 The entire session took roughly five minutes.
-
-She then ran \xxx to construct the event graph. The graph had 2,749,628 vertexes
-and 3,606,657 edges, almost fully connected. It spans across 17 applications;
+%  spinning node
+She then ran \xxx to construct the event graph. 
+The graph was highly complex, with 
+2,749,628 vertexes and 3,606,657 edges, almost fully connected. It spanned across 17 applications;
 109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond} and
 helper tools by applications; 126 processes; 679 threads, and 829,287
 IPC messages. Given the scale of the graph and the diverse communication
@@ -170,7 +177,9 @@ cohen2004correlating} because they handle a fairly limited set of patterns.
 Tools that require manual schema~\cite{barham2004using, reynolds2006pip}, would
 be prohibitive because developers would have to provide schema for all involved
 applications and daemons.
+% Perfect case for \xxx
 
+% Figure 2....
 Next she ran \xxx to find the \spinningnode in the main thread of the browser
 process. \xxx returned a \vv{Wait} event on condition variable with timeout that
 blocked the main thread for a few seconds. Thus \xxx compares the \spinningnode
@@ -203,11 +212,12 @@ system was able to make progress, the next key press caused the spinning cursor
 to display for another 1,500 ms. The timeout essentially converted a deadlock
 into a livelock.
 
-The finding was verified with chromium source code. Shortening the timeout interval
+Finally, we verified our finding within chromium source code. Shortening the timeout interval
 in the main browser thread proportionally shortens the waiting of the main
 render thread on processing the javascript. Skipping certain javascripts
 processing in the renderer thread cuts down the success rate of spinning case
 reproducing.
+% enough info for developer to fix issue once and for all
 
 \subsection{Limitations}
 \xxx is designed to support interactive debugging of performance
@@ -219,8 +229,8 @@ probably not as annoying as one that occurs frequently.
 We implemented \xxx in the closed-source macOS which presents a harsh test
 for \xxx, but we have not ported \xxx to other operating systems yet. It is
 possible that the ideas and techniques do not generalize to other operating
-systems. However, modern operating systems share many similarities, and good
-ideas tend to flow both ways, so we are hopeful that the ideas in \xxx are
+systems. However, modern operating systems share many similarities, and inspire each others' designs,
+so we are hopeful that the ideas in \xxx are
 generally applicable. Similarly, the applications and performance issues used in
 our evaluation may be non-representative, though we strive to cover a
 diverse set of common applications ranging from browsers to text editors.

@@ -1,0 +1,168 @@
+diff --git a/Paper/ASPLOS_2020/implementation.tex b/Paper/ASPLOS_2020/implementation.tex
+index 2340c42..57e69bd 100644
+--- a/Paper/ASPLOS_2020/implementation.tex
++++ b/Paper/ASPLOS_2020/implementation.tex
+@@ -6,17 +6,21 @@ Current macOS systems support a system-wide tracing infrastructure built by
+ Apple~\cite{linktotracetool}. By default, the infrastructure temporarily stores
+ events in memory and flushes them to screen or disk when an internal buffer is
+ filled. We extended this infrastructure to support larger-scale tests and avoid
+-filling up the disk with a file-backed ring buffer. Subject to configuration,
+-it allows at most 2GB of data per log, which corresponds to approximately
+-18,560,187 events (about 5 minute with normal operations).
+-
+-The default tracing points in macOS provide too limited information
+-to enact causal tracing. As a result, we both patch source code of
+-kernel~\cite{linkofxnusourcecode} and binary instrument libraries to gather
+-more tracing data. In \xxx, we patched the kernel with 1193 lines of code,
+-and binary instrumented the libraries including: libsystem\_kernel.dylib,
+-libdispatch.dylib, libpthread.dylib, CoreFoundation, CoreGraphics, HIToolbox,
+-AppKit and QuartzCore.
++filling up the disk with a file-backed ring buffer. Each log file is 2GB by
++default, which users can override. This size corresponds corresponds to
++approximately 19 million events (about 5 minutes with normal operations).
++
++The default tracing points in macOS provide too limited information to enact
++causal tracing. As a result, we instrument both the
++kernel~\cite{linkofxnusourcecode} (at the source level) and key libraries (at
++the binary level), to gather more tracing data. We instrumented the kernel with
++1,193 lines of code, and binary-instrumented the following libraries:
++\vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib}, \vv{libpthread.dylib},
++\vv{CoreFoundation}, \vv{CoreGraphics}, \vv{HIToolbox}, \vv{AppKit} and
++\vv{QuartzCore} in XXX different places. 
++
++%%Next subsection describes our binary instrumentation tool
++
+ 
+ \subsection{Instrumentation}
+ 
+@@ -31,7 +35,7 @@ Like Detour~\cite{hunt1999detours}, we use static analysis to decide which
+ instrumentation to perform, and then enact this instrumentation at runtime.
+ Firstly, the user finds a location of interest in the image related to a
+ specific event by searching a sequence of instructions. Then the user replaces a
+-call instruction to invokes a trampoline target function, in which we overwrite
++call instruction to invoke a trampoline target function, in which we overwrite
+ the victimized instructions and produce tracing data with API from Apple.
+ All of the trampoline functions are grouped into a new image, as well as an
+ initialization function which carries out the drop-in replacement. Then command
+@@ -51,21 +55,22 @@ the loading.
+ %%to one another and we did not see the need to implement a more general
+ %%long-jump mechanism.
+ 
+-\subsection{User Interaction}\label{subsec:tcp}
++%\subsection{User Interaction}\label{subsec:tcp}
++%\para{Tracing Custom Primitives}
+ 
+-\para{Tracing Custom Primitives}
++\subsection{Tracing Data flags} \label{subsec:tcp}
+ %%XXX give a simple command line example of how a user can ask \xxx to trace a
+ %%data flag
+ %%XXX say what we do in watch point exception handler (record instruction so
+ %%can determine read or write, and reg values)
+ As described in (\S\ref{subsec:userinteraction}), under-connection due
+-to the missing share data dependency requires users' interaction. \xxx
++to the missing data dependency requires users' interaction. \xxx
+ provides a command line tool which sets the watch point registers to record
+-share\_flag\_write and share\_flag\_read events in ad-hoc manner. This is one
++data\_flag\_write and data\_flag\_read events in ad-hoc manner. This is one
+ way users can easily collect the tracing events, and the more tech-savvy users
+ can also instrument the binary. The tool takes the process id, path to image
+ where the variable is defined and the symbol of the variable as input. We
+-show the simple example how a user ask \xxx to trace \_gOutMsgPending in the
++show the simple example how a user ask \xxx to trace \vv{\_gOutMsgPending} in the
+ following command.
+ 
+ \begin{lstlisting}
+@@ -75,24 +80,68 @@ following command.
+ 
+ \xxx hooks the watch point break handler in CoreFoundation to make sure that it is
+ loaded correctly into the address space of our target application. The handler
+-invokes the event tracing API from Apple to record the value of the shared
+-variable and the operation type: read or write.
+-\\
+-\para{Capturing Instructions for Diagnosis}
+-%XXX Talk about what data we gather using lldb, the debugger in the LLVM
+-%compiler tool chain.
+-Since the output of \xxx is the nodes and user input events suspected to cause
+-the busy spinning, more detail may required to verify and fix the bug. After
+-the offline analysis on the graph, \xxx provides tools for user to exact
+-the Back\_trace events from the output and generate a script for conditional
+-debugging.
++invokes the event tracing API from Apple to record the value of the data flag
++and the operation type: read or write.
++
++\subsection{Capturing Instructions for Diagnosis}
++
++Users may need to gather more information, such as instructions exected to
++verify and come up a binary patch. \xxx integrates with lldb to capture
++instructions executed and add them to the nodes in the event graph. It generates
++the debugging scripts with the light weight call stack from the root cause
++nodes.
+ 
+ The debugging scripts go through the instructions of apps and frameworks step
+ by step to capture the parameters tainted by user inputs. At each beginning of
+ a function call, the script records a full call stack for it. Considering the
+-overhead and usefulness, it steps over and only record the return value of APIs
+-from libraries with a filename extension .dylib.
++overhead and usefulness, it steps over and only records the return value of APIs
++from libraries with a filename extension \vv{.dylib}.
+ 
+ The supplementary information are subject to the users review to pinpoint the
+ root cause of spinning beachball on macOS.
+ 
++\subsection{Baseline Case Discovery }
++
++\xxx begins with identifying the spinning case and normal case for the root
++cause diagnosis of \textbf{LongWait} and \textbf{RepeatedYield} cases. It
++identifies the vertexes from the same high level semantics with semantical
++events, including system calls, call stacks, user actions, and the connection
++events including messages flowing through threads, dipatch queue and runloop
++operations, data flags read/write. At the same time, it differentiate the
++different execution results by comparing the execution time in the vertexes and
++blocking time in wait events.
++
++\xxx compares the content of the event attributes, for example, the system call
++number on sementical events and compares peers for connection events. Depending
++on the report detail of the spinning node, user can change the comparing metrics
++or request \xxx to compare proceeding nodes to narrow down the result set
++reported. If multiple normal cases are identifies, \xxx usually choose the most
++recent one hueristicstically.
++
++%\begin{algorithm}[ht!]
++%    \caption{\xxx Find similar node algorithm.}
++%    \label{alg:alg-findsimilarnode}
++%\begin{algorithmic}[1]
++%%%  Output: Similar node set
++%\Require{EventTypesSet + SpinningNode + Graph}
++%\Ensure{SimilarNodeSet}
++%\Statex
++%\Function{FindSimilarNode}{}
++%\State{$thread$ $\gets$ thread of $Node_{blocking}$}
++%\For {$Node_i$ in $thread$ other than $Node_{blocking}$}
++%	\For{$iter_i$ $\gets$ NextEventInEventTypeSet($Node_i$)
++%		\And $iter_b$ $\gets$ NextEventInEventTypeSet($Node_{blocking}$)}
++%		\If{CompareEvent($Event$($iter_b$), $Event$($iter_i$)) $==$ False}
++%			\State{Break}
++%		\EndIf
++%	\EndFor
++%	\If {$iter_b$ $==$ end \And $iter_i$ $==$ end}
++%		\If {wresult of $Node_i$ $\neq$ wresult of $Node_{blocking}$
++%		\Or timespan of $Node_{blocking}$ - timespan of $Node_i$ $\geq$ threshhold}
++%			\State{Put $Node_i$ into $SimilarNodeSet$}
++%		\EndIf
++%	\EndIf
++%\EndFor
++%\EndFunction
++%\end{algorithmic}
++%\end{algorithm}
+diff --git a/Paper/ASPLOS_2020/paper.tex b/Paper/ASPLOS_2020/paper.tex
+index 84fc01e..ab4b8c5 100644
+--- a/Paper/ASPLOS_2020/paper.tex
++++ b/Paper/ASPLOS_2020/paper.tex
+@@ -139,7 +139,6 @@
+ \input{overview}
+ \input{inaccuracy}
+ \input{graphConstruct}
+-%%\input{patterns}
+ \input{implementation}
+ \input{casestudies}
+ \input{evaluation}

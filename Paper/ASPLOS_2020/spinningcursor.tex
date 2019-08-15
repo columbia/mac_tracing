@@ -5,7 +5,6 @@ When the spinning cursor shows up, a hang reporting tool, \spindump usually
 kicks in automatically to sample callstacks for debugging. To figure out the
 \spinningnode in the main thread, we turn to the event graph, and slice path
 backward from the launch of \spindump.
-
 The path shows that \spindump is launched after receiving a message from
 \vv{WindowServer}, which received a message from the \vv{NSEvent thread} of
 the freezing app. The call stack attached to the messages further reveals

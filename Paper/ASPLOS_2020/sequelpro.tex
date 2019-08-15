@@ -6,12 +6,12 @@ We experienced the non-responsiveness of Sequel Pro while its network connection
 got lost and it tried re-connections. The tracing data collected by \xxx
 contains 1) a quick network connection during login, and 2) Sequel Pro lost
 connection for a while. Although \xxx identified the \spinningnode and
-corresponding (baseline) \similarnode with ease, it can hardly get the correct
-causal path in the baseline scenario without a user's interaction. The backward
-slicing on vertex, which has multiple incomming edges, including one from
-kernel thread, makes it hard to rely on heuristics. Our interactively search is
+corresponding (baseline) \similarnode with ease, it cannot get the correct
+causal path in the baseline scenario without user interaction. The backward
+slicing on vertex has multiple incoming edges, including one from a
+kernel thread, which means that operations are likely to be batched together and inseparable by heuristics. Our interactively search is
 extremely helpful in the step, greatly reducing the noise in the path. Close
-examine of the \spinningnode based on the causual path tells that the main
+examination of the \spinningnode based on the causual path tells us that the main
 thread is waiting for the kernel thread, which in turn waits for the ssh thread.
 
 %\xxx helps to filter out overconnetions by dividing XXX combined batching node

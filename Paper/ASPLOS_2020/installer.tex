@@ -23,4 +23,4 @@ next worker thread in $Vertex_3$. While \xxx is slicing backward, $Vertex_3$
 has two incoming edges: one is from $Vertex_{main}$, and the other one is from
 $Vertex_2$. Since users can peek the edges before making decision, they are
 likely to figure out that the three worker threads contend with mutex lock, and
-all of them are the heirs of $Vertex_{main}$.
+all of them are successors of $Vertex_{main}$.

@@ -1,11 +1,11 @@
 System Preferences provides a central location in macOS to customize
 system settings, inclduing configuring additional monitors. A tool called
-\vv{DisableMonitor}~\cite{disablemonitor} completes its function with
-enable/disable monitors online. We blocked on the spinning cursor while
+\vv{DisableMonitor}~\cite{disablemonitor} provides full functionality including
+the ability to enable/disable monitors online. We blocked on the spinning cursor while
 disabling an external monitor and rearranging windows in \vv{Display} panel.
 
-The log collected with \xxx contains 1) baseline scenario where the displays
-are re-arranged with the enabled external monitor, and 2) spinning scenario in
+The log collected with \xxx contains 1) a baseline scenario where the displays
+are re-arranged with the enabled external monitor, and 2) a spinning scenario in
 which we disable the external monitor with \vv{DisableMonitor} and re-arrange
 the displays. The \spinningnode in the main thread is dominated by system
 calls, \vv{mach\_msg} and \vv{thread\_switch}, which falls into the category of
