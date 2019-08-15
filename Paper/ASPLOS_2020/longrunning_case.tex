@@ -9,7 +9,7 @@ reveal their root causes.
 
 \paragraph{3-TeXStudio}
 
-TeXstudio~\cite{texstudio} is an integrated writing environment for creating
+TeXstudio~\cite{TeXStudio} is an integrated writing environment for creating
 LaTeX documents. We noticed a user reported spinning cursor when he
 modified his bib file. Although the issue was closed by the developer, due to
 insufficient information to reproduce the bug, we reproduced it with a large bib
@@ -77,9 +77,12 @@ functions. We also list corresponding user input event from the path slicing in
 Table~\ref{table:texteditapps}.
 
 \begin{table}[H]
+\vspace{-0.2cm}
 \footnotesize
 \centering
   \begin{tabularx}{\columnwidth}{l|l|l}
+  \hline
+  \hline
                   &                     &\\
   \textbf{BUG-ID} & \textbf{costly API} &UI\\
   \hline
@@ -90,7 +93,7 @@ Table~\ref{table:texteditapps}.
 					\end{tabular}
    		          & \begin{tabular}{@{}l@{}}
 				  	\vv{system}\\
-					\vv{defined}\\
+					\vv{define}\\
 					\vv{event}
 					\end{tabular}
 				  \\
@@ -144,5 +147,6 @@ Table~\ref{table:texteditapps}.
   \end{tabularx}
   \caption{Root cause of spinning cursor in editing Apps}
   \label{table:texteditapps}
+\vspace{-0.5cm}
 \end{table}
 

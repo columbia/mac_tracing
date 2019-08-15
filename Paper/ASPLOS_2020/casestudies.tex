@@ -2,19 +2,27 @@
 
 In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
 cases in \napps popular applications. Table~\ref{table:bugs-desc} describes
-these spinning-cursor cases, which are detailed in the sections that follow.
-We compared \xxx with traditional causual tracing methods on edges
-and vertices \xxx mitigated. We studied the ratios of over-connection filted
-with message peers heuristics, and incognito under-connections disclosed by data flags and wait
-hueristics. 
+these spinning-cursor cases, which are detailed in the sections that follow. We
+compared \xxx with traditional causual tracing methods on edges and vertices
+\xxx mitigated. We studied the ratios of over-connection filted with message
+peers heuristics, and incognito under-connections disclosed by data flags and
+wait hueristics. Even with our technique, the filted graph remains too imprecise
+for automatic causual tracing. Fortunately, user interactions compensates
+the inaccuracy in causual path slicing, while not overwhelming the diagnosis
+process.
 
-User interactions are critical in the path slicing due to the inherent
-inaccurate in the graph. Our results in Table~\ref{table:results} show the user
-interaction does not overwhelm the debugging process while makes the debugging
-much more efficient, which is demonstrated with the length of path sliced
-with \xxx, which is much shorter than the one generated automatically with
+Our results in Table~\ref{table:results} show 0 to 3 user queries usually
+suffice to find root cause path precisely. Although complex softwares like
+7-MSWord requires 22 queries, many repeated patterns can be easily identified
+by uers, as discussed below. The paths exclude much noise, and are shorter
+and easier to inspect, compared to the traditional slicing automatically with
 heuristics.
 
+%% consider adding comparison to prior approaches
+%% Our techniques effectively removed false and added missing edges in the
+%% event graph.  Even with our techniques, the resultant graph remain too
+%% imprecise for traditional causal tracing, but, fortunately, an average
+%% of XXX user queries suffice to locate the root causes precisely.
 \input{spinningcursor}
 
 \input{bugdesc}

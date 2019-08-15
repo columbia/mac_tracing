@@ -3,6 +3,7 @@
 \footnotesize
 \centering
 \begin{tabular}{l|ccccc}
+\hline\hline
  & 1st & 2nd & 3rd & 4th & 5th\\
 \hline
  without \xxx& 5.98 & 6.23 & 6.18 & 6.05 & 6.28\\
@@ -10,16 +11,19 @@
 \hline
 average overhead& \multicolumn{5}{c}{0.13\%}\\
 \hline
+\hline
 \end{tabular}
 \caption{Score From iBench}
 \label{tab:ibench}
 \end{table}
 
-
 \begin{table}[h]
+\vspace{-1cm}
 \footnotesize
 \centering
 \begin{tabular}{ll|rrr}
+\hline
+\hline
  & kb/s & With Argus & Without Argus & overhead\\
  \hline
 \textbf{bonnie++}&read char & 21922 & 22149 & 0.01\\
@@ -39,10 +43,12 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
  & rewerite & 3663066 & 4059912 & 0.10\\
  \hline
  & average & - & - & 0.05\\
- \hline
+\hline
+\hline
 \end{tabular}
 \caption{IO throughput with bonnie++ and iozone}
 \label{tab:iothroughput}
+\vspace{-0.5cm}
 \end{table}
 
 

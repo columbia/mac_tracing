@@ -19,7 +19,7 @@ the binary level), to gather more tracing data. We instrumented the kernel with
 1,193 lines of code, and binary-instrumented the following libraries:
 \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib}, \vv{libpthread.dylib},
 \vv{CoreFoundation}, \vv{CoreGraphics}, \vv{HIToolbox}, \vv{AppKit} and
-\vv{QuartzCore} in XXX different places. 
+\vv{QuartzCore} in \nlibchanges different places. 
 
 %%Next subsection describes our binary instrumentation tool
 
@@ -65,7 +65,7 @@ the loading.
 %%data flag
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
-As described in (\S\ref{subsec:userinteraction}), under-connection due
+As described in (\S\ref{sec:inaccuracy}), under-connection due
 to the missing data dependency requires users' interaction.
 Users specify that reads and writes to a given global variable should be considered data dependencies.
 Global-variable tracing is possible through \xxx's binary rewriting, but we also provide a
