@@ -16,23 +16,23 @@
 \tikzstyle{thread} = [minimum width = 8pt, font=\small]
 
 \tikzstyle{actionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, fill = white]
-\tikzstyle{blocked} = [minimum height = 10pt, pattern=north west lines, pattern color = black!40!, font=\scriptsize, rotate=270] 
-\tikzstyle{blockedactionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, pattern=north west lines, pattern color = black!20!] 
+\tikzstyle{blocked} = [minimum height = 10pt, pattern=crosshatch dots, pattern color = black!40!, font=\scriptsize, rotate=270] 
+\tikzstyle{blockedactionpoint} = [draw, thick, minimum width = 10pt, minimum height = 30pt, pattern=crosshatch dots, pattern color = black!20!] 
 
-\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 3pt, minimum height =3pt]
-%\tikzset{
-%%ext/.pic={
-%%\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
-%%\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
-%%},
-%point/.style={
-%    thick,
-%    draw=red,
-%    cross out,
-%    inner sep=0pt,
-%    minimum width=4pt,
-%    minimum height=4pt,
-%}}
+%\tikzstyle{point} = [thick, draw=red, cross out, inner sep = 0pt, minimum width = 3pt, minimum height =3pt]
+\tikzset{
+ext/.pic={
+\path [fill=white] (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2)to(0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2)--cycle;
+\draw (-0.2,0)to[bend left](0,0.1)to[bend right](0.2,0.2) (0.2,0)to[bend left](0,-0.1)to[bend right](-0.2,-0.2);
+},
+point/.style={
+    thick,
+    draw=red,
+    cross out,
+    inner sep=0pt,
+    minimum width=4pt,
+    minimum height=4pt,
+}}
 
 %draw applications
 %%browser
@@ -92,7 +92,7 @@
 %\draw [solid] (bt5begin) -- (bt5end);
 %
 \node[draw, dotted, above left = -120pt and -300pt of browser, pattern=north west lines, pattern color = black!20!, minimum width =300pt, minimum height=80pt] {}; %label=below:flow of TextInputClientMsg FirstRectForCharacterRange]{};
-\node[draw, dotted, above left = -50pt and -170pt of 9, pattern=crosshatch dots, pattern color = black!20!, minimum width =180pt, minimum height=60pt]{}; %label=below:flow of Javascript running]{};
+\node[draw, dotted, above left = -50pt and -170pt of 9, pattern=north east lines, pattern color = black!20!, minimum width =180pt, minimum height=60pt]{}; %label=below:flow of Javascript running]{};
 
 \draw [->] (1) -- (2);
 \draw [->] (2) -- (3);
@@ -134,12 +134,12 @@
 \node [draw, solid, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, label={[font=\large]right:vertex}]{};
 
 %\node[minimum width = 10pt, minimum height = 3pt, below left = -80pt and -30pt of legend,label= right: for Javascript processing]{};
-%\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, pattern=crosshatch dots, pattern color = black!20!, label= right: flow of message]{};
-\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -105pt and -30pt of legend, pattern=crosshatch dots, pattern color = black!20!, label= {[font=\large]right: path 2}]{};
+%\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, pattern=north east lines, pattern color = black!20!, label= right: flow of message]{};
+\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -105pt and -30pt of legend, pattern=north east lines, pattern color = black!20!, label= {[font=\large]right: path 2}]{};
 
 %\node[minimum width = 10pt, minimum height = 3pt, below left = -100pt and -30pt of legend, label= right: FirstRectForCharacterRange]{};
 %\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -110pt and -30pt of legend, pattern = north west lines, pattern color = black!20!, label = right: flow of TextInputClientMsg]{};
-\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -120pt and -30pt of legend, label= {[font =\large]right: path 1}]{};
+\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -120pt and -30pt of legend, pattern=north west lines, label= {[font =\large]right: path 1}]{};
 
 \end{tikzpicture}
 }

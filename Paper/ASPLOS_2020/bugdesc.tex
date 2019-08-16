@@ -9,13 +9,13 @@
     \textbf{Bug ID} & \textbf{Application} & \textbf{Bug description}\\
     \hline
 	\hline
-	 0-Chormium & Chormium & \begin{tabular}{@{}l@{}}
+	 1-Chormium & Chormium & \begin{tabular}{@{}l@{}}
 	 Typing non-english in search box\\
 	 causes webpage freeze.
 	 \end{tabular}
 	 \\
      \hline
-	 1-SystemPref & \begin{tabular}{@{}l@{}} 
+	 2-SystemPref & \begin{tabular}{@{}l@{}} 
 	 System Preferences\\
 	 \end{tabular}
 	 & \begin{tabular}{@{}l@{}}
@@ -25,21 +25,11 @@
 	 \end{tabular}
 	 \\
      \hline
-	 2-SequelPro& \begin{tabular}{@{}l@{}} 
+	 3-SequelPro& \begin{tabular}{@{}l@{}} 
 	 Sequel Pro
 	 \end{tabular}
 	 & \begin{tabular}{@{}l@{}}
 	 Lost connection freezes the APP.
-	 \end{tabular}
-	 \\
-     \hline
-	 3-TexStudio & \begin{tabular}{@{}l@{}} 
-	 TeXStudio
-	 %: LaTeX editor
-	 \end{tabular}
-	 & \begin{tabular}{@{}l@{}}
-	 Modification on bib file with vim\\
-	 causes its main window hang.
 	 \end{tabular}
 	 \\
      \hline
@@ -52,7 +42,17 @@
 	 \end{tabular}
 	 \\
      \hline
-	 5-Notes& \begin{tabular}{@{}l@{}} 
+	 5-TexStudio & \begin{tabular}{@{}l@{}} 
+	 TeXStudio
+	 %: LaTeX editor
+	 \end{tabular}
+	 & \begin{tabular}{@{}l@{}}
+	 Modification on bib file with vim\\
+	 causes its main window hang.
+	 \end{tabular}
+	 \\
+     \hline
+	 6-Notes& \begin{tabular}{@{}l@{}} 
 	 Notes\\
 	 \end{tabular}
 	 & \begin{tabular}{@{}l@{}}
@@ -61,7 +61,7 @@
 	 \end{tabular}
 	 \\
      \hline
-	 6-TextEdit & \begin{tabular}{@{}l@{}}
+	 7-TextEdit & \begin{tabular}{@{}l@{}}
 	 TextEdit
 	 \end{tabular}
 	 & \begin{tabular}{@{}l@{}}
@@ -70,7 +70,7 @@
 	 \end{tabular}
 	 \\
      \hline
-	 7-MSWord & \begin{tabular}{@{}l@{}}
+	 8-MSWord & \begin{tabular}{@{}l@{}}
 	 Microsoft Words
 	 \end{tabular}
 	 & \begin{tabular}{@{}l@{}}
@@ -79,21 +79,21 @@
 	 \end{tabular}
 	 \\
      \hline
-	 8-SlText & Sublime Text
+	 9-SlText & Sublime Text
 	 & \begin{tabular}{@{}l@{}}
 	 Copying in a file over 49000 lines\\
 	 causes freeze.
 	 \end{tabular}
 	\\
     \hline
-	 9-TextMate & TextMate 
+	 10-TextMate & TextMate 
 	 & \begin{tabular}{@{}l@{}}
 	 Pating text over 4000 lines causes\\
 	 freeze.
 	 \end{tabular}
 	\\
     \hline
-	 10-CotEditor & CotEditor
+	 11-CotEditor & CotEditor
 	 & \begin{tabular}{@{}l@{}}
 	 Pasting in file with 4000 lines co-\\
 	 ntext causes freeze.\\
@@ -101,7 +101,10 @@
 	\\
 	 \hline
   \end{tabularx}
- 	\parbox{\columnwidth}{\caption{Bug Descriptions. We assign each bug in Column \textbf{Bug ID} to ease discussion}
+
+ 	\parbox{\columnwidth}
+	{\caption{Bug Descriptions.\footnotesize{We assign each bug in Column \textbf{Bug ID} to ease discussion}}
   	\label{table:bugs-desc}
-  	}
+	}
+	\vspace{-0.3cm}
 \end{table}

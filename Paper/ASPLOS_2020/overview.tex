@@ -4,7 +4,6 @@
 \begin{figure}[tb]
     \centering
 	\input{figures/overview_tikz.tex}
-    %\includegraphics[width=\columnwidth]{figures/overview_tikz.png}
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
 \end{figure}
@@ -57,15 +56,14 @@ Next, we describe how \xxx assists the user to diagnose a performance issue.
 
 \input{ArgusAlgorithm}
 
-Consider a common performance bug on macOS, the \emph{spinning cursor},
-which indicates the current application's main thread has not processed
-any UI events for over two seconds.  To initialize debugging a spinning
-cursor, \xxx first constructs an event graph from the system-wide event
-log recorded.  It then queries the event graph to find the ongoing event
-in the application's main thread concurrent to the display of the spinning
-cursor.  Given the event graph and the \spinningnode, \xxx runs
-Algorithm~\ref{alg:alg-diagnosis} to interactively pinpoint the root
-cause.
+Consider a common performance bug on macOS, the \emph{spinning cursor}, which
+indicates the current application's main thread has not processed any UI
+events for over two seconds. To initialize debugging a spinning cursor, \xxx
+first constructs an event graph from the system-wide event log recorded. It
+then queries the event graph to find the ongoing event in the application's
+main thread concurrent to the display of the spinning cursor. Given the event
+graph and the \spinningnode, \xxx runs Algorithm~\ref{alg:alg-diagnosis} to
+interactively pinpoint the root cause.
 
 Specifically, upon examining what the main thread is actually doing, there
 are three potential cases.
@@ -73,14 +71,14 @@ are three potential cases.
 \begin{itemize}
 
 	\item \textbf{LongRunning} (lines~\ref{a1:longrunning_begin}
-		-~\ref{a1:longrunning_end}). The main thread is busy performing lengthy CPU
-		operations. This case is the simplest, and \xxx traverses the event graph
-		backwards to find a slice originating from the offending UI event to the
-		long running CPU operations. This slice is particularly useful for further
-		diagnosing the bug. As shown in Function \vv{InteractiveSlicing}, \xxx may
-		encounter vertices with multiple incoming edges or weak edges that may not
-		reflect causality when traversing the graph. It queries the user to resolve
-		them.
+		-~\ref{a1:longrunning_end}). The main thread is busy performing lengthy
+		CPU operations. This case is the simplest, and \xxx traverses the event
+		graph backwards to find a slice originating from the offending UI event
+		to the long running CPU operations. This slice is particularly useful for
+		further diagnosing the bug. As shown in Function \textit{InteractiveSlicing} in
+		line~\ref{alg:interslice-line}, \xxx may encounter vertices with multiple
+		incoming edges or weak edges that may not reflect causality when traversing
+		the graph. It queries the user to resolve them.
 
 	\item \textbf{RepeatedYield} (lines~\ref{a1:repeatedyield_begin}
 		-~\ref{a1:repeatedyield_end}). The main thread is in a yield loop, which
@@ -103,14 +101,14 @@ are three potential cases.
 		backwards from the \similarnode to find the baseline wake-up path. For each
 		thread in the wake-up path, it examines the vertex in the thread right before
 		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
-		to the path of \rootcausenodes, and applies Function Diagnose recursively
-		diagnose ``the culprit of the culprit.'' For each such vertex, it queries the
+		to the path of \rootcausenodes, and applies Function \textit{Diagnose} recursively
+		to diagnose ``the culprit of the culprit.'' For each such vertex, it queries the
 		user to determine whether to proceed or stop because based on our experience
 		the user needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
 \noindent
-Based on our results and experience, the first case is the most common, but the
+Our experience suggests that the first case is the most common, but the
 second and third represent more severe bugs. Long-running CPU operations tend to
 be more straightforward to diagnose with existing tools such as \spindump except
 they do not connect CPU operations back to UI events. Repeated yielding or
@@ -127,14 +125,14 @@ crucial in this process (\S\ref{sec:casestudy}).
 \begin{figure}[tb]
 	\footnotesize
     \centering
-	\input{figures/chromium_case_study_tikz.tex}
-	\parbox{\columnwidth}{\caption{Chromium Example}
-		\textit{\vv{Path 1} shows a message flow from chromium to renderer process, to get the
-			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
-			shows a JavaScript processing event, dequeued from the renderer's main event
-		queue. It blocks on the semaphore from browser for the rendering.}
+	\includegraphics[width=\columnwidth]{./figures/chromium_case_study_2.pdf}
+%%	\input{figures/chromium_case_study_tikz.tex}
+%%	\parbox{\columnwidth}{\caption{Chromium Example}
+%%		\textit{\vv{Path 1} shows a message flow from chromium to renderer process, to get the
+%%			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
+%%			shows a JavaScript processing event, dequeued from the renderer's main event
+%%		queue. It blocks on the semaphore from browser for the rendering.}
     \label{fig:chromium-case-study}
-	}
 \end{figure}
 %   resolve symbol, save to log
 %     search for set\_spinning
@@ -163,12 +161,11 @@ other non-English input methods, too.
 To diagnose this issue with \xxx, the author follows the steps in
 Figure~\ref{fig:argus-overview}. She started system-wide tracing, and then
 reproduced the spinning cursor with a Chinese search string while the page was
-loading. After the very first few characters as normal cases, the browser got
-blocked with the rest input as spinning cases. The entire session took roughly
+loading. After the very first few characters which the browser handles normally,
+the remaining character triggered a spinning cursor. The entire session took roughly
 five minutes.
-%  spinning node
 She then ran \xxx to construct the event graph. The graph was highly complex,
-with 2,749,628 vertexes and 3,606,657 edges, almost fully connected. It spanned
+with 2,749,628 vertices and 3,606,657 edges, almost fully connected. It spanned
 across 17 applications; 109 daemons including \vv{fontd}, \vv{mdworker},
 \vv{nsurlsessiond} and helper tools by applications; 126 processes; 679
 threads, and 829,287 IPC messages. Given the scale of the graph and the diverse
@@ -181,47 +178,49 @@ schema for all involved applications and daemons.
 % Perfect case for \xxx
 
 Next she ran interactive debugger in \xxx to find the \spinningnode in the main
-thread of the browser process. \xxx returned a \vv{wait} event on condition
-variable with timeout that blocked the main thread for a few seconds. Thus \xxx
-compares the \spinningnode to a similar one in normal case where the \vv{wait}
+thread of the browser process. \xxx returned a \vv{LongWait} event, a \vv{pthread\_cond\_timewait()}
+with a timeou of 1.5 seconds.  
+\xxx
+compares the \spinningnode to \similarnode in baseline scenario where the \vv{wait}
 was signaled quickly. \xxx reported three, and confirmed with the user which one
 she wanted.
 
 % Figure 2....
 
-\xxx then found the normal-case wake-up path which connects five threads.
+\xxx then found the baseline wake-up path which connects five threads.
 The browser main thread was signaled by a browser worker thread, which
-received IPC from a worker thread of \vv{renderer} where the rendering view
+received IPC from a worker thread of daemon \vv{renderer} where the rendering view
 and WebKit code run. The worker thread is woken up by the \vv{renderer} main
-thread, which in turn woken by fontd, the font service daemon. \xxx further
-compared the wake-up path with the spinning case, as shown in \vv{path 1}
-in Figure~\ref{fig:chromium-case-study}, and returned the \vv{wait} event
+thread, which in turn woken by \vv{fontd}, the font service daemon. \xxx further
+compared the baseline path with the spinning case, as shown in \vv{path 1}
+in Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event
 on semaphore in the \vv{renderer} main thread, the culprit that delayed
 waking up the browser main thread over 4 seconds. What caused the wait in the
 \vv{renderer} main thread though? She thus continued diagnosis and recursively
-applied \xxx to the wait in \vv{renderer}, and got the wake-up path. The culprit
-that delayed the semaphore was the timeouts in the browser's main thread, as the
-blocking edge shown in \vv{path 2} in Figure ~\ref{fig:chromium-case-study}. At
-this point, a circular wait formed.
+applied \xxx to the wait in \vv{renderer}, and it turned out that \vv{renderer} was
+actually waitng to be woken up by the browser main thread -- a circular wait formed.
 
-To understand what exactly happens in the situation, she inspected the full
-call stacks by \xxx scripts, taking the reported vertices from the renderer and
-the browser as input. Inspection reveals that the \vv{renderer} requested the
-browser's help to render JavaScript and waited for reply with semaphore. The
-browser was waiting for the \vv{renderer} to return the string bounding box and
+%and got the wake-up path. The culprit
+%that delayed the semaphore was the timeouts in the browser's main thread, as the
+%blocking edge shown in \vv{path 2} in Figure ~\ref{fig:chromium-case-study}. At
+%this point, a circular wait formed.
+
+%To understand what exactly happens in the situation, she inspected the full
+%call stacks by \xxx scripts, taking the reported vertices from the renderer and
+%the browser as input. Inspection reveals that the \vv{renderer} requested the
+%browser's help to render JavaScript and waited for reply with semaphore. 
+Inspect of the reported vertices reveals that the browser was waiting for 
+the \vv{renderer} to return the string bounding box for a string, and
 the \vv{renderer} was waiting for the browser to help render JavaScript. This
 circular wait was broken by a timeout in the browser main thread (the \vv{wait}
 on \vv{Cf} timeout was 1,500 ms). While the system was able to make progress, the
 next key press caused the spinning cursor to display for another 1,500 ms. The
 timeout essentially converted a deadlock into a livelock.
 
-Finally, we verified our finding within chromium source code. Shortening the
-timeout interval in the main browser thread proportionally shortens the waiting
-of the main render thread on processing the JavaScript. Skipping certain
-JavaScript's processing in the renderer thread cuts down the success rate of
-spinning case reproducing. \xxx reports enough information for developers to fix
-issue once and for all.
-% enough info for developer to fix issue once and for all
+To verify this diagnosisi, we shorten the
+timeout in the \vv{pthread\_cond\_timedwait()} call in chromium
+to 150 milliseconds, which proportionally recuded how often this 
+spinning cursor reproduces.
 
 \subsection{Limitations}
 

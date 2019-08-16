@@ -7,7 +7,7 @@ listed in Table~\ref{table:bugs-desc} to reveal their root causes.
 
 %represent cases in this category.
 
-\paragraph{3-TeXStudio}
+\paragraph{5-TeXStudio}
 
 TeXstudio~\cite{TeXStudio} is an integrated writing environment for creating
 LaTeX documents. We noticed a user reported spinning cursor when he
@@ -16,15 +16,13 @@ insufficient information to reproduce the bug, we reproduced it with a large bib
 file opened in a tab. Each time we touched the file through another editor, vim
 for example, the application window showed a spinning cursor.
 
-\xxx recognizes the \spinningnode belongs to the category of \textbf{Long
-Running}. Slicing causal path from the vertex, \xxx reaches daemon
+\xxx recognizes the \spinningnode belongs to the category of Long
+Running. Slicing causal path from the vertex, \xxx reaches daemon
 ``\vv{fseventd}'' and figures out that the long-running function is invoked by a callback
-function from this daemon. The advantage of \xxx over other debugging tools is
-it helps to narrow down the root cause with the path. If the user's bug report
-had included details captured with \xxx, it may have provided the developer with
-enough information to reproduce the bug successfully.
+function from this daemon to sync data. The advantage of \xxx over other debugging tools is
+it helps to narrow down the root cause with the path.
 
-\paragraph{6-TextEdit}
+\paragraph{7-TextEdit}
 
 TextEdit is a simple word processing and text editing tool shipped by Apple, which
 often hangs on the editing of large files. 
@@ -47,7 +45,7 @@ where we choose the most recent incoming edge.
 Although the automatic heuristics works for this particular application, it is
 not general enough to succeed for all patterns.
 
-\paragraph{7-MSWord}
+\paragraph{8-MSWord}
 
 Microsoft Word is a large and complex piece of software. \xxx can analyze the
 event graph, but it identifies multiple possible root causes: the length of path
@@ -63,7 +61,7 @@ can learn from the call stack that \vv{Microsoft Word} launches a service
 \vv{Microsoft Word} thread; this thread then sends a message to \vv{launchd}
 to register the new service and waits for a reply message. With the most
 recent edge heuristics in automatic slicing, \xxx chose \vv{launchd} as its
-predecessor, but the user can more precisely identify that the execution segment
+predecessor, but the user can more accurately identify that the execution segment
 is on behalf of the first thread. We rely on user interaction in this case
 to find the true root cause, since \xxx has identified multiple
 possibilities.
@@ -90,44 +88,44 @@ user input event (derived from path slicing) that triggers the hang.
   \textbf{BUG-ID} & \textbf{costly API} &UI\\
   \hline
   \hline
-  5-Notes         & \begin{tabular}{@{}l@{}}
+  6-Notes         & \begin{tabular}{@{}l@{}}
   					\vv{1)NSDetectScrollDevices}\\
 					\vv{\xspace ThenInvokeOnMainQueue}\\
 					\end{tabular}
    		          & \begin{tabular}{@{}l@{}}
 				  	\vv{system}\\
-					\vv{define}\\
+					\vv{defined}\\
 					\vv{event}
 					\end{tabular}
 				  \\
   \hline
-  6-TexEdit       & \begin{tabular}{@{}l@{}}
-  					\vv{1)[NSTextView(NSPasteboard) \_write}\\
-					\vv{\xspace RTFDInRanges:toPasteboard:]}\\
-					\vv{2)get\_vImage\_converter}\\
-  					\vv{3)get\_full\_conversion\_code\_fragment}\\
-					\end{tabular}
-				  & \vv{key c}
-				  \\
+%  7-TexEdit       & \begin{tabular}{@{}l@{}}
+%  					\vv{1)[NSTextView(NSPasteboard) \_write}\\
+%					\vv{\xspace RTFDInRanges:toPasteboard:]}\\
+%					\vv{2)get\_vImage\_converter}\\
+%  					\vv{3)get\_full\_conversion\_code\_fragment}\\
+%					\end{tabular}
+%				  & \vv{key c}
+%				  \\
+%  \hline
+%  8-MSWord        & \begin{tabular}{@{}l@{}}
+%					\vv{1)-[NSPasteboard setData:}\\
+%					\vv{\xspace forType:index:usesPboardTypes:]}\\
+% 					\vv{2)\_CFStringCreateImmutableFunnel3}\\
+%  					\vv{3)platform\_memmove}\\
+%					\vv{4)lseek}, \vv{5)fstat64}, \vv{6)fcntl}\\
+%					\end{tabular}
+%				  & \vv{key c}
+%				  \\
   \hline
-  7-MSWord        & \begin{tabular}{@{}l@{}}
-					\vv{1)-[NSPasteboard setData:}\\
-					\vv{\xspace forType:index:usesPboardTypes:]}\\
- 					\vv{2)\_CFStringCreateImmutableFunnel3}\\
-  					\vv{3)platform\_memmove}\\
-					\vv{4)lseek}, \vv{5)fstat64}, \vv{6)fcntl}\\
-					\end{tabular}
-				  & \vv{key c}
-				  \\
-  \hline
-  8-SlText   & \begin{tabular}{@{}l@{}} 
+  9-SlText   & \begin{tabular}{@{}l@{}} 
 					\vv{1)px\_copy\_to\_clipboard}\\
   					\vv{2)\_\_CFToUTF8Len}\\
   					\end{tabular}
 				  & \vv{key c}
 				  \\
   \hline
-  9-TextMate      & \begin{tabular}{@{}l@{}}
+  10-TextMate      & \begin{tabular}{@{}l@{}}
   					\vv{1)-[OakTextView paste:]}\\
 					\vv{2)CFAttributedStringSet}\\
 					\vv{3)TASCIIEncoder::Encode}\\
@@ -135,7 +133,7 @@ user input event (derived from path slicing) that triggers the hang.
 				  & \vv{key v}
 				  \\
   \hline
-  10-CotEditor    & \begin{tabular}{@{}l@{}}
+  11-CotEditor    & \begin{tabular}{@{}l@{}}
   					\vv{1)CFStorageGetValueAtIndex}\\
 					\vv{2)-[NSBigMutableString}\\
 					\vv{\xspace characterAtIndex:]}\\

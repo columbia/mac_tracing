@@ -110,7 +110,7 @@
 \node(brw1) [gnode, below = 15pt of brw0]{write\\msg};
 \node(brw2) [gnode, below = 20pt of brw1]{read\\wake};
 \node(k0) [gnode, fill = red!20, below = 25pt of t1s] {msg};
-\node(k1) [gnode, below = 50pt of k0] {msg\\wait};
+%\node(k1) [gnode, below = 50pt of k0] {msg\\wait};
 \node(rdw0) [gnode, fill = yellow!20, below = 30pt of t2s]{msg\\read\\msg};
 \node(rdw1) [gnode, below = 30pt of rdw0]{msg\\msg};
 \node(rdm0) [gnode, below = 40pt of t3s]{read\\msg};
@@ -127,8 +127,8 @@
 \draw[-, dotted](brw1) -- (brw2);
 \draw[-, solid](brw2) -- (t0e.south);
 \draw[-, solid](t1s.south) -- (k0);
-\draw[-, dotted](k0) -- (k1);
-\draw[-, dotted](k1) -- (t1e.south);
+%\draw[-, dotted](k0) -- (k1);
+\draw[-, dotted](k0) -- (t1e.south);
 \draw[-, solid](t2s.south) -- (rdw0);
 \draw[-, dotted](rdw0) -- (rdw1);
 \draw[-, solid](rdw1) -- (t2e.south);
@@ -185,18 +185,19 @@
 %\draw [->, thick, out=160, in=60] (query1.north west) to node{which node?} (user.north);
 %\draw [->, thick, out=350, in=230] (user.north) to node{node 5} (query2.north west);
 \draw [vecarrow, out=130, in=30] (query3.north west) to node {\includegraphics[width=60pt]{./graph_snippet.png}} (user.south);
-\draw [vecarrow, out=280, in=230] (user.south) + (0, -0.5) to node[below]{travers backward from e0} (query4.north);
+\draw [vecarrow, out=280, in=230] (user.south) + (0, -0.8) to node[below]{travers backward from e0} (query4.north);
 
 \node (result) [draw, dotted, minimum height = 100pt, minimum width = 400pt,pattern= north west lines, pattern color = black!30, below = 30pt of InteractiveDebugger]{};
 
-\node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -40pt and -220pt of result, align = center]{msg \\ sema\_wait};
-\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -80pt and -220pt of result, align = center]{msg \\ cv\_wait};
+\node (blockrenderer) [draw, solid, minimum height = 10pt, fill=black!20, below left = -60pt and -180pt of result, align = center]{msg \\ sema\_wait};
+\node (blockbrowser) [draw, solid, minimum height = 10pt, fill=black!20, below left = -60pt and -270pt of result, align = center]{msg \\ cv\_wait};
 
-\node (result1) [minimum height = 10pt, below left = -80pt and -130pt of result, align = right] {renderer \\ waits browser \\to signal \\ semaphore};
+\node (result1) [minimum height = 10pt, below left = -80pt and -100pt of result, align = right] {renderer \\ waits browser \\to signal \\ semaphore};
 \node (result2) [minimum height = 10pt, below left = -80pt and -400pt of result, align = left] {browser \\ waits renderer \\to signal \\condition variable};
 
-\draw[->, thick] (blockbrowser.west) .. controls ([xshift=1cm]result1) .. pic{ext}(blockrenderer.west);
-\draw[->, thick] (blockrenderer.east) .. controls ([xshift=-2cm]result2) .. pic{ext}(blockbrowser.east);
+
+\draw[->, dotted, line width = 2pt] (blockbrowser.east) to [out=30, in=150] (blockrenderer.west);
+\draw[->, dotted, line width = 2pt] (blockrenderer.west) to [out=-150, in=-30](blockbrowser.east);
 
 %\draw[->, bend right](blockrenderer.east)  -- pic{ext} (blockbrowser.east);
 %\draw[->, out=230, in = 135](blockbrowser.west) -- pic{ext} (blockrenderer.west);

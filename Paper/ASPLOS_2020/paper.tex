@@ -1,7 +1,7 @@
 \documentclass[pageno]{jpaper}
 
 %replace XXX with the submission number you are given from the ASPLOS submission site.
-\newcommand{\asplossubmissionnumber}{XXX}
+\newcommand{\asplossubmissionnumber}{268}
 
 \usepackage[normalem]{ulem}
 \usepackage{xspace}
@@ -89,6 +89,20 @@
 \let\emptyset\varnothing
 \makeatletter
 \algrenewcommand\ALG@beginalgorithmic{\footnotesize}
+%\makeatother
+
+%\makeatletter
+\renewcommand{\Function}[2]{%
+  \csname ALG@cmd@\ALG@L @Function\endcsname{#1}{#2}%
+  \def\jayden@currentfunction{#1}%
+}
+\newcommand{\funclabel}[1]{%
+  \@bsphack
+  \protected@write\@auxout{}{%
+    \string\newlabel{#1}{{\jayden@currentfunction}{\thepage}}%
+  }%
+  \@esphack
+}
 \makeatother
 
 % for verbatim
