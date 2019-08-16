@@ -46,14 +46,13 @@ corresponding (baseline) \similarnode with ease, it cannot get the correct
 causal path in the baseline scenario without user interaction. The backward
 slicing on vertex has multiple incoming edges, including one from a kernel
 thread, which means that operations are likely to be batched together and
-inseparable by heuristics. Our interactively search is extremely helpful in
-the step, greatly reducing the noise in the path. Close examination of the
-\spinningnode based on the causal path tells us that the main thread is waiting
-for the kernel thread, which in turn waits for the ssh thread.
-
-Existing debugging tools like \vv{lldb} and \vv{spindump} could hardly figure
-out the root cause, in that both of them diagnose with only call stacks, missing
-the dependency across process boundaries.
+inseparable by heuristics. Our interactively search is extremely helpful
+in the step, greatly reducing the noise in the path. Close examination of
+the \spinningnode based on the causal path tells us that the main thread is
+waiting for the kernel thread, which in turn waits for the ssh thread. Existing
+debugging tools like \vv{lldb} and \vv{spindump} could hardly figure out the
+root cause, in that both of them diagnose with only call stacks, missing the
+dependency across processes.
 
 \paragraph{4-Installer}
 

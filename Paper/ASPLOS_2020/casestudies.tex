@@ -1,29 +1,51 @@
 \section{Case Studies}\label{sec:casestudy}
 
 In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
-cases in \napps popular applications. Table~\ref{table:bugs-desc} describes
-these spinning-cursor cases, which are detailed in the sections that follow. We
-compared \xxx with traditional causal tracing methods on edges and vertices
-\xxx mitigated. We studied the ratios of over-connection filtered with message
-peers heuristics, and incognito under-connections disclosed by data flags and
-wait heuristics. Even with our technique, the filtered graph remains too imprecise
-for automatic causal tracing. Fortunately, user interactions compensates
-the inaccuracy in causal path slicing, while not overwhelming the diagnosis
-process.
+cases in popular applications. Table~\ref{table:bugs-desc} describes these
+spinning-cursor cases, which are detailed in sections that follow. We compared
+\xxx with traditional causal tracing methods on edges and vertices mitigated.
+The portions of over-connection filtered out and incognito under-connections
+disclosed are studied. Even with our technique, the filtered graph remains
+too imprecise for automatic causal tracing. Fortunately, user interactions
+compensates the inaccuracy in causal path slicing, while not overwhelming in the
+diagnosis process.
 
 Our results in Table~\ref{table:results} show up to 3 user queries usually
-suffice to find root cause path precisely. Although complex applications like
-7-MSWord requires 22 queries, many repeated patterns can be easily identified
-by users, as discussed below. The paths exclude much noise, and are shorter
-and easier to inspect, compared to the traditional slicing automatically with
-heuristics.
+suffice to find root cause path precisely. Although a complex application like
+7-MSWord requires 22 queries, many of them results from repeated patterns.
+They can be easily identified by users, as discussed below. Our paths sliced
+interactively exclude much noise, and are shorter and easier to inspect,
+compared to the traditional slicing automatically with heuristics.
 
 %% consider adding comparison to prior approaches
 %% Our techniques effectively removed false and added missing edges in the
 %% event graph.  Even with our techniques, the resultant graph remain too
 %% imprecise for traditional causal tracing, but, fortunately, an average
 %% of XXX user queries suffice to locate the root causes precisely.
-\input{spinningcursor}
+%\input{spinningcursor}
+%\subsection{Spinning Node detection}
+
+\paragraph{How \xxx Detects Spinning Cursors}
+
+When the spinning cursor shows up, a hang reporting tool, \spindump usually
+kicks in automatically to sample callstacks for debugging. To figure out the
+\spinningnode in the main thread, we turn to the event graph, and slice path
+backward from the launch of \spindump.
+The path shows that \spindump is launched after receiving a message from
+\vv{WindowServer}, which received a message from the \vv{NSEvent thread} of
+the freezing app. The call stack attached to the messages further reveals
+\vv{NSEvent thread} per process fetches \vv{CoreGraphics} events from
+\vv{WindowServer}, converts and creates \vv{NSApp events} for the main UI
+thread. If the main thread is not spinning, a timer is armed to count down
+for the NSApp event. If the main thread fails to process it before the timer
+fires, \vv{NSEvent thread} sends a message to \vv{WindowServer} via the API
+``\vv{CGSConnectionSetSpinning}'' from the timer handler, and \vv{WindowServer}
+notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
+window. Moreover, while exploiting the way \vv{NSEvent thread} communicates with
+the main thread, we found two variables, ``\vv{is\_mainthread\_spinning}'' and
+``\vv{dispatch\_to\_mainthread}'', indicating the main thread status. As a
+result, \xxx can make use of either the API or the data flag to identify the
+\spinningnode in the main thread.
 
 \input{bugdesc}
 
