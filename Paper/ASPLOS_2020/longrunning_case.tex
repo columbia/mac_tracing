@@ -11,7 +11,7 @@ listed in Table~\ref{table:bugs-desc} to reveal their root causes.
 
 TeXstudio~\cite{TeXStudio} is an integrated writing environment for creating
 LaTeX documents. We noticed a user reported spinning cursor when he
-modified his bib file. Although the issue was closed by the developer, due to
+modified his bibliography (bib) file. Although the issue was closed by the developer, due to
 insufficient information to reproduce the bug, we reproduced it with a large bib
 file opened in a tab. Each time we touched the file through another editor, vim
 for example, the application window showed a spinning cursor.
@@ -20,7 +20,7 @@ for example, the application window showed a spinning cursor.
 Running. Slicing causal path from the vertex, \xxx reaches daemon
 ``\vv{fseventd}'' and figures out that the long-running function is invoked by a callback
 function from this daemon to sync data. The advantage of \xxx over other debugging tools is
-it helps to narrow down the root cause with the path.
+it helps to narrow down the root cause with the inter-thread execution path.
 
 \paragraph{7-TextEdit}
 
@@ -71,7 +71,7 @@ possibilities.
 Select, copy, paste, delete, insert and save are common operations for text
 editing. However, these operations on a large context usually trigger spinning
 cursors. Due to their implementation, CotEditor and TextMate successfully
-avoid hangs on copy and selection operations. \xxx can helps the developer
+avoid hangs on copy and selection operations. \xxx can help the developer
 to figure out the more efficient way to implement event handlers. In
 Table~\ref{table:texteditapps}, we list the reports from each application's
 \spinningnode, including the event handler and most costly functions, and the

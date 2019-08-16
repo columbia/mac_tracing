@@ -19,12 +19,15 @@ patterns. They can be easily identified by users, as discussed below. Our
 interactively path slicing exclude much noise, and are shorter and easier to
 inspect.
 
-Although in the cases of simple text editing applications, \xxx can point out
-the UI event that causes spinning cursor merely relying on a few heristics.
-In complicated cases, the communication patterns divers greatly intra/inter
-threads. It is to construct an effective rule-based search engine for \xxx with
-heuristics. In conclusion, users who carriey the expert knowledge play an key
-role in performance diagnosis on complex softwares.
+Overall, in the case of simple text editing applications, \xxx can identify the
+UI event that causes a spinning cursor by merely relying on a few heuristics.
+However, these heuristics may make the wrong decision in complicated cases, and
+misidentify the relationships between intra/inter-thread events. It is unlikely
+that there exists a single graph search method that works in all cases, e.g.
+when given the choice between multiple incoming edges, the most recent match is
+sometimes correct, but sometimes not. This is why our system relies on expert
+knowledge of users to reconstruct a developer's intent and accurately diagnose
+performance issues.
 
 \paragraph{How \xxx Detects Spinning Cursors}
 
@@ -44,8 +47,8 @@ notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
 window. To avoid sending more events to an already-spinning main thread, 
 the NSApp thread uses two data flags to track the main thread status, 
 \vv{is\_mainthread\_spinning} and \vv{dispatch\_to\_mainthread}.
-These flags are also modified by the main thread to update it status.
-\xxx leverage the API to identify the \spinningnode in the main thread.
+These flags are also modified by the main thread to update its status.
+\xxx leverages this API to identify the \spinningnode in the main thread.
 
 
 

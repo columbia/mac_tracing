@@ -19,10 +19,10 @@ the displays. The \spinningnode in the main thread is dominated by system
 calls, \vv{mach\_msg} and \vv{thread\_switch}, which falls into the category of
  Repeated Yield. We discovered two missing data flags with \vv{lldb},
 ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'', which
-signify the status of configuring and break the loop of thread yielding. \xxx
+signify the configuration status and break the thread-yield loop. \xxx
 learns from the baseline scenario that the main thread is responsible to set
 both of them after receiving specific datagrams from WindowServer. Conversely,
-setting of ``\vv{\_gCGDidReconfigureSeen}'' is missing in the spinning case,
+the setting of ``\vv{\_gCGDidReconfigureSeen}'' is missing in the spinning case,
 where the main thread yields repeatedly to send messages to WindowServer for
 such datagram.
 
@@ -47,11 +47,11 @@ causal path in the baseline scenario without user interaction. The backward
 slicing on vertex has multiple incoming edges, including one from a kernel
 thread, which means that operations are likely to be batched together and
 inseparable by heuristics. Our interactively search is extremely helpful
-in the step, greatly reducing the noise in the path. Close examination of
+in this step, greatly reducing the noise in the path. Close examination of
 the \spinningnode based on the causal path tells us that the main thread is
 waiting for the kernel thread, which in turn waits for the ssh thread. Existing
-debugging tools like \vv{lldb} and \vv{spindump} could hardly figure out the
-root cause, in that both of them diagnose with only call stacks, missing the
+debugging tools like \vv{lldb} and \vv{spindump} cannot determine the
+root cause, because both of them diagnose with only call stacks, missing the
 dependency across processes.
 
 \paragraph{4-Installer}
@@ -59,14 +59,14 @@ dependency across processes.
 Installer~\cite{Installer} is an application included in macOS that extracts and
 installs files out of \vv{.pkg} packages. When \vv{Installer} pops up a window
 for privileged permission during the installation of \vv{jdk-7u80-macosx-x64},
-moving the cursor out of the popup window triggers spinning cursor.
+moving the cursor out of the popup window triggers a spinning cursor.
 
 As we put in the password before the round of triggering the spinning cursor,
 \xxx successfully records the baseline scenario. Examining the \spinningnode and
 its \similarnode, \xxx figures out the daemon \vv{authd} blocks on semaphore
 while the main thread is waiting for \vv{authd}. Further checking on \vv{authd},
 \xxx reveals it is the \vv{SecurityAgent} that processes user input and wakes
-up \vv{authd} in baseline scenario. In conclusion, moving mouse out of the
+up \vv{authd} in baseline scenario. In conclusion, moving the mouse out of the
 authentication window causes the missing edge from \vv{SecurityAgent} to
 \vv{authd}, which in turn blocks \vv{Installer}.
 
