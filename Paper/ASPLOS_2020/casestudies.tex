@@ -34,15 +34,15 @@ backward from the launch of \spindump.
 The path shows that \spindump is launched after receiving a message from
 \vv{WindowServer}, which received a message from the \vv{NSEvent thread} of
 the freezing app. The call stack attached to the messages further reveals
-\vv{NSEvent thread} per process fetches \vv{CoreGraphics} events from
+\vv{NSEvent thread} per process fetches \vv{CoreGraphics events} from
 \vv{WindowServer}, converts and creates \vv{NSApp events} for the main UI
 thread. If the main thread is not spinning, a timer is armed to count down
-for the NSApp event. If the main thread fails to process it before the timer
+for the \vv{NSApp event}. If the main thread fails to process it before the timer
 fires, \vv{NSEvent thread} sends a message to \vv{WindowServer} via the API
 ``\vv{CGSConnectionSetSpinning}'' from the timer handler, and \vv{WindowServer}
 notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
 window. Moreover, while exploiting the way \vv{NSEvent thread} communicates with
-the main thread, we found two variables, ``\vv{is\_mainthread\_spinning}'' and
+main thread, we found two variables, ``\vv{is\_mainthread\_spinning}'' and
 ``\vv{dispatch\_to\_mainthread}'', indicating the main thread status. As a
 result, \xxx can make use of either the API or the data flag to identify the
 \spinningnode in the main thread.
