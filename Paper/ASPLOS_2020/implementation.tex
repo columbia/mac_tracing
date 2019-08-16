@@ -107,18 +107,16 @@ experience has been very helpful in multiple steps of an \xxx diagnosis.
 \xxx leverages a baseline scenario to discover missing wake-up edges in
 \textbf{Long Wait} cases. 
 
-The baseline scenario is identified from the vertexes which share the same
-high level semantics as the \spinningnode, but exposes different execution
-results. \xxx recognizes high level semantics of vertices with semantic
-events, including system calls, call stacks, user actions. Their sequential
-order and runtime unrelated attributes are treated as hallmarks. For example,
-\xxx compares vertices with system call numbers and symbol names in call stacks.
-To improve the accuracy, \xxx also checks the events forming edges, including
-messages, dispatch queue operations, runloop operations, \dataflagread and
-\dataflagwrite, as they might reflect the low-level behaviors of developers'
-intent. More over, a user can also instruct \xxx to inspect proceeding vertices
-for accuracy purpose. By default, \xxx discriminate the execution results with
-the time cost and wait results.
-
-If multiple \similarnode are identified, \xxx usually asks users for a
-confirmation, or choose the most recent one heuristically.
+The baseline scenario is identified from the vertexes which share the same high
+level semantics as the \spinningnode, but exposes different execution results.
+\xxx recognizes high level semantics of vertices with semantic events, including
+system calls, call stacks, user actions. Their sequential order and runtime
+unrelated attributes are treated as hallmarks. For example, \xxx compares
+vertices with system call numbers and symbol names in call stacks. To improve
+the accuracy, \xxx also checks the events forming edges, including messages,
+dispatch queue operations, runloop operations, \dataflagread and \dataflagwrite,
+as they might reflect the low-level behaviors of developers' intent. More over,
+a user can also instruct \xxx to inspect proceeding vertices for accuracy
+purpose. By default, \xxx discriminate the execution results with the time cost
+and wait results.If multiple \similarnode are identified, \xxx usually asks
+users for a confirmation, or choose the most recent one heuristically.
