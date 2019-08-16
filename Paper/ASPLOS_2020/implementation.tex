@@ -75,7 +75,7 @@ path to the relevant binary image, and the symbol name of the global variable. H
 a simple example of how a user would ask \xxx to trace \vv{\_gOutMsgPending}:
 
 \begin{lstlisting}
-./bp_watch pidofWindowServer Path/to/CoreGraphics \
+./breakpoint_watch Pid/of/WindowServer Path/to/CoreGraphics \
 	_gOutMsgPending
 \end{lstlisting}
 
@@ -109,12 +109,12 @@ experience has been very helpful in multiple steps of an \xxx diagnosis.
 
 The baseline scenario is identified from the vertexes which share the same
 high level semantics as the \spinningnode, but exposes different execution
-results. \xxx recognizes high level semantics of vertices with semantical
+results. \xxx recognizes high level semantics of vertices with semantic
 events, including system calls, call stacks, user actions. Their sequential
 order and runtime unrelated attributes are treated as hallmarks. For example,
 \xxx compares vertices with system call numbers and symbol names in call stacks.
 To improve the accuracy, \xxx also checks the events forming edges, including
-messages, dipatch queue operations, runloop operations, \dataflagread and
+messages, dispatch queue operations, runloop operations, \dataflagread and
 \dataflagwrite, as they might reflect the low-level behaviors of developers'
 intent. More over, a user can also instruct \xxx to inspect proceeding vertices
 for accuracy purpose. By default, \xxx discriminate the execution results with

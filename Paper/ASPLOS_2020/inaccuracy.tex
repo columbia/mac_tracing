@@ -1,23 +1,24 @@
 \section{Inherent Inaccuracies in Causal Tracing}\label{sec:inaccuracy}
 \input{patternfigure}
-As explained in \S\ref{sec:intro}, causal tracing builds a graph to
-connect execution segments on behalf of a request that spread across
-separate threads and processes.  Based on our experience building a causal
-tracing system on commercial, closed-source macOS, we believe such graphs
-are inherently inaccurate and contain both \emph{over-connections} --
-edges that do not really map to causality) -- and \emph{under-connections}
--- missing edges between two vertices with one causally influencing the
-other.  In this section, we present several inherently inaccurate patterns
-we observed and their examples in macOS.
+
+As explained in \S\ref{sec:intro}, causal tracing builds a graph to connect
+execution segments on behalf of a request that spread across separate threads
+and processes. Based on our experience building a causal tracing system
+on commercial, closed-source macOS, we believe such graphs are inherently
+inaccurate and contain both \emph{over-connections} -- edges that do not really
+map to causality) -- and \emph{under-connections} -- missing edges between two
+vertices with one causally influencing the other. In this section, we present
+several inherently inaccurate patterns we observed and their examples in macOS.
 
 \subsection{Over Connections}
-Over connections usually occur when (1) intra-thread boundaries are
-missing due to unknown batch processing programming paradigms or (2)
-superfluous wake-ups that do not always imply causality.
+
+Over connections usually occur when (1) intra-thread boundaries are missing due
+to unknown batch processing programming paradigms or (2) superfluous wake-ups
+that do not always imply causality.
 
 \paragraph{Dispatch message batching}
 
-While traditional causual tracing assumes the entire execution of a callback
+While traditional causal tracing assumes the entire execution of a callback
 function is on behalf of one request, we found some daemons implement their
 service loop inside the callback function and create false dependencies. In the
 code snippet below from the \vv{fontd} daemon, function \vv{dispatch\_execute}
@@ -37,16 +38,15 @@ handling boundaries.
 Message activities inside a system call are assumed to be related traditionally.
 However, to presumably save on kernel boundary crossings, WindowServer MacOS
 system daemon uses a single system call to receive data and send data for an
-unrelated event from differnt processed in its event loop. This batch processing
+unrelated event from different processed in its event loop. This batch processing
 artificially makes many events appear dependent.
 
 \paragraph{Mutual exclusion}
 
-In a typical implementation of mutual exclusion, a thread's unlock
-operation wakes up a thread waiting in lock.  Such a wake-up may be, but
-is not always, intended as causality.  However, without knowing the
-developer intent, any wake-up is typically treated as causality by
-traditional causal tracing tools.
+In a typical implementation of mutual exclusion, a thread's unlock operation
+wakes up a thread waiting in lock. Such a wake-up may be, but is not always,
+intended as causality. However, without knowing the developer intent, any
+wake-up is typically treated as causality. %by traditional causal tracing tools.
 
 \subsection{Under Connections}
 

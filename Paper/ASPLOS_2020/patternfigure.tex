@@ -1,3 +1,4 @@
+%figure dispatch message batching
 \begin{figure}[t]
 \begin{minipage}[t]{.25\textwidth}
 \begin{lstlisting}
@@ -28,9 +29,10 @@ for(;;) //batch processing
 \end{minipage}
 \vspace{-0.3cm}
     \caption{Dispatch message batching}
-    %\label{fig:dispatchmessagebatching}
+    \label{fig:dispatchmessagebatching}
 \end{figure}
 
+%figure batching in event processing
 \begin{figure}[t]
 \begin{lstlisting}
 //inside a single thread
@@ -52,11 +54,11 @@ while() {
 \end{lstlisting}
 \vspace{-0.5cm}
     \caption{Batching in event processing}
-    %\label{fig:batchingineventprocessing}
+    \label{fig:batchingineventprocessing}
 \end{figure}
 
+%% figure coreanimation
 \begin{figure}[t!]
-\vspace{-0.3cm}
 \begin{minipage}[t]{.20\textwidth}
 \begin{lstlisting}
 //Worker thread:
@@ -72,13 +74,14 @@ if(obj->need_display == 1)
   render(obj)
 \end{lstlisting}\hfill
 \end{minipage}
-\vspace{-0.5cm}
+\vspace{-0.7cm}
     \caption{CoreAnimation shared flag}
-    %\label{fig:casharedflag}
+    \label{fig:casharedflag}
 \end{figure}
 
-\begin{figure*}[t]
-\begin{minipage}[t]{0.5\textwidth}
+%%figure spinnin flags
+\begin{figure}[t]
+\begin{minipage}[t]{0.48\textwidth}
 \begin{lstlisting}
 //NSEvent thread:
 CGEventCreateNextEvent() {
@@ -92,7 +95,7 @@ CGEventCreateNextEvent() {
 }
 \end{lstlisting}
 \end{minipage}
-\begin{minipage}[t]{0.4\textwidth}
+\begin{minipage}[t]{0.48\textwidth}
 \begin{lstlisting}
 //Main thread:
 {
@@ -109,4 +112,4 @@ CGEventCreateNextEvent() {
 \vspace{-0.5cm}
     \caption{Spinning Cursor Shared Flags}
     \label{fig:spinningcursorsharedflags}
-\end{figure*}
+\end{figure}

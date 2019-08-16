@@ -11,28 +11,22 @@
 
 In this section, we describe the steps a user takes to investigate a performance
 anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
-an example of a user investigating a performance problem in Chromium. The system
-wide tracing tool, which collects data from \xxx instrumented library and
-kernel, generates logs. They are transformed into an graph in \xxx's
-graph construction component. 
-Central to our system is our \emph{event graph}, a generalized control-flow
-graph which includes inter-thread and inter-process dependencies.
-%Diagnosis
-%and inferences are performed within this graph, in a semi-automated fashion:
-%\xxx performs searches to trace logical events as they
-%flow through the system, and it judicially queries the user for guidance.
-The generated graph is used by the interactive
-debugger for causal path slicing and diagnosis. \xxx supports interactive
-search, by providng information to the user and asking for decision, in case of
-multiple predecessors in a vertex. As shown in Figure~\ref{fig:argus-overview},
-the debugger asks user to choose one edge in a subgraph. After this step,
-\xxx performs diagnosis algorithm and reports the root cause vertices. In the
-example, the root cause is two vertices which form a circular wait acrossing
-multiple threads.
-%- sys-wide tracing => log
-%- event graph
-%- interacjjkjjktive search "find root cause"
-%- root cause is two nodes, across multiple threads
+an example of a user investigating a performance problem in Chromium. The
+system wide tracing tool, which collects data from \xxx instrumented library
+and kernel, generates logs. They are transformed into an graph in \xxx's graph
+construction component. Central to our system is our \emph{event graph}, a
+generalized control-flow graph which includes inter-thread and inter-process
+dependencies. Diagnosis and inferences are performed within this graph, in a
+semi-automated fashion: \xxx performs searches to trace logical events as they
+flow through the system, and it judicially queries the user for guidance.
+%The generated graph is used by the interactive debugger for causal path
+%slicing and diagnosis. \xxx supports interactive search in path slicing, by
+%providng information to the user and asking for decision, in case of multiple
+%predecessors in a vertex.
+As shown in Figure~\ref{fig:argus-overview}, the debugger asks user to choose
+one edge in a subgraph. After this step, \xxx performs diagnosis algorithm and
+reports the root cause vertices. In the example, the root cause is two vertices
+which form a circular wait across multiple threads.
 %
 %In this section, we describe the steps a user takes to investigate a performance
 %anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
@@ -83,9 +77,10 @@ are three potential cases.
 		operations. This case is the simplest, and \xxx traverses the event graph
 		backwards to find a slice originating from the offending UI event to the
 		long running CPU operations. This slice is particularly useful for further
-		diagnosing the bug. As shown in FunctionXXX, \xxx may encounter vertices with
-		multiple incoming edges or weak edges that may not reflect causality when
-		traversing the graph. It queries the user to resolve them.
+		diagnosing the bug. As shown in Function \vv{InteractiveSlicing}, \xxx may
+		encounter vertices with multiple incoming edges or weak edges that may not
+		reflect causality when traversing the graph. It queries the user to resolve
+		them.
 
 	\item \textbf{RepeatedYield} (lines~\ref{a1:repeatedyield_begin}
 		-~\ref{a1:repeatedyield_end}). The main thread is in a yield loop, which
@@ -104,18 +99,17 @@ are three potential cases.
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
 		Specifically, \xxx first finds a \similarnode to the spinning one based solely
-		on the semantical events such as system calls in each vertex. It then traverses
+		on the semantic events such as system calls in each vertex. It then traverses
 		backwards from the \similarnode to find the baseline wake-up path. For each
 		thread in the wake-up path, it examines the vertex in the thread right before
 		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
-		to the path of \rootcausenodes, and applies Function DiagnoseXX recursively
+		to the path of \rootcausenodes, and applies Function Diagnose recursively
 		diagnose ``the culprit of the culprit.'' For each such vertex, it queries the
 		user to determine whether to proceed or stop because based on our experience
 		the user needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
-%\vskip 0.1cm
-
+\noindent
 Based on our results and experience, the first case is the most common, but the
 second and third represent more severe bugs. Long-running CPU operations tend to
 be more straightforward to diagnose with existing tools such as \spindump except
@@ -130,11 +124,17 @@ crucial in this process (\S\ref{sec:casestudy}).
 
 \subsection{Chromium Spinning Cursor Example}
 
-\begin{figure}[htb!]
+\begin{figure}[tb]
+	\footnotesize
     \centering
 	\input{figures/chromium_case_study_tikz.tex}
-    \caption{Chromium Example}
+	\parbox{\columnwidth}{\caption{Chromium Example}
+		\textit{\vv{Path 1} shows a message flow from chromium to renderer process, to get the
+			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
+			shows a JavaScript processing event, dequeued from the renderer's main event
+		queue. It blocks on the semaphore from browser for the rendering.}
     \label{fig:chromium-case-study}
+	}
 \end{figure}
 %   resolve symbol, save to log
 %     search for set\_spinning
@@ -149,88 +149,93 @@ crucial in this process (\S\ref{sec:casestudy}).
 
 One of the authors experienced first-hand the aforementioned performance issue
 in Chromium, an open-source browser engine that powers Google Chrome and,
-starting recently, Microsoft Edge~\cite{chromiumurl}.  She tried to type in the
+starting recently, Microsoft Edge~\cite{chromiumurl}. She tried to type in the
 Chromium search box a Chinese word using SCIM, the default Chinese Input Method
-Editor that ships with MacOS.  The browser appeared frozen and the spinning
-cursor occurs for a few seconds.  Afterwards everything went back to normal.
-This issue is reproducible and always ruins her experience, but it is quite
+Editor that ships with macOS. The browser appeared frozen and the spinning
+cursor occurs for a few seconds. Afterwards everything went back to normal.
+This issue is reproducible and always ruins her experience, but is quite
 challenging to diagnose because two applications Chromium and SCIM and many
-daemons ran and exchanged messages.  This issue was reported by other users for
+daemons ran and exchanged messages. It was reported by other users for
 other non-English input methods, too.
 
 % issue, the user followed Figure 1.Figure~\ref{fig:argus-overview}
-To diagnose this issue with \xxx, the author started system-wide tracing, and
-then reproduced the spinning cursor with a Chinese search string typed via SCIM
-while the page was loading. It produced normal cases for the very first few
-characters, and the browser got blocked with the rest input as spinning cases.
-The entire session took roughly five minutes.
+
+To diagnose this issue with \xxx, the author follows the steps in
+Figure~\ref{fig:argus-overview}. She started system-wide tracing, and then
+reproduced the spinning cursor with a Chinese search string while the page was
+loading. After the very first few characters as normal cases, the browser got
+blocked with the rest input as spinning cases. The entire session took roughly
+five minutes.
 %  spinning node
-She then ran \xxx to construct the event graph. 
-The graph was highly complex, with 
-2,749,628 vertexes and 3,606,657 edges, almost fully connected. It spanned across 17 applications;
-109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond} and
-helper tools by applications; 126 processes; 679 threads, and 829,287
-IPC messages. Given the scale of the graph and the diverse communication
-patterns, it would be extremely challenging for prior automated causal tracing
-tools~\cite{aguilera2003performance, zhang2013panappticon, attariyan2012x,
-cohen2004correlating} because they handle a fairly limited set of patterns.
-Tools that require manual schema~\cite{barham2004using, reynolds2006pip}, would
-be prohibitive because developers would have to provide schema for all involved
-applications and daemons.
+She then ran \xxx to construct the event graph. The graph was highly complex,
+with 2,749,628 vertexes and 3,606,657 edges, almost fully connected. It spanned
+across 17 applications; 109 daemons including \vv{fontd}, \vv{mdworker},
+\vv{nsurlsessiond} and helper tools by applications; 126 processes; 679
+threads, and 829,287 IPC messages. Given the scale of the graph and the diverse
+communication patterns, it would be extremely challenging for prior automated
+causal tracing tools~\cite{aguilera2003performance, zhang2013panappticon,
+attariyan2012x, cohen2004correlating} because they handle a fairly limited
+set of patterns. Tools that require manual schema~\cite{barham2004using,
+reynolds2006pip}, would be prohibitive because developers would have to provide
+schema for all involved applications and daemons.
 % Perfect case for \xxx
 
+Next she ran interactive debugger in \xxx to find the \spinningnode in the main
+thread of the browser process. \xxx returned a \vv{wait} event on condition
+variable with timeout that blocked the main thread for a few seconds. Thus \xxx
+compares the \spinningnode to a similar one in normal case where the \vv{wait}
+was signaled quickly. \xxx reported three, and confirmed with the user which one
+she wanted.
+
 % Figure 2....
-Next she ran \xxx to find the \spinningnode in the main thread of the browser
-process. \xxx returned a \vv{Wait} event on condition variable with timeout that
-blocked the main thread for a few seconds. Thus \xxx compares the \spinningnode
-to a similar one in normal case where the \vv{Wait} was signaled quickly. \xxx
-reported three, and confirmed with the user which one she wanted.
 
-\xxx then found the normal-case wake-up path which connects five threads, as is
-shown in the example in Figure~\ref{fig:argus-overview}. The browser main thread
-was signaled by a browser worker thread, which received IPC from a worker thread
-of \vv{renderer} where the rendering view and WebKit code run. The worker thread
-is woken up by the \vv{renderer} main thread, which in turn woken by fontd, the
-font service daemon. \xxx further compared the wake-up path with the spinning
-case, and returned the \vv{wait} event on semaphore in the \vv{renderer} main
-thread, the culprit that delayed waking up the browser main thread over 4
-seconds.
+\xxx then found the normal-case wake-up path which connects five threads.
+The browser main thread was signaled by a browser worker thread, which
+received IPC from a worker thread of \vv{renderer} where the rendering view
+and WebKit code run. The worker thread is woken up by the \vv{renderer} main
+thread, which in turn woken by fontd, the font service daemon. \xxx further
+compared the wake-up path with the spinning case, as shown in \vv{path 1}
+in Figure~\ref{fig:chromium-case-study}, and returned the \vv{wait} event
+on semaphore in the \vv{renderer} main thread, the culprit that delayed
+waking up the browser main thread over 4 seconds. What caused the wait in the
+\vv{renderer} main thread though? She thus continued diagnosis and recursively
+applied \xxx to the wait in \vv{renderer}, and got the wake-up path. The culprit
+that delayed the semaphore was the timeouts in the browser's main thread, as the
+blocking edge shown in \vv{path 2} in Figure ~\ref{fig:chromium-case-study}. At
+this point, a circular wait formed.
 
-What caused the wait in the \vv{renderer} main thread though? She thus continued
-diagnosis and recursively applied \xxx to the wait in \vv{renderer}, and got
-the wake-up path. The culprit that delayed the semaphore was the timeouts in
-the browser's main thread. At this point, a circular wait formed, as is shown
-in Figure ~\ref{fig:chromium-case-study}. To understand what exactly happens in
-the situation, she inspected the full call stacks by \xxx scripts, taking the
-reported vertice from the renderer and the browser as input. Inspection reveals
-that the \vv{renderer} requested the browser's help to render Javascript and
-waited for reply with semaphore. The browser was waiting for the \vv{renderer}
-to return the string bounding box and the \vv{renderer} was waiting for the
-browser to help render Javascript. This circular wait was broken by a timeout in
-the browser main thread (the \vv{wait} on cv timeout was 1,500 ms). While the
-system was able to make progress, the next key press caused the spinning cursor
-to display for another 1,500 ms. The timeout essentially converted a deadlock
-into a livelock.
+To understand what exactly happens in the situation, she inspected the full
+call stacks by \xxx scripts, taking the reported vertices from the renderer and
+the browser as input. Inspection reveals that the \vv{renderer} requested the
+browser's help to render JavaScript and waited for reply with semaphore. The
+browser was waiting for the \vv{renderer} to return the string bounding box and
+the \vv{renderer} was waiting for the browser to help render JavaScript. This
+circular wait was broken by a timeout in the browser main thread (the \vv{wait}
+on \vv{Cf} timeout was 1,500 ms). While the system was able to make progress, the
+next key press caused the spinning cursor to display for another 1,500 ms. The
+timeout essentially converted a deadlock into a livelock.
 
-Finally, we verified our finding within chromium source code. Shortening the timeout interval
-in the main browser thread proportionally shortens the waiting of the main
-render thread on processing the javascript. Skipping certain javascripts
-processing in the renderer thread cuts down the success rate of spinning case
-reproducing.
+Finally, we verified our finding within chromium source code. Shortening the
+timeout interval in the main browser thread proportionally shortens the waiting
+of the main render thread on processing the JavaScript. Skipping certain
+JavaScript's processing in the renderer thread cuts down the success rate of
+spinning case reproducing. \xxx reports enough information for developers to fix
+issue once and for all.
 % enough info for developer to fix issue once and for all
 
 \subsection{Limitations}
-\xxx is designed to support interactive debugging of performance
-issues. It sometimes requires the user to reproduce a performance issue so
-\xxx can capture more fine-grained event traces such as accesses to data
-flags.  Fortunately, a performance issue that almost never reproduces is
-probably not as annoying as one that occurs frequently.
+
+\xxx is designed to support interactive debugging of performance issues. It
+sometimes requires the user to reproduce a performance issue so \xxx can capture
+more fine-grained event traces such as accesses to data flags. Fortunately, a
+performance issue that almost never reproduces is probably not as annoying as
+one that occurs frequently.
 
 We implemented \xxx in the closed-source macOS which presents a harsh test
 for \xxx, but we have not ported \xxx to other operating systems yet. It is
 possible that the ideas and techniques do not generalize to other operating
-systems. However, modern operating systems share many similarities, and inspire each others' designs,
-so we are hopeful that the ideas in \xxx are
-generally applicable. Similarly, the applications and performance issues used in
-our evaluation may be non-representative, though we strive to cover a
-diverse set of common applications ranging from browsers to text editors.
+systems. However, modern operating systems share many similarities, and inspire
+each others' designs, so we are hopeful that the ideas in \xxx are generally
+applicable. Similarly, the applications and performance issues used in our
+evaluation may be non-representative, though we strive to cover a diverse set of
+common applications ranging from browsers to text editors.

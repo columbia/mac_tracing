@@ -7,9 +7,9 @@
 %
 %\begin{document}
 \begin{center}
-\resizebox{\columnwidth}{!}{%
+\resizebox{0.8\columnwidth}{!}{%
 \begin{tikzpicture}[>=latex]
-%\tikzstyle{every node}=[font=\Large]
+\tikzstyle{every node}=[font=\Large]
 \tikzstyle{app} = [draw, very thick, minimum height=240pt, minimum width=100pt, fill=white, rectangle, font={\sffamily\bfseries}]
 \tikzstyle{appbegin} = [minimum width = 20pt, below = -240pt of #1]
 \tikzstyle{append} =[minimum width = 20pt, below = -20pt of #1]
@@ -109,13 +109,13 @@
 %\node (findfirstrect)[minimum width = 40pt, minimum height = 40pt, right of = 2, node distance = 50pt, rotate= 343] {TextInputClientMsg FirstRectForCharacterRange};
 %\node (javascript)[minimum width = 20pt, minimum height = 20pt, below left = 0pt and 5pt of 7, rotate = 15] {Run\_Javascript};
 
-\node(legend)[above right = 10pt of fontdend]{};
+\node(legend)[above right of = fontdend]{};
 \node (l1)[below left = -20pt and -20pt of legend] {};
 \node (l2)[right=8pt of l1]{};
 \draw [-, solid] (l1.east) -- (l2);
 \node [right= 10pt of l1, font=\large]{thread\_running};
 
-\node (l3)[below left = -30pt and -20pt of legend] {};
+\node (l3)[below left = -35pt and -20pt of legend] {};
 \node (l4)[right=8pt of l3]{};
 \draw [-, dotted] (l3.east) -- (l4);
 \node [right =10pt of l3, font=\large]{thread\_wait};
@@ -123,21 +123,23 @@
 \node (l5)[below left = -50pt and -20pt of legend] {};
 \node (l6)[right =8pt of l5]{};
 \draw [->] (l5.east) -- (l6);
-\node [right =10pt of l5, font=\large]{IPC (edge)};
+\node [right =10pt of l5, font=\large]{edge \(IPC\)};
 
-\node (l7)[below left = -40pt and -20pt of legend] {};
+\node (l7)[below left = -65pt and -20pt of legend] {};
 \node (l8)[right =8pt of l7, point]{};
 \draw [->, dotted] (l7.east) -- (l8);
-\node [right =10pt of l7, font=\large]{Missing edge};
+\node [right =10pt of l7, font=\large]{blocking edge};
 
-\node [solid, minimum width = 10pt, minimum height = 3pt, below left = -60pt and -30pt of legend, label={[font=\large]right:thread (vertex)}]{};
-\node [draw, solid, minimum width = 10pt, minimum height = 3pt, below left = -70pt and -30pt of legend, label={[font=\large]right:execution in}]{};
+\node [solid, minimum width = 10pt, minimum height = 3pt, below left = -80pt and -30pt of legend, label={[font=\large]right:\(execution\ in\ thread\)}]{};
+\node [draw, solid, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, label={[font=\large]right:vertex}]{};
 
-\node[minimum width = 10pt, minimum height = 3pt, below left = -80pt and -30pt of legend,label= right: for Javascript processing]{};
-\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, pattern=crosshatch dots, pattern color = black!20!, label= right: flow of message]{};
+%\node[minimum width = 10pt, minimum height = 3pt, below left = -80pt and -30pt of legend,label= right: for Javascript processing]{};
+%\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -90pt and -30pt of legend, pattern=crosshatch dots, pattern color = black!20!, label= right: flow of message]{};
+\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -105pt and -30pt of legend, pattern=crosshatch dots, pattern color = black!20!, label= {[font=\large]right: path 2}]{};
 
-\node[minimum width = 10pt, minimum height = 3pt, below left = -100pt and -30pt of legend, label= right: FirstRectForCharacterRange]{};
-\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -110pt and -30pt of legend, pattern = north west lines, pattern color = black!20!, label = right: flow of TextInputClientMsg]{};
+%\node[minimum width = 10pt, minimum height = 3pt, below left = -100pt and -30pt of legend, label= right: FirstRectForCharacterRange]{};
+%\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -110pt and -30pt of legend, pattern = north west lines, pattern color = black!20!, label = right: flow of TextInputClientMsg]{};
+\node[draw, dotted, minimum width = 10pt, minimum height = 3pt, below left = -120pt and -30pt of legend, label= {[font =\large]right: path 1}]{};
 
 \end{tikzpicture}
 }
