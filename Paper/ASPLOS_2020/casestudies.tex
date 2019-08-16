@@ -67,7 +67,7 @@ These flags are also modified by the main thread to update its status.
 \centering
   \begin{tabularx}{\textwidth}{l|ccccccc}
  	   & \% of & \% of & \# of& \# of & \multicolumn{2}{c}{size of baseline/spinning path}& auto slicing\\
-       & connections & connections added  & user provided & user  & \multicolumn{2}{c}{with}  & \/ \\
+       & connections & connections added  & user provided & user  & \multicolumn{2}{c}{with}  & over \\
 Bug ID & filtered out & by heuristics & data flag & interactions & interactive slicing & automatic slicing &  interactive slicing\\
 \hline
 \hline
@@ -94,12 +94,12 @@ Bug ID & filtered out & by heuristics & data flag & interactions & interactive s
 		%  critical to reduce the path, so as to reduce user's inspecting efforts in
 		%  diagnosis. 3.The last column shows the ratio of path size with user interactions
     %over the automatic slicing.}
-    {The first and second column presents the portion of connection adjusted by \xxx compared
-     to traditional cuasal tracing. Column 3 is the number of data flag added for diagnosis
-     inaddition to the default flag \xxx tracks. The forth and fifth column illustrates
-     the vetices in the paths, which are sliced backward with and without user interaction.
-     The last column shows that without user interaction, the path sliced by \xxx, even with
-     our filtering heuristics, still includes too much vertices for inspection.
+    {The first and second columns present the portions of over-/under-connections mitigated by \xxx compared
+     to traditional cuasal tracing. Column 3 shows the number of data flag added for diagnosis
+     in addition to the default data flags \xxx tracks. The forth and fifth columns illustrate
+     the numbers of vetices in backward slicing causal paths, with and without user interaction.
+     The last column shows how many times the size of path would grow without user interactions.
+	 Even after being filterd by \xxx heuristics,they still includes too much vertices for inspection.
     }
   \label{table:results}
   }
