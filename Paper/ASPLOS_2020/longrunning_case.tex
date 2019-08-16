@@ -58,12 +58,12 @@ generates a path of 136 vertices.
 
 We compared the path and find that the earliest difference exists in the
 predecessor of the third vertex in backward paths. In the vertex, user
-can learn from the callstack that \vv{Microsoft Word} launches a service
+can learn from the call stack that \vv{Microsoft Word} launches a service
 \vv{NSServiceControllerCopyServiceDictionarie} after being woken by another
 \vv{Microsoft Word} thread; this thread then sends a message to \vv{launchd}
 to register the new service and waits for a reply message. With the most
 recent edge heuristics in automatic slicing, \xxx chose \vv{launchd} as its
-precedessor, but the user can more precisely identify that the execution segment
+predecessor, but the user can more precisely identify that the execution segment
 is on behalf of the first thread. We rely on user interaction in this case
 to find the true root cause, since \xxx has identified multiple
 possibilities.
@@ -150,6 +150,6 @@ user input event (derived from path slicing) that triggers the hang.
   \end{tabularx}
   \caption{Root cause of spinning cursor in editing Apps}
   \label{table:texteditapps}
-\vspace{-0.5cm}
+  \vspace{-0.2cm}
 \end{table}
 
