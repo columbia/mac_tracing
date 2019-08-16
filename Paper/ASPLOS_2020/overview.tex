@@ -131,7 +131,7 @@ crucial in this process (\S\ref{sec:casestudy}).
 %%			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
 %%			shows a JavaScript processing event, dequeued from the renderer's main event
 %%		queue. It blocks on the semaphore from browser for the rendering.}
-    \caption{Chromium Example}
+    \caption{Chromium Spinning Cursor Example}
     \label{fig:chromium-case-study}
 \end{figure}
 %   resolve symbol, save to log
@@ -217,10 +217,10 @@ on \vv{Cf} timeout was 1,500 ms). While the system was able to make progress, th
 next key press caused the spinning cursor to display for another 1,500 ms. The
 timeout essentially converted a deadlock into a livelock.
 
-To verify this diagnosisi, we shorten the
-timeout in the \vv{pthread\_cond\_timedwait()} call in chromium
-to 150 milliseconds, which proportionally recuded how often this 
-spinning cursor reproduces.
+To verify this diagnosis, we shortened the
+timeout in the \vv{pthread\_cond\_timedwait()} call in Chromium
+to 150 milliseconds, which proportionally reduced how often this 
+spinning cursor occurs.
 
 \subsection{Limitations}
 
