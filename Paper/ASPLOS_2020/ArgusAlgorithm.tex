@@ -5,7 +5,7 @@
 \Require{g - EventGraph; \algspinningnode - the vertex in the UI thread when the spinning cursor occurs}
 \Ensure{\algrootcausenodes-collecting root casuse vertices for user inspect}
 \Statex
-\Function{Diagnose}{g, \algspinningnode}
+\Function{Diagnose}{g, \algspinningnode} \label{alg:diagnose-line}%\funclabel{alg:diagnose} \label{alg:diagnose-line}
   \Switch {\algspinningnode.block\_type}
     \Case {LongRunning} \label{a1:longrunning_begin}
 		\State {slice $\gets$ InteractiveSlice(\algspinningnode)}
@@ -48,7 +48,9 @@
 %\Require{g - EventGraph; node - the node user wants to slice from}
 %\Ensure{slice - causual path for node}
 \Statex
-\Function{InteractiveSlicing}{g, vertex}
+\Function{InteractiveSlicing}{g, vertex}\label{alg:interslice-line}
+%\funclabel{alg:interactiveslicing}
+%\label{alg:interactiveslicingline}
 \Loop
 	\State{path\_slice.append(vertex)}
 	\If {vertex has 1 incoming edge}

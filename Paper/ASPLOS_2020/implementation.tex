@@ -4,22 +4,23 @@ In this section, we discuss how \xxx collects tracing events from both kernel
 and libraries, and user interactions which \xxx leverages to ease diagnosis.
 
 \subsection{Event Tracing}
+
 Current macOS systems support a system-wide tracing infrastructure built by
 Apple~\cite{linktotracetool}. By default, the infrastructure temporarily stores
-events in memory and flushes them to screen or disk when an internal buffer is
-filled. We extended this infrastructure to support larger-scale tests and avoid
-filling up the disk with a file-backed ring buffer. Each log file is 2GB by
-default, which users can override. This size corresponds corresponds to
+events in memory and flushes them to screen or disk when an internal buffer
+is filled. We extended this infrastructure to support larger-scale tests and
+avoid filling up the disk with a file-backed ring buffer. Each log file is 2GB
+by default, which users can override. This size corresponds corresponds to
 approximately 19 million events (about 5 minutes with normal operations).
 
-The default tracing points in macOS provide too limited information to enact
-causal tracing. As a result, we instrument both the
-kernel~\cite{linkofxnusourcecode} (at the source level) and key libraries (at
-the binary level), to gather more tracing data. We instrumented the kernel with
-1,193 lines of code, and binary-instrumented the following libraries:
+The default tracing points in macOS provide too limited information
+to enact causal tracing. As a result, we instrumented both the
+kernel~ref\cite{linkofxnusourcecode} (at the source level) and key libraries
+(at the binary level), to gather more tracing data. We instrumented the kernel
+with 1,193 lines of code, and binary-instrumented the following libraries:
 \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib}, \vv{libpthread.dylib},
 \vv{CoreFoundation}, \vv{CoreGraphics}, \vv{HIToolbox}, \vv{AppKit} and
-\vv{QuartzCore} in \nlibchanges different places. 
+\vv{QuartzCore} in \nlibchanges different places.
 
 %%Next subsection describes our binary instrumentation tool
 
@@ -41,7 +42,7 @@ call instruction to invoke a trampoline target function, in which we overwrite
 the victimized instructions and produce tracing data with API from Apple.
 All of the trampoline functions are grouped into a new image, as well as an
 initialization function which carries out the drop-in replacement. Then command
-tools from \xxx helps to configure the image with the following steps: (1)
+tools from \xxx help to configure the image with the following steps: (1)
 re-export all symbols from the original image so that the original code can be
 called like an shared library; (2) rename the original image, and use original
 name for the new one to ensure the modifications are properly loaded; (3) invoke
@@ -65,14 +66,16 @@ the loading.
 %%data flag
 %%XXX say what we do in watch point exception handler (record instruction so
 %%can determine read or write, and reg values)
-As described in (\S\ref{sec:inaccuracy}), under-connection due
-to the missing data dependency requires users' interaction.
-Users specify that reads and writes to a given global variable should be considered data dependencies.
-Global-variable tracing is possible through \xxx's binary rewriting, but we also provide a
-simple command line tool which uses watchpoint registers to record
-\dataflagwrite and \dataflagread events. The tool takes as input the process ID,
-path to the relevant binary image, and the symbol name of the global variable. Here is
-a simple example of how a user would ask \xxx to trace \vv{\_gOutMsgPending}:
+
+As described in (\S\ref{sec:inaccuracy}), under-connection due to the missing
+data dependency requires users' interaction. Users specify that reads and
+writes to a given global variable should be considered data dependencies.
+Global-variable tracing is possible through \xxx's binary rewriting, but we
+also provide a simple command line tool which uses watchpoint registers to
+record \dataflagwrite and \dataflagread events. The tool takes as input the
+process ID, path to the relevant binary image, and the symbol name of the
+global variable. Here is a simple example of how a user would ask \xxx to trace
+\vv{\_gOutMsgPending}:
 
 \begin{lstlisting}
 ./breakpoint_watch Pid/of/WindowServer Path/to/CoreGraphics \
@@ -107,7 +110,7 @@ experience has been very helpful in multiple steps of an \xxx diagnosis.
 \xxx leverages a baseline scenario to discover missing wake-up edges in
 \textbf{Long Wait} cases. 
 
-The baseline scenario is identified from the vertexes which share the same high
+The baseline scenario is identified from the vertices which share the same high
 level semantics as the \spinningnode, but exposes different execution results.
 \xxx recognizes high level semantics of vertices with semantic events, including
 system calls, call stacks, user actions. Their sequential order and runtime

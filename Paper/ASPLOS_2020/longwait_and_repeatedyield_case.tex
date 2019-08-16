@@ -1,9 +1,9 @@
 \subsection{Long Wait and Repeated Yield}
 In this section, we discuss the cases where the \spinningnode is blocking
-on wait event or yielding loop, corresponding to \textbf{Long Wait} and
-\textbf{Repeated Yield}.
+on wait event or yielding loop, corresponding to Long Wait and
+Repeated Yield.
 
-\paragraph{1-SystemPref}
+\paragraph{2-SystemPref}
 
 System Preferences provides a central location in macOS to customize
 system settings, including configuring additional monitors. A tool called
@@ -17,7 +17,7 @@ are rearranged with the enabled external monitor, and 2) a spinning scenario in
 which we disable the external monitor with \vv{DisableMonitor} and rearrange
 the displays. The \spinningnode in the main thread is dominated by system
 calls, \vv{mach\_msg} and \vv{thread\_switch}, which falls into the category of
-\textbf{Repeated Yield}. We discovered two missing data flags with \vv{lldb},
+ Repeated Yield. We discovered two missing data flags with \vv{lldb},
 ``\vv{\_gCGWillReconfigureSeen}'' and ``\vv{\_gCGDidReconfigureSeen}'', which
 signify the status of configuring and break the loop of thread yielding. \xxx
 learns from the baseline scenario that the main thread is responsible to set
@@ -27,12 +27,12 @@ where the main thread yields repeatedly to send messages to WindowServer for
 such datagram.
 
 In conclusion, we discovered that the bug is inherent in the design of the
-CoreGraphics library, and would have to fixed by Apple. We verified this
+CoreGraphics library, and would have to be fixed by Apple. We verified this
 diagnosis by creating a dynamic binary patch with lldb to fix the deadlock. The
 patched library makes DisableMonitor work correctly, while preserving correct
 behavior for other applications.
 
-\paragraph{2-SequelPro}
+\paragraph{3-SequelPro}
 
 Sequel Pro~\cite{SequelPro} is a fast, easy-to-use Mac database management
 application for working with MySQL databases. It allows user to connect to

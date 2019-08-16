@@ -75,14 +75,14 @@ data flags in modern applications, it is hopeless to count on manual annotations
 to ensure accurate capture of request graphs.
 
 In this work, we present \xxx, an interactive system for debugging performance
-issues in modern desktop applications despite the imprecision of causal tracing.
+issues in modern desktop applications despite the inaccuracy of causal tracing.
 \xxx does not construct a per-request causal graph which requires extremely
 accurate causal tracing. Instead, it captures an approximate event graph for
 a duration of the system execution to aid diagnosis, and tracks both true
 causality edges as well as weak ones that may or may not reflect causality.
 It keeps humans in the loop, as a debugger should rightly do, and lets users
 easily inspect current diagnostics and guide the next steps to counter the
-inherent imprecision of causal tracing. Specifically, during debugging, \xxx
+inherent inaccuracy of causal tracing. Specifically, during debugging, \xxx
 queries users a judicially few times to (1) resolve a few inaccurate edges
 that represent false dependencies, (2) select one out of several vertices as a
 baseline to the buggy vertex in question; and (3) identify potential data flags.
@@ -112,8 +112,8 @@ only \cpuoverhead CPU overhead overall.
 %% consider adding comparison to prior approaches
 %% Our techniques effectively removed false and added missing edges in the
 %% event graph.  Even with our techniques, the resultant graph remain too
-%% imprecise for traditional causal tracing, but, fortunately, an average
-%% of XXX user queries suffice to locate the root causes precisely.
+%% inaccurate for traditional causal tracing, but, fortunately, an average
+%% of XXX user queries suffice to locate the root causes accurately.
 
 This paper makes the following contributions: our conceptual realization that
 causal tracing is inherently inaccurate and that interactive causal tracing is
