@@ -12,20 +12,20 @@ In this section, we describe the steps a user takes to investigate a performance
 anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
 an example of a user investigating a performance problem in Chromium. The
 system wide tracing tool, which collects data from \xxx instrumented library
-and kernel, generates logs. They are transformed into an graph in \xxx's graph
-construction component. Central to our system is our \emph{event graph}, a
+and kernel, generates logs. They are transformed into an \emph{event graph} in \xxx's graph
+construction component. The event graph is a
 generalized control-flow graph which includes inter-thread and inter-process
-dependencies. Diagnosis and inferences are performed within this graph, in a
+dependencies. Diagnosis and inference are performed within this graph, in a
 semi-automated fashion: \xxx performs searches to trace logical events as they
 flow through the system, and it judicially queries the user for guidance.
 %The generated graph is used by the interactive debugger for causal path
 %slicing and diagnosis. \xxx supports interactive search in path slicing, by
 %providng information to the user and asking for decision, in case of multiple
 %predecessors in a vertex.
-As shown in Figure~\ref{fig:argus-overview}, the debugger asks user to choose
-one edge in a subgraph. After this step, \xxx performs diagnosis algorithm and
+As shown in Figure~\ref{fig:argus-overview}, the \xxx debugger asks the user to choose
+one edge in a subgraph. After this step, \xxx runs its diagnosis algorithm and
 reports the root cause vertices. In the example, the root cause is two vertices
-which form a circular wait across multiple threads.
+which form a circular wait deadlock across multiple threads.
 %
 %In this section, we describe the steps a user takes to investigate a performance
 %anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
@@ -132,8 +132,6 @@ crucial in this process (\S\ref{sec:casestudy}).
 %%			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
 %%			shows a JavaScript processing event, dequeued from the renderer's main event
 %%		queue. It blocks on the semaphore from browser for the rendering.}
-	\caption{Chromium Example}
-    \label{fig:chromium-case-study}
 \end{figure}
 %   resolve symbol, save to log
 %     search for set\_spinning
@@ -196,7 +194,7 @@ thread, which in turn woken by \vv{fontd}, the font service daemon. \xxx further
 compared the baseline path with the spinning case, as shown in \vv{path 1}
 in Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event
 on semaphore in the \vv{renderer} main thread, the culprit that delayed
-waking up the browser main thread over 4 seconds. What caused the wait in the
+waking up the browser main thread over four seconds. What caused the wait in the
 \vv{renderer} main thread though? She thus continued diagnosis and recursively
 applied \xxx to the wait in \vv{renderer}, and it turned out that \vv{renderer} was
 actually waitng to be woken up by the browser main thread -- a circular wait formed.
