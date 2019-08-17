@@ -15,7 +15,7 @@ approximately 19 million events (about 5 minutes with normal operations).
 
 The default tracing points in macOS provide too limited information
 to enact causal tracing. As a result, we instrumented both the
-kernel~ref\cite{linkofxnusourcecode} (at the source level) and key libraries
+kernel~\cite{linkofxnusourcecode} (at the source level) and key libraries
 (at the binary level), to gather more tracing data. We instrumented the kernel
 with 1,193 lines of code, and binary-instrumented the following libraries:
 \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib}, \vv{libpthread.dylib},
@@ -42,7 +42,7 @@ call instruction to invoke a trampoline target function, in which we overwrite
 the victimized instructions and produce tracing data with API from Apple.
 All of the trampoline functions are grouped into a new image, as well as an
 initialization function which carries out the drop-in replacement. Then command
-tools from \xxx help to configure the image with the following steps: (1)
+line tools from \xxx help to configure the image with the following steps: (1)
 re-export all symbols from the original image so that the original code can be
 called like an shared library; (2) rename the original image, and use original
 name for the new one to ensure the modifications are properly loaded; (3) invoke
@@ -108,7 +108,7 @@ experience has been very helpful in multiple steps of an \xxx diagnosis.
 \subsection{Find Baseline Scenario}
 
 \xxx leverages a baseline scenario to discover missing wake-up edges in
-\textbf{Long Wait} cases. 
+Long Wait cases. 
 
 The baseline scenario is identified from the vertices which share the same high
 level semantics as the \spinningnode, but exposes different execution results.

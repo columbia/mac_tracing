@@ -31,7 +31,7 @@ user-level, possibly custom wake-up and wait operations because their
 implementations almost always use kernel wake-up wand wait.  This approach
 necessarily includes spurious edges in the graph, including those due to
 mutual exclusion; \xxx handles them by querying the user when it
-encounters a node with multiple incoming causal edges during diagnosis
+encounters a vertex with multiple incoming causal edges during diagnosis
 (see \S\ref{sec:overview}).  We also observed that a waiting kernel thread
 is frequently woken up to perform tasks such as interrupt handling and
 scheduler maintenance; \xxx recognizes them and culls them out from the
@@ -127,19 +127,19 @@ message operations have non-overlapping peer sets.
 \subsection{Mitigating Under-Connections}\label{subsec:fix-under}
 
 Under-connections are primarily due to data dependencies.  Currently \xxx
-queries the user to identify the memory locations of the data flags.It
+queries the user to identify the memory locations of the data flags. It
 is conceivable to leverage memory protection techniques to infer them
 automatically, as demonstrated in previous record-replay
 %% https://www.usenix.org/legacy/events/usenix05/tech/general/king/king.pdf
 %% https://web.eecs.umich.edu/~pmchen/papers/dunlap08.pdf
-work~\cite{king2005debugging, dunlap2008execution}, it is out of the scope of this paper and we leave it for
-future work.  Currently, to discover a data flag, the user re-runs the
-application with \xxx to collect instruction traces of the concurrent
-events in both the normal and spinning cases and detects where the control
-flow diverges. She then reruns the application with \xxx to collect
-register values for the basic blocks before the divergence and uncovers
-the address of the data flag.  Once the user identifies a data flag, \xxx
-traces it using either binary instrument, such as the \vv{need\_display}
-flag in CoreAnimation (\S\ref{sec:inaccuracy}), or with
-watchpoints.  \xxx add a causal edge between a write to a data flag to the
-corresponding read to the flag.
+work~\cite{king2005debugging, dunlap2008execution}, it is out of the scope
+of this paper and we leave it for future work. Currently, to discover a data
+flag, the user re-runs the application with \xxx to collect instruction traces
+of the concurrent events in both the baseline and spinning cases and detects
+where the control flow diverges. She then reruns the application with \xxx to
+collect register values for the basic blocks before the divergence and uncovers
+the address of the data flag. Once the user identifies a data flag, \xxx traces
+it using either binary instrument, such as the \vv{need\_display} flag in
+CoreAnimation (\S\ref{sec:inaccuracy}), or with watchpoints. \xxx add a causal
+edge between a write to a data flag to the corresponding read to the flag.
+For the known data flags mentioned above, \xxx traces them by default.
