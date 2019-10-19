@@ -1,4 +1,6 @@
-\section{Inherent Inaccuracies in Causal Tracing}\label{sec:inaccuracy}
+\section{Inaccuracys in Causal Tracing}\label{sec:inaccuracy}
+
+\subsection{Inherent Inaccuracies}
 \input{patternfigure}
 
 As explained in \S\ref{sec:intro}, causal tracing builds a graph to connect
@@ -10,7 +12,7 @@ map to causality) -- and \emph{under-connections} -- missing edges between two
 vertices with one causally influencing the other. In this section, we present
 several inherently inaccurate patterns we observed and their examples in macOS.
 
-\subsection{Over Connections}
+\subsubsection{Over Connections}
 
 Over connections usually occur when (1) intra-thread boundaries are missing due
 to unknown batch processing programming paradigms or (2) superfluous wake-ups
@@ -48,7 +50,7 @@ wakes up a thread waiting in lock. Such a wake-up may be, but is not always,
 intended as causality. However, without knowing the developer intent, any
 wake-up is typically treated as causality. %by traditional causal tracing tools.
 
-\subsection{Under Connections}
+\subsubsection{Under Connections}
 
 We observe that under connections mostly result from missing data
 dependencies.  This pattern is more general than shared-memory flags in ad
