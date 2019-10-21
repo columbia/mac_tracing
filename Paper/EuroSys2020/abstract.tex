@@ -4,9 +4,11 @@ all assume that accurate causality can be inferred from low-level tracing with
 supported communication patterns or obtained from developer's schema upfront
 for all involved components.  Unfortunately, based on our study and experience
 of building a causal tracing system on macOS, we find it is difficult, if not
-impossible, to get accurate request graphs.  Untracking patterns, such as data
-dependency and batch processing, varying from program to program, introduce
-inaccuracy. 
+impossible, to get accurate request graphs.
+
+%Untracking patterns, such as data
+%dependency and batch processing, varying from program to program, introduce
+%inaccuracy. 
 
 We present \xxx, a practical system for debugging performance issues in modern
 desktop applications despite the inaccuracy of causal tracing. \xxx lets a user
