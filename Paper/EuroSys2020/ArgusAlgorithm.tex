@@ -19,10 +19,10 @@
 		\LineComment {Fall through}\label{a1:repeatedyield_end}
 	\EndCase
 	\Case {LongWait} \label{a1:longwait_begin}
-		\State {\algsimilarnode $\gets$ vertex has similar event sequence to \algspinningnode}
-		%\State {baseline\_vertex $\gets$ ask user to pick from \algsimilarnodes} 
-		\State {baseline\_path $\gets$ InteractiveSlice(\algsimilarnode)} 	
-		\For {each t in $\{$threads in baseline\_path$\}$}
+		\State {\algsimilarnode $\gets$ vertex has similar event sequence to \algspinningnode without long waiting}
+		%\State {normal\_vertex $\gets$ ask user to pick from \algsimilarnodes} 
+		\State {normal\_path $\gets$ InteractiveSlice(\algsimilarnode)}
+		\For {each t in $\{$threads in normal\_path$\}$}
 			\State {$vertex_t$ $\gets$ vertex in t before \algspinningnode gets spinning}
 			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				%\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}

@@ -1,11 +1,10 @@
 \section{Overview}\label{sec:overview}
 
-In this section, we first describe the basics of \xxx event graphs
-(\S\ref{subsec:eventgraph}). Then we explains how \xxx idenfity where the
-vertex corresponding to the performance anomaly exists in the event graphs
-(\S\ref{subsec:indicator}). In the preceeding section(\S\ref{subsec:overflow}),
-we describe how \xxx diagnozes performance issue interactively with a concrete
-example.
+In this section, we first describe \xxx event graphs
+(\S\ref{subsec:eventgraph}). Then we explains how \xxx idenfity the vertex
+corresponding to the performance anomaly (\S\ref{subsec:indicator}). In the
+following section(\S\ref{subsec:overflow}), we describe how \xxx diagnoses
+performance issue interactively with a concrete example.
 
 \input{graphbasic}
 
@@ -73,12 +72,12 @@ are three potential cases.
 
 	\item \textbf{LongWait} (lines~\ref{a1:longwait_begin}
 		-~\ref{a1:longwait_end}). The main thread is in a lengthy blocking wait and
-		the wake-up has been missing. \xxx handles this case by finding a baseline
+		the wake-up has been missing. \xxx handles this case by finding a normal
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
 		Specifically, \xxx first finds a \similarnode to the spinning one based %solely
 		on the semantic events such as system calls in each vertex. It then traverses
-		backwards from the \similarnode to find the baseline wake-up path. For each
+		backwards from the \similarnode to find the normal wake-up path. For each
 		thread in the wake-up path, it examines the vertex in the thread right before
 		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
 		to the path of \rootcausenodes, and applies Function \textit{Diagnose} recursively
@@ -159,21 +158,21 @@ schema for all involved applications and daemons.
 % Perfect case for \xxx
 
 Next she ran interactive debugger in \xxx to find the \spinningnode in the main
-thread of the browser process. \xxx returned a \vv{LongWait} event, a \vv{pthread\_cond\_timewait()}
+thread of the browser process. \xxx returned a \vv{LongWait} event, a \vv{psynch\_cv\_wait()}
 with a timeout of 1.5 seconds.  
 \xxx
-compares the \spinningnode to \similarnode in baseline scenario where the \vv{wait}
+compares the \spinningnode to \similarnode in normal scenario where the \vv{wait}
 was signaled quickly. \xxx reported three, and confirmed with the user which one
 she wanted.
 
 % Figure 2....
 
-\xxx then found the baseline wake-up path which connects five threads.
+\xxx then found the normal wake-up path which connects five threads.
 The browser main thread was signaled by a browser worker thread, which
 received IPC from a worker thread of daemon \vv{renderer} where the rendering view
 and WebKit code run. The worker thread is woken up by the \vv{renderer} main
 thread, which in turn woken by \vv{fontd}, the font service daemon. \xxx further
-compared the baseline path with the spinning case, as shown
+compared the normal path with the spinning case, as shown
 in Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event
 on semaphore in the \vv{renderer} main thread, the culprit that delayed
 waking up the browser main thread over four seconds. What caused the wait in the
