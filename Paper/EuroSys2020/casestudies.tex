@@ -31,29 +31,6 @@ sometimes correct, but sometimes not. This is why our system relies on expert
 knowledge of users to reconstruct a developer's intent and accurately diagnose
 performance issues.
 
-\paragraph{How \xxx Detects Spinning Cursors}
-
-When the spinning cursor shows up, a hang reporting tool, \spindump usually
-kicks in automatically to sample callstacks for debugging. To figure out the
-\spinningnode in the main thread, we turn to the event graph, and slice path
-backward from the launch of \spindump.
-The path shows that \spindump is launched after receiving a message from
-\vv{WindowServer}, which received a message from the \vv{NSEvent} thread of
-the freezing app. The call stack attached to the messages further reveals the
-\vv{NSEvent} thread fetches \vv{CoreGraphics} events from
-\vv{WindowServer}, converts and creates NSApp events for the main 
-thread. If the main thread fails to process an NSApp event before the timer
-fires, \vv{NSEvent} thread sends a message to \vv{WindowServer} via the API
-``\vv{CGSConnectionSetSpinning}'' from the timer handler, and \vv{WindowServer}
-notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
-window. To avoid sending more events to an already-spinning main thread, 
-the NSApp thread uses two data flags to track the main thread status, 
-\vv{is\_mainthread\_spinning} and \vv{dispatch\_to\_mainthread}.
-These flags are also modified by the main thread to update its status.
-\xxx leverages this API to identify the \spinningnode in the main thread.
-
-
-
 \input{bugdesc}
 
 %Bug 0-Apple is ...... The spinning cursor is created when the main thread

@@ -1,89 +1,39 @@
 \subsection{Event Graph Basics}\label{subsec:eventgraph}
 
-In this section, we first describe the basics of \xxx event graphs
-(\S\ref{subsec:eventgraph}). 
-To construct event graphs, \xxx collects three categories of events in its
-systems-wide event logs.  The first category contains semantic events,
-such as system calls, call stacks collected when certain operations such
-as macOS message operations are run, and user actions such as key presses.
-These events indicate what the developer intents might be, and are stored
-as contents in each vertex in the event graph.  They are primarily for
-providing information to user during diagnosis and for finding similar
-vertices (\S\ref{sec:overview}).
+The event graph is a generalized control-flow graph which includes inter-thread
+and inter-process dependencies. To construct event graphs, \xxx collects three
+categories of events in its systems-wide event logs. The first category of
+events are The second category of events are boundary events that mark the
+beginning and ending of execution segments which are vertices in the graph.
+\xxx handles common callbacks, such as \vv{dispatch\_client\_callout} and
+\vv{CFRunLoopDoBlocks}, and mark their entry and return as boundaries. The
+second category contains semantic events, including system calls, call stacks
+when certain operations such as macOS message are running, and user actions such
+as key presses. These events indicate what the developer intents might be, and
+are stored as contents in each vertex in the event graph. They are primarily for
+providing information to user during diagnosis. The third category of events
+are for forming edges in the graph. For instance, an operation that installs
+a callback is connected to the invocation of the callback. A message send is
+connected to a message receive. The arming of a timer is connected to the
+processing of the timer callback.
 
-The second category of events are boundary events that mark the beginning
-and ending of execution segments or vertices in the graph.  \xxx handles
-common callback invocations such as \vv{dispatch\_invoke} and
-\vv{runloop\_invoke} and mark their entry and return as boundaries.
+A unique design in \xxx is to trace general wake-up and wait operations inside
+the kernel to ensure coverage across many diverse user-level, possibly custom
+wake-up and wait operations because their implementations almost always use
+kernel wake-up and wait. This approach necessarily includes spurious edges
+in the graph, including those due to mutual exclusion and context switch by
+interrupts; \xxx handles them by querying the user when it encounters a vertex
+with multiple incoming causal edges during diagnosis (see \S\ref{subsec:overflow}).
+We also observed that a waiting kernel thread is frequently woken up to perform
+tasks such as timer firing signal and scheduler maintenance; \xxx recognizes
+them and culls them out from the graph automatically.
 
-The third category of events are for forming edges in the graph.  For
-instance, an operation that installs a callback is connected to the
-execution of the callback.  A message send is connected to a message
-receive.  The arming of a timer is connected to the execution of the timer
-callback.  A unique design in \xxx is to trace general wake-up and wait
-operations inside the kernel to ensure coverage across many diverse
-user-level, possibly custom wake-up and wait operations because their
-implementations almost always use kernel wake-up wand wait.  This approach
-necessarily includes spurious edges in the graph, including those due to
-mutual exclusion; \xxx handles them by querying the user when it
-encounters a vertex with multiple incoming causal edges during diagnosis
-(see \S\ref{sec:overview}).  We also observed that a waiting kernel thread
-is frequently woken up to perform tasks such as interrupt handling and
-scheduler maintenance; \xxx recognizes them and culls them out from the
-graph automatically.
-
-%% \xxx constructs dependency graphs with the events from tracing logs. Tracing
-%% logs contain sequence of events per thread. Each event stands for an execution
-%% step in a thread. They are grouped into nodes and IPCs, asynchronouns calls and
-%% thread wakeups serve as edges; some edges can be inside a single thread.
-
-%% The events traced in \xxx are carefully selected for three main purposes:
-%% preserve semantics for the node, indentify node boundaries inside a thread,
-%% and provide connections between nodes. We classify them into three categories:
-%% semantics events, boundary events and connection events, as listed in
-%% Table~\ref{table:event_types}.
-
-%% \begin{table}[ht]
-%% \begin{threeparttable}
-%%   \centering
-%%   \begin{tabularx}{\columnwidth}{|X|X|}
-%%   	\hline
-%%     \textbf{Event Type} & \textbf{Event Categories}\\
-%% 	\hline
-%% 	\hline
-%% 		System\_call & Semantics\\ \hline
-%% 		Back\_trace & Semantics\\ \hline
-%% 		NSApp\_event\tnote{1} & Semantics \\ \hline
-%% 		Wait & Semantics, Boundary \\ \hline
-%% 		Interrupts & Boundary \\ \hline
-%% 		Sharetime\_maintenance\tnote{2} & Boundary \\ \hline
-%% 		Dispatch\_invoke\tnote{3} & Boundary \\ \hline
-%% 		Runloop\_invoke & Boundary \\ \hline
-%% 		Mach\_message & Boundary, Connection\\ \hline
-%% 		Wake\_up & Connection \\ \hline
-%% 		Timer & Connection \\ \hline
-%% 		Dispatch\_enqueue & Connection \\ \hline
-%% 		Runloop\_submit & Connection \\ \hline
-%% 		Share\_flag\_read & Connection \\ \hline
-%% 		Share\_flag\_write & Connection \\ \hline
-%%   \end{tabularx}
-
-%% 	\begin{tablenotes}
-%% 		\footnotesize
-%% 		\item [1] User input events dispatched to the Application.
-%% 		\item [2] Kernel invoked a routine to update timeshare quota. 
-%% 		\item [3] Invoke callback function for works from dispatch queue.
-%% 	\end{tablenotes}
-%%  \end{threeparttable}
-%% \caption{Event Type Categories. }
-%% \label{table:event_types}
-%% \end{table}
-
-Compared to tools such as \spindump that capture only the current
-system state, event graphs capture the causal path of events, enabling
-users to trace across threads and process to events happened in the past
-(hence cannot be captured by \spindump) that explain present
-anomalies.
+Compared to tools such as \spindump that capture only the current system state,
+event graphs capture the causal path of events, enabling users to trace across
+threads and process to events happened in the past (hence cannot be captured by
+\spindump) that explain present anomalies. As a result, \xxx is able to report
+root causes, such as dead locks due to the design flaw, with semantics
+events.
 
 %% Given the prevalent of multi-threading and multi-processing programs, bugs are
 %% much more complicated. The long opening bugs are usually have several threads
@@ -94,3 +44,30 @@ anomalies.
 %% useful in that 1) it provides thread relationships all over the system across
 %% process boundary and timing boundary and 2) it records execution history for an
 %% input event before users capture hangs with their eyes.
+
+\subsection{Performance Anomaly Indicator} \label{subsec:indicator}
+
+Compared to prior works which try to identify performance issue with critical
+paths, \xxx takes the reported issue by system or users as input. It first
+figures out the corresponding vertex to the reported issues. In this section,
+we explains how \xxx figure out the problematic vertex corresponding to the
+well-known performance anomaly indicator in macOS.
+
+\paragraph{How \xxx Detects Spinning Cursors}
+
+When the spinning cursor shows up, a hang reporting tool, \spindump usually
+kicks in automatically to sample callstacks for debugging. To figure out the
+\spinningnode in the main thread, we turn to the event graph, and slice path
+backward from the launch of \spindump. The path shows that \spindump is launched
+after receiving a message from \vv{WindowServer}, which received a message
+from the \vv{NSEvent} thread of the freezing app. The call stack attached to
+the messages further reveals the \vv{NSEvent} thread fetches \vv{CoreGraphics}
+events from \vv{WindowServer}, converts and creates \vv{NSApp} events for the main
+thread. If the main thread fails to process a \vv{NSApp} event before the timer
+fires, \vv{NSEvent} thread sends a message to \vv{WindowServer} via the API
+``\vv{CGSConnectionSetSpinning}'' from the timer handler, and \vv{WindowServer}
+notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
+window. With the result, \xxx leverages the call stack events with the API to
+identify the time when the \vv{NSEvent} thread triggers a spinning cursor,
+and finds \spinningnode in the main thread which contains the ongoing events
+concurrent to the spinning cursor.

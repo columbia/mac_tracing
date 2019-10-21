@@ -1,10 +1,19 @@
 \section{Overview}\label{sec:overview}
 
-\subsection{Argus Work Flow}
+In this section, we first describe the basics of \xxx event graphs
+(\S\ref{subsec:eventgraph}). Then we explains how \xxx idenfity where the
+vertex corresponding to the performance anomaly exists in the event graphs
+(\S\ref{subsec:indicator}). In the preceeding section(\S\ref{subsec:overflow}),
+we describe how \xxx diagnozes performance issue interactively with a concrete
+example.
+
+\input{graphbasic}
+
+\subsection{Argus Work Flow} \label{subsec:overflow}
+
 \begin{figure}[tb]
     \centering
 	\includegraphics[width=\columnwidth]{./figures/Argus_overview.png}
-	%\input{figures/overview_tikz.tex}
     \caption{\xxx Work Flow}
     \label{fig:argus-overview}
 \end{figure}
@@ -13,47 +22,18 @@ In this section, we describe the steps a user takes to investigate a performance
 anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
 an example of a user investigating a performance problem in Chromium. The
 system wide tracing tool, which collects data from \xxx instrumented library
-and kernel, generates logs. They are transformed into an \emph{event graph} in \xxx's graph
-construction component. The event graph is a
-generalized control-flow graph which includes inter-thread and inter-process
-dependencies. Diagnosis and inference are performed within this graph, in a
-semi-automated fashion: \xxx performs searches to trace logical events as they
-flow through the system, and it judicially queries the user for guidance.
-%The generated graph is used by the interactive debugger for causal path
-%slicing and diagnosis. \xxx supports interactive search in path slicing, by
-%providng information to the user and asking for decision, in case of multiple
-%predecessors in a vertex.
-As shown in Figure~\ref{fig:argus-overview}, the \xxx debugger asks the user to choose
-one edge in a subgraph. After this step, \xxx runs its diagnosis algorithm and
-reports the root cause vertices. In the example, the root cause is two vertices
-which form a circular wait deadlock across multiple threads.
-%
-%In this section, we describe the steps a user takes to investigate a performance
-%anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow, which
-%consists of two phases. A user runs command ``\vv{\xxx start}'' to enter the
-%system-wide tracing phase, within which \xxx logs events as listed in Table
-%~\ref{table:event_types} (\S\ref{subsec:eventgraph}). Whenever a user detects
-%a performance issue such as a spinning cursor, she runs ``\vv{\xxx debug}'' to
-%enter the diagnosis phase.
-%
-%%In the cases we consider, the flow of information across threads and processes
-%%is essential to discovering the system state that leads to a performance bug.
-%%\xxx recovers UI actions from logged data rather than being told the actions
-%%that a user performs, because not all of them may be relevant to the true bug.
-%%
-%Central to our system is our \emph{event graph}, a generalized control-flow
-%graph which includes inter-thread and inter-process dependencies. 
-%Diagnosis
-%and inferences are performed within this graph, in a semi-automated fashion:
-%\xxx performs searches to trace logical events as they
-%flow through the system, and it judicially queries the user for guidance.
-% The event graph is described in further detail in \S\ref{subsec:eventgraph}.
+and kernel, generates logs. They are transformed into an \emph{event graph}
+in \xxx's graph construction component. Diagnosis and inference are performed
+within this graph, in a semi-automated fashion: \xxx performs searches to trace
+logical events as they flow through the system, and it judicially queries
+the user for guidance. As shown in Figure~\ref{fig:argus-overview}, the \xxx
+interactive debugger asks the user to choose one edge in a subgraph. With this
+type of interaction, \xxx runs its diagnosis algorithm and reports the root
+cause vertices. In the example, the root cause is two vertices which form a
+circular wait deadlock across multiple threads. Next, we describe how \xxx
+assists the user to diagnose a performance issue.
 
-Next, we describe how \xxx assists the user to diagnose a performance issue.
-
-%fwd ref section on chromium, but first, how search event graph
-
-\subsection{Diagnosis with Graph}\label{subsec:debug}
+\subsubsection{Diagnosis with Graph}\label{subsec:debug}
 
 \input{ArgusAlgorithm}
 
@@ -120,7 +100,7 @@ integrate user input to leverage hypotheses or expert knowledge
 as to why a hang may occur. Our results show that user inputs, albeit few, are
 crucial in this process (\S\ref{sec:casestudy}).
 
-\subsection{Chromium Spinning Cursor Example}
+\subsubsection{Chromium Spinning Cursor Example}
 
 \begin{figure}[tb]
 	\footnotesize
