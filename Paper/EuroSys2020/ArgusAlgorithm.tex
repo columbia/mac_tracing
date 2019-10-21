@@ -20,15 +20,10 @@
 	\EndCase
 	\Case {LongWait} \label{a1:longwait_begin}
 		\State {\algsimilarnode $\gets$ vertex has similar event sequence to \algspinningnode without long waiting}
-		%\State {normal\_vertex $\gets$ ask user to pick from \algsimilarnodes} 
 		\State {normal\_path $\gets$ InteractiveSlice(\algsimilarnode)}
 		\For {each t in $\{$threads in normal\_path$\}$}
 			\State {$vertex_t$ $\gets$ vertex in t before \algspinningnode gets spinning}
 			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
-				%\State{is\_related\_to\_bug $\gets$ ask user if $node_t$ related to bug}
-				%\If {is\_related\_to\_bug $\not=$ True}
-				%	\State{Continue}
-				%\EndIf
 				\State {\algrootcausenodes.append($vertex_t$)}
 				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
 			\EndIf
@@ -38,19 +33,9 @@
   \EndSwitch
   \State\Return{\algrootcausenodes}
 \EndFunction
-%%\end{algorithmic}
-%%\end{algorithm}
 
-%\begin{algorithm}
-%\caption{InteractiveSlicing algorithm.}
-%\label{alg:alg-interactiveslicing}
-%\begin{algorithmic}[1]
-%\Require{g - EventGraph; node - the node user wants to slice from}
-%\Ensure{slice - causual path for node}
 \Statex
-\Function{InteractiveSlicing}{g, vertex}\label{alg:interslice-line}
-%\funclabel{alg:interactiveslicing}
-%\label{alg:interactiveslicingline}
+\Function{InteractiveSlice}{g, vertex}\label{alg:interslice-line}
 \Loop
 	\State{path\_slice.append(vertex)}
 	\If {vertex has 1 incoming edge}

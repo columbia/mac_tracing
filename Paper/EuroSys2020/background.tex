@@ -22,17 +22,18 @@ performance bottlenecks with critical paths or exception paths. It defines the
 root cause as the state of a function execution, long blocking or exception in
 the application.
 
-To be unobtrusive, Panappticon instruments the system to collect low-level
-and fine grained events from libraries and kernel, including user input,
-display update, asynchronous call and callback, inter-process comminication,
+To be unobtrusive, Panappticon instruments the system to collect low-level and
+fine grained events from libraries and kernel, including user input, display
+update, asynchronous call and callback, inter-process comminication,
 synchronization mechanism, and resource accounting. Every event is a vertex.
 Panappticon connects continuous vertices which stem from atomic work in a
 thread, e,g, , a worker thread processing one task from a task queue, into an
 execution interval. Two execution intervals connect if the earlier interval
 triggers the latter one. For example, a user input triggering an enqueue
 message reflects as an execution interval, where two vertices are connected
-with a temperal ordering edge. Another thread dequeues the message and submit
-an asynchronous task generates another execution interval. These intervals
-are connected with a causal relationship. Base on the tracing, Panapption
-pinpoints root causes from the application design flaw, harmful interaction, to
-underpowered hardware.
+with a temperal ordering edge. Another thread, dequeuing the message and
+submiting an asynchronous task, generates another execution interval. The two
+intervals are connected with a causal relationship due to the message. With the
+resouces analysis in every user transaction, from user input to display update,
+Panapption pinpoints root causes from the application design flaw, harmful
+interaction, to underpowered hardware.
