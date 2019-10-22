@@ -45,30 +45,3 @@ root causes, such as dead locks due to design flaws.
 %% process boundary and timing boundary and 2) it records execution history for an
 %% input event before users capture hangs with their eyes.
 
-\subsection{Performance Anomaly Indicator} \label{subsec:indicator}
-
-Compared to prior works which try to identify performance issue with critical
-paths, \xxx takes the reported issue by system or users as input. It first
-figures out the corresponding vertex in event graph to the reported issue. In
-this section, we explains how \xxx identifies the problematic vertex
-corresponding to a spinning cursor, a well-known performance anomaly indicator,
-in macOS.
-
-\paragraph{How \xxx Detects Spinning Cursors}
-
-When the spinning cursor shows up, a hang reporting tool, \spindump usually
-kicks in automatically to sample callstacks for debugging. To figure out the
-\spinningnode in the main thread, we turn to the event graph, and slice path
-backward from the launch of \spindump. The path shows that \spindump is launched
-after receiving a message from \vv{WindowServer}, which received a message
-from the \vv{NSEvent} thread of the freezing app. The call stack attached to
-the messages further reveals the \vv{NSEvent} thread fetches \vv{CoreGraphics}
-events from \vv{WindowServer}, converts and creates \vv{NSApp} events for the main
-thread. If the main thread fails to process a \vv{NSApp} event before the timer
-fires, \vv{NSEvent} thread sends a message to \vv{WindowServer} via the API
-``\vv{CGSConnectionSetSpinning}'' from the timer handler, and \vv{WindowServer}
-notifies the \vv{CoreGraphics} to draw a spinning cursor over the application
-window. With the result, \xxx leverages the call stack events with the API to
-identify the time when the \vv{NSEvent} thread triggers a spinning cursor,
-and finds \spinningnode in the main thread which contains the ongoing events
-concurrent to the spinning cursor.

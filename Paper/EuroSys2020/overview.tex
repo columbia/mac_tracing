@@ -1,10 +1,8 @@
 \section{Overview}\label{sec:overview}
 
 In this section, we first describe \xxx event graphs
-(\S\ref{subsec:eventgraph}). Then we explains how \xxx identifies the vertex
-corresponding to the performance anomaly (\S\ref{subsec:indicator}). In the
-following section(\S\ref{subsec:overflow}), we describe how \xxx diagnoses
-performance issue interactively with a concrete example.
+(\S\ref{subsec:eventgraph}). Then we explains how \xxx diagnoses performance
+anomaly with a concrete example(\S\ref{subsec:overflow}).
 
 \input{graphbasic}
 
@@ -17,38 +15,59 @@ performance issue interactively with a concrete example.
     \label{fig:argus-overview}
 \end{figure}
 
-In this section, we describe the steps a user takes to investigate a performance
-anomaly with \xxx. Figure~\ref{fig:argus-overview} shows \xxx's work flow with
-an example of a user investigating a performance problem in Chromium. The
-system wide tracing tool, which collects data from \xxx instrumented library
-and kernel, generates logs. They are transformed into an \emph{event graph}
-in \xxx's graph construction component. Diagnosis and inference are performed
-within this graph, in a semi-automated fashion.
-% \xxx performs searches to trace
-%logical events as they flow through the system, and it judicially queries
-%the user for guidance.
-As shown in Figure~\ref{fig:argus-overview}, the \xxx
-interactive debugger asks the user to choose one edge in a subgraph. With this
-type of interaction, \xxx runs its diagnosis algorithm and reports the root
-cause vertices. In the example, the root cause is two vertices which form a
-circular wait deadlock across multiple threads. Next, we describe how \xxx
-assists the user to diagnose a performance issue.
+In this section, we describe the steps a tech-savvy user takes to investigate a
+performance anomaly with \xxx.  Figure~\ref{fig:argus-overview} shows \xxx's
+work flow with an example of a user investigating a performance problem in
+Chromium.  The system wide tracing tool, which collects data from \xxx
+instrumented library and kernel, generates logs. They are transformed into an
+\emph{event graph} in \xxx's graph construction component. Diagnosis and
+inference are performed within this graph, in a semi-automated fashion.  As
+shown in Figure~\ref{fig:argus-overview}, the \xxx interactive debugger asks
+the user to choose one edge in a subgraph. With this type of interaction, \xxx
+runs its diagnosis algorithm and reports the root cause vertices.  Next, we
+describe how \xxx assists the user to diagnose a performance issue.
+
+\subsubsection{Initiate the diagnosis}
+
+Compared to prior works which try to identify performance issue with critical
+paths, \xxx takes the reported issue by system or users as input. It leverages
+the semantic events in the graph to locate the vertex representing the reported
+issue and initiate the diganosis.
+
+Consider a common performance bug on macOS, the \emph{spinning cursor}, which
+indicates the current application's main thread has not processed any UI
+events for over two seconds.
+%%We explain how \xxx identifies the vertex representing \vv{spinning cursor} in
+%%macOS.
+%%When the \vv{spinning cursor} shows up, a hang reporting tool, \spindump
+%%usually kicks in automatically to sample call stacks for debugging.  To figure
+%%out the \spinningnode in the main thread, we turn to the event graph, and slice
+%%path backward from the launch of \spindump. The path shows that \spindump is
+%%launched after receiving a message from \vv{WindowServer}, which received a
+%%message from the \vv{NSEvent} thread of the freezing app.
+\vv{WindowServer} throws \vv{spinning cursor} with the collaboration of the
+application's \vv{NSEvent} thread.  The \vv{NSEvent} thread fetches
+\vv{CoreGraphics} events from \vv{WindowServer}, converts and creates
+\vv{NSApp} events for the main thread, and arms a timer to monitor the event's
+wait time.  If the main thread fails to process an event before the timer
+fires, the \vv{NSEvent} thread notifies \vv{WindowServer} via
+``\vv{CGSConnectionSetSpinning}'', and \vv{WindowServer} draws a \vv{spinning
+cursor}.% over the application window.
+
+To initialize debugging a \vv{spinning cursor}, \xxx first constructs an event
+graph from the system-wide event log.  It then checks the semantic events from
+the \vv{NSEvent} thread, identifies the time when the perfomance anomaly
+happens, the invocation of ``\vv{CGSConnectionSetSpinning}'', and finds
+\spinningnode in the main thread which contains the ongoing events concurrent.
 
 \subsubsection{Diagnosis with Graph}\label{subsec:debug}
 
 \input{ArgusAlgorithm}
 
-Consider a common performance bug on macOS, the \emph{spinning cursor}, which
-indicates the current application's main thread has not processed any UI
-events for over two seconds. To initialize debugging a spinning cursor, \xxx
-first constructs an event graph from the system-wide event log recorded. It
-then queries the event graph to find the ongoing event in the application's
-main thread concurrent to the display of the spinning cursor. Given the event
-graph and the \spinningnode, \xxx runs Algorithm~\ref{alg:alg-diagnosis} to
-interactively pinpoint the root cause.
-
-Specifically, upon examining what the main thread is actually doing, there
-are three potential cases.
+Given the event graph and the \spinningnode, \xxx runs
+Algorithm~\ref{alg:alg-diagnosis} to pinpoint the root cause.  Specifically,
+upon examining what the main thread is actually doing, there are three
+potential cases.
 
 \begin{itemize}
 	\item \textbf{LongRunning} (lines~\ref{a1:longrunning_begin}
