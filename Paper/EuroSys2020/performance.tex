@@ -1,7 +1,39 @@
+\begin{table*}[tb]
+\footnotesize
+\centering
+\begin{tabularx}{\textwidth}{l|XXX|XXX|XXX}
+	\hline
+	\hline
+Chromium Benchmark&\multicolumn{3}{c}{\textbf{with Argus}} & \multicolumn{3}{c}{\textbf{without Argus}} & \multicolumn{3}{c}{Overhead}\\
+(in seconds)& real & user & sys & real & user & sys & real & user & sys \\
+\hline
+system\_health.memory\_desktop & 11592 & 18424 & 1821 & 11317 & 18401 & 1415 & 0.02 & 0.00 & 0.29\\
+rasterize\_and\_record\_micro.top\_25 & 1579 & 2142 & 135 & 1654 & 2166 & 116 & -0.05 & -0.01 & 0.16\\
+blink\_perf & 16210 & 17227 & 959 & 15877 & 16724 & 766 & 0.02 & 0.03 & 0.25\\
+webrtc & 726 & 2023 & 225 & 725 & 2130 & 168 & 0.00 & -0.05 & 0.34\\
+memory.desktop & 1231 & 2238 & 267 & 1188 & 2200 & 190 & 0.04 & 0.02 & 0.41\\
+loading.desktop.network\_service & 24580 & 52751 & 6294 & 23696 & 52327 & 4197 & 0.04 & 0.01 & 0.50\\
+dromaeo & 206 & 227 & 15 & 192 & 212 & 12 & 0.07 & 0.07 & 0.29\\
+dummy\_benchmark.histogram & 49 & 48 & 8 & 33 & 36 & 4 & 0.50 & 0.32 & 0.96\\
+v8.browsing\_desktop & 2462 & 4489 & 491 & 2325 & 4440 & 303 & 0.06 & 0.01 & 0.62\\
+octan.desktop & 112 & 142 & 8 & 98 & 124 & 5 & 0.14 & 0.15 & 0.44\\
+speedometer & 618 & 802 & 31 & 600 & 782 & 24 & 0.03 & 0.03 & 0.32\\
+page\_cycler\_v2.typical\_2 & 8020 & 14435 & 1453 & 7847 & 14215 & 1019 & 0.02 & 0.02 & 0.43\\
+smoothness.oop\_rasterization.top\_25\_smooth & 864 & 1450 & 156 & 833 & 1412 & 126 & 0.04 & 0.03 & 0.24\\
+\hline
+AVERAGE & \multicolumn{3}{c}{-} &  \multicolumn{3}{c}{-}  & 0.07 & 0.05 & 0.4\\
+\hline
+\hline
+\end{tabularx}
+\caption{Chromium benchmark}
+\label{tab:chromium benchmark}
+\end{table*}
+
+
 \begin{table}[tb]
 \footnotesize
 \centering
-\begin{tabular}{l|ccccc}
+\begin{tabularx}{\columnwidth}{l|XXXXX}
 \hline\hline
  & 1st & 2nd & 3rd & 4th & 5th\\
 \hline
@@ -11,7 +43,7 @@
 average overhead& \multicolumn{5}{c}{0.13\%}\\
 \hline
 \hline
-\end{tabular}
+\end{tabularx}
 \caption{Score From iBench}
 \label{tab:ibench}
 \end{table}
@@ -48,36 +80,6 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \label{tab:iothroughput}
 \end{table}
 
-\begin{table*}[ht]
-\footnotesize
-\centering
-\begin{tabular}{l|rrr|rrr|ccc}
-	\hline
-	\hline
-Chromium Benchmark&\multicolumn{3}{c}{\textbf{with Argus}} & \multicolumn{3}{c}{\textbf{without Argus}} & \multicolumn{3}{c}{Overhead}\\
-(in seconds)& real & user & sys & real & user & sys & real & user & sys \\
-\hline
-system\_health.memory\_desktop & 11592 & 18424 & 1821 & 11317 & 18401 & 1415 & 0.02 & 0.00 & 0.29\\
-rasterize\_and\_record\_micro.top\_25 & 1579 & 2142 & 135 & 1654 & 2166 & 116 & -0.05 & -0.01 & 0.16\\
-blink\_perf & 16210 & 17227 & 959 & 15877 & 16724 & 766 & 0.02 & 0.03 & 0.25\\
-webrtc & 726 & 2023 & 225 & 725 & 2130 & 168 & 0.00 & -0.05 & 0.34\\
-memory.desktop & 1231 & 2238 & 267 & 1188 & 2200 & 190 & 0.04 & 0.02 & 0.41\\
-loading.desktop.network\_service & 24580 & 52751 & 6294 & 23696 & 52327 & 4197 & 0.04 & 0.01 & 0.50\\
-dromaeo & 206 & 227 & 15 & 192 & 212 & 12 & 0.07 & 0.07 & 0.29\\
-dummy\_benchmark.histogram & 49 & 48 & 8 & 33 & 36 & 4 & 0.50 & 0.32 & 0.96\\
-v8.browsing\_desktop & 2462 & 4489 & 491 & 2325 & 4440 & 303 & 0.06 & 0.01 & 0.62\\
-octan.desktop & 112 & 142 & 8 & 98 & 124 & 5 & 0.14 & 0.15 & 0.44\\
-speedometer & 618 & 802 & 31 & 600 & 782 & 24 & 0.03 & 0.03 & 0.32\\
-page\_cycler\_v2.typical\_2 & 8020 & 14435 & 1453 & 7847 & 14215 & 1019 & 0.02 & 0.02 & 0.43\\
-smoothness.oop\_rasterization.top\_25\_smooth & 864 & 1450 & 156 & 833 & 1412 & 126 & 0.04 & 0.03 & 0.24\\
-\hline
-AVERAGE & \multicolumn{3}{c}{-} &  \multicolumn{3}{c}{-}  & 0.07 & 0.05 & 0.4\\
-\hline
-\hline
-\end{tabular}
-\caption{Chromium benchmark}
-\label{tab:chromium benchmark}
-\end{table*}
 
 \subsection{Performance Evaluation}\label{sec:evaluation}
 

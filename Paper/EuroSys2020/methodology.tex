@@ -4,40 +4,39 @@ In this section, we first describe how the performance issues are selected for
 study. Then we compare \xxx to its closest prior system, and describe how we
 evaluate the manual efforts needed in diagnosis.
 
-We collect performance issues both from the deployed machine in daily use and
-from github bug reports with the keywords "spinning beachball". Only bug
-reports from popular applications are selected since they likely represent the
-bugs attractive to tech-savvy users. The performance issues that we fail to
-reproduce with a week, due to the version capacity or reproducibility, are
-discarded. As a result, we select 11 reproducible cases in macOS Elcapitan for
-study in this paper.
+We collects performance issues of popular applications, since they likely
+represent the bugs attractive to tech-savvy users.  Among the 26 bugs from the
+github reports, we reproduced 3 of them successfully.  Others are failed either
+due to the version capacity in ElCapitan or insufficient information in the bug
+report.  8 performance issues are collected from the daily use applications in
+the auther's laptop.  As a result, we select 11 reproducible cases for study in
+this paper.
 
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
 
-Panappticon is the closest system to \xxx in desgin. We implement it in macOS
-as a baseline with event types and causal relationships defined in its paper.
-It depends on the resource usage analysis for every transaction to identify
-the performance bottleneck and speculate the possible causes. Further manual
-efforts are required to investigate the root causes. Although it is effective
-in identifying performance issue due to resource contention in Android, our
-implementation in macOS fails in the extraction of end-to-end transactions
-due to the inaccuray of causal tracing.
+Panappticon is the closest system to ours in desgin.  Its implementation
+subsets our \xxx System, base on the event types and causal relationships
+defined in its paper.  There desgin depends on the resource usage analysis for
+every transaction to identify the performance bottleneck and speculate the
+possible causes. Further manual efforts are required to investigate the root
+causes. Although Panappticon is effective in identifying performance issue due
+to resource contention in Android, it fails in the extraction of end-to-end
+transactions due to the inaccuray of causal tracing.
 %for the following reasons: missing data dependency, missing boundaries of
 %execution intervals in background threads, batch processing in both user threads
 %and system threads, and contraditions to the assumption that no unrelated work
 %is processed in a particular task from a queue.
-It is common to find two and
-more user input events, even events from unrelated applications are collapsed
-into a request graph.
+It is common to find two and more user input events; even events from unrelated
+applications are collapsed into a request graph.
 
 Below we demonstrate how we measure the effects of hueristics \xxx uses to
 mitigate the graph inaccuracy, and manual efforts required in the diagnosis.
 First, we enable tracing component in the background and reproduce the
 performance isssues.  When \xxx constructs event graphs with the trace log, we
 measure the number of vertices introduced and merged by heuristics.  Then we
-run \xxx diagnosis algorithm on the event graph with human in the loop. We
+run \xxx diagnosis algorithm on the event graph with a human in the loop. We
 count the times when multiple incoming causal edges or weak edges are presents
 and \xxx requires users' guidance in path slicing. Users can query the event
 graph for assistance and make decisions with domain knowledge. In the worst

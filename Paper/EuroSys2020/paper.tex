@@ -1,6 +1,8 @@
 %\documentclass[pageno]{jpaper}
 \documentclass[sigplan,screen,10pt]{acmart}
-%\renewcommand\footnotetextcopyrightpermission[1]{}
+\settopmatter{printacmref=false} % Removes citation information below abstract
+\renewcommand\footnotetextcopyrightpermission[1]{} % removes footnote with conference information in first column
+\pagestyle{plain}
 
 \usepackage[normalem]{ulem}
 \usepackage{xspace}
