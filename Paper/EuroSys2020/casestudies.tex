@@ -1,25 +1,20 @@
 \subsection{Case Studies}\label{sec:casestudy}
 
-In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
-cases in popular applications. Table~\ref{table:bugs-desc} describes these
-spinning-cursor cases, which are detailed in sections that follow. We compared
-\xxx with traditional causal tracing methods on edges and vertices mitigated.
-The portions of over-connection filtered out and incognito under-connections
-disclosed are studied. Even with our technique, the filtered graph remains
-too inaccurate for automatic causal tracing. Fortunately, user interactions
-compensate the inaccuracy in causal path slicing, while not overwhelming in the
-diagnosis process.
+In this section, we demonstrate how \xxx helps to diagnose \nbug
+spinning-cursor cases in popular applications. Table~\ref{table:bugs-desc}
+describes these spinning-cursor cases.
 
-Our results in Table~\ref{table:results} show the portion of connections
-filtered with heuristics is limited. User interaction is still required for
-diagnosis, but in most cases, up to 3 user queries suffice to find root cause
-path accurately. Although complex applications 
-like MicosoftWord and Chromium
-require more queries,
-13 and 22 respectively, many of them results from repeated
-patterns. They can be easily identified by users, as discussed below. Our
-interactively path slicing excludes much noise, and paths sliced are shorter and easier to
-inspect.
+In Table~\ref{table:results}, we compare \xxx with Panappticon and list the
+portions of over- and under- connections disclosed.
+However, the filtered graph remains too inaccurate to automate diagnosis. 
+%interactions help the path slicing while not overwhelming in the diagnosis
+%process.  Our results in Table~\ref{table:results} show
+%Paths sliced by \xxx are shorter and easier to inspect.
+The user interaction is still required but not overwhelming. In most cases, up
+to 3 user queries suffice to find root cause path accurately. Although complex
+applications like MicosoftWord and Chromium require more queries, 13 and 22
+respectively, many of them result from repeated patterns. They can be easily
+identified by users.
 
 Overall, in the case of simple text editing applications, \xxx can identify the
 UI event that causes a spinning cursor by merely relying on a few heuristics.

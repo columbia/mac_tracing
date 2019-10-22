@@ -23,9 +23,11 @@ an example of a user investigating a performance problem in Chromium. The
 system wide tracing tool, which collects data from \xxx instrumented library
 and kernel, generates logs. They are transformed into an \emph{event graph}
 in \xxx's graph construction component. Diagnosis and inference are performed
-within this graph, in a semi-automated fashion: \xxx performs searches to trace
-logical events as they flow through the system, and it judicially queries
-the user for guidance. As shown in Figure~\ref{fig:argus-overview}, the \xxx
+within this graph, in a semi-automated fashion.
+% \xxx performs searches to trace
+%logical events as they flow through the system, and it judicially queries
+%the user for guidance.
+As shown in Figure~\ref{fig:argus-overview}, the \xxx
 interactive debugger asks the user to choose one edge in a subgraph. With this
 type of interaction, \xxx runs its diagnosis algorithm and reports the root
 cause vertices. In the example, the root cause is two vertices which form a
@@ -54,7 +56,7 @@ are three potential cases.
 		CPU operations. This case is the simplest, and \xxx traverses the event
 		graph backwards to find a slice originating from the offending UI event
 		to the long running CPU operations. This slice is particularly useful for
-		further diagnosing the bug. As shown in Function \textit{InteractiveSlicing} in
+		further diagnosing the bug. As shown in Function \textit{InteractiveSlice} in
 		line~\ref{alg:interslice-line}, \xxx may encounter vertices with multiple
 		incoming edges or weak edges that may not reflect causality when traversing
 		the graph. It queries the user to resolve them.
@@ -75,15 +77,16 @@ are three potential cases.
 		the wake-up has been missing. \xxx handles this case by finding a normal
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
-		Specifically, \xxx first finds a \similarnode to the spinning one based %solely
-		on the semantic events such as system calls in each vertex. It then traverses
+		Specifically, \xxx first finds a \similarnode to the spinning one based
+		on the semantic event sequences, such as system calls in each vertex. It then traverses
 		backwards from the \similarnode to find the normal wake-up path. For each
 		thread in the wake-up path, it examines the vertex in the thread right before
 		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
 		to the path of \rootcausenodes, and applies Function \textit{Diagnose} recursively
-		to diagnose ``the culprit of the culprit.'' For each such vertex, it queries the
-		user to determine whether to proceed or stop because based on our experience
-		the user needs to inspect only a few vertices to find the root cause.
+		to diagnose ``the culprit of the culprit''. For each such vertex, it queries the
+		user to determine whether to proceed or stop, because based on our experience
+        the root cause is manifested after a few iterations.
+		%the user needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
 \noindent
@@ -161,24 +164,23 @@ Next she ran interactive debugger in \xxx to find the \spinningnode in the main
 thread of the browser process. \xxx returned a \vv{LongWait} event, a \vv{psynch\_cv\_wait()}
 with a timeout of 1.5 seconds.  
 \xxx
-compares the \spinningnode to \similarnode in normal scenario where the \vv{wait}
-was signaled quickly. \xxx reported three, and confirmed with the user which one
-she wanted.
+compared the \spinningnode to \similarnode in normal scenario where the \vv{wait}
+was signaled quickly. 
 
 % Figure 2....
 
 \xxx then found the normal wake-up path which connects five threads.
-The browser main thread was signaled by a browser worker thread, which
-received IPC from a worker thread of daemon \vv{renderer} where the rendering view
-and WebKit code run. The worker thread is woken up by the \vv{renderer} main
+The \vv{browser} main thread was signaled by a \vv{browser} worker thread, which
+received IPC from a worker thread of \vv{renderer} where the rendering view
+and WebKit code run. This worker thread is woken up by the \vv{renderer} main
 thread, which in turn woken by \vv{fontd}, the font service daemon. \xxx further
 compared the normal path with the spinning case, as shown
 in Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event
 on semaphore in the \vv{renderer} main thread, the culprit that delayed
-waking up the browser main thread over four seconds. What caused the wait in the
+waking up the \vv{browser} main thread over four seconds. What caused the wait in the
 \vv{renderer} main thread though? She thus continued diagnosis and recursively
 applied \xxx to the wait in \vv{renderer}, and it turned out that \vv{renderer} was
-actually waiting to be woken up by the browser main thread -- a circular wait formed.
+actually waiting to be woken up by the \vv{browser} main thread -- a circular wait formed.
 
 %and got the wake-up path. The culprit
 %that delayed the semaphore was the timeouts in the browser's main thread, as the
@@ -190,19 +192,41 @@ actually waiting to be woken up by the browser main thread -- a circular wait fo
 %the browser as input. Inspection reveals that the \vv{renderer} requested the
 %browser's help to render JavaScript and waited for reply with semaphore. 
 
-Inspect of the reported vertices reveals that the browser was waiting for
+Inspect of the reported vertices reveals that the \vv{browser} was waiting for
 the \vv{renderer} to return the string bounding box for a string, and the
-\vv{renderer} was waiting for the browser to help render JavaScript. This
+\vv{renderer} was waiting for the \vv{browser} to help render JavaScript. This
 circular wait was broken by a timeout in the browser main thread (the \vv{wait}
-on \vv{pthread\_cond\_timedwait()} timeout was 1,500 ms). While the system was
+on \vv{psynch\_cv\_wait()} timeouts in 1,500 ms). While the system was
 able to make progress, the next key press caused the spinning cursor to display
 for another 1,500 ms. The timeout essentially converted a deadlock into a
 livelock.
 
 To verify this diagnosis, we shortened the timeout in the
-\vv{pthread\_cond\_timedwait()} called in the Chromium browser to 150
-milliseconds, which proportionally reduced how often this spinning cursor
+\vv{psynch\_cv\_wait()} called in the Chromium browser to 150
+ms, which proportionally reduced how often this spinning cursor
 occurs.
+
+\subsection{Similar Vertex Indetification}
+
+\xxx leverages a normal scenario to discover missing wake-up edges in Long Wait
+cases. The normal scenario is identified from the \similarnode which shares
+the same high level semantics as the \spinningnode, but exposes different
+execution results.
+
+\xxx identifies the \similarnodes first by inferring its high level semantics
+with semantic events, and its programming purpose with communication events
+which form edges in the graph. The semantic events include system calls, call
+stacks, user inputs. Their sequential order and runtime unrelated attributes
+are treated as hallmarks. For example, in call stacks, \xxx compares vertices
+with symbol names instead of memory addresses. The communication events include
+messages, dispatch queue operations, runloop operations, \dataflagread and
+\dataflagwrite. The process names of peer vertices are checked, as they reflect
+the developers' intent, for example, to request service from a particular
+helper tool. More over, a user can also instruct \xxx to inspect preceeding
+vertices to improve identification accuracy. Then \xxx discriminate the
+execution results to filter out spinning scenarios.  with the time cost and
+wait result in the vertex by default. If multiple \similarnodes are identified,
+\xxx usually chooses the most recent one heuristically.
 
 \subsection{Limitations}
 
@@ -216,7 +240,7 @@ We implemented \xxx in the closed-source macOS which presents a harsh test
 for \xxx, but we have not ported \xxx to other operating systems yet. It is
 possible that the ideas and techniques do not generalize to other operating
 systems. However, modern operating systems share many similarities, and inspire
-each others' designs, so we are hopeful that the ideas in \xxx are generally
-applicable. Similarly, the applications and performance issues used in our
+each others' designs, so we are hopeful that the ideas in \xxx are generally applicable.
+Similarly, the applications and performance issues used in our
 evaluation may be non-representative, though we strive to cover a diverse set of
 common applications ranging from browsers to text editors.
