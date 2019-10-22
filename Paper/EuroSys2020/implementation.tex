@@ -1,7 +1,8 @@
 \section{Implementation}\label{sec:implementation}
 
 In this section, we discuss how \xxx collects tracing events from both kernel
-and libraries, and user interactions which \xxx leverages to ease diagnosis.
+and libraries.
+%, and user interactions which \xxx leverages to ease diagnosis.
 
 \subsection{Event Tracing}
 
@@ -105,24 +106,3 @@ The combination of instruction-level tracing and occasional call-stacks offers
 more than enough detail to diagnose even the most arcane issues, and in our
 experience has been very helpful in multiple steps of an \xxx diagnosis.
 
-\subsection{Similar Vertex Indetification}
-
-\xxx leverages a normal scenario to discover missing wake-up edges in Long Wait
-cases. The normal scenario is identified from the \similarnode which shares
-the same high level semantics as the \spinningnode, but exposes different
-execution results.
-
-\xxx identifies the \similarnodes first by inferring its high level semantics
-with semantic events, and its programming purpose with communication events
-which form edges in the graph. The semantic events include system calls, call
-stacks, user inputs. Their sequential order and runtime unrelated attributes
-are treated as hallmarks. For example, in call stacks, \xxx compares vertices
-with symbol names instead of memory addresses. The communication events include
-messages, dispatch queue operations, runloop operations, \dataflagread and
-\dataflagwrite. The process names of peer vertices are checked, as they reflect
-the developers' intent, for example, to request service from a particular
-helper tool. More over, a user can also instruct \xxx to inspect preceeding
-vertices to improve identification accuracy. Then \xxx discriminate the
-execution results to filter out spinning scenarios.  with the time cost and
-wait result in the vertex by default. If multiple \similarnodes are identified,
-\xxx usually chooses the most recent one heuristically.

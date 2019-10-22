@@ -4,7 +4,7 @@ In this section, we first describe how the performance issues are selected for
 study. Then we compare \xxx to its closest prior system, and describe how we
 evaluate the manual efforts needed in diagnosis.
 
-We collect performance issues in the deployed machine in daily use and search
+We collect performance issues both from the deployed machine in daily use and
 from github bug reports with the keywords "spinning beachball". Only bug
 reports from popular applications are selected since they likely represent the
 bugs attractive to tech-savvy users. The performance issues that we fail to
@@ -18,15 +18,17 @@ study in this paper.
 
 Panappticon is the closest system to \xxx in desgin. We implement it in macOS
 as a baseline with event types and causal relationships defined in its paper.
-It depends on the resource usage analysis for each transaction to identify
+It depends on the resource usage analysis for every transaction to identify
 the performance bottleneck and speculate the possible causes. Further manual
 efforts are required to investigate the root causes. Although it is effective
 in identifying performance issue due to resource contention in Android, our
 implementation in macOS fails in the extraction of end-to-end transactions
-for the following reasons: untracked data dependency, missing boundaries of
-execution intervals in background threads, batch processing in both user threads
-and system threads, and contraditions to the assumption that no unrelated work
-is processed in a particular task from a queue. It is common to find two and
+due to the inaccuray of causal tracing.
+%for the following reasons: missing data dependency, missing boundaries of
+%execution intervals in background threads, batch processing in both user threads
+%and system threads, and contraditions to the assumption that no unrelated work
+%is processed in a particular task from a queue.
+It is common to find two and
 more user input events, even events from unrelated applications are collapsed
 into a request graph.
 
@@ -36,11 +38,11 @@ First, we enable tracing component in the background and reproduce the
 performance isssues.  When \xxx constructs event graphs with the trace log, we
 measure the number of vertices introduced and merged by heuristics.  Then we
 run \xxx diagnosis algorithm on the event graph with human in the loop. We
-count the times when multiple incoming causal edges are presents and \xxx
-requires users' guidance in path slicing. Users can query the event graph for
-assistance and make decisions with domain knowledge. In the worst case that
-users make a wrong decision, before reaching the end of path slicing, \xxx
-allows them to relocate the path to a particular vertex. Specifically, the
+count the times when multiple incoming causal edges or weak edges are presents
+and \xxx requires users' guidance in path slicing. Users can query the event
+graph for assistance and make decisions with domain knowledge. In the worst
+case that users make a wrong decision, before reaching the end of path slicing,
+\xxx allows them to relocate the path to a particular vertex. Specifically, the
 number presented in the following section reflects our experience of debugging.
 It does not include the situation of relocating vertex in path slicing, which
 we did not encounter in our case studies.

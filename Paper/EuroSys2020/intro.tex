@@ -27,16 +27,16 @@ that capture only the current system state, causal tracing is quite effective
 at aiding developers to understand complex causal behaviors and pinpoint
 real-world performance issues.
 
-Prior causal tracing systems all assumed certain programming idioms to automate
+Prior causal tracing systems all assume certain programming idioms to automate
 inference. For instance, if a segment sends a message, signals a condition
-variable, or posts a task to a work queue, it wakes up additional execution
-segments, and prior systems assume that wake-ups reflect causality. Similarly,
-they assume that the execution segment from the beginning of a callback
-invocation to the end is entirely for handling the request that causes the
-callback to be installed.  Unfortunately, based on our own study and experience
-of building a causal tracing system for the commercial operating system, macOS,
-we found that modern applications frequently violate these assumptions. Hence,
-the request graphs computed by causal tracing are inaccurate in several ways.
+variable, or posts a task to a work queue, it wakes up additional executions,
+and prior systems assume that wake-ups reflect causality. Similarly, they
+assume that the execution segment from the beginning of a callback invocation
+to the end is entirely for handling the request that causes the callback to be
+installed.  Unfortunately, based on our own study and experience of building a
+causal tracing system for the commercial operating system, macOS, we found that
+modern applications frequently violate these assumptions. Hence, the request
+graphs computed by causal tracing are inaccurate in several ways.
 
 First, an inferred segment may be larger than the actual event handling segment
 due to batch processing. Specifically, for performance, an application or its
@@ -68,25 +68,28 @@ We believe that, without fully understanding of application semantics, request
 graphs computed by causal tracing are \emph{inherently} inaccurate and both
 over- and under-approximate reality. Although developer annotations can help
 improve precision~\cite{reynolds2006pip, fonseca2007x}, modern applications use
-more and more third-party libraries, whose source code is not available. In the
-case of tech-savvy users debugging performance issues of an application for
-daily use, the application's code is often not available. Given the frequent
-use of custom synchronizations, work queues, and data flags in modern
-applications, it is hopeless to count on manual annotations to ensure accurate
-capture of request graphs.
+more and more third-party libraries, whose source code is not available. 
+%In the
+%case of tech-savvy users debugging performance issues of an application for
+%daily use, the application's code is often not available. 
+Given the frequent use of custom synchronizations, work queues, and data flags
+in modern applications, it is hopeless to count on manual annotations to ensure
+accurate capture of request graphs.
 
 In this work, we present \xxx, a dramatically different approach in the design
-space of causal tracing. It enables users to provide necessary schematic
+space of causal tracing. It is desgined for tech-savvy users who are intersted
+in compiling useful bug reports for daily use applications whose codes are
+oftern not available.  Thus, \xxx enables users to provide necessary schematic
 information on demand, as opposed to full manual schema upfront for all
 involved applications and daemons~\cite{barham2004using, reynolds2006pip,
-fonseca2007x}.  \xxx does not construct a per-request causal graph which
+fonseca2007x}. \xxx does not construct a per-request causal graph which
 requires extremely accurate causal tracing. Instead, it calculates an event
 graph for a duration of the system execution. To aid diagnosis, it searches
 root cause via both true causality edges as well as weak ones.  Specifically,
 it keeps humans in the loop, as a debugger should rightly do.  \xxx queries
 users a judicially few times to (1) resolve a few inaccurate edges that
 represent false dependencies and (2) identify potential dependency due to data
-flags.  \xxx is the first to apply interactive steps on causal tracing system
+flags. \xxx is the first to apply interactive steps on causal tracing system
 for debugging performance issues in modern desktop applications, despite the
 inaccuracy of causal tracing.
 
