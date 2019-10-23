@@ -3,14 +3,14 @@
 \subsection{Inherent Inaccuracies}
 \input{patternfigure}
 
-As explained in \S\ref{sec:intro}, causal tracing builds a graph to connect
+As explained in \S\ref{sec:background}, causal tracing builds a graph to connect
 execution segments on behalf of a request that spread across separate threads
-and processes. Based on our experience building a causal tracing system
-on commercial, closed-source macOS, we believe such graphs are inherently
-inaccurate and contain both \emph{over-connections} -- edges that do not really
-map to causality) -- and \emph{under-connections} -- missing edges between two
-vertices with one causally influencing the other. In this section, we present
-several inherently inaccurate patterns we observed and their examples in macOS.
+and processes. Based on our experience of building a causal tracing system on
+commercial closed-source macOS, we believe such graphs are inherently inaccurate
+and contain both \emph{over-connections} -- edges that do not really map to
+causality -- and \emph{under-connections} -- missing edges between two vertices
+with one causally influencing the other. In this section, we present several
+inherently inaccurate patterns we observed and their examples.
 
 \subsubsection{Over Connections} \label{subsec:overconnections}
 
@@ -23,25 +23,21 @@ that do not always imply causality.
 While traditional causal tracing assumes the entire execution of a callback
 function is on behalf of one request, we found some daemons implement their
 service loop inside the callback function and create false dependencies. In the
-code snippet from the \vv{fontd} daemon, function \vv{dispatch\_client\_callout}
-is installed as a callback to a work from dispatch queue. It subsequently calls
-\vv{dispatch\_mig\_server()} which runs the typical server loop and handles
-messages from different apps.
-%To avoid incorrectly linking many irrelevant processes through such batching
-%processing patterns, \xxx adopts the aforementioned heuristics to split an
-%execution segment when it observes that the segment sends out messages to two
-%distinct processes.
-Any application or daemon can implement its own server loop
-this way, which makes it fundamentally difficult to automatically infer event
-handling boundaries.
+code snippet in Figure~\ref{fig:dispatchmessagebatching} from the \vv{fontd}
+daemon , function \vv{dispatch\_client\_callout} is installed as a callback to
+a work from dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()}
+which runs the typical server loop and handles messages from different apps. Any
+application or daemon can implement its own server loop this way, which makes it
+fundamentally difficult to automatically infer event handling boundaries.
 
 \paragraph{Batching in event processing}
 
 Message activities inside a system call are assumed to be related traditionally.
 However, to presumably save on kernel boundary crossings, WindowServer MacOS
-system daemon uses a single system call to receive data and send data for an
-unrelated event from different processed in its event loop. This batch processing
-artificially makes many events appear dependent.
+system daemon uses a single system call to receive data and send data for
+an unrelated event from different processed in its event loop in Figure
+~\ref{fig:batchingineventprocessing}. This batch processing artificially makes
+many events appear dependent.
 
 \paragraph{Mutual exclusion}
 
@@ -59,19 +55,19 @@ single thread.
 
 \paragraph{Data dependency in event processing}
 The code for Batching in event processing above also illustrates a causal
-linkage caused by data dependency in one thread. WindowServer saves the
-reply message in variable \vv{\_gOutMsg} inside function
-\vv{CGXPostReplyMessage}.  When it calls \vv{CGXRunOneServicePass}, it
-sends out \vv{\_gOutMsg} if there is any pending message.
+linkage caused by data dependency in one thread. WindowServer saves the reply
+message in variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.
+When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is
+any pending message.
 
 \paragraph{CoreAnimation shared flags}
-%As shown in Figure~\ref{fig:casharedflag}, worker thread can set
-As shown in the code snippet, worker thread can set
-a field \vv{need\_display} inside a CoreAnimation
-object whenever the object needs to be repainted. The main thread iterates over
-all animation objects and reads this flag, rendering any such object. This
-shared-memory communication creates a dependency between the main thread and the
-worker so accesses to these field flags need to be tracked.
+As shown in the code snippet Figure~\ref{fig:casharedflag}, , worker thread can set a
+field \vv{need\_display} inside a CoreAnimation object whenever the object needs
+to be repainted. The main thread iterates over all animation objects and reads
+this flag, rendering any such object. This shared-memory communication creates
+a dependency between the main thread and the worker so accesses to these field
+flags need to be tracked.
+
 %%However, since each object has such a field flag, \xxx cannot afford to monitor
 %%each using a watch point register. Instead, it uses instrumentation to modify
 %%the CoreAnimation library to trace events on these flags.

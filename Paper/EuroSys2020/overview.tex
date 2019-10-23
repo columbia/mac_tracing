@@ -1,7 +1,7 @@
 \section{Overview}\label{sec:overview}
 
 In this section, we first describe \xxx event graphs
-(\S\ref{subsec:eventgraph}). Then we explains how \xxx diagnoses performance
+(\S\ref{subsec:eventgraph}). Then we explain how \xxx diagnoses performance
 anomaly with a concrete example(\S\ref{subsec:overflow}).
 
 \input{graphbasic}
@@ -35,24 +35,15 @@ the semantic events in the graph to locate the vertex representing the reported
 issue and initiate the diganosis.
 
 Consider a common performance bug on macOS, the \emph{spinning cursor}, which
-indicates the current application's main thread has not processed any UI
-events for over two seconds.
-%%We explain how \xxx identifies the vertex representing \vv{spinning cursor} in
-%%macOS.
-%%When the \vv{spinning cursor} shows up, a hang reporting tool, \spindump
-%%usually kicks in automatically to sample call stacks for debugging.  To figure
-%%out the \spinningnode in the main thread, we turn to the event graph, and slice
-%%path backward from the launch of \spindump. The path shows that \spindump is
-%%launched after receiving a message from \vv{WindowServer}, which received a
-%%message from the \vv{NSEvent} thread of the freezing app.
-\vv{WindowServer} throws \vv{spinning cursor} with the collaboration of the
-application's \vv{NSEvent} thread.  The \vv{NSEvent} thread fetches
-\vv{CoreGraphics} events from \vv{WindowServer}, converts and creates
-\vv{NSApp} events for the main thread, and arms a timer to monitor the event's
-wait time.  If the main thread fails to process an event before the timer
-fires, the \vv{NSEvent} thread notifies \vv{WindowServer} via
+indicates the current application's main thread has not processed any UI events
+for over two seconds. \vv{WindowServer} throws \vv{spinning cursor} with the
+collaboration of the application's \vv{NSEvent} thread. The \vv{NSEvent}
+thread fetches \vv{CoreGraphics} events from \vv{WindowServer}, converts and
+creates \vv{NSApp} events for the main thread, and arms a timer to monitor
+the event's wait time. If the main thread fails to process an event before
+the timer fires, the \vv{NSEvent} thread notifies \vv{WindowServer} via
 ``\vv{CGSConnectionSetSpinning}'', and \vv{WindowServer} draws a \vv{spinning
-cursor}.% over the application window.
+cursor}.
 
 To initialize debugging a \vv{spinning cursor}, \xxx first constructs an event
 graph from the system-wide event log.  It then checks the semantic events from
@@ -77,7 +68,7 @@ potential cases.
 		to the long running CPU operations. This slice is particularly useful for
 		further diagnosing the bug. As shown in Function \textit{InteractiveSlice} in
 		line~\ref{alg:interslice-line}, \xxx may encounter vertices with multiple
-		incoming edges or weak edges that may not reflect causality when traversing
+		incoming edges or weak edges that do not reflect causality when traversing
 		the graph. It queries the user to resolve them.
 
 	\item \textbf{RepeatedYield} (lines~\ref{a1:repeatedyield_begin}
@@ -97,14 +88,14 @@ potential cases.
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
 		Specifically, \xxx first finds a \similarnode to the spinning one based
-		on the semantic event sequences, such as system calls in each vertex. It then traverses
+		on the event sequences in each vertex(\ref{subsec:similarvertex}). It then traverses
 		backwards from the \similarnode to find the normal wake-up path. For each
 		thread in the wake-up path, it examines the vertex in the thread right before
 		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
 		to the path of \rootcausenodes, and applies Function \textit{Diagnose} recursively
 		to diagnose ``the culprit of the culprit''. For each such vertex, it queries the
 		user to determine whether to proceed or stop, because based on our experience
-        the root cause is manifested after a few iterations.
+		a few iterations are adequate to manifest the root cause.
 		%the user needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
@@ -127,107 +118,74 @@ crucial in this process (\S\ref{sec:casestudy}).
 	\footnotesize
     \centering
 	\includegraphics[width=\columnwidth]{./figures/chromium_case_study_2.pdf}
-%%	\input{figures/chromium_case_study_tikz.tex}
-%%	\parbox{\columnwidth}{\caption{Chromium Example}
-%%		\textit{\vv{Path 1} shows a message flow from chromium to renderer process, to get the
-%%			rect element position with message ID \vv{FirstRectForCharacterRange}. \vv{Path 2}
-%%			shows a JavaScript processing event, dequeued from the renderer's main event
-%%		queue. It blocks on the semaphore from browser for the rendering.}
     \caption{Chromium Spinning Cursor Example}
     \label{fig:chromium-case-study}
 \end{figure}
-%   resolve symbol, save to log
-%     search for set\_spinning
-%     if found,
-%       find main thread node at the time of set\_spinning
-%     find fontd
-%     manually check nodes in each thread immediately after the nodes in the slice (normal abnormal boundary)
-%  output is a node, and a HTML dump of node and immediate predecessors and successors
-% systems preference          
-%  spinning node in UI thread is not waiting
-%  so we look for messages, and find the diff
 
 One of the authors experienced first-hand the aforementioned performance issue
 in Chromium, an open-source browser engine that powers Google Chrome and,
-starting recently, Microsoft Edge~\cite{chromiumurl}. She tried to type in the
-Chromium search box a Chinese word using SCIM, the default Chinese Input Method
-Editor that ships with macOS. The browser appeared frozen and the spinning
-cursor occurs for a few seconds. Afterwards everything went back to normal.
-This issue is reproducible and always ruins her experience, but is quite
-challenging to diagnose because two applications Chromium and SCIM and many
-daemons ran and exchanged messages. It was reported by other users for
-other non-English input methods, too.
-
-% issue, the user followed Figure 1.Figure~\ref{fig:argus-overview}
+starting recently, Microsoft Edge~\cite{chromiumurl}. She tried to type in
+the Chromium search box a non-English word with a default Input Method Editor
+shipped with MacOS. The browser appeared frozen and the spinning cursor showed
+for a few seconds. Afterwards everything went back to normal. This issue is
+reproducible and always ruins her experience, but is quite challenging to
+diagnose because two applications Chromium and IME and many daemons ran and
+exchanged messages. It was reported by other users for other non-English input
+methods, too.
 
 To diagnose this issue with \xxx, the author follows the steps in
 Figure~\ref{fig:argus-overview}. She started system-wide tracing, and then
-reproduced the spinning cursor with a Chinese search string while the page was
-loading. After the very first few characters which the browser handles normally,
-the remaining characters triggered a spinning cursor. The entire session took roughly
-five minutes.
-She then ran \xxx to construct the event graph. The graph was highly complex,
-with 2,749,628 vertices and 3,606,657 edges, almost fully connected. It spanned
-across 17 applications; 109 daemons including \vv{fontd}, \vv{mdworker},
-\vv{nsurlsessiond} and helper tools by applications; 126 processes; 679
-threads, and 829,287 IPC messages. Given the scale of the graph and the diverse
-communication patterns, it would be extremely challenging for prior automated
-causal tracing tools~\cite{aguilera2003performance, zhang2013panappticon,
-attariyan2012x, cohen2004correlating} because they handle a fairly limited
-set of patterns. Tools that require manual schema~\cite{barham2004using,
-reynolds2006pip}, would be prohibitive because developers would have to provide
-schema for all involved applications and daemons.
-% Perfect case for \xxx
+reproduced the spinning cursor with a non-English search string while the
+page was loading. After the very first few characters which the browser
+handles normally, the remaining characters triggered a spinning cursor. The
+entire session took roughly five minutes. She then ran \xxx to construct
+the event graph. The graph was highly complex, with 2,749,628 vertices and
+3,606,657 edges, almost fully connected. It spanned across 17 applications;
+109 daemons including \vv{fontd}, \vv{mdworker}, \vv{nsurlsessiond} and
+helper tools by applications; 126 processes; 679 threads, and 829,287
+messages. Given the scale of the graph and the diverse communication patterns,
+it would be extremely challenging for prior automated causal tracing
+tools~\cite{aguilera2003performance, zhang2013panappticon, attariyan2012x,
+cohen2004correlating} because they handle a limited set of patterns. Tools
+that require manual schema~\cite{barham2004using, reynolds2006pip}, would be
+prohibitive because developers would have to provide schema for all involved
+applications and daemons.
 
-Next she ran interactive debugger in \xxx to find the \spinningnode in the main
-thread of the browser process. \xxx returned a \vv{LongWait} event, a \vv{psynch\_cv\_wait()}
-with a timeout of 1.5 seconds.  
-\xxx
-compared the \spinningnode to \similarnode in normal scenario where the \vv{wait}
-was signaled quickly. 
+Next she ran \xxx to find the \spinningnode in the main thread of the browser
+process. \xxx returned a \vv{LongWait} event, a \vv{psynch\_cv\_wait()} with a
+timeout of 1.5 seconds, and identified a \similarnode in normal scenario where
+the \vv{wait} was signaled quickly.
 
-% Figure 2....
-
-\xxx then found the normal wake-up path which connects five threads.
-The \vv{browser} main thread was signaled by a \vv{browser} worker thread, which
-received IPC from a worker thread of \vv{renderer} where the rendering view
-and WebKit code run. This worker thread is woken up by the \vv{renderer} main
-thread, which in turn woken by \vv{fontd}, the font service daemon. \xxx further
-compared the normal path with the spinning case, as shown
-in Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event
-on semaphore in the \vv{renderer} main thread, the culprit that delayed
-waking up the \vv{browser} main thread over four seconds. What caused the wait in the
+\xxx then found the normal wake-up path with interactive path slicing,
+which connects five threads. The \vv{browser} main thread was signaled
+by a \vv{browser} worker thread, which received IPC from a worker thread
+of \vv{renderer} where the rendering view and WebKit code run. This
+worker thread is woken up by the \vv{renderer} main thread, which in
+turn woken by \vv{fontd}, the font service daemon, as shown in the upper
+side of Figure~\ref{fig:chromium-case-study}. \xxx further compared
+the normal case with the spinning case thread by thread as shown in
+Figure~\ref{fig:chromium-case-study}, and returned the \vv{LongWait} event on
+semaphore in the \vv{renderer} main thread, the culprit that delayed waking up
+the \vv{browser} main thread over four seconds. What caused the wait in the
 \vv{renderer} main thread though? She thus continued diagnosis and recursively
-applied \xxx to the wait in \vv{renderer}, and it turned out that \vv{renderer} was
-actually waiting to be woken up by the \vv{browser} main thread -- a circular wait formed.
+applied \xxx to the wait in \vv{renderer}(corresponding normal path is not shown
+in the figure), and it turned out that \vv{renderer} was actually waiting for
+the \vv{browser} main thread -- a circular wait formed.
 
-%and got the wake-up path. The culprit
-%that delayed the semaphore was the timeouts in the browser's main thread, as the
-%blocking edge shown in \vv{path 2} in Figure ~\ref{fig:chromium-case-study}. At
-%this point, a circular wait formed.
+Inspect of the reported vertices reveals that the \vv{browser} was waiting
+for the \vv{renderer} to return the string bounding box for a string, and the
+\vv{renderer} was waiting for the \vv{browser} to help render JavaScript.
+This circular wait was broken by a timeout in the browser main thread (the
+\vv{wait} on \vv{psynch\_cv\_wait()} timeouts in 1,500 ms). While the system
+was able to make progress, the next key press caused the spinning cursor to
+display for another 1,500 ms. The timeout essentially converted a deadlock
+into a livelock. To verify this diagnosis, we shortened the timeout in the
+\vv{psynch\_cv\_wait()} called in the Chromium browser to 150 ms, which
+proportionally reduced how often this spinning cursor occurs.
 
-%To understand what exactly happens in the situation, she inspected the full
-%call stacks by \xxx scripts, taking the reported vertices from the renderer and
-%the browser as input. Inspection reveals that the \vv{renderer} requested the
-%browser's help to render JavaScript and waited for reply with semaphore. 
+\subsection{Similar Vertex Indetification}\label{subsec:similarvertex}
 
-Inspect of the reported vertices reveals that the \vv{browser} was waiting for
-the \vv{renderer} to return the string bounding box for a string, and the
-\vv{renderer} was waiting for the \vv{browser} to help render JavaScript. This
-circular wait was broken by a timeout in the browser main thread (the \vv{wait}
-on \vv{psynch\_cv\_wait()} timeouts in 1,500 ms). While the system was
-able to make progress, the next key press caused the spinning cursor to display
-for another 1,500 ms. The timeout essentially converted a deadlock into a
-livelock.
-
-To verify this diagnosis, we shortened the timeout in the
-\vv{psynch\_cv\_wait()} called in the Chromium browser to 150
-ms, which proportionally reduced how often this spinning cursor
-occurs.
-
-\subsection{Similar Vertex Indetification}
-
-\xxx leverages a normal scenario to discover missing wake-up edges in Long Wait
+\xxx leverages a normal scenario to discover missing wake-up edges in \vv{LongWait}
 cases. The normal scenario is identified from the \similarnode which shares
 the same high level semantics as the \spinningnode, but exposes different
 execution results.
@@ -235,7 +193,7 @@ execution results.
 \xxx identifies the \similarnodes first by inferring its high level semantics
 with semantic events, and its programming purpose with communication events
 which form edges in the graph. The semantic events include system calls, call
-stacks, user inputs. Their sequential order and runtime unrelated attributes
+stacks, and user inputs. Their sequential order and runtime unrelated attributes
 are treated as hallmarks. For example, in call stacks, \xxx compares vertices
 with symbol names instead of memory addresses. The communication events include
 messages, dispatch queue operations, runloop operations, \dataflagread and
