@@ -1,39 +1,39 @@
 \section{Background} \label{sec:background}
 
-In this section, we illustrate causal tracing and prior work on it.
+In this section, we illustrate causal tracing and prior work on it. Causal
+tracing collects events standing for instrucions executed in CPU and generates
+a graphical representation with traced events as vertices. Two events always
+following a sequential constraint reflects causality, which is represented
+as an edge. The graph helps users understand the complex causal behaviors across
+thread/process boundaries and attribute bugs to their root causes. Prior works
+have different definitions of vertices, edges, and root causes based on what
+events are collected.
 
-Causal tracing generates a graphical representations of execution trace, with
-traced events as vertices and their causal relationships as edges. The graph
-helps users to understand the complex causal behaviors across thread/process
-boundaries and attribute bugs to their root causes.
+AppInsight instruments all the upcalls from the framework to the application.
+It traces user input, display update, the begin and end of procedual call, the
+invocation of callback function, exception and blocking events in threads. Each
+event is reflected as a vertex in the request graph. Therefore, the request
+graph connects (1)user input event to (2)the beginning of event handler, which
+in turn connects to (3)the beginning of callback in background threads. The
+vertices like (2) and (3) will connect to (4)the end of the procedual call
+or lead to (5)exception. Besides, they will also connect to (6)blocking for
+signal, if the execution requires synchronization. The goal of AppInsight is to
+help developers understand the performance bottlenecks with critical paths or
+exception paths. It defines the root cause as the state of a function execution,
+long blocking or exception in the application.
 
-The events traced by the system determin the definitions of vertices and edges,
-as well as root causes. AppInsight instruments all the upcalls from the
-framework to the application. It traces user input, display update, the begin
-and end of procedual call, the invocation of callback function, exception and
-blocking events in threads. Each event is reflected as a vertex in the request
-graph. Therefore, the request graph connects (1)user input event to (2)the
-beginning of event handler, which in turn connects to (3)the beginning of
-callback in background threads. The vertices like (2) and (3) will connect to
-(4)the end of the procedual call or lead to (5)exception. Besides, they will
-also connect to (6)blocking for signal, if the execution requires
-synchronization. The goal of AppInsight is to help developers understand the
-performance bottlenecks with critical paths or exception paths. It defines the
-root cause as the state of a function execution, long blocking or exception in
-the application.
-
-To be unobtrusive, Panappticon instruments the system to collect low-level and
-fine grained events from libraries and kernel, including user input, display
-update, asynchronous call and callback, inter-process comminication,
+To be unobtrusive, Panappticon instruments the system to collect low-level
+and fine grained events from libraries and kernel, including user input,
+display update, asynchronous call and callback, inter-process comminication,
 synchronization mechanism, and resource accounting. Every event is a vertex.
 Panappticon connects continuous vertices which stem from atomic work in a
-thread, e,g, , a worker thread processing one task from a task queue, into an
-execution interval. Two execution intervals are connected if the earlier interval
-triggers the latter one. For example, a user input triggering an enqueue
-message reflects as an execution interval, where two vertices are connected
-with a temperal ordering edge. Another thread, dequeuing the message and
-submiting an asynchronous task, generates another execution interval. The two
-intervals are connected with a causal relationship due to the message. With the
+thread, e,g, , a worker thread processing one task from a task queue, into
+an execution interval. Two execution intervals are connected if the earlier
+interval triggers the latter one. For example, a user input triggering an
+enqueue message in the same thread reflects as an execution interval, where
+two vertices are connected with a temperal ordering edge. In another thread,
+dequeuing the message and submiting an asynchronous task generate another
+execution interval. The two intervals are connected with a causal edge. With the
 resouces analysis in every user transaction, from user input to display update,
 Panapption pinpoints root causes from the application design flaw, harmful
 interaction, to underpowered hardware.
