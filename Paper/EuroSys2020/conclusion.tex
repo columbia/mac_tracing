@@ -1,10 +1,13 @@
 \section{Conclusion} \label{sec:conclusion}
-Our key insight in this paper is that causal tracing is inherently
-inaccurate. We have reported patterns we observed that pose big precision
-challenges to causal tracing, and built \xxx, a practical system for
-effectively debugging performance issues in macOS applications despite the
-inaccuracy of causal tracing.  To do so, it lets a user provide domain
-knowledge interactively on demand. Our results show that \xxx effectively
-helped us locate all root causes of the issues, including a bug in Chromium,
-01 and incurred \cpuoverhead CPU overhead overall in its system-wide tracing.
+
+Our key insight in this paper is that causal tracing is inherently inaccurate.
+We built \xxx, a practical system for effectively debugging performance
+issues despite inaccurate causal tracing. It lets a user provide domain
+knowledge interactively on demand to mitigate the inaccuracy. Compared to all
+upfront knowledge, this method is more general and efficient given the various
+programing paradigms.
+
+%Our results show that \xxx effectively
+%helped us locate all root causes of the issues, including a bug in Chromium,
+%01 and incurred \cpuoverhead CPU overhead overall in its system-wide tracing.
 \clearpage

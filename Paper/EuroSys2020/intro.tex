@@ -67,7 +67,7 @@ the code may also enforce a causal order between the two operations.
 We believe that, without fully understanding of application semantics, request
 graphs computed by causal tracing are \emph{inherently} inaccurate and both
 over- and under-approximate reality. Although developer annotations can help
-improve precision~\cite{reynolds2006pip, fonseca2007x}, modern applications use
+improve accuracy~\cite{reynolds2006pip, fonseca2007x}, modern applications use
 more and more third-party libraries, whose source code is not available. 
 %In the
 %case of tech-savvy users debugging performance issues of an application for
@@ -78,28 +78,28 @@ accurate capture of request graphs.
 
 In this work, we present \xxx, a dramatically different approach in the design
 space of causal tracing. It is desgined for tech-savvy users who are intersted
-in compiling useful bug reports for daily use applications whose codes are
-oftern not available.  Thus, \xxx enables users to provide necessary schematic
-information on demand, as opposed to full manual schema upfront for all
-involved applications and daemons~\cite{barham2004using, reynolds2006pip,
-fonseca2007x}. \xxx does not construct a per-request causal graph which
-requires extremely accurate causal tracing. Instead, it calculates an event
-graph for a duration of the system execution. To aid diagnosis, it searches
-root cause via both true causality edges as well as weak ones.  Specifically,
-it keeps humans in the loop, as a debugger should rightly do.  \xxx queries
-users a judicially few times to (1) resolve a few inaccurate edges that
+in compiling useful bug reports for their daily use applications whose source
+codes are often not available. As opposed to full manual schema upfront for
+all involved applications and daemons~\cite{barham2004using, reynolds2006pip,
+fonseca2007x}, \xxx calculates an event graph for a duration of the system
+execution with both true causal edges and weak ones, and enables users to
+provide necessary schematic information on demand in diagnosis.
+%\xxx does not construct a per-request causal graph which
+%requires extremely accurate causal tracing.
+Specifically, it keeps humans in the loop, as a debugger should rightly do. \xxx
+queries users a judicially few times to (1) resolve a few inaccurate edges that
 represent false dependencies and (2) identify potential dependency due to data
-flags. \xxx is the first to apply interactive steps on causal tracing system
-for debugging performance issues in modern desktop applications, despite the
-inaccuracy of causal tracing.
+flags.
+%\xxx is the first to apply interactive steps on causal tracing system
+%for debugging performance issues in modern desktop applications, despite the
+%inaccuracy of causal tracing.
 
-We implement \xxx in macOS, a widely used commercial operating system macOS,
-which is closed-source on its frameworks and many applications.  This
-closed-srouce environment therefore provides a true test of \xxx. We address
-multiple nuances of macOS that complicate causal tracing, and built a
-system-wide, low-overhead, always-on tracer. \xxx enables users to optionally
-increase the granularity of tracing (\eg, logging call stacks and instruction
-streams) by integrating with existing debuggers such as \vv{lldb}.
+We implement \xxx in macOS, which is closed-source on its frameworks and many
+applications. This closed-srouce environment therefore provides a true test
+of \xxx. We address multiple nuances of macOS that complicate causal tracing,
+and built a system-wide, low-overhead, always-on tracer. \xxx enables users to
+optionally increase the granularity of tracing (\eg, logging call stacks and
+instruction streams) by integrating with existing debuggers such as \vv{lldb}.
 
 We evaluate \xxx on \nbug real-world, open spinning-cursor issues in widely
 used applications such as Chromium browser engine and macOS System Preferences,
