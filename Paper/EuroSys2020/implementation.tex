@@ -50,17 +50,18 @@ loads.
 \subsection{Tracing Data Flags} \label{subsec:tcp}
 
 As described in (\S\ref{sec:inaccuracy}), under-connection due to the missing
-data dependency requires users' interaction. Users specify that reads and
-writes to a given variable should be considered data dependencies.
-Data flag tracing is possible through \xxx's binary rewriting, but we also
-provide a simple command line tool which uses watchpoint registers to record
-\dataflagwrite and \dataflagread events. The tool \vv{bp\_watch} takes as input
-the process ID, path to the relevant binary image, and the symbol name of the
-global variable. Here is a simple example of how a user asks \xxx to trace
-\vv{\_gOutMsgPending}:
+data dependency requires users' interaction. Users specify that reads and writes
+to a given variable should be considered data dependencies. Data flag tracing
+is possible through \xxx's binary rewriting, but we also provide a simple
+command line tool which uses watchpoint registers to record \dataflagwrite and
+\dataflagread events. The tool \vv{bp\_watch} takes as input the process ID,
+path to the relevant binary image, and the symbol name of the global variable.
+Here is a simple example of how a user asks \xxx to trace \vv{\_gOutMsgPending}:
+
 \begin{lstlisting}[language=c++,numbers=none]
 bp_watch Pid/of/WindowServer Path/to/CGs _gOutMsgPending
 \end{lstlisting}
+
 \noindent \xxx loads the watchpoint handler into the address space of the target
 application by hooking it to \vv{CoreFoundation}. The handler invokes Apple's
 API \vv{kdebug\_trace} to record the value of the data flag and its operation
@@ -70,17 +71,15 @@ type (read or write).
 
 Users may need to gather more information, such as individual instructions and
 call stacks, to come up with and verify a binary patch. \xxx integrates with
-\vv{lldb} to capture this information and add it to the corresponding vertices
-in the event graph.
-
-We gather call stacks only at relevant locations, to reduce the data collection
-overhead. Our \vv{lldb} scripts go through the instructions of apps and
-frameworks step by step to capture the parameters tainted by user inputs. Only
-at each beginning of a function call does the script record a full call stack.
-We also step over and record the return value of APIs from low-level libraries
-(i.e. those with the filename extension \vv{.dylib}).
+\vv{lldb scripts} to capture this information and add it to the corresponding
+vertices in the event graph. Our \vv{lldb scripts} gather call stacks at
+relevant locations and parameters tainted by user inputs. To reduce the data
+collection overhead, only at each beginning of a function call does the script
+record a full call stack. While \vv{lldb} steps into functions from apps and
+frameworks to record parameters tainted, it steps over and only records the
+return value of APIs from low-level libraries (i.e. those with the filename
+extension \vv{.dylib}).
 
 The combination of instruction-level tracing and occasional call-stacks offers
 more than enough detail to diagnose even the most arcane issues, and in our
 experience has been very helpful in multiple steps of an \xxx diagnosis.
-
