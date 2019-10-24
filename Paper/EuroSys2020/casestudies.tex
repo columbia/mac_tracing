@@ -3,6 +3,7 @@
 In this section, we demonstrate how \xxx helps to diagnose \nbug
 spinning-cursor cases in popular applications. Table~\ref{table:bugs-desc}
 describes these spinning-cursor cases.
+\input{bugdesc}
 
 In Table~\ref{table:results}, we compare \xxx with Panappticon and list the
 portions of over- and under- connections mitigated with our hueristics.
@@ -12,18 +13,8 @@ user queries suffice to find root cause path accurately. Although complex
 applications like MicosoftWord and Chromium require more queries, 13 and 22
 respectively, many of them result from repeated patterns. They can be easily
 identified by users.
-
-%%Overall, in the case of simple text editing applications, \xxx can identify the
-%%UI event that causes a spinning cursor by merely relying on a few heuristics.
-%%However, these heuristics may make the wrong decision in complicated cases, and
-%%misidentify the relationships between intra/inter-thread events. It is unlikely
-%%that there exists a single graph search method that works in all cases, e.g.
-%%when given the choice between multiple incoming edges, the most recent match is
-%%sometimes correct, but sometimes not. This is why our system relies on expert
-%%knowledge of users to reconstruct a developer's intent and accurately diagnose
-%%performance issues.
-
-\input{bugdesc}
+%Last paragraph:
+%In the remaining of this section, we present the case studies by category in (\S\ref{XXX}). 
 
 \begin{table*}[ht]
 \footnotesize
@@ -54,14 +45,23 @@ Bug ID & filtered out & by heuristics & data flag & interactions & interactive s
 		%  changed is small. 2.\xxx only requires a few user interactions, but it is
 		%  critical to reduce the path, so as to reduce user's inspecting efforts in
 		%  diagnosis. 3.The last column shows the ratio of path size with user interactions
-    %over the automatic slicing.}
+    	%  over the automatic slicing.}
     {
     }
   \label{table:results}
   }
 
 \end{table*}
-%Last paragraph:
-%In the remaining of this section, we present the case studies by category in (\S\ref{XXX}). 
 \input{longwait_and_repeatedyield_case.tex}
 \input{longrunning_case.tex}
+
+\subsubsection{Summary}
+Overall, in the case of simple text editing applications, \xxx can identify the
+UI event that causes a spinning cursor by merely relying on a few heuristics.
+However, these heuristics may make the wrong decision in complicated cases, and
+misidentify the relationships between intra/inter-thread events. It is unlikely
+that there exists a single graph search method that works in all cases, e.g.
+when given the choice between multiple incoming edges, the most recent match is
+sometimes correct, but sometimes not. This is why our system relies on expert
+knowledge of users to reconstruct a developer's intent and accurately diagnose
+performance issues.

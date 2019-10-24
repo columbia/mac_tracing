@@ -61,7 +61,7 @@ When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is
 any pending message.
 
 \paragraph{CoreAnimation shared flags}
-As shown in the code snippet Figure~\ref{fig:casharedflag}, , worker thread can set a
+As shown in the code snippet Figure~\ref{fig:casharedflag}, worker thread can set a
 field \vv{need\_display} inside a CoreAnimation object whenever the object needs
 to be repainted. The main thread iterates over all animation objects and reads
 this flag, rendering any such object. This shared-memory communication creates
