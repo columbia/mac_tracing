@@ -2,58 +2,23 @@
 
 In this section, we demonstrate how \xxx helps to diagnose \nbug spinning-cursor
 cases in popular applications. Table~\ref{table:bugs-desc} describes these
-spinning-cursor cases. In Table~\ref{table:results}, we compare \xxx with
+spinning-cursor cases. In Table~\ref{table:statistics}, we compare \xxx with
 Panappticon and list the portions of over- and under- connections mitigated with
 our hueristics. However, our filtered graph remains too inaccurate to automate
-diagnosis. The user interaction is still required but not overwhelming. In most
-cases, up to 3 user queries suffice to find root cause path accurately. Although
-complex applications like MicosoftWord and Chromium require more queries, 13 and
-22 respectively, many of them result from repeated patterns. They can be easily
-identified by users. 
+diagnosis. The user interaction is still required but not overwhelming, as shown
+in Table ~\ref{table:results}. In most cases, up to 3 user queries suffice to
+find root cause path accurately. Although complex applications like MicosoftWord
+and Chromium require more queries, 13 and 22 respectively, many of them result
+from repeated patterns. They can be easily identified by users.
 
 %Last paragraph: %In the remaining of this section, we
 %present the case studies by category in (\S\ref{XXX}).
 
 \input{bugdesc}
+\input{statistics_table}
 
-\begin{table*}[ht]
-\footnotesize
-\centering
-  \begin{tabularx}{\textwidth}{l|ccccccc}
- 	   & \% of & \% of & \# of& \# of & \multicolumn{2}{c}{size of baseline/spinning path}& auto slicing\\
-       & connections & connections added  & user provided & user  & \multicolumn{2}{c}{with}  & over \\
-Bug ID & filtered out & by heuristics & data flag & interactions & interactive slicing & automatic slicing &  interactive slicing\\
-\hline
-\hline
-1-Chromium & 0.02 & 0.02 & 0 & 13 & 32 & 303 & 9.47\\
-2-SystemPref & 0.56 & 2.48 & 2 & 1 & 2 & 30 & 15.00\\
-3-SequelPro & 0.49 & 0.35 & 0 & 2 & 5 & 264 & 52.80\\
-4-Installer & 4.39 & 2.83 & 0 & 2 & 6 & 36  & 6.00\\
-5-TeXStudio & 2.43 & 0.58 & 0 & 3 & 6 & 44  & 7.33\\
-6-TextEdit & 7.97 & 0.72 & 0 & 3 & 21 & 21 & 1.00\\
-7-MSWord & 6.72 & 1.04 & 0 & 22 & 67 & 136 & 2.03\\
-8-Notes & 2.97 & 11.53 & 0 & 2 & 10 & 42 & 4.20\\
-9-SlText & 4.07 & 0.92 & 0 & 1 & 3 & 3 & 1.00\\
-10-TextMate & 2.15 & 2.18 & 0 & 0 & 3 & 3 & 1.00\\
-11-CotEditor & 4.81 & 5.32 & 0 & 1 & 4 & 6 & 1.50\\
-\hline
-  \end{tabularx}
-  \parbox{\textwidth}
-  {\caption{Graph Statistics for "buggy" cases} 
-	  %{1.\xxx filters out connections by dividing a batch processing vertex into
-		%  vertices, and adds connections as edges for data flag or heuristic. The portion
-		%  changed is small. 2.\xxx only requires a few user interactions, but it is
-		%  critical to reduce the path, so as to reduce user's inspecting efforts in
-		%  diagnosis. 3.The last column shows the ratio of path size with user interactions
-    	%  over the automatic slicing.}
-    {
-    }
-  \label{table:results}
-  }
-
-\end{table*}
-\input{longwait_and_repeatedyield_case.tex}
-\input{longrunning_case.tex}
+\input{longwait_and_repeatedyield_case}
+\input{longrunning_case}
 
 \subsubsection{Summary}
 Overall, in the case of simple text editing applications, \xxx can identify the

@@ -4,16 +4,14 @@
 %%study. Then we compare \xxx to its closest prior system, and describe how we
 %%evaluate the manual efforts needed in diagnosis.
 
-Prior work depends on the request graph per transaction to identify bottleneck
-and speculate possible causes. Panappticon for Android is the closest causal
-tracing system to ours in desgin. The definition of event types and causality in
-their paper is a subset of our \xxx. Thus we first study Panappticon's request
-graph with micro benchmarks. Extracting a transaction from user input to a
-corresponding display fails with Panappticon due to the batching processing in
-runloop~\cite{runloop}. It is not uncommon to see two and more \vv{NSApp} events
-are connected with an \vv{CA::Transaction::commit()} function. We therefore
-carry out the inaccuracy study in ~\S\ref{sec:toystudy} with a Non-GUI toy
-program.
+Prior work relies on the request graph per transaction to identify bottleneck
+and speculate possible causes. Panappticon for Android is one and closest to
+ours in desgin. Their traced events and causality are in a subset of ours.
+It is common to see multiple user inputs are connected into a Panappticon's
+request graph, but the programming paradigm caused the over-connection is hard
+to reveal due to the closed-source Cocoa framework in macOS. We therefore carry
+out the inaccuracy study in ~\S\ref{sec:toystudy} with a non-GUI toy program to
+demonstrate the inherent inaccuracy of causal tracing.
 
 For real-world case study, we collect performance issues of popular
 applications, because they likely represent the bugs attractive to tech-savvy
@@ -21,23 +19,24 @@ users. Among the 26 bugs from the github reports, we reproduced 3 of them
 successfully. Others are failed either due to the version capacity in ElCapitan
 or insufficient information in the bug report. 8 performance issues are
 collected from the daily use applications in the auther's laptop. As a result,
-we study 11 reproducible cases in this paper.
+we study 11 reproducible cases. 
 
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
 
-Now we describe how we measure the effects of hueristics \xxx uses to
-mitigate the graph inaccuracy, and manual efforts required in the diagnosis.
-First, we enable tracing component in the background and reproduce the
-performance isssues.  When \xxx constructs event graphs with the trace log, we
-measure the number of vertices introduced and merged by heuristics.  Then we
-run \xxx diagnosis algorithm on the event graph with a human in the loop. We
-count the times when multiple incoming causal edges or weak edges are presents
-and \xxx requires users' guidance in path slicing. Users can query the event
-graph for assistance and make decisions with domain knowledge. In the worst
-case that users make a wrong decision, before reaching the end of path slicing,
-\xxx allows them to relocate the path to a particular vertex. Specifically, the
-number presented in the following section reflects our experience of debugging.
-It does not include the situation of relocating vertex in path slicing, which
-we did not encounter in our case studies.
+Now we describe how we measure the effects of heuristics which \xxx uses to
+mitigate the graph inaccuracy, and manual efforts required in the diagnosis. We
+first enable tracing component and reproduce the performance isssues in macOS.
+When \xxx constructs event graph with the trace log, we measure the number of
+over-connection and under-connection mitigated by heuristics. After this step, a
+vertex in the graph can still have multiple incoming edges or weak edge. We then
+run \xxx diagnosis algorithm with a human in the loop, and count the times when
+multiple incoming edges or weak edges are encountered. Users can query the event
+graph for assistance or make decisions with domain knowledge. In the worst case
+that users make a wrong decision, before reaching the end of path slicing, \xxx
+allows them to relocate the path to a particular vertex.
+
+%Specifically, the number presented in the following section reflects our
+%experience of debugging. It does not include the situation of relocating vertex
+%in path slicing, which we have not encountered in our case studies.
