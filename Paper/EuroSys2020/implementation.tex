@@ -11,16 +11,16 @@ infrastructure~\cite{linktotracetool}. It by default stores events in memory and
 flushes them to screen or disk periodically. \xxx extends this infrastructure
 with a file-backed ring buffer to support larger-scale tests and avoid
 exhausting the disk. The file size is set to 2GB by default, approximately 19
-million events (about 5 minutes of normal operations).
+million events (about 5 minutes of normal operations). The size can be adjust by
+users to accommodate the desired trace history.
 
-The default tracing points in macOS provide too limited information
-to enact causal tracing. We therefore instrument both the
-kernel~\cite{linkofxnusourcecode} (at the source level) and key libraries
-(at the binary level) to gather adequate data. We instrument the kernel
-with 1,193 lines of code, and binary-instrument the following libraries:
-\vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib}, \vv{libpthread.dylib},
-\vv{CoreFoundation}, \vv{CoreGraphics}, \vv{HIToolbox}, \vv{AppKit} and
-\vv{QuartzCore} in \nlibchanges different places.
+Default tracing points in macOS provide too limited information to enact causal
+tracing. We therefore instrument both the kernel~\cite{linkofxnusourcecode} (at
+the source level) and key libraries (at the binary level) to gather adequate
+data. We instrument the kernel with 1,193 lines of code, and binary-instrument
+the following libraries: \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib},
+\vv{libpthread.dylib}, \vv{CoreFoundation}, \vv{CoreGraphics}, \vv{HIToolbox},
+\vv{AppKit} and \vv{QuartzCore} in \nlibchanges different places.
 
 %%Next subsection describes our binary instrumentation tool
 

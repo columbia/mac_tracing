@@ -11,8 +11,8 @@ their paper is a subset of our \xxx. Thus we first study Panappticon's request
 graph with micro benchmarks. Extracting a transaction from user input to a
 corresponding display fails with Panappticon due to the batching processing in
 runloop~\cite{runloop}. It is not uncommon to see two and more \vv{NSApp} events
-are connected with an \vv{CA::Transaction::commit()} function. As a result, we
-carry out the inaccuracy study in ~\S\ref{sec:toystudy} with a command line toy
+are connected with an \vv{CA::Transaction::commit()} function. We therefore
+carry out the inaccuracy study in ~\S\ref{sec:toystudy} with a Non-GUI toy
 program.
 
 For real-world case study, we collect performance issues of popular
