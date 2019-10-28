@@ -22,7 +22,7 @@ figures out that the long-running function is invoked by a callback function
 from this daemon to sync data. The advantage of \xxx over other debugging tools
 is it helps to narrow down the root cause with the inter-thread execution path.
 
-\paragraph{7-TextEdit}
+\paragraph{6-TextEdit}
 
 TextEdit is a simple word processing and text editing tool shipped by Apple,
 which often hangs on the editing of large files.  When \xxx is used to diagnose
@@ -45,7 +45,7 @@ vetices fits our expected bug structure, where we choose the most recent
 incoming edge.  Although the automatic heuristics works for this particular
 application, it is not general enough to succeed for all patterns.
 
-\paragraph{8-MSWord}
+\paragraph{7-MSWord}
 
 Microsoft Word is a large and complex piece of software. \xxx can analyze the
 event graph, but it identifies multiple possible root causes: the length of
@@ -88,7 +88,7 @@ user input event (derived from path slicing) that triggers the hang.
   \textbf{BUG-ID} & \textbf{costly API} &UI\\
   \hline
   \hline
-  6-Notes         & \begin{tabular}{@{}l@{}}
+  8-Notes         & \begin{tabular}{@{}l@{}}
   					\vv{1)NSDetectScrollDevicesThe}\\
 					\vv{\xspace -nInvokeOnMainQueue}\\
 					\end{tabular}
@@ -97,25 +97,6 @@ user input event (derived from path slicing) that triggers the hang.
 					\end{tabular}
 				  \\
   \hline
-%  7-TexEdit       & \begin{tabular}{@{}l@{}}
-%  					\vv{1)[NSTextView(NSPasteboard) \_write}\\
-%					\vv{\xspace RTFDInRanges:toPasteboard:]}\\
-%					\vv{2)get\_vImage\_converter}\\
-%  					\vv{3)get\_full\_conversion\_code\_fragment}\\
-%					\end{tabular}
-%				  & \vv{key c}
-%				  \\
-%  \hline
-%  8-MSWord        & \begin{tabular}{@{}l@{}}
-%					\vv{1)-[NSPasteboard setData:}\\
-%					\vv{\xspace forType:index:usesPboardTypes:]}\\
-% 					\vv{2)\_CFStringCreateImmutableFunnel3}\\
-%  					\vv{3)platform\_memmove}\\
-%					\vv{4)lseek}, \vv{5)fstat64}, \vv{6)fcntl}\\
-%					\end{tabular}
-%				  & \vv{key c}
-%				  \\
-%  \hline
   9-SlText   & \begin{tabular}{@{}l@{}} 
 					\vv{1)px\_copy\_to\_clipboard}\\
   					\vv{2)\_\_CFToUTF8Len}\\

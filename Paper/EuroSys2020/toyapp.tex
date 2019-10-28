@@ -1,0 +1,41 @@
+\subsection{Inaccuracy study} \label{sec:toystudy}
+
+In the section, we demonstate the inaccuracy of request graph extracted with
+causal tracing and the necessary interactions in path slicing with study on
+a micro user event handler as shown in Figure~\ref{fig:toyapp}. It accesses the
+\vv{Contacts} and search with last name \vv{Smith}. We inject two tracing
+data in the source code at the beginning and end of the handler to mimic an
+end-to-end transaction.
+
+\begin{figure}[t]
+\begin{lstlisting}
+//insert debug info begin
+ABAddressBook *AB = [ABAddressBook sharedAddressBook];
+ABSearchElement *nameIsSmith =
+	[ABPerson searchElementForProperty:kABLastNameProperty...];
+NSArray *ret = [AB recordsMatchingSearchElement:nameIsSmith]; 
+//insert debug info end
+\end{lstlisting}
+    \caption{Code snippet: access contacts}
+    \label{fig:toyapp}
+\end{figure}
+
+%We study the request graph extracted by Panappticon for the handler. Their
+%graph is inaccurate for the following reasons: missing data dependency, missing
+%boundaries of execution intervals in background threads, batch processing in
+%both user threads and system threads, and contraditions to the assumption that
+%no unrelated work is processed in a particular task from a queue.
+
+The inherent accuracy of request graph is exposed with umbiguous edges. The
+asynchronous calls are always connected to their invocations in Panappticon.
+However, some of them are hard to decide. For example, the causality between
+timer create and timer cancel introduces unrelated applications, e.g. \vv{mds}
+and \vv{trace}. Lack of the causality on the other hand will break the
+connections of line 2 and line3. It makes the request graph incomplete in
+Panappticon. \xxx mitigates the under-conneciton with the tracking of shared
+flags, \vv{AB} and \vv{nameIsSmith}.
+
+%The generated request graph, with the causality between timer create and timer
+%cancel, include 13,842 edges and 4,180 nodes. 53 of them have more than 2
+%incoming edges.
+%of them are encountered in slicing the path from the first to the last line in the code slicing.

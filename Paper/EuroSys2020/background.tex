@@ -27,13 +27,13 @@ and fine grained events from libraries and kernel, including user input,
 display update, asynchronous call and callback, inter-process comminication,
 synchronization mechanism, and resource accounting. Every event is a vertex.
 Panappticon connects continuous vertices which stem from atomic work in a
-thread, \eg, a worker thread processing one task from a task queue, into
-an execution interval. Two execution intervals are connected if the earlier
+thread, \eg, a worker thread processing one task from a task queue, into an
+execution interval. Two execution intervals are connected if the earlier
 interval triggers the latter one. For example, a user input triggering an
 enqueue message in the same thread reflects as an execution interval, where
 two vertices are connected with a temperal ordering edge. In another thread,
 dequeuing the message and submiting an asynchronous task generate another
 execution interval. The two intervals are connected with a causal edge. With the
 resouces analysis in every user transaction, from user input to display update,
-Panapption pinpoints root causes from the application design flaw, harmful
+Panapption speculates and manually inspect root causes from design flaws, harmful
 interaction, to underpowered hardware.

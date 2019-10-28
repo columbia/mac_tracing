@@ -1,37 +1,33 @@
 \subsection{Methodology} \label{sec:methodology}
 
-In this section, we first describe how the performance issues are selected for
-study. Then we compare \xxx to its closest prior system, and describe how we
-evaluate the manual efforts needed in diagnosis.
+%%In this section, we first describe how the performance issues are selected for
+%%study. Then we compare \xxx to its closest prior system, and describe how we
+%%evaluate the manual efforts needed in diagnosis.
 
-We collects performance issues of popular applications, since they likely
-represent the bugs attractive to tech-savvy users.  Among the 26 bugs from the
-github reports, we reproduced 3 of them successfully.  Others are failed either
-due to the version capacity in ElCapitan or insufficient information in the bug
-report.  8 performance issues are collected from the daily use applications in
-the auther's laptop.  As a result, we select 11 reproducible cases for study in
-this paper.
+Prior work depends on the request graph per transaction to identify bottleneck
+and speculate possible causes. Panappticon for Android is the closest causal
+tracing system to ours in desgin. The definition of event types and causality in
+their paper is a subset of our \xxx. Thus we first study Panappticon's request
+graph with micro benchmarks. Extracting a transaction from user input to a
+corresponding display fails with Panappticon due to the batching processing in
+runloop~\cite{runloop}. It is not uncommon to see two and more \vv{NSApp} events
+are connected with an \vv{CA::Transaction::commit()} function. As a result, we
+carry out the inaccuracy study in ~\S\ref{sec:toystudy} with a command line toy
+program.
+
+For real-world case study, we collect performance issues of popular
+applications, because they likely represent the bugs attractive to tech-savvy
+users. Among the 26 bugs from the github reports, we reproduced 3 of them
+successfully. Others are failed either due to the version capacity in ElCapitan
+or insufficient information in the bug report. 8 performance issues are
+collected from the daily use applications in the auther's laptop. As a result,
+we study 11 reproducible cases in this paper.
 
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
 
-Panappticon is the closest system to ours in desgin.  Its implementation
-subsets our \xxx System, base on the event types and causal relationships
-defined in its paper.  There desgin depends on the resource usage analysis for
-every transaction to identify the performance bottleneck and speculate the
-possible causes. Further manual efforts are required to investigate the root
-causes. Although Panappticon is effective in identifying performance issue due
-to resource contention in Android, it fails in the extraction of end-to-end
-transactions due to the inaccuray of causal tracing.
-%for the following reasons: missing data dependency, missing boundaries of
-%execution intervals in background threads, batch processing in both user threads
-%and system threads, and contraditions to the assumption that no unrelated work
-%is processed in a particular task from a queue.
-It is common to find two and more user input events; even events from unrelated
-applications are collapsed into a request graph.
-
-Below we demonstrate how we measure the effects of hueristics \xxx uses to
+Now we describe how we measure the effects of hueristics \xxx uses to
 mitigate the graph inaccuracy, and manual efforts required in the diagnosis.
 First, we enable tracing component in the background and reproduce the
 performance isssues.  When \xxx constructs event graphs with the trace log, we
