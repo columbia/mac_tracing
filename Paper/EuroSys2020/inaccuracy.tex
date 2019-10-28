@@ -7,8 +7,8 @@ As explained in \S\ref{sec:background}, causal tracing builds a graph to connect
 execution segments on behalf of a request that spread across separate threads
 and processes. Based on our experience of building a causal tracing system on
 commercial closed-source macOS, we believe such graphs are inherently inaccurate
-and contain both \emph{over-connections} -- edges that do not really map to
-causality -- and \emph{under-connections} -- missing edges between two vertices
+and contain both \emph{over-connections} edges which do not really map to
+causality, and \emph{under-connections}, missing edges between two vertices
 with one causally influencing the other. In this section, we present several
 inherently inaccurate patterns we observed and their examples.
 

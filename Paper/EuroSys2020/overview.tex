@@ -122,7 +122,7 @@ crucial in this process (\S\ref{sec:casestudy}).
     \label{fig:chromium-case-study}
 \end{figure}
 
-One of the authors experienced first-hand the aforementioned performance issue
+One of the authors experienced first-hand performance issue
 in Chromium, an open-source browser engine that powers Google Chrome and,
 starting recently, Microsoft Edge~\cite{chromiumurl}. She tried to type in
 the Chromium search box a non-English word with a default Input Method Editor
@@ -200,7 +200,7 @@ messages, dispatch queue operations, runloop operations, \dataflagread and
 \dataflagwrite. The process names of peer vertices are checked, as they reflect
 the developers' intent, for example, to request service from a particular
 helper tool. More over, a user can also instruct \xxx to inspect preceeding
-vertices to improve identification accuracy. Then \xxx discriminate the
+vertices to improve identification accuracy. Then \xxx discriminates the
 execution results to filter out spinning scenarios.  with the time cost and
 wait result in the vertex by default. If multiple \similarnodes are identified,
 \xxx usually chooses the most recent one heuristically.
@@ -209,15 +209,15 @@ wait result in the vertex by default. If multiple \similarnodes are identified,
 
 \xxx is designed to support interactive debugging of performance issues. It
 sometimes requires the user to reproduce a performance issue so \xxx can capture
-more fine-grained event traces such as accesses to data flags. Fortunately, a
-performance issue that almost never reproduces is probably not as annoying as
-one that occurs frequently.
+more fine-grained event traces like accesses to data flags. Fortunately, a
+performance issue that never reproduces is probably not as annoying as one that
+occurs now and then.
 
-We implemented \xxx in the closed-source macOS which presents a harsh test
-for \xxx, but we have not ported \xxx to other operating systems yet. It is
-possible that the ideas and techniques do not generalize to other operating
-systems. However, modern operating systems share many similarities, and inspire
-each others' designs, so we are hopeful that the ideas in \xxx are generally applicable.
-Similarly, the applications and performance issues used in our
-evaluation may be non-representative, though we strive to cover a diverse set of
-common applications ranging from browsers to text editors.
+We implemented \xxx in the closed-source macOS which presents a harsh test for
+\xxx, but we have not ported \xxx to other operating systems yet. It is possible
+that the ideas and techniques do not generalize to other operating systems.
+However, modern operating systems share many similarities, and inspire each
+others' designs, so we are hopeful that the ideas are generally applicable.
+Similarly, the applications and performance issues used in our evaluation
+may be non-representative, though we strive to cover a diverse set of common
+applications ranging from browsers to text editors.

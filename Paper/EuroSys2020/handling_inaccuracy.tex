@@ -1,17 +1,17 @@
 \subsection{Handling Inaccuracies}
 
-%In this section, we discuss how \xxx mitigates over-connections
-%(\S\ref{subsec:fix-over}) and under-connections (\S\ref{subsec:fix-under}).
+In this section, we discuss how \xxx leverage heuristics to mitigate
+over-connections and under-connections.
 
 \subsubsection{Mitigating Over-Connections}\label{subsec:fix-over}
 
 From a high-level, \xxx deals with over-connections by heuristically splitting
 an execution segment that appears mixing handling of multiple requests. It adds
-weak causal edges between the segments When a weak edge is encountered during
+weak causal edges between the segments. When a weak edge is encountered during
 diagnosis, it queries users to decide whether to follow the weak edge or stop
 (\S\ref{sec:overview}).
 
-Specifically, \xxx splits based three criteria. First, \xxx recognizes a small
+Specifically, \xxx splits based on three criteria. First, \xxx recognizes a small
 set of well-known batch processing patterns such as \vv{dispatch\_mig\_server()}
 in \S\ref{sec:inaccuracy} and splits the batch into individual items. Second,
 when a wait operation such as \vv{recv()} blocks, \xxx splits the segment at the
@@ -29,7 +29,7 @@ operations have non-overlapping peer sets.
 Under-connections are primarily due to data dependencies. Currently \xxx
 queries the user to identify the data flags. It is conceivable to leverage
 memory protection techniques to infer them automatically, as demonstrated in
-previous record-replay work~\cite{king2005debugging, dunlap2008execution}, it
+previous record-replay work~\cite{king2005debugging, dunlap2008execution}. It
 is out of the scope of this paper and we leave it for future work. Currently,
 to discover a data flag, the user re-runs the application with \xxx to collect
 instruction traces of the concurrent events in both the normal and spinning
@@ -38,4 +38,4 @@ values for the basic blocks before the divergence and uncovers the address
 of the data flag. Once the user identifies a data flag, \xxx traces it using
 either binary instrument, such as the \vv{need\_display} flag in CoreAnimation
 (\S\ref{sec:inaccuracy}), or with \xxx's watchpoint tool. \xxx add a causal edge
-between a write to a data flag to the corresponding read to the flag.
+from a write to a data flag to its corresponding read.
