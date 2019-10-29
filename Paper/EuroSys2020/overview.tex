@@ -208,16 +208,22 @@ wait result in the vertex by default. If multiple \similarnodes are identified,
 \subsection{Limitations}
 
 \xxx is designed to support interactive debugging of performance issues. It
-sometimes requires the user to reproduce a performance issue so \xxx can capture
-more fine-grained event traces like accesses to data flags. Fortunately, a
-performance issue that never reproduces is probably not as annoying as one that
-occurs now and then.
+requires a user to reproduce a performance issue, in the following situations:
+(1) \xxx need capture more fine-grained event traces like accesses to data
+flags to mitigate under-connection of event graph; (2) The root cause vertices
+reported by \xxx lack high-level semantics, so \xxx need integrate \vv{llbd} to
+gather more information like call stacks. Fortunately, a performance issue that
+never reproduces is probably not as annoying as one that occurs now and then. On
+the other hand, the blocking issue always showing up and never signaled normally
+are out of the debugging range of \xxx, because \xxx's diagnosis algorithm never
+finds its compariable normal causal path.
 
-We implemented \xxx in the closed-source macOS which presents a harsh test for
-\xxx, but we have not ported \xxx to other operating systems yet. It is possible
-that the ideas and techniques do not generalize to other operating systems.
-However, modern operating systems share many similarities, and inspire each
-others' designs, so we are hopeful that the ideas are generally applicable.
-Similarly, the applications and performance issues used in our evaluation
-may be non-representative, though we strive to cover a diverse set of common
-applications ranging from browsers to text editors.
+We implemented \xxx in the closed-source macOS which presents a harsh test,
+but have not ported \xxx to other operating systems yet. It is possible
+that the techniques do not generalize to other operating systems. However,
+modern operating systems share many similarities, and inspire each others'
+designs, so we are hopeful that the ideas are generally applicable.
+
+%Similarly, the applications and performance issues used in our evaluation may
+%be non-representative. We strive to cover a diverse set of common applications
+%ranging from browsers to text editors.

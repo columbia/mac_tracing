@@ -6,10 +6,7 @@ over-connections and under-connections.
 \subsubsection{Mitigating Over-Connections}\label{subsec:fix-over}
 
 From a high-level, \xxx deals with over-connections by heuristically splitting
-an execution segment that appears mixing handling of multiple requests. It adds
-weak causal edges between the segments. When a weak edge is encountered during
-diagnosis, it queries users to decide whether to follow the weak edge or stop
-(\S\ref{sec:overview}).
+an execution segment that appears mixing handling of multiple requests.
 
 Specifically, \xxx splits based on three criteria. First, \xxx recognizes a small
 set of well-known batch processing patterns such as \vv{dispatch\_mig\_server()}
@@ -26,7 +23,13 @@ operations have non-overlapping peer sets.
 
 \subsubsection{Mitigating Under-Connections}\label{subsec:fix-under}
 
-Under-connections are primarily due to data dependencies. Currently \xxx
+Causal tracing infers boundaries for the background thread with blocking wait.
+It can break an "atomic" task in the worker thread, \eg a thread pauses for IO
+resource. \xxx adds weak causal edges to mitigate under-connection. When a weak
+edge is encountered during diagnosis, it queries users to decide whether to
+follow the weak edge or stop (\S\ref{sec:overview}).
+
+The other primary under-connections are due to data dependencies. Currently \xxx
 queries the user to identify the data flags. It is conceivable to leverage
 memory protection techniques to infer them automatically, as demonstrated in
 previous record-replay work~\cite{king2005debugging, dunlap2008execution}. It

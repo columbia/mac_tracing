@@ -3,7 +3,7 @@
 \label{alg:alg-diagnosis}
 \begin{algorithmic}[1]
 \Require{g - EventGraph; \algspinningnode - the vertex in the UI thread when the spinning cursor occurs}
-\Ensure{\algrootcausenodes-collecting root casuse vertices for user inspect}
+\Ensure{\algrootcausenodes - vertices for user to inspect root cause}
 \Statex
 \Function{Diagnose}{g, \algspinningnode} \label{alg:diagnose-line}%\funclabel{alg:diagnose} \label{alg:diagnose-line}
   \Switch {\algspinningnode.block\_type}
@@ -38,12 +38,12 @@
 \Function{InteractiveSlice}{g, vertex}\label{alg:interslice-line}
 \Loop
 	\State{path\_slice.append(vertex)}
-	\If {vertex has 1 incoming edge}
+	\If {vertex has 1 incoming causal edge}
 		\State{vertex $\gets$ predecessor vertex}
 	\ElsIf {vertex has multiple incoming edges}
 		\State{vertex $\gets$ ask user to pick from predecessors}
-	\ElsIf {vertex had weak edges}
-		\State{vertex $\gets$ ask user to pick from predecessors}
+	\ElsIf {vertex had weak edge}
+		\State{vertex $\gets$ ask user to pick or stop}
 	\Else \LineComment{The first vertex of current thread}
 		\State\Return {path\_slice}
 	\EndIf

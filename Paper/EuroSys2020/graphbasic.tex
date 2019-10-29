@@ -12,22 +12,24 @@ certain operations such as \vv{mach\_msg} are running, and user actions such as
 key presses. These events are stored as contents in the vertex and primarily for
 providing information to user during diagnosis. The third category of events are
 communication events for forming edges in the graph. For instance, an operation
-that installs a callback is connected to the invocation of the callback. They
-help users diagnose bugs across thread/process boundaries.
+that installs a callback is connected to the invocation of the callback.
+%They help users diagnose bugs across thread/process boundaries.
 
 %A message send is connected to a message receive. The arming of a
 %timer is connected to the processing of the timer callback. 
 
-A unique design in \xxx is to trace general wake-up and wait operations inside
-the kernel to ensure coverage across many diverse user-level, possibly custom
-wake-up and wait operations because their implementations almost always use
-kernel wake-up and wait. This approach necessarily includes spurious edges
-in the graph, including those due to mutual exclusion and context switch by
-interrupts; \xxx handles them by querying the user when it encounters a vertex
-with multiple incoming causal edges during diagnosis (see \S\ref{subsec:overflow}).
-We also observed that a waiting kernel thread is frequently woken up to perform
-tasks such as timer firing signal and scheduler maintenance; \xxx recognizes
-them and culls them out from the graph automatically.
+A unique design in \xxx is tracing general wake-up and wait operations inside
+the kernel to ensure coverage across diverse user-level custom
+synchronization primitive because their implementations almost always
+use kernel wake-up and wait. \xxx includes the wake-up in the category of
+communication event, and classifies the wait into the category of boundary
+event. This approach necessarily includes spurious edges in the graph, including
+those due to mutual exclusion and context switch by interrupts; \xxx handles
+them by querying the user when it encounters a vertex with multiple incoming
+causal edges during diagnosis (see \S\ref{subsec:overflow}). We also observed
+that a waiting kernel thread is frequently woken up to perform tasks such as
+timer firing signal and scheduler maintenance; \xxx recognizes them and culls
+them out from the graph automatically.
 
 Compared to tools such as \spindump that capture only the current system state,
 event graphs capture the causal path of events, enabling users to trace across

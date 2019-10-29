@@ -24,12 +24,10 @@ Bug ID & over-connections& under-connections & data flag \\
   \parbox{\columnwidth}
   {\caption{Inaccuracy handling compared to Panappticon} 
   	{
-
-        We calculate the percentage of over-connections mitigated with our splitting
-        heuristics, and the percentage of under-connections if wait on primitive is
-        treated as the end boundary of an "atomic" task, which Panappticon applies to
-        background threads. The data does not reflect our "fixes" for learned
-        programing paradigms and data flags.
+		We calculate the over-connections mitigated with our splitting heuristics, and
+	the under-connections where wait on primitive is treated as the end boundary,
+	which Panappticon applies to background threads, but breaks an "atomic" task
+	of a common callout. The percentages are calculated over the total edges in event graph.
     }
   \label{table:statistics}
   }

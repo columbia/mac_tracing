@@ -44,14 +44,14 @@ many events appear dependent.
 In a typical implementation of mutual exclusion, a thread's unlock operation
 wakes up a thread waiting in lock. Such a wake-up may be, but is not always,
 intended as causality. However, without knowing the developer intent, any
-wake-up is typically treated as causality. %by traditional causal tracing tools.
+wake-up is typically treated as causality. 
 
 \subsubsection{Under Connections}\label{subsec:underconnections}
 
 We observe that under connections mostly result from missing data
 dependencies.  This pattern is more general than shared-memory flags in ad
 hoc synchronization~\cite{xiong2010ad} because it occurs even within a
-single thread.
+single thread. 
 
 \paragraph{Data dependency in event processing}
 The code for Batching in event processing above also illustrates a causal
@@ -78,4 +78,3 @@ whenever the system determines that the main thread has hung for a certain
 period, and the spinning beach ball should be displayed, a shared-memory flag
 is set. Access to the flag is controlled via a lock, i.e. the lock is used for
 mutual exclusion, and does not imply a happens before relationship.
-
