@@ -3,8 +3,8 @@
 \footnotesize
 \centering
   \begin{tabularx}{\columnwidth}{l|ccc}
-       & connections & connections added  & user provided \\
-Bug ID & filtered out & by heuristics & data flag \\
+       & \% & \% & user provided \\
+Bug ID & over-connections& under-connections & data flag \\
 \hline
 \hline
 1-Chromium & 0.02 & 0.02 & 0 \\
@@ -22,8 +22,15 @@ Bug ID & filtered out & by heuristics & data flag \\
   \end{tabularx}
 
   \parbox{\columnwidth}
-  {\caption{Inaccuracy handling hueristics} 
-  	{}
+  {\caption{Inaccuracy handling compared to Panappticon} 
+  	{
+
+        We calculate the percentage of over-connections mitigated with our splitting
+        heuristics, and the percentage of under-connections if wait on primitive is
+        treated as the end boundary of an "atomic" task, which Panappticon applies to
+        background threads. The data does not reflect our "fixes" for learned
+        programing paradigms and data flags.
+    }
   \label{table:statistics}
   }
 \end{table}
