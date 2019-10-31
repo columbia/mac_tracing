@@ -3,6 +3,7 @@
 \footnotesize
 \centering
   \begin{tabularx}{\columnwidth}{l|ccc}
+  \hline
        & \% & \% & user provided \\
 Bug ID & over-connections& under-connections & data flag \\
 \hline
@@ -26,7 +27,7 @@ Bug ID & over-connections& under-connections & data flag \\
   	{
 		We calculate the over-connections mitigated with our splitting heuristics, and
 	the under-connections where wait on primitive is treated as the end boundary,
-	which Panappticon applies to background threads, but breaks an "atomic" task
+	which Panappticon applies to background threads but breaks an "atomic" task
 	of a common callout. The percentages are calculated over the total edges in event graph.
     }
   \label{table:statistics}
@@ -38,9 +39,10 @@ Bug ID & over-connections& under-connections & data flag \\
 \footnotesize
 \centering
   \begin{tabularx}{\columnwidth}{l|cccc}
- 	   &       &\multicolumn{2}{c}{size of path}& hueristic slicing\\
+  \hline
+ 	   &       &\multicolumn{2}{c}{size of path}& hueristics\\
        & user  & \multicolumn{2}{c}{with}  & over \\
-Bug ID & interactions & interaction & heuristics  &  interactive slicing\\
+Bug ID & interactions & interaction & heuristics  & interaction\\
 \hline
 \hline
 1-Chromium  & 13 & 32 & 303 & 9.47\\

@@ -10,7 +10,7 @@ manifested by comparing to normal scenarios.
 \vv{System Preferences} provides a central location in macOS to
 customize system settings, \eg additional monitors configuration.
 \vv{DisableMonitor}~\cite{disablemonitor} provides more functionality,
-enable/disable monitors online. We caught the spinning cursor while we disable
+enable/disable monitors online. We catch the spinning cursor when we disable
 an external monitor and rearrange windows in \vv{Display} panel.
 
 The log collected by \xxx contains 2 cases: 1) a baseline scenario where
@@ -42,12 +42,12 @@ connection and tried reconnections.
 The tracing log contains two cases: 1) a quick network connection during login,
 and 2) Sequel Pro lost connection for a while. Although \xxx identified the
 \spinningnode and \similarnode with ease, the backward slicing from \similarnode
-encountered multiple incoming edges, including one from a kernel thread, where
-batching processing from different applications happens. Interaction is helpful
-and reduces the noise in the path. With compariion to the causal path for
-\similarnode, \xxx reveals that the main thread is blocking on a kernel thread,
-which waits for a ssh thread. Thus we conclude the root cause is the main thread
-blocking for network IO.
+encountered multiple incoming edges, including one from a kernel thread.
+The kernel thread processes tasks from different applications in a batch.
+Interaction in the path slicing is helpful to reduce the noise. With comparison
+to the causal path in normal case, \xxx reveals the main thread is blocking on a
+kernel thread, which waits for a ssh thread. Thus we conclude the root cause is
+the main thread blocking for network IO.
 
 \paragraph{4-Installer}
 
