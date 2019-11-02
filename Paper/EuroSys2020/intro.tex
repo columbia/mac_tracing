@@ -51,14 +51,12 @@ ad hoc synchronization~\cite{xiong2010ad} because data dependency occurs
 even within a single thread (such as the buffer holding the reply in the
 preceding WindowServer example). Although the number of these flags may be
 small, they often express critical causality, and not tracing them would lead
-to many missing edges in the request graph. However, without knowing where
-the flags reside in memory, a tool would have to trace all memory operations,
-incurring prohibitive overhead and adding many superfluous edges to the request
-graph. Third, inferred edges can be superfluous because wake-ups do not
-necessarily reflect causality. Consider an \vv{unlock()} operation waking up an
-thread waiting in \vv{lock()}. This wake-up can just be happenstance and the
-developer's intent is mutual exclusion. However, the two operations can also
-enforce a causal order.
+to many missing edges in the request graph. Third, inferred edges can be
+superfluous because wake-ups do not necessarily reflect
+causality. Consider an \vv{unlock()} operation waking up an thread waiting
+in \vv{lock()}. This wake-up can just be happenstance and the developer's
+intent is mutual exclusion. However, the two operations can also enforce a
+causal order.
 
 We believe that, without fully understanding of application semantics, request
 graphs computed by causal tracing are \emph{inherently} inaccurate and both
@@ -70,9 +68,7 @@ modern applications, it is hopeless to count on manual annotations to ensure
 accurate capture of request graphs.
 
 In this work, we present \xxx, a dramatically different approach in the design
-space of causal tracing. It is desgined for tech-savvy users who are intersted
-in compiling useful bug reports for their daily use applications, whose source
-codes are often not available. As opposed to full manual schema upfront for
+space of causal tracing. As opposed to full manual schema upfront for
 all involved applications and daemons~\cite{barham2004using, reynolds2006pip,
 fonseca2007x}, \xxx calculates an event graph for a duration of the system
 execution with both true causal edges and weak ones, and enables users to
@@ -81,12 +77,25 @@ keeps humans in the loop, as a debugger should rightly do. \xxx queries users a
 judicially few times to (1) resolve a few inaccurate edges that represent false
 dependencies and (2) identify potential dependency due to data flags.
 
-We implement \xxx in macOS, which is closed-source on its frameworks and many
-applications. This closed-srouce environment therefore provides a true test
-of \xxx. We address multiple nuances of macOS that complicate causal tracing,
-and build a system-wide, low-overhead, always-on tracer. \xxx enables users to
-optionally increase the granularity of tracing (\eg, logging call stacks and
-instruction streams) by integrating with existing debuggers such as \vv{lldb}.
+\xxx targets two groups of users in mind: (1) technical users who wanted
+to compile informative bug reports for the applications crucial to them
+and (2) developers of the application or system who wanted to either
+pinpoint the issue in their component or identify which component is
+responsible so they can assign the issue to the corresponding developers.
+Today's applications are often built on top of many third-party,
+closed-source libraries and frameworks such as Cocoa~\cite{cocoa}, and the
+operating system itself is often closed-source.  Besides technical users,
+even developers of the application or system may not have access to the
+code of some critical components in the software stack.  We thus
+explicitly built \xxx to work in closed-source settings.
+
+We implement \xxx in macOS whose frameworks and applications are mostly
+closed-source. This closed-srouce environment therefore provides a true
+test of \xxx. We address multiple nuances of macOS that complicate causal
+tracing, and build a system-wide, low-overhead, always-on tracer. \xxx
+enables users to optionally increase the granularity of tracing (\eg,
+logging call stacks and instruction streams) by integrating with existing
+debuggers such as \vv{lldb}.
 
 We evaluate \xxx on \nbug real-world, open spinning-cursor issues in widely
 used applications such as Chromium browser engine and macOS System Preferences,
@@ -104,21 +113,14 @@ only \cpuoverhead CPU overhead overall.
 %% inaccurate for traditional causal tracing, but, fortunately, an average
 %% of XXX user queries suffice to locate the root causes accurately.
 
-We make the following contributions: 
-\begin{enumerate}
-
-\item We demonstrate conceptual realization that causal tracing is inherently
-inaccurate, and introduce interactive approach in the design space of causal 
-tracing.
-
-\item We build \xxx, performing scalable system-wide causal tracing with little overhead,
-and design its diagnosis algorithm with comparision to normal cases.
-
-\item We use it to 
-diagnose real-world spinning cursors and find root causes for
-performance issues that have remained open for years.
-
-\end{enumerate}
+This paper makes three main contributions: (1) our conceptual realization
+that causal tracing is inherently inaccurate, and our approach of
+interactive causal tracing that explores a novel point in the design
+space; (2) our system \xxx that performs system-wide causal tracing with
+little overhead, embraces imprecision in the event graphs, and diagnoses
+issues using human-in-the-loop algorithms; and (3) our results using \xxx
+to uncover the root causes of 11 real-world macOS spinning cursors, many
+of which have remained open for years.
 
 This paper is organized as follows. In Section~\ref{sec:background}, we
 introduce the causal tracing and prior works. In Section~\ref{sec:overview},
