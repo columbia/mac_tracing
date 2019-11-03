@@ -27,7 +27,7 @@ given font.  Once \vv{fontd} finishes, it sends an IPC reply to wake up
 \vv{render} which in turn wakes up \vv{browser}.  The handling of user
 typing is thus split among at least three processes and their relevant
 threads, and an ideal causal tracing tool would capture these segments
-(vertexes) and their connections (edges) into a generalized control-flow
+(vertices) and their connections (edges) into a generalized control-flow
 graph to aid developer reasoning.
 
 Compared to tools such as \spindump that capture only the current system
