@@ -6,12 +6,11 @@
 
 Prior work relies on the request graph per transaction to identify bottleneck
 and speculate possible causes. Panappticon for Android is one and closest to
-ours in desgin. Their traced events and causality are in a subset of ours.
-It is common to see multiple user inputs are connected into a Panappticon's
-request graph, but the programming paradigm caused the over-connection is hard
-to reveal due to the closed-source Cocoa framework in macOS. We therefore carry
-out the inaccuracy study in ~\S\ref{sec:toystudy} with a non-GUI toy program to
-demonstrate the inherent inaccuracy of causal tracing.
+ours in desgin. Their traced events and causality are in a subset of ours.  We
+therefore carry out the study in ~\S\ref{sec:toystudy} with a microbenchmark to
+demonstrate the inherent inaccuracy of request graph extracted with
+Panappticon's causal tracing. We also measure the effectiveness of AppInsight
+in causal tracing with their methodology.
 
 For real-world case study, we collect performance issues of popular
 applications, because they likely represent the bugs attractive to tech-savvy
