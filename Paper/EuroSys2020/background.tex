@@ -55,18 +55,14 @@ delimit an execution segment.  If this segment installs additional
 callbacks or signals a waiting thread, then AppInsight connects the
 corresponding segments.
 
-Panappticon monitors a mobile system to detect design flaws, harmful
-interactions, and underpowered hardware. It traces low-level events in
-systems and libraries.  To infer execution segment boundaries and
-connections, it assumes two programming idioms: work queue and thread
-pooling.  For work queue, it marks the handling of a work item as an
-execution segment, and connects this segment to the segment that
-dispatches the work item.  For thread pooling, it marks from the wakeup of
-a worker thread to the wait as an execution segment, and connects this
-segment to the segment waking up the worker thread.
-
-
-
+Panappticon detects performance issues in Android applications. It traces
+low-level events in the Android system and libraries.  To infer execution
+segment boundaries and connections, it assumes two programming idioms:
+work queue and thread pooling.  For work queue, it marks the handling of a
+work item as an execution segment, and connects this segment to the
+segment that dispatches the work item.  For thread pooling, it marks from
+the wakeup of a worker thread to the wait as an execution segment, and
+connects this segment to the segment waking up the worker thread.
 
 %% In this section, we illustrate causal tracing and prior work on it. Causal
 %% tracing collects events standing for instrucions executed in CPU and generates
