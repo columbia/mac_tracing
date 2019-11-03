@@ -18,14 +18,15 @@ buttons are beside the window for users to manipulate a chosen app.
 %    \label{fig:toyapp}
 %\end{figure}
 
-In the study, we chose \vv{Sequel Pro} from the main menu and clicked
-the \vv{hide} button. To find the ground truth for the transaction, we
-manually check the tracing log. \vv{AppList} feteches user input events from
-\vv{WindowServer}. The user input event handler invokes \vv{appleeventsd} and
-\vv{launchserviced}, which communicate with the chosen app \vv{Sequel Pro}.
-\vv{Sequel Pro} hides itself and \vv{AppList} updates its main window. During
-the process, daemons like \vv{cfprefsd}, \vv{distnoted}, \vv{fseventsd},
-\vv{syslogd}, \vv{systemstatsd} are invoked for the system's purpose.
+In the study, we chose \vv{Sequel Pro} from the main menu and clicked the
+\vv{Hide}. To find the ground truth for the transaction, we manually
+check the tracing log with extra instrumentation in event handler. \vv{AppList}
+feteches user input events from \vv{WindowServer}. The user input event handler
+invokes \vv{appleeventsd} and \vv{launchserviced}, which communicate with the
+chosen app \vv{Sequel Pro}. \vv{Sequel Pro} hides itself and \vv{AppList}
+updates main window. During the process, \vv{AppList} invokes daemons like
+\vv{cfprefsd}, \vv{distnoted}, \vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd}
+to communicate with system.
 
 The graph generated with Panappticon contains more information than
 what we identified. It has 20 processes involved. We identify at least
@@ -42,7 +43,7 @@ AppInsight is effective in tracking the boundary of the event handler, however,
 it does not track the execution boundaries in daemons. Thus, it can not track
 the activities in \vv{appleeventsd}, \vv{launchserviced} and \vv{Sequel Pro}.
 
-Without the Apple developers' efforts, \xxx's binary instrumentation on runloop is
-still not enough to identify all under- and over-connections, therefore our event graph
-exposes 39 vertices with multiple incoming edges.
+Without the Apple developers' efforts, \xxx's binary instrumentation on runloop
+is also not enough to identify all under- and over-connections, therefore our
+event graph exposes 59 vertices with multiple incoming edges.
 
