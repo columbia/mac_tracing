@@ -1,10 +1,10 @@
 \subsection{Microbenchmark} \label{sec:toystudy}
 
 In the section, we demonstrate the inaccuracy of request graph extracted with
-prior causal tracing system. The study is carried on a toy application from
-Apple's sample code AppList~\cite{applist}. The main window in the toy app shows all running
-applications. \vv{Hide}, \vv{Unhide}, and \vv{Terminate} buttons are beside the
-window for users to manipulate a chosen app. 
+prior causal tracing system. The study is carried out on the application from
+Apple's sample code \vv{AppList}~\cite{applist}. The main window of \vv{AppList}
+shows all running applications. \vv{Hide}, \vv{Unhide}, and \vv{Terminate}
+buttons are beside the window for users to manipulate a chosen app.
 
 %The event handler for hide is as shown in
 %Figure~\ref{fig:toyapp}, and other buttons are similar.
@@ -18,30 +18,31 @@ window for users to manipulate a chosen app.
 %    \label{fig:toyapp}
 %\end{figure}
 
-We study the mouse click on the \vv{hide} button and find the ground truth by
-manual checking the tracing log.  The user input event is passed from the
-WindowServer to the toy app. Inside the toy app, its event handler invokes
-appleeventsd and launchserviced, which communicate with the chosen app. Finally
-the chosen app hide itself. In the process, daemons such as \vv{cfprefsd},
-\vv{distnoted}, \vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd} are invoked for
-the system's purpose.
+In the study, we chose \vv{Sequel Pro} from the main menu and clicked
+the \vv{hide} button. To find the ground truth for the transaction, we
+manually check the tracing log. \vv{AppList} feteches user input events from
+\vv{WindowServer}. The user input event handler invokes \vv{appleeventsd} and
+\vv{launchserviced}, which communicate with the chosen app \vv{Sequel Pro}.
+\vv{Sequel Pro} hides itself and \vv{AppList} updates its main window. During
+the process, daemons like \vv{cfprefsd}, \vv{distnoted}, \vv{fseventsd},
+\vv{syslogd}, \vv{systemstatsd} are invoked for the system's purpose.
 
-The graph generated with Panappticon contains more information than what we
-identified.  It has 20 processes involved. We identify at least 7 of them are
-unrelated to the app. 4 of them are connected because of the WindowServer's
-batching in event processing as shown in
-Figure~\ref{fig:batchingineventprocessing}, and 3 of them are from kernel
-task's batching in timer processing. In addition, 4 UI events(mouse click,
-mouse move, system defined, and mouse exit event) for the toy app are present
-because of batching in runloop blocks~\cite{runloop}. All the UI updates are
-batching in a callout function from the runloop. Panappticon treats the path
-from the user input to the last UI update as critical path.  Without tracking
+The graph generated with Panappticon contains more information than
+what we identified. It has 20 processes involved. We identify at least
+7 of them are unrelated to the app. 4 of them are connected because
+of the \vv{WindowServer}'s batching in event processing as shown in
+Figure~\ref{fig:batchingineventprocessing}, and 3 of them are from kernel task's
+batching in timer processing. In addition, 4 UI events(mouse click, mouse move,
+system defined, and mouse exit event) passed to \vv{AppList} are present in the
+same graph because of batching in runloop blocks~\cite{runloop}. All the UI
+updates are batching in a callout function from the runloop. Without tracking
 the flags in Figure ~\ref{fig:casharedflag}, Panappticon can not seperate them.
-Without the Apple developer's efforts, the instrumentation of runloop in \xxx
-is not enough to identify all execution boundaried, therefore the graph
-generated with our system exposes 39 vertices with multiple incoming edges.
 
-AppInsight is effective in tracking the boundary of the event handler in toy
-app, however, it does not track the execution boundaries in daemons. Thus, it 
-can not track the activities in \vv{appleeventsd}, \vv{launchserviced} and the chosen
-application.
+AppInsight is effective in tracking the boundary of the event handler, however,
+it does not track the execution boundaries in daemons. Thus, it can not track
+the activities in \vv{appleeventsd}, \vv{launchserviced} and \vv{Sequel Pro}.
+
+Without the Apple developers' efforts, \xxx's binary instrumentation on runloop is
+still not enough to identify all under- and over-connections, therefore our event graph
+exposes 39 vertices with multiple incoming edges.
+
