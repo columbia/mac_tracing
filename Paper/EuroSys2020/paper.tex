@@ -28,6 +28,7 @@
 \usepackage{threeparttable}
 \usepackage{listings, multicol}
 \usepackage{color}
+\usepackage{bbding, pifont, amsfonts}
 
 \usepackage{graphicx}
 \graphicspath{{figures/}}
@@ -43,6 +44,9 @@
 \newcommand{\cf}{{cf. }}
 \newcommand{\etal}{{et al. }}
 \newcommand{\vv}[1]{{\textit{#1}}}
+\newcommand{\mycheck}[0]{\ding{51}}
+\newcommand{\mycross}[0]{\ding{55}}
+
 
 % paper-specific definitions
 \newcommand{\sys}[0]{Argus\xspace}
@@ -79,8 +83,6 @@
 \algrenewcomment[1]{\(\triangleright\) #1}
 \newcommand{\LineComment}[1]{\State /* \textit{#1} */}
 %\algnewcommand{\LineComment}[1]{\State \(\triangleright\) #1}
-
-
 \algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
 \algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
 \algtext*{EndCase}%

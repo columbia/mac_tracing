@@ -1,37 +1,54 @@
+%\begin{table}[ht]
+%\footnotesize
+%\centering
+%  \begin{tabularx}{\columnwidth}{l|ccc}
+%  \hline
+%       & \% & \% & user provided \\
+%Bug ID & over-connections& under-connections & data flag \\
+%\hline
+%\hline
+%1-Chromium & 0.02 & 0.02 & 0 \\
+%2-SystemPref & 0.56 & 2.48 & 2 \\
+%3-SequelPro & 0.49 & 0.35 & 0 \\
+%4-Installer & 4.39 & 2.83 & 0 \\
+%5-TeXStudio & 2.43 & 0.58 & 0 \\
+%6-Notes & 2.97 & 11.53 & 0 \\
+%7-TextEdit & 7.97 & 0.72 & 0 \\
+%8-MSWord & 6.72 & 1.04 & 0 \\
+%9-SlText & 4.07 & 0.92 & 0 \\
+%10-TextMate & 2.15 & 2.18 & 0 \\
+%11-CotEditor & 4.81 & 5.32 & 0 \\
+%\hline
+%  \end{tabularx}
+%  \parbox{\columnwidth}
+%  {\caption{Inaccuracy handling compared to Panappticon} 
+%  	\vspace{-0.3cm}
+%  	{
+%		We calculate the over-connections mitigated with our splitting heuristics, and
+%	the under-connections where wait on primitive is treated as the end boundary,
+%	which Panappticon applies to background threads but breaks an "atomic" task
+%	of a common callout. The percentages are calculated over the total edges in event graph.
+%    }
+%  \label{table:statistics}
+%  }
+%
 
 \begin{table}[ht]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|ccc}
+  \begin{tabularx}{\columnwidth}{l|XXX}
   \hline
-       & \% & \% & user provided \\
-Bug ID & over-connections& under-connections & data flag \\
+Bug ID & Panappticon & AppInsight & \xxx\\
 \hline
 \hline
-1-Chromium & 0.02 & 0.02 & 0 \\
-2-SystemPref & 0.56 & 2.48 & 2 \\
-3-SequelPro & 0.49 & 0.35 & 0 \\
-4-Installer & 4.39 & 2.83 & 0 \\
-5-TeXStudio & 2.43 & 0.58 & 0 \\
-6-Notes & 2.97 & 11.53 & 0 \\
-7-TextEdit & 7.97 & 0.72 & 0 \\
-8-MSWord & 6.72 & 1.04 & 0 \\
-9-SlText & 4.07 & 0.92 & 0 \\
-10-TextMate & 2.15 & 2.18 & 0 \\
-11-CotEditor & 4.81 & 5.32 & 0 \\
+2-SystemPref & \mycross(no data flags) & \mycross(not track Windowserver) & \mycheck (2 data flags) \\
+3-SequelPro & \mycross & \mycross(not track sshd) & \mycheck \\
+4-Installer & \mycross & \mycross(not track SecurityAgent or authd)& \mycheck \\
+5-TeXStudio & \mycross & \mycross(not track fseventd) & \mycheck \\
 \hline
   \end{tabularx}
-  \parbox{\columnwidth}
-  {\caption{Inaccuracy handling compared to Panappticon} 
-  	\vspace{-0.3cm}
-  	{
-		We calculate the over-connections mitigated with our splitting heuristics, and
-	the under-connections where wait on primitive is treated as the end boundary,
-	which Panappticon applies to background threads but breaks an "atomic" task
-	of a common callout. The percentages are calculated over the total edges in event graph.
-    }
+  \caption{Effectiveness of debugging for blocking cases} 
   \label{table:statistics}
-  }
 \end{table}
 
 
@@ -70,3 +87,5 @@ Bug ID & interactions & interaction & heuristics  & interaction\\
   \label{table:results}
   }
 \end{table}
+
+
