@@ -22,12 +22,14 @@ Its diagnosis algorithm prefers strong over weak edges, and follows weak
 edges only when no strong edges present.  In case of ambiguity, it queries
 the user for resolution.
 
-Third, \xxx stores extra semantical information in the execution segments
-of the graphs, including system calls, call stacks when certain operations
-such as \vv{mach\_msg} are running, and user actions such as key
-presses. These events enable \xxx to find potential correct vs buggy
-executions for comparative diagnosis, and also provide users necessary
-information for interactive debugging.
+Third, \xxx stores extra information in the execution segments of the
+graphs. Most of this information is semantical, including system calls,
+call stacks when certain operations such as \vv{mach\_msg} are running,
+and user actions such as key presses. These events enable \xxx to find
+potential normal vs buggy executions for comparative diagnosis, and also
+provide users necessary information for interactive debugging.  In
+addition, with users' help, \xxx also captures key data flag reads and
+writes which often entail crucial causality.
 
 %% The event graph is a generalized control-flow graph which includes inter-thread
 %% and inter-process dependencies. To construct event graphs, \xxx collects three
