@@ -1,26 +1,3 @@
-%\begin{table}[ht]
-%\footnotesize
-%\centering
-%  \begin{tabularx}{\columnwidth}{l|ccc}
-%  \hline
-%       & \% & \% & user provided \\
-%Bug ID & over-connections& under-connections & data flag \\
-%\hline
-%\hline
-%1-Chromium & 0.02 & 0.02 & 0 \\
-%2-SystemPref & 0.56 & 2.48 & 2 \\
-%3-SequelPro & 0.49 & 0.35 & 0 \\
-%4-Installer & 4.39 & 2.83 & 0 \\
-%5-TeXStudio & 2.43 & 0.58 & 0 \\
-%6-Notes & 2.97 & 11.53 & 0 \\
-%7-TextEdit & 7.97 & 0.72 & 0 \\
-%8-MSWord & 6.72 & 1.04 & 0 \\
-%9-SlText & 4.07 & 0.92 & 0 \\
-%10-TextMate & 2.15 & 2.18 & 0 \\
-%11-CotEditor & 4.81 & 5.32 & 0 \\
-%\hline
-%  \end{tabularx}
-%  \parbox{\columnwidth}
 %  {\caption{Inaccuracy handling compared to Panappticon} 
 %  	\vspace{-0.3cm}
 %  	{
@@ -41,13 +18,13 @@
 Bug ID & Panappticon & AppInsight & \xxx\\
 \hline
 \hline
-2-SystemPref & \mycross(no data flags) & \mycross(not track Windowserver) & \mycheck (2 data flags) \\
-3-SequelPro & \mycross & \mycross(not track sshd) & \mycheck \\
-4-Installer & \mycross & \mycross(not track SecurityAgent or authd)& \mycheck \\
-5-TeXStudio & \mycross & \mycross(not track fseventd) & \mycheck \\
+2-SystemPref & \mycross(data flags) & \mycross(Windowserver) & \mycheck (2 data flags) \\
+3-SequelPro & \mycross() & \mycross(sshd) & \mycheck \\
+4-Installer & \mycross() & \mycross(SecurityAgent, authd)& \mycheck \\
+5-TeXStudio & \mycross(appkit event, timer, batching) & \mycross(fseventd) & \mycheck(3 vertices with multicoming edges)\\
 \hline
   \end{tabularx}
-  \caption{Effectiveness of debugging for blocking cases} 
+  \caption{Compare Effectiveness of Causal Tracing System} 
   \label{table:statistics}
 \end{table}
 
@@ -79,7 +56,7 @@ Bug ID & interactions & interaction & heuristics  & interaction\\
   {\caption{Path slicing for "buggy" cases} 
   	\vspace{-0.3cm}
 	{
-	we noticed that \xxx's query on incoming edges can be answered with the most
+	We noticed that \xxx's query on incoming edges can be answered with the most
 	recent one, thus we automated the path slicing in \xxx with the heuristics.
 	The length of the path is usually much longer due to excessive traverses to
 	daemons and kernel task.
