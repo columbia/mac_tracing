@@ -1,36 +1,47 @@
-\subsection{Inaccuracy study} \label{sec:toystudy}
+\subsection{Microbenchmark} \label{sec:toystudy}
 
 In the section, we demonstrate the inaccuracy of request graph extracted with
-causal tracing and the necessary interactions in path slicing with study on a
-toy program as shown in Figure~\ref{fig:toyapp}. It accesses the \vv{Contacts}
-and search with last name \vv{Smith}. We inject two tracing data in the source
-code at the beginning and end to mimic an end-to-end transaction.
+prior causal tracing system. The study is carried on a toy application from
+Apple's sample code AppList~\cite{applist}. The main window in the toy app shows all running
+applications. \vv{Hide}, \vv{Unhide}, and \vv{Terminate} buttons are beside the
+window for users to manipulate a chosen app. 
 
-\begin{figure}[t]
-\begin{lstlisting}
-//insert debug info begin
-ABAddressBook *AB = [ABAddressBook sharedAddressBook];
-ABSearchElement *nameIsSmith =
-	[ABPerson searchElementForProperty:kABLastNameProperty...];
-NSArray *ret = [AB recordsMatchingSearchElement:nameIsSmith]; 
-//insert debug info end
-\end{lstlisting}
-\vspace{-0.5cm}
-    \caption{Code snippet: access contacts}
-    \label{fig:toyapp}
-\end{figure}
+%The event handler for hide is as shown in
+%Figure~\ref{fig:toyapp}, and other buttons are similar.
+%\begin{figure}[t]
+%\begin{lstlisting}
+%NSRunningApplication *selectedApp = [arrayController.selectedObjects objectAtIndex:0];
+%[selectedApp hide];
+%\end{lstlisting}
+%\vspace{-0.5cm}
+%    \caption{microbenchmark ui event handler}
+%    \label{fig:toyapp}
+%\end{figure}
 
-The inherent inaccuracy of request graph is exposed with ambiguous edges. The
-asynchronous calls are always connected to their invocations in Panappticon.
-However, some of them are hard to decide. In the toy program, the causality
-between timer create and timer cancel introduces unrelated applications, e.g.
-\vv{mds} and \vv{trace} to the request graph. Removing this kind of edges
-on the other hand breaks the connections of event traces produced by line 2
-and line3. Thus the request graph becomes incomplete in Panappticon. \xxx
-mitigates the under-conneciton with the tracking of shared flags, \vv{AB} and
-\vv{nameIsSmith}.
+We study the mouse click on the \vv{hide} button and find the ground truth by
+manual checking the tracing log.  The user input event is passed from the
+WindowServer to the toy app. Inside the toy app, its event handler invokes
+appleeventsd and launchserviced, which communicate with the chosen app. Finally
+the chosen app hide itself. In the process, daemons such as \vv{cfprefsd},
+\vv{distnoted}, \vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd} are invoked for
+the system's purpose.
 
-%The generated request graph, with the causality between timer create and timer
-%cancel, include 13,842 edges and 4,180 nodes. 53 of them have more than 2
-%incoming edges. of them are encountered in slicing the path from the first to
-%the last line in the code slicing.
+The graph generated with Panappticon contains more information than what we
+identified.  It has 20 processes involved. We identify at least 7 of them are
+unrelated to the app. 4 of them are connected because of the WindowServer's
+batching in event processing as shown in
+Figure~\ref{fig:batchingineventprocessing}, and 3 of them are from kernel
+task's batching in timer processing. In addition, 4 UI events(mouse click,
+mouse move, system defined, and mouse exit event) for the toy app are present
+because of batching in runloop blocks~\cite{runloop}. All the UI updates are
+batching in a callout function from the runloop. Panappticon treats the path
+from the user input to the last UI update as critical path.  Without tracking
+the flags in Figure ~\ref{fig:casharedflag}, Panappticon can not seperate them.
+Without the Apple developer's efforts, the instrumentation of runloop in \xxx
+is not enough to identify all execution boundaried, therefore the graph
+generated with our system exposes 39 vertices with multiple incoming edges.
+
+AppInsight is effective in tracking the boundary of the event handler in toy
+app, however, it does not track the execution boundaries in daemons. Thus, it 
+can not track the activities in \vv{appleeventsd}, \vv{launchserviced} and the chosen
+application.
