@@ -1,16 +1,18 @@
 \section{Handling Inaccuracies in Causal Tracing}\label{sec:inaccuracy}
 
-\subsection{Inherent Inaccuracies}
-\input{patternfigure}
-
 As explained in \S\ref{sec:background}, causal tracing builds a graph to connect
 execution segments on behalf of a request that spread across separate threads
-and processes. Based on our experience of building a causal tracing system on
+and processes. Based on our experience building a causal tracing system on
 commercial closed-source macOS, we believe such graphs are inherently inaccurate
 and contain both \emph{over-connections} which do not really map to
 causality, and \emph{under-connections}, missing edges between two vertices
-with one causally influencing the other. In this section, we present several
-inherently inaccurate patterns we observed and their examples.
+with one causally influencing the other. In this section, we present
+several inherently inaccurate patterns (\S\ref{subsec:pattern}) and \xxx's
+mitigation strategies (\S\ref{subsec:handle}).
+
+\subsection{Inherent Inaccuracies} \label{subsec:pattern}
+
+\input{patternfigure}
 
 \subsubsection{Over Connections} \label{subsec:overconnections}
 
@@ -87,3 +89,5 @@ fires, it sets flag \vv{sCGEventIsMainThreadSpinning} and invokes
 that accesses to these shared-memory flags are controlled via a lock --
 the lock is used for mutual exclusion, and does not imply a happens before
 relationship.
+
+\input{handling_inaccuracy}

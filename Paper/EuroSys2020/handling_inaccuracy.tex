@@ -1,4 +1,4 @@
-\subsection{Handling Inaccuracies}
+\subsection{Handling Inaccuracies} \label{subsec:handle}
 
 In this section, we discuss how \xxx leverage heuristics to mitigate
 over-connections and under-connections.
@@ -10,7 +10,7 @@ an execution segment that appears mixing handling of multiple requests.
 
 Specifically, \xxx splits based on three criteria. First, \xxx recognizes a small
 set of well-known batch processing patterns such as \vv{dispatch\_mig\_server()}
-in \S\ref{sec:inaccuracy} and splits the batch into individual items. Second,
+(\S\ref{subsec:overconnections}) and splits the batch into individual items. Second,
 when a wait operation such as \vv{recv()} blocks, \xxx splits the segment at the
 entry of the blocking wait. The rationale is that blocking wait is typically
 done at the last during one step of event processing. Third, if a segment
@@ -40,5 +40,5 @@ cases and detects where the control flow diverges. \xxx exposes register
 values for the basic blocks before the divergence and uncovers the address
 of the data flag. Once the user identifies a data flag, \xxx traces it using
 either binary instrument, such as the \vv{need\_display} flag in CoreAnimation
-(\S\ref{sec:inaccuracy}), or with \xxx's watchpoint tool. \xxx add a causal edge
-from a write to a data flag to its corresponding read.
+(\S\ref{subsec:underconnections}), or with \xxx's watchpoint tool. \xxx
+add a causal edge from a write to a data flag to its corresponding read.
