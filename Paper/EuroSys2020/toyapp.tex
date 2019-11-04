@@ -39,22 +39,22 @@ event graph exposes 59 vertices with multiple incoming edges.
 \begin{table}[tb]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|X}
+  \begin{tabularx}{\columnwidth}{l|X|X}
 \hline
-Microbenchmark & Description\\
+Microbenchmark & Panappticon & \xxx \\
 \hline\hline
-AppList & AppList manipulates running apps in system.\\
-        & \mycross Panappticon connects 7 unrelated apps due to lack of boundaries on batching.\\
-        & \mycross \xxx event graph contains 59 vertices with multi-incoming edges.\\
+AppList (manipulates running apps in system)
+& \mycross connects 7 unrelated apps due to lack of boundaries on batching.
+        & \mycross event graph contains 59 vertices with multi-incoming edges.\\
 \hline
-AbSearch & AbSearch searches Contacts with first name.\\
-         & \mycross Panappticon misses connections to the searching\\
-         & element constuction due to lack of tracing data flag.\\
-         & \mycross \xxx event graph contains 72 vertices with multi-incoming edges.\\
+AbSearch (searches Contacts with first name)
+         & \mycross misses connections to the searching
+          element constuction due to lack of tracing data flag.
+         & \mycross event graph contains 72 vertices with multi-incoming edges.\\
 \hline
-AnimationSlider & AnimationSlider moves slide bar with input percentage in textfield.\\
-            & \mycross Panappticon connects 5 unrelated apps due to lack of boundaries on batching.\\
-            & \mycross \xxx event graph contains 9 vertices with multi-incoming edges.\\
+AnimationSlider (moves slide bar with input percentage in textfield)
+            & \mycross connects 5 unrelated apps due to lack of boundaries on batching.
+            & \mycross event graph contains 9 vertices with multi-incoming edges.\\
 \hline
   \end{tabularx}
 \caption{Inaccuray of request graph for microbenchmarks.}
