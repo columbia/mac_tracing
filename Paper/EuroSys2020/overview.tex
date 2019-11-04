@@ -84,8 +84,8 @@ potential cases.
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
                 Specifically, \xxx first finds a \similarnode to the spinning one based
-		on the sequence of events such as system calls in each vertex (see end of the
-                subsection for more details). It then traverses backwards from the \similarnode
+		on the sequence of events such as system calls in each vertex (more details
+                at the end of this subsection). It then traverses backwards from the \similarnode
                 to find the normal wake-up path. For each thread in the wake-up path, it examines
                 the vertex in the thread right before the time that the \spinningnode waits. If this
                 vertex is also problematic (e.g., another LongWait), \xxx appends it to the path of
