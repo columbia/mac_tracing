@@ -65,15 +65,15 @@ improve accuracy~\cite{reynolds2006pip, fonseca2007x}, modern applications use
 more and more third-party libraries, whose source code is not available. Given
 the frequent use of custom synchronizations, work queues, and data flags in
 modern applications, it is hopeless to count on manual annotations to ensure
-accurate capture of request graphs.
+accurate capture of request graphs of the entire system.
 
 In this work, we present \xxx, a dramatically different approach in the design
 space of causal tracing. As opposed to full manual schema upfront for
 all involved applications and daemons~\cite{barham2004using, reynolds2006pip,
 fonseca2007x}, \xxx calculates an event graph for a duration of the system
 execution with both true causal edges and weak ones, and enables users to
-provide necessary schematic information on demand in diagnosis. Specifically, it
-keeps humans in the loop, as a debugger should rightly do. \xxx queries users a
+provide necessary schematic information on demand in diagnosis,
+as a debugger should rightly do. Specifically, \xxx queries users a
 judicially few times to (1) resolve a few inaccurate edges that represent false
 dependencies and (2) identify potential dependency due to data flags.
 
@@ -122,13 +122,12 @@ issues using human-in-the-loop algorithms; and (3) our results using \xxx
 to uncover the root causes of 11 real-world macOS spinning cursors, many
 of which have remained open for years.
 
-This paper is organized as follows. In Section~\ref{sec:background}, we
-introduce the causal tracing and prior works. In Section~\ref{sec:overview},
-we present an overview of using \xxx and a Chromium example. In
-Section ~\ref{sec:inaccuracy}, we report inherently inaccuracy
-patterns observed in macOS , and Section~\ref{sec:implementation}
-describes our tracing implementation and tools for user interaction.
-Section~\ref{sec:eval} demonstrates the methodology and results of case
-studies, and the performance evaluation. We summarize related work
-in Section~\ref{sec:related-work}, and end with conclusion in Section
-~\ref{sec:conclusion}.
+This paper is organized as follows. Section~\ref{sec:background}
+introduces causal tracing and prior work. Section~\ref{sec:overview},
+presents an overview of \xxx including its design choices, work flow,
+diagnosis algorithm, and limitations.  Section ~\ref{sec:inaccuracy}
+reports inherently inaccuracy patterns observed in macOS and \xxx's
+mitigation. Section~\ref{sec:implementation} describes several
+implementation details of \xxx.  Section~\ref{sec:eval} explains our
+evaluation methodology and results.  Section~\ref{sec:related-work}
+summarizes related work.  Section~\ref{sec:conclusion} concludes.

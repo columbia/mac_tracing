@@ -22,9 +22,8 @@ recently, Microsoft Edge~\cite{chromiumurl}. When a user types a string in
 Chromium, the \vv{browser} process sends an IPC message to the \vv{render}
 process where the rendering view and WebKit code run, to calculate the
 bounding box of the string.  \vv{render} then queries \vv{fontd}, the font
-service daemon, to calculate the height and length of the string in the
-given font.  Once \vv{fontd} finishes, it sends an IPC reply to wake up
-\vv{render} which in turn wakes up \vv{browser}.  The handling of user
+service daemon, for font dimensions.  Once \vv{fontd} replies and wakes up
+\vv{render}, \vv{render} in turn wakes up \vv{browser}.  The handling of user
 typing is thus split among at least three processes and their relevant
 threads, and an ideal causal tracing tool would capture these segments
 (vertices) and their connections (edges) into a generalized control-flow
