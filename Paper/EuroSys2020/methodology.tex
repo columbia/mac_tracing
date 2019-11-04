@@ -4,41 +4,32 @@
 %%study. Then we compare \xxx to its closest prior system, and describe how we
 %%evaluate the manual efforts needed in diagnosis.
 
-Prior work relies on the request graph per transaction to identify bottleneck
-and speculate possible causes. Panappticon for Android is one and closest to
-ours in desgin. Their traced events and causality are in a subset of ours.  We
-therefore carry out the study in ~\S\ref{sec:toystudy} with a microbenchmark to
-demonstrate the inherent inaccuracy of request graph extracted with
-Panappticon's causal tracing. We also measure the effectiveness of AppInsight
-with their methodology.
+Prior work relies on the request graph per transaction to identify bottlenecks
+and speculate possible causes. One of them, Panappticon for Android, is
+closest to ours in desgin. Their traced events and causality are in a subset
+of ours. To demonstrate the inherent inaccuracy of request graph extracted
+with Panappticon's causal tracing, we therefore carry out the study in
+~\S\ref{sec:toystudy} with microbenchmark, and also measure the effectiveness of
+AppInsight's methodology.
 
-For real-world case study, we collect performance issues of popular
-applications, because they likely represent the bugs attractive to tech-savvy
-users. Among the 26 bugs from the github reports, we reproduced 3 of them
-successfully. Others are failed either due to the version capacity in ElCapitan
-or insufficient information in the bug report. 8 performance issues are
-collected from the daily use applications in the auther's laptop. As a result,
-we study 11 reproducible cases. 
+In ~\S\ref{sec:casestudy}, we carry out real-world case study with collected
+performance issues of popular applications, because they likely represent the
+bugs attractive to tech-savvy users. Among the 26 bugs we examined from the
+Github reports, most of them are not able to reproduce due to our system version
+or insufficient information. We thus decide to focus on 3 bugs reproduced
+successfully. 8 additional performance issues are collected from the daily use
+applications in the auther's laptop. As a result, we study 11 reproducible
+cases.
 
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
-Now we describe how we measure the effects of heuristics which \xxx uses to
-mitigate the graph inaccuracy, and manual efforts required in the diagnosis. We
-first enable tracing component and reproduce the performance isssues in macOS.
-The tracing data are collected to construct an event graph, which contains
-vertices with multi-incoming edges or weak edge.
-We run \xxx diagnosis algorithm, and count how many times we encounter those vertices.
-%When \xxx constructs event graph with the trace log, we measure the number of
-%over-connection and under-connection mitigated by heuristics. After this step, a
-%vertex in the graph can still have multiple incoming edges or weak edge. We then
-%run \xxx diagnosis algorithm with a human in the loop, and count the times when
-%multiple incoming edges or weak edges are encountered. Users can query the event
-%graph for assistance or make decisions with domain knowledge.
-In the worst case
-that we make a wrong decision, before reaching the end of path slicing, \xxx
-allows them to relocate the path to a particular vertex.
 
-%Specifically, the number presented in the following section reflects our
-%experience of debugging. It does not include the situation of relocating vertex
-%in path slicing, which we have not encountered in our case studies.
+Now we describe how we measure the heuristics which \xxx uses to mitigate graph
+inaccuracy, and manual effort required in the diagnosis. We first enable tracing
+component in our laptop and reproduce the 11 performance isssues. The tracing
+data are collected to construct event graphs, which contain vertices with
+multi-incoming edges or weak edges. We run the \xxx diagnosis algorithm, and
+count how many times we encounter those vertices. In the worst case that we make
+a wrong decision, before reaching the end of path slicing, \xxx allows us to
+relocate the path to a particular vertex.
