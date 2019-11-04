@@ -1,12 +1,14 @@
 \section{Overview}\label{sec:overview}
 
-In this section, we first describe \xxx event graphs
-(\S\ref{subsec:eventgraph}). Then we explain how \xxx diagnoses performance
-anomaly with a concrete example(\S\ref{subsec:overflow}).
+In this section, we describe the design choices in \xxx's event graphs
+(\S\ref{subsec:eventgraph}), its work flow (\S\ref{subsec:overflow}), its
+diagnosis algorithm (\S\ref{subsec:debug}), an example diagnosis session
+on a real Chromium spinning-cursor issue (\S\ref{subsec:chromium}), and
+its limitations (\S\ref{subsec:limit}).
 
 \input{graphbasic}
 
-\subsection{Argus Work Flow} \label{subsec:overflow}
+\subsection{\xxx Work Flow} \label{subsec:overflow}
 
 \begin{figure}[tb]
     \centering
@@ -15,43 +17,37 @@ anomaly with a concrete example(\S\ref{subsec:overflow}).
     \label{fig:argus-overview}
 \end{figure}
 
-In this section, we describe the steps that a user takes to investigate a
-performance anomaly with \xxx.  Figure~\ref{fig:argus-overview} shows \xxx's
-work flow with an example of a user investigating a performance problem in
-Chromium.  The system wide tracing tool, which collects data from \xxx
-instrumented libraries and kernel, generates logs. They are transformed into an
-\emph{event graph} in \xxx's graph construction component. Diagnosis and
-inference are performed within this graph, in a semi-automated fashion.  As
-shown in Figure~\ref{fig:argus-overview}, the \xxx interactive debugger asks
-the user to choose one edge in a subgraph. With this type of interaction, \xxx
-runs its diagnosis algorithm and reports the root cause vertices.  Next, we
-describe how \xxx assists the user to diagnose a performance issue.
+\xxx operates in two stages as shown in
+Figure~\ref{fig:argus-overview}. In the first stage, its system-wide
+tracing tool collects events from \xxx-instrumented libraries and kernel
+using a ring buffer and periodically flushes them to disk.  Its overhead
+is small, so a user may run this tool continuously during normal usage of
+her computer and invoke \xxx to diagnose when a performance issue occurs.
+Alternatively, she can run this tool reactively once she experiences an
+issue, and reproduce the issue to collect the events for diagnosis.
 
-\subsubsection{Initiate the diagnosis}
+In the second stage, the user runs \xxx to diagnose in a semi-automated
+manner.  \xxx's algorithm constructs an event graph from the traced events
+and traverses the graph to search for the root cause of the performance
+issue.  Depending on its finding, it queries the user interactively to
+resolve ambiguity such as determining which edge \xxx should follow when a
+vertex has multiple incoming edges.  The result from this stage is either
+the root cause of the performance issue or that \xxx needs more data such
+as user annotation of a data flag or call stacks for the system calls that
+the application issues.  Such fine-grained data is not captured by default
+to reduce tracing overhead.  The user can always go back to the first
+stage to gather such data and diagnose again.
 
-Compared to prior works which try to identify performance issue with critical
-paths, \xxx takes the reported issue by system or users as input. It leverages
-the semantic events in the graph to locate the vertex representing the reported
-issue and initiate the diganosis.
+\subsection{Diagnosis Algorithm} \label{subsec:debug} \label{subsec:similarvertex}
 
-Consider a common performance bug on macOS, the \emph{spinning cursor}, which
-indicates the current application's main thread has not processed any UI events
-for over two seconds. \vv{WindowServer} throws \vv{spinning cursor} with the
-collaboration of the application's \vv{NSEvent} thread. The \vv{NSEvent}
-thread fetches \vv{CoreGraphics} events from \vv{WindowServer}, converts and
-creates \vv{NSApp} events for the main thread, and arms a timer to monitor
-the event's wait time. If the main thread fails to process an event before
-the timer fires, the \vv{NSEvent} thread notifies \vv{WindowServer} via
-``\vv{CGSConnectionSetSpinning}'', and \vv{WindowServer} draws a \vv{spinning
-cursor}.
-
-To initialize debugging a \vv{spinning cursor}, \xxx first constructs an event
-graph from the system-wide event log.  It then checks the semantic events from
-the \vv{NSEvent} thread, identifies the time when the perfomance anomaly
-happens, the invocation of ``\vv{CGSConnectionSetSpinning}'', and finds
-\spinningnode in the main thread which contains the ongoing events concurrent.
-
-\subsubsection{Diagnosis with Graph}\label{subsec:debug}
+To initiate diagnosis, \xxx needs a problem vertex in the event graph to
+begin with. While its algorithms and techniques apply to general
+performance issues, it currently targets spinning cursors -- macOS
+displays them when the current application has not processed any UI events
+for over two seconds -- because they are quite annoying to users,
+especially several of the authors.  The problem vertex is the one in the
+application's main thread, the designated UI-handling thread in macOS,
+concurrent to the spinning cursor.
 
 \input{ArgusAlgorithm}
 
@@ -87,32 +83,47 @@ potential cases.
 		the wake-up has been missing. \xxx handles this case by finding a normal
 		scenario where the wake-up indeed arrives, and then figures out which wake-up
 		edge is missing in the spinning scenario along the expected wake-up path.
-		Specifically, \xxx first finds a \similarnode to the spinning one based
-		on the event sequences in each vertex(\ref{subsec:similarvertex}). It then traverses
-		backwards from the \similarnode to find the normal wake-up path. For each
-		thread in the wake-up path, it examines the vertex in the thread right before
-		the \spinningnode waits. If this vertex is also abnormal, \xxx appends it
-		to the path of \rootcausenodes, and applies Function \textit{Diagnose} recursively
-		to diagnose ``the culprit of the culprit''. For each such vertex, it queries the
-		user to determine whether to proceed or stop, because based on our experience
-		a few iterations are adequate to manifest the root cause.
+                Specifically, \xxx first finds a \similarnode to the spinning one based
+		on the sequence of events such as system calls in each vertex (see end of the
+                subsection for more details). It then traverses backwards from the \similarnode
+                to find the normal wake-up path. For each thread in the wake-up path, it examines
+                the vertex in the thread right before the time that the \spinningnode waits. If this
+                vertex is also problematic (e.g., another LongWait), \xxx appends it to the path of
+                \rootcausenodes, and applies
+                Function \textit{Diagnose} recursively to diagnose ``the culprit of the culprit.''
+                For each such vertex, it queries the user to determine whether to proceed or stop.
+                Based on our experience, a few iterations suffice to pinpoint the root cause.
 		%the user needs to inspect only a few vertices to find the root cause.
 
 \end{itemize}
-\noindent
-Our experience suggests that the first case is the most common, but the
-second and third represent more severe bugs. Long-running CPU operations tend to
-be more straightforward to diagnose with existing tools such as \spindump except
-they do not connect CPU operations back to daemons and UI events. Repeated yielding or
-long waiting cases involve multiple threads and processes, and are extremely
-hard to understand and fix even for the application's original developers.
-Therefore, issues remain unaddressed for years and significantly impact the
-user experience. Algorithm~\ref{alg:alg-diagnosis} is semi-automated but can
-integrate user input to leverage hypotheses or expert knowledge
-as to why a hang may occur. Our results show that user inputs, albeit few, are
-crucial in this process (\S\ref{sec:casestudy}).
 
-\subsubsection{Chromium Spinning Cursor Example}
+Our experience suggests that the first case is the most common, but the
+second and third represent more severe bugs. Long-running CPU operations
+tend to be more straightforward to diagnose with existing tools such as
+\spindump except they do not connect CPU operations back to daemons and UI
+events. Repeated yielding or long waiting cases involve multiple threads
+and processes, and are extremely hard to understand and fix even for the
+application's original developers.  Such issues may remain unresolved for
+years, significantly degrading user experience.
+
+Algorithm~\ref{alg:alg-diagnosis} is semi-automated, integrating user
+input to leverage hypotheses or expert knowledge as to why a hang may
+occur. Our results show that user inputs, albeit few, are crucial
+(\S\ref{sec:casestudy}).
+
+\para{Finding \similarnodes.} \xxx finds \similarnodes to the spinning one
+as follows. It computes a signature based on the event sequence in each
+vertex. For each system call, it extracts the system call name, key
+parameters, and the call stack. If the same system call repeats, \xxx
+extracts only one avoid treating vertices as dissimilar simply due to
+nonessential factors (e.g., variable number of \vv{write()} calls due to
+different data sizes).  It extracts return values, too, except for wait
+operations because the difference between a normal node and a spinning one
+might just be the return value of a wait operation.  If \xxx finds
+multiple \similarnodes, \xxx usually chooses the most recent one
+heuristically.
+
+\subsection{Chromium Spinning Cursor Example} \label{subsec:chromium}
 
 \begin{figure}[tb]
 	\footnotesize
@@ -124,7 +135,7 @@ shown, not their threads.}
 \end{figure}
 
 One of the authors experienced first-hand performance issue
-in Chromium. She tried to type in
+in the Chromium browser. She tried to type in
 the Chromium search box a non-English word with a default Input Method Editor
 shipped with MacOS. The browser appeared frozen and the spinning cursor showed
 for a few seconds. Afterwards everything went back to normal. This issue is
@@ -183,40 +194,26 @@ into a livelock. To verify this diagnosis, we shortened the timeout in the
 \vv{psynch\_cv\_wait()} called in the Chromium browser to 150 ms, which
 proportionally reduced how often this spinning cursor occurs.
 
-\subsection{Similar Vertex Indetification}\label{subsec:similarvertex}
+\subsection{Limitations} \label{subsec:limit}
 
-\xxx leverages a normal scenario to discover missing wake-up edges in \vv{LongWait}
-cases. The normal scenario is identified from the \similarnode which shares
-the same high level semantics as the \spinningnode, but exposes different
-execution results.
+\xxx is designed to support technical users or developers for interactive
+diagnosis of performance issues.  It is not for ordinary users without
+programming expertise.
 
-\xxx identifies the \similarnodes first by inferring its high level semantics
-with semantic events, and its programming purpose with communication events
-which form edges in the graph. The semantic events include system calls, call
-stacks, and user inputs. Their sequential order and runtime unrelated attributes
-are treated as hallmarks. For example, in call stacks, \xxx compares vertices
-with symbol names instead of memory addresses. The communication events include
-messages, dispatch queue operations, runloop operations, \dataflagread and
-\dataflagwrite. The process names of peer vertices are checked, as they reflect
-the developers' intent, for example, to request service from a particular
-helper tool. More over, a user can also instruct \xxx to inspect preceeding
-vertices to improve identification accuracy. Then \xxx discriminates the
-execution results to filter out spinning scenarios.  with the time cost and
-wait result in the vertex by default. If multiple \similarnodes are identified,
-\xxx usually chooses the most recent one heuristically.
+\xxx may require that a performance issue be reproducible so it can
+capture fine-grained event traces including data flag accesses and call
+stacks.  Fortunately, a performance issue that never reproduces is
+probably not as annoying as one that occurs now and then.  Changing
+tracing granularity may perturb timing, causing some
+timing-nondeterministic issues to disappear.  However, performance issues
+tend to last a while for them to be problematic, and we have not
+experienced such nondeterminism in our evaluation.
 
-\subsection{Limitations}
-
-\xxx is designed to support interactive debugging of performance issues. It
-requires a user to reproduce a performance issue, in the following situations:
-(1) \xxx need capture more fine-grained event traces like accesses to data
-flags to mitigate under-connection of event graph; (2) The root cause vertices
-reported by \xxx lack high-level semantics, so \xxx need integrate \vv{llbd} to
-gather more information like call stacks. Fortunately, a performance issue that
-never reproduces is probably not as annoying as one that occurs now and then. On
-the other hand, the blocking issue always showing up and never signaled normally
-are out of the debugging range of \xxx, because \xxx's diagnosis algorithm never
-finds its compariable normal causal path.
+To diagnose spinning cursors caused other than long running CPU
+operations, \xxx requires a normal case to compare against.  This
+requirement should generally be fine because if the application always
+causes a spinning cursor, the issue is most likely already caught during
+testing.
 
 We implemented \xxx in the closed-source macOS which presents a harsh test,
 but have not ported \xxx to other operating systems yet. It is possible
