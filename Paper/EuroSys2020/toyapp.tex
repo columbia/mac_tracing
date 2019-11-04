@@ -59,39 +59,73 @@ all daemons as well as in \vv{Sequel Pro} itself.
 %event graph exposes 59 vertices with multiple incoming edges.
 %
 \begin{table}[tb]
-\footnotesize
-\centering
-  \begin{tabularx}{\columnwidth}{l|l|l}
+	\footnotesize
+	\centering
+	\begin{tabularx}{\columnwidth}{l|l|l}
+		\hline
+		Microbenchmark & Panappticon & \xxx \\
+		\hline\hline
+		\begin{tabular}{@{}l@{}}
+			AppList\\
+			(minimize a\\
+			running app)
+		\end{tabular}
+		& 
+		\begin{tabular}{@{}l@{}}
+			have 7 unrelated \\
+			apps due missing\\
+			boundaries of batching.
+		\end{tabular}
+		& 
+		\begin{tabular}{@{}l@{}}
+			contain 59 vertices\\
+			with multiple\\
+			incoming edges.
+		\end{tabular}
+		\\
+		\hline
+		\begin{tabular}{@{}l@{}}
+			AbSearch\\
+			(search Contacts\\
+			with first name\\
+			Smith )
+		\end{tabular}
+		 & 
+		\begin{tabular}{@{}l@{}}
+			miss the searching\\
+			element construction\\
+			in handler for lack of\\
+			tracing data flag.
+		\end{tabular}
+		 &
+		\begin{tabular}{@{}l@{}}
+			contain 72 vertices\\
+			with multiple\\
+			incoming edges.
+		\end{tabular}
+		\\
+		\hline
+
+		\begin{tabular}{@{}l@{}}
+		AnimatedSlider\\
+		(move slider\\
+		with percentage\\
+		in textfield)
+		\end{tabular}
+            &
+		\begin{tabular}{@{}l@{}}
+		connect 5 unrelated apps\\
+		for lack of boundaries \\
+		on batching.
+		\end{tabular}
+            &
+		\begin{tabular}{@{}l@{}}
+		contain 9 vertices with\\
+		multiple incoming\\
+		edges.
+		\end{tabular}
+		\\
 \hline
-Microbenchmark & Panappticon & \xxx \\
-\hline\hline
-	\begin{tabular}{@{}l@{}}
-AppList (minimize a \\
-running app)
-	 \end{tabular}
-& 
-	\begin{tabular}{@{}l@{}}
-\mycross connects 7 unrelated \\
-apps due to lack of boundaries\\
-on batching.
-	 \end{tabular}
-& 
-	\begin{tabular}{@{}l@{}}
-\mycross event graph contains\\
-59 vertices with multi-incoming\\
-edges.
-	 \end{tabular}
-\\
-\hline
-%AbSearch (search Contacts with first name)
-%         & \mycross misses connections to the searching
-%          element constuction due to lack of tracing data flag.
-%         & \mycross event graph contains 72 vertices with multi-incoming edges.\\
-%\hline
-%AnimationSlider (move slide bar with input percentage in textfield)
-%            & \mycross connects 5 unrelated apps due to lack of boundaries on batching.
-%            & \mycross event graph contains 9 vertices with multi-incoming edges.\\
-%\hline
   \end{tabularx}
 \caption{Inaccuray of request graph for microbenchmarks.}
 \label{table:microbenchmarks}

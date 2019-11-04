@@ -5,7 +5,7 @@ CPU. Most text editing apps fall into this bug category. We studied bugs on
 TeXstudio, TextEdit, Microsoft Word, SublimeText, TextMate and CotEditor,
 to reveal the root causes.
 
-\paragraph{5-TeXStudio}
+\para{5-TeXStudio}
 
 \vv{TeXstudio}~\cite{TeXStudio} is an integrated writing environment for
 creating LaTeX documents. We noticed a user reported spinning cursor on the
@@ -21,7 +21,7 @@ is busy to CalculateGrowingBlockSize, even without modifications to the file.
 The advantage of \xxx over other debugging tools is it narrows down the root
 cause with the inter-processes execution path.
 
-\paragraph{6-TextEdit}
+\para{6-TextEdit}
 
 \vv{TextEdit} is a simple word processing and text editing tool from Apple,
 which often hangs on editing large files.  When \xxx is used to diagnose
@@ -40,7 +40,7 @@ because the most recent edge in the vertex reflects the purpose of the execution
 segment. Although the heuristics works for the kind of simple application, it is
 not general enough to succeed for all patterns.
 
-\paragraph{7-MSWord}
+\para{7-MSWord}
 
 \vv{Microsoft Word} is a large and complex piece of software. \xxx can analyze
 the event graph, but it identifies multiple possible root causes: the length of
@@ -58,7 +58,7 @@ identify that the execution segment is on behalf of another \vv{Microsoft Word}
 thread. We rely on user interaction in this case to find the true root cause,
 since \xxx is likely identifies all possibilities without priority.
 
-\paragraph{Other Editing Apps}
+\para{Other Editing Apps}
 
 Select, copy, paste, delete, insert and save are common operations for text
 editing. However, these operations on a large context usually trigger spinning
