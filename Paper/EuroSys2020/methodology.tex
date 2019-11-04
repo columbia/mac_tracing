@@ -23,17 +23,20 @@ we study 11 reproducible cases.
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
-
 Now we describe how we measure the effects of heuristics which \xxx uses to
 mitigate the graph inaccuracy, and manual efforts required in the diagnosis. We
 first enable tracing component and reproduce the performance isssues in macOS.
-When \xxx constructs event graph with the trace log, we measure the number of
-over-connection and under-connection mitigated by heuristics. After this step, a
-vertex in the graph can still have multiple incoming edges or weak edge. We then
-run \xxx diagnosis algorithm with a human in the loop, and count the times when
-multiple incoming edges or weak edges are encountered. Users can query the event
-graph for assistance or make decisions with domain knowledge. In the worst case
-that users make a wrong decision, before reaching the end of path slicing, \xxx
+The tracing data are collected to construct an event graph, which contains
+vertices with multi-incoming edges or weak edge.
+We run \xxx diagnosis algorithm, and count how many times we encounter those vertices.
+%When \xxx constructs event graph with the trace log, we measure the number of
+%over-connection and under-connection mitigated by heuristics. After this step, a
+%vertex in the graph can still have multiple incoming edges or weak edge. We then
+%run \xxx diagnosis algorithm with a human in the loop, and count the times when
+%multiple incoming edges or weak edges are encountered. Users can query the event
+%graph for assistance or make decisions with domain knowledge.
+In the worst case
+that we make a wrong decision, before reaching the end of path slicing, \xxx
 allows them to relocate the path to a particular vertex.
 
 %Specifically, the number presented in the following section reflects our
