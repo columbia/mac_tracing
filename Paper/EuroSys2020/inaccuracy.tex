@@ -8,7 +8,7 @@ and contain both \emph{over-connections} which do not really map to
 causality, and \emph{under-connections}, missing edges between two vertices
 with one causally influencing the other. In this section, we present
 several inherently inaccurate patterns (\S\ref{subsec:pattern}) and \xxx's
-mitigation strategies (\S\ref{subsec:handle}).
+mitigation methods (\S\ref{subsec:handle}).
 
 \subsection{Inherent Inaccuracies} \label{subsec:pattern}
 
@@ -28,15 +28,16 @@ service loop inside the callback function and create false dependencies. In the
 code snippet in Figure~\ref{fig:dispatchmessagebatching} from the \vv{fontd}
 daemon , function \vv{dispatch\_client\_callout} is installed as a callback to
 a work from dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()}
-which runs the typical server loop and handles messages from different apps. Any
-application or daemon can implement its own server loop this way, which makes it
+which runs the typical server loop and handles messages from different apps.
+Applications or daemons frequently use batching for performance, which
+necessarily intermingles handling of irrelevant events, making it
 fundamentally difficult to automatically infer event handling boundaries.
 
 \paragraph{Batching in event processing}
 
 Message activities inside a system call are assumed to be related traditionally.
-However, to presumably save on kernel boundary crossings, WindowServer MacOS
-system daemon uses a single system call to receive data and send data for
+However, to presumably save on kernel boundary crossings, macOS system daemon
+\vv{WindowServer} uses a single system call to receive data and send data for
 an unrelated event from different processed in its event loop in Figure
 ~\ref{fig:batchingineventprocessing}. This batch processing artificially makes
 many events appear dependent.
@@ -56,8 +57,8 @@ hoc synchronization~\cite{xiong2010ad} because it occurs even within a
 single thread. 
 
 \paragraph{Data dependency in event processing}
-The code for Batching in event processing above also illustrates a causal
-linkage caused by data dependency in one thread. WindowServer saves the reply
+The code in Figure~\ref{fig:batchingineventprocessing} also illustrates a causal
+linkage caused by data dependency in one thread. \vv{WindowServer} saves the reply
 message in variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.
 When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is
 any pending message.
