@@ -5,7 +5,7 @@ wait event or yielding loop, corresponding to LongWait and RepeatedYield.
 These root causes are mostly can be verified by themselve, as they are
 manifested by comparing to normal scenarios.
 
-\paragraph{2-SystemPref}
+\para{2-SystemPref}
 
 \vv{System Preferences} provides a central location in macOS to
 customize system settings, \eg additional monitors configuration.
@@ -32,7 +32,7 @@ verified this diagnosis by creating a dynamic binary patch to fix the deadlock.
 The patched library makes \vv{DisableMonitor} work correctly, while preserving
 correct behavior for other applications.
 
-\paragraph{3-SequelPro}
+\para{3-SequelPro}
 
 \vv{Sequel Pro}~\cite{SequelPro} is a fast, easy-to-use Mac database management
 application for \vv{MySQL}. It allows user to connect to database with socket or ssh.
@@ -49,7 +49,7 @@ to the causal path in normal case, \xxx reveals the main thread is blocking on a
 kernel thread, which waits for a ssh thread. Thus we conclude the root cause is
 the main thread blocking for network IO.
 
-\paragraph{4-Installer}
+\para{4-Installer}
 
 \vv{Installer}~\cite{Installer} is an application that extracts and installs
 files out of \vv{.pkg} packages in macOS. When \vv{Installer} pops up a window
