@@ -1,14 +1,11 @@
 \section{Conclusion} \label{sec:conclusion}
 
 Our key insight in this paper is that causal tracing is inherently inaccurate.
-The inaccuracy unlikely gets remedied by heuristics so as to generate a feasible
-request graph for automatic diagnosis on performance issues. We built \xxx, a
-practical system for effectively debugging performance issues despite inaccurate
+Despite this limitation, all prior works attempt to perform fully automatic analyses.
+We built \xxx, a practical system for full-system tracing and which can
+effectively diagnose performance issues, despite the inherent inaccuracy of
 causal tracing. It lets a user provide domain knowledge on demand to mitigate
-the inaccuracy. Compared to all upfront knowledge, this method is more general
-and efficient given the various programing paradigms.
-
-%Our results show that \xxx effectively
-%helped us locate all root causes of the issues, including a bug in Chromium,
-%01 and incurred \cpuoverhead CPU overhead overall in its system-wide tracing.
+the inaccuracy. Our results show that \xxx effectively helped us locate root
+causes of many issues, including a bug in Chromium that has been unaddressed for
+more than seven years.
 \clearpage

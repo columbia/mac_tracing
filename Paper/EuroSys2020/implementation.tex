@@ -37,7 +37,7 @@ instrumentation performs and enact it at runtime. The user supplies a sequence
 of instructions for \xxx to search the locations of interest in the image, and a
 trampoline function which overwrites the sequence of instructions and produces
 tracing data with API \vv{kdebug\_trace} from Apple. \xxx generates shell code
-with the trampoline function to replace the victimzed instructions. All of
+with the trampoline function to replace the victimized instructions. All of
 the trampoline functions are grouped into a new image with an initialization
 function that triggers the drop-in replacement. \xxx configures the image in the
 following steps to finish the instrumentation: (1) it re-exports all symbols
