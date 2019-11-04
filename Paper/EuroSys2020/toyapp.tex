@@ -1,61 +1,97 @@
 \subsection{Microbenchmark} \label{sec:toystudy}
 
-In the section, we demonstrate the inaccuracy of request graph extracted with
-prior causal tracing system. We first describe the study carried out on the
-application from Apple's sample code \vv{AppList}~\cite{applist}, and then we
-lists microbenchmarks in Table~\ref{table:microbenchmarks}.
+In this section, we demonstrate the inaccuracy of the request graph extracted
+with prior causal tracing systems. We performed three microbenchmarks, listed
+in Table~\ref{table:microbenchmarks}. In each microbenchmark, we turn on the
+appropriate causal tracing system, launch the application we are testing, \eg
+\vv{AppList}, and perform our specified GUI interation. We then terminate the
+causal tracing system, and ask it to construct a request graph at the moment we
+clicked on a GUI element. We search for a path through the request graph from
+the GUI action to a display update, and ensure that the path matches the ground
+truth (obtained through manual investigation).
 
-The main window of \vv{AppList} shows all running applications. \vv{Hide},
-\vv{Unhide}, and \vv{Terminate} buttons are beside the window for users to
-manipulate a chosen app.  In the study, we chose \vv{Sequel Pro} from the list
-of running applications, and clicked the \vv{Hide}. To find the ground truth
-for the transaction, we manually check the tracing log with extra
-instrumentation in event handler. \vv{AppList} feteches user input events from
-\vv{WindowServer}. The user input event handler invokes \vv{appleeventsd} and
-\vv{launchserviced}, which communicate with the chosen app \vv{Sequel Pro}.
-\vv{Sequel Pro} hides itself and \vv{AppList} updates main window. During the
-process, \vv{AppList} invokes daemons like \vv{cfprefsd}, \vv{distnoted},
-\vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd} to communicate with system.
-
-The graph generated with Panappticon contains more information than
-what we identified. It has 20 processes involved. We identify at least
-7 of them are unrelated to the app. 4 of them are connected because
-of the \vv{WindowServer}'s batching in event processing as shown in
-Figure~\ref{fig:batchingineventprocessing}, and 3 of them are from kernel task's
-batching in timer processing. In addition, 4 UI events(mouse click, mouse move,
+In the \vv{AppList} case, we selected \vv{Sequel Pro} from the list of running
+applications, and clicked the \vv{Hide} button to minimize it. Within \xxx's
+graph, the ground truth sequence of interprocess communication exists: the
+sequence is \vv{WindowServer} user events $\rightarrow$ \vv{appleeventsd}
+$\rightarrow$ \vv{launchserviced} $\rightarrow$ \vv{Sequel Pro}. The graph
+has 59 vertices include multiple incoming edges that a user might need to
+distinguish between. Panappticon's graph is a strictly larger superset; it is
+much harder to find the ground truth path because spurious edges are included
+in far more than 59 vertices, as is information from unrelated processes.
+It contains 20 processes, at least 7 of which are unrelated. 4 of them are
+included because \vv{WindowServer} batches event processing as shown in
+Figure~\ref{fig:batchingineventprocessing}; 3 of them are from kernel task's
+batching in timer processing. In addition, 4 UI events (mouse click, mouse move,
 system defined, and mouse exit event) passed to \vv{AppList} are present in the
-same graph because of batching in runloop blocks~\cite{runloop}. All the UI
-updates are batching in a callout function from the runloop. Without tracking
-the flags in Figure ~\ref{fig:casharedflag}, Panappticon can not seperate them.
+same graph because of batching in runloop blocks~\cite{runloop}. Panappticon
+cannot split the batched operations without tracking the flags mentioned earlier
+in Figure ~\ref{fig:casharedflag}, A third causal tracing system, AppInsight, is
+capable of tracking the boundaries of event handlers; however, we did not run it
+because it only tracks events within one application, and would miss events in
+all daemons as well as in \vv{Sequel Pro} itself.
 
-AppInsight is effective in tracking the boundary of the event handler, however,
-it does not track the execution boundaries in daemons. Thus, it can not track
-the activities in \vv{appleeventsd}, \vv{launchserviced} and \vv{Sequel Pro}.
 
-Without the Apple developers' efforts, \xxx's binary instrumentation on runloop
-is also not enough to identify all under- and over-connections, therefore our
-event graph exposes 59 vertices with multiple incoming edges.
 
+%In this study, we chose \vv{Sequel Pro} from the list
+%of running applications, and clicked the \vv{Hide}. To find the ground truth
+%for the transaction, we manually check the tracing log with extra
+%instrumentation in event handler. \vv{AppList} fetches user input events from
+%\vv{WindowServer}. The user input event handler invokes \vv{appleeventsd} and
+%\vv{launchserviced}, which communicate with the chosen app \vv{Sequel Pro}.
+%\vv{Sequel Pro} hides itself and \vv{AppList} updates main window. During the
+%process, \vv{AppList} invokes daemons like \vv{cfprefsd}, \vv{distnoted},
+%\vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd} to communicate with system.
+
+%The graph generated with Panappticon contains more information than
+%what we identified. It has 20 processes involved. We identify at least
+%7 of them are unrelated to the app. 4 of them are connected because
+%of the \vv{WindowServer}'s batching in event processing as shown in
+%Figure~\ref{fig:batchingineventprocessing}, and 3 of them are from kernel task's
+%batching in timer processing. In addition, 4 UI events(mouse click, mouse move,
+%system defined, and mouse exit event) passed to \vv{AppList} are present in the
+%same graph because of batching in runloop blocks~\cite{runloop}. All the UI
+%updates are batching in a callout function from the runloop. Without tracking
+%the flags in Figure ~\ref{fig:casharedflag}, Panappticon can not seperate them.
+
+%Without the Apple developers' efforts, \xxx's binary instrumentation on runloop
+%is also not enough to identify all under- and over-connections, therefore our
+%event graph exposes 59 vertices with multiple incoming edges.
+%
 \begin{table}[tb]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|X|X}
+  \begin{tabularx}{\columnwidth}{l|l|l}
 \hline
 Microbenchmark & Panappticon & \xxx \\
 \hline\hline
-AppList (manipulates running apps in system)
-& \mycross connects 7 unrelated apps due to lack of boundaries on batching.
-        & \mycross event graph contains 59 vertices with multi-incoming edges.\\
+	\begin{tabular}{@{}l@{}}
+AppList (minimize a \\
+running app)
+	 \end{tabular}
+& 
+	\begin{tabular}{@{}l@{}}
+\mycross connects 7 unrelated \\
+apps due to lack of boundaries\\
+on batching.
+	 \end{tabular}
+& 
+	\begin{tabular}{@{}l@{}}
+\mycross event graph contains\\
+59 vertices with multi-incoming\\
+edges.
+	 \end{tabular}
+\\
 \hline
-AbSearch (searches Contacts with first name)
-         & \mycross misses connections to the searching
-          element constuction due to lack of tracing data flag.
-         & \mycross event graph contains 72 vertices with multi-incoming edges.\\
-\hline
-AnimationSlider (moves slide bar with input percentage in textfield)
-            & \mycross connects 5 unrelated apps due to lack of boundaries on batching.
-            & \mycross event graph contains 9 vertices with multi-incoming edges.\\
-\hline
+%AbSearch (search Contacts with first name)
+%         & \mycross misses connections to the searching
+%          element constuction due to lack of tracing data flag.
+%         & \mycross event graph contains 72 vertices with multi-incoming edges.\\
+%\hline
+%AnimationSlider (move slide bar with input percentage in textfield)
+%            & \mycross connects 5 unrelated apps due to lack of boundaries on batching.
+%            & \mycross event graph contains 9 vertices with multi-incoming edges.\\
+%\hline
   \end{tabularx}
 \caption{Inaccuray of request graph for microbenchmarks.}
 \label{table:microbenchmarks}

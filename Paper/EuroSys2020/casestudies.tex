@@ -2,15 +2,29 @@
 
 In this section, we demonstrate how \xxx helps to diagnose \nbug
 spinning-cursor cases in popular applications. Table~\ref{table:bugs-desc}
-describes these spinning-cursor cases. In Table~\ref{table:comps}, we compare
-\xxx with Panappticon and AppInsghit. In the table we list the missing tracing
-data for their failure. However, \xxx event graph does not fully support
-automatic diagnosis. The user interaction is still required but not
-overwhelming. As shown in Table ~\ref{table:results}, up to 3 user queries in
-most cases suffice to find root cause path accurately. Although complex
+describes the operations we perform on each application that triggers a hang.
+We test each case with \xxx, Panappticon, and AppInsight (analysis only, different platform),
+and show selected results in Table~\ref{table:comps}.
+Panappticon's failures are because it does not recognize some programming paradigms,
+while AppInsight only traces a single process and misses interprocess communications. 
+
+In fact, Panappticon and AppInsight fail on all cases, while \xxx succeeds, but
+requires a small amount of manual user interaction (since our diagnosis is not
+fully automatic). As shown in Table~\ref{table:results}, at most 3 user queries
+suffices in most cases to find the root cause path accurately. Although complex
 applications like MicosoftWord and Chromium require more queries, 13 and 22
 respectively, many of them result from repeated patterns. They can be easily
 identified by users.
+
+Overall, in the case of simple text editing applications, \xxx can identify the
+UI event that causes a spinning cursor by merely relying on a few heuristics.
+However, these heuristics may make the wrong decision in complicated cases, and
+misidentify the relationships between intra/inter-thread events. It is unlikely
+that there exists a single graph search method that works in all cases, e.g.
+when given the choice between multiple incoming edges, the most recent match is
+sometimes correct, but sometimes not. This is why our system relies on expert
+knowledge of users to reconstruct a developer's intent and accurately diagnose
+performance issues.
 
 %Last paragraph: %In the remaining of this section, we
 %present the case studies by category in (\S\ref{XXX}).
@@ -21,13 +35,4 @@ identified by users.
 \input{longwait_and_repeatedyield_case}
 \input{longrunning_case}
 
-\subsubsection{Summary}
-Overall, in the case of simple text editing applications, \xxx can identify the
-UI event that causes a spinning cursor by merely relying on a few heuristics.
-However, these heuristics may make the wrong decision in complicated cases, and
-misidentify the relationships between intra/inter-thread events. It is unlikely
-that there exists a single graph search method that works in all cases, e.g.
-when given the choice between multiple incoming edges, the most recent match is
-sometimes correct, but sometimes not. This is why our system relies on expert
-knowledge of users to reconstruct a developer's intent and accurately diagnose
-performance issues.
+%\subsubsection{Summary}
