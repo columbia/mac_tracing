@@ -1,32 +1,21 @@
 \subsection{Microbenchmark} \label{sec:toystudy}
 
 In the section, we demonstrate the inaccuracy of request graph extracted with
-prior causal tracing system. The study is carried out on the application from
-Apple's sample code \vv{AppList}~\cite{applist}. The main window of \vv{AppList}
-shows all running applications. \vv{Hide}, \vv{Unhide}, and \vv{Terminate}
-buttons are beside the window for users to manipulate a chosen app.
+prior causal tracing system. We first describe the study carried out on the
+application from Apple's sample code \vv{AppList}~\cite{applist}, and then we
+lists microbenchmarks in Table~\ref{table:microbenchmarks}.
 
-%The event handler for hide is as shown in
-%Figure~\ref{fig:toyapp}, and other buttons are similar.
-%\begin{figure}[t]
-%\begin{lstlisting}
-%NSRunningApplication *selectedApp = [arrayController.selectedObjects objectAtIndex:0];
-%[selectedApp hide];
-%\end{lstlisting}
-%\vspace{-0.5cm}
-%    \caption{microbenchmark ui event handler}
-%    \label{fig:toyapp}
-%\end{figure}
-
-In the study, we chose \vv{Sequel Pro} from the main menu and clicked the
-\vv{Hide}. To find the ground truth for the transaction, we manually
-check the tracing log with extra instrumentation in event handler. \vv{AppList}
-feteches user input events from \vv{WindowServer}. The user input event handler
-invokes \vv{appleeventsd} and \vv{launchserviced}, which communicate with the
-chosen app \vv{Sequel Pro}. \vv{Sequel Pro} hides itself and \vv{AppList}
-updates main window. During the process, \vv{AppList} invokes daemons like
-\vv{cfprefsd}, \vv{distnoted}, \vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd}
-to communicate with system.
+The main window of \vv{AppList} shows all running applications. \vv{Hide},
+\vv{Unhide}, and \vv{Terminate} buttons are beside the window for users to
+manipulate a chosen app.  In the study, we chose \vv{Sequel Pro} from the list
+of running applications, and clicked the \vv{Hide}. To find the ground truth
+for the transaction, we manually check the tracing log with extra
+instrumentation in event handler. \vv{AppList} feteches user input events from
+\vv{WindowServer}. The user input event handler invokes \vv{appleeventsd} and
+\vv{launchserviced}, which communicate with the chosen app \vv{Sequel Pro}.
+\vv{Sequel Pro} hides itself and \vv{AppList} updates main window. During the
+process, \vv{AppList} invokes daemons like \vv{cfprefsd}, \vv{distnoted},
+\vv{fseventsd}, \vv{syslogd}, \vv{systemstatsd} to communicate with system.
 
 The graph generated with Panappticon contains more information than
 what we identified. It has 20 processes involved. We identify at least
@@ -47,3 +36,27 @@ Without the Apple developers' efforts, \xxx's binary instrumentation on runloop
 is also not enough to identify all under- and over-connections, therefore our
 event graph exposes 59 vertices with multiple incoming edges.
 
+\begin{table}[tb]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|X}
+\hline
+Microbenchmark & Description\\
+\hline\hline
+AppList & AppList manipulates running apps in system.\\
+        & \mycross Panappticon connects 7 unrelated apps due to lack of boundaries on batching.\\
+        & \mycross \xxx event graph contains 59 vertices with multi-incoming edges.\\
+\hline
+AbSearch & AbSearch search Contacts with first name.\\
+         & \mycross Panappticon misses connections to the searching\\
+         & element constuction due to lack of tracing data flag.\\
+         & \mycross \xxx event graph contains 72 vertices with multi-incoming edges.\\
+\hline
+AnimationSlide & AnimationSlide automatic moves slide bar with input percentage.\\
+            & \mycross Panappticon connects 5 unrelated apps due to lack of boundaries on batching.\\
+            & \mycross \xxx event graph contains 9 vertices with multi-incoming edges.\\
+\hline
+  \end{tabularx}
+\caption{Inaccuray of request graph for microbenchmarks.}
+\label{table:microbenchmarks}
+\end{table}
