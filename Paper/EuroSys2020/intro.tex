@@ -6,31 +6,31 @@ diagnose because the handling of an external request is often spread across
 many threads, processes, and asynchronous contexts instead of in one
 sequential execution segment~\cite{harter2012file}. To manually reconstruct
 a graph of execution segments for debugging, developers have to sift
-through a massive amount of log entries and potentially code of related
+through massive amounts of log entries and potentially code of related
 application components~\cite{chen2002pinpoint, zhao2016non, xu2009detecting,
 nagaraj2012structured, yuan2012conservative}. More often than not, developers
 give up and resort to guessing the root cause, producing ``fixes'' that
 sometimes make the matter worse. For instance, a bug in the Chrome browser
-engine causes a spinning cursor in macOS when a user switches the input
+engine causing a spinning cursor in macOS when a user switches the input
 method~\cite{chromiumbugreport}, was first reported in 2012. Developers
 attempted to add timeouts to work around the issue. Unfortunately, the bug has
 remained open for seven years and the timeouts obscured diagnosis further.
 
-Prior work proposed what we call \emph{Causal tracing}, a powerful technique
+Prior work proposed what we call \emph{causal tracing}, a powerful technique
 to construct request graphs automatically~\cite{reynolds2006pip, fonseca2007x,
 benjamin2010dapper, zhang2013panappticon, ravindranath2012appinsight}. It
 does so by inferring (1) the beginning and ending boundaries of the execution
-segments (vertices in the graph) involved in handling a request; and (2) the
+segments (vertices in the graph) involved in handling a request, and (2) the
 causality between the segments (edges)---how a segment causes others to do
 additional handling of the request. Compared to debuggers such as \spindump that
-capture only the current system state, causal tracing is effective at aiding
-developers to understand complex causal behaviors and pinpoint the root causes
+capture only the current system state, causal tracing is effective at helping
+developers understand complex causal behaviors and pinpoint the root causes
 for real-world performance issues.
 
 Prior causal tracing systems all assume certain programming idioms to automate
 inference. For instance, if a segment sends a message, signals a condition
 variable, or posts a task to a work queue, it wakes up additional execution
-segment. Prior systems assume that wake-ups reflect causality. Similarly, they
+segments. Prior systems assume that wake-ups reflect causality. Similarly, they
 assume that the execution segment, from the beginning of a callback invocation
 to the end, is entirely for handling related work in a request. Unfortunately,
 based on our study and experience of building a causal tracing system for macOS,
