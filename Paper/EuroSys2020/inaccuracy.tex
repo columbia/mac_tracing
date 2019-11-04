@@ -73,8 +73,17 @@ flags need to be tracked.
 %%the CoreAnimation library to trace events on these flags.
 
 \paragraph{Spinning cursor shared flag}
-As shown in Figure~\ref{fig:spinningcursorsharedflags},
-whenever the system determines that the main thread has hung for a certain
-period, and the spinning beach ball should be displayed, a shared-memory flag
-is set. Access to the flag is controlled via a lock, i.e. the lock is used for
-mutual exclusion, and does not imply a happens before relationship.
+The very fact that spinning cursors are displayed involves data
+flags. Each application contains an \vv{NSEvent} thread which fetches
+\vv{CoreGraphics} events from the \vv{WindowServer} daemon, converts them
+to \vv{NSApp} events to dispatch to the application's main thread, sets
+flag \vv{sCGEventIsDispatchToMainThread} as shown in
+Figure~\ref{fig:spinningcursorsharedflags}, and arms a timer to monitor
+the processing times of the main thread.  If any \vv{NSApp} event takes
+longer than two seconds to process, the main thread will not clear flag
+\vv{sCGEventIsDispatchToMainThread}.  When the timer in \vv{NSEvent}
+fires, it sets flag \vv{sCGEventIsMainThreadSpinning} and invokes
+\vv{WindowServer} to display a spinning cursor.  An interesting fact is
+that accesses to these shared-memory flags are controlled via a lock --
+the lock is used for mutual exclusion, and does not imply a happens before
+relationship.
