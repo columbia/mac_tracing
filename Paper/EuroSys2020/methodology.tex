@@ -5,31 +5,29 @@
 %%evaluate the manual efforts needed in diagnosis.
 
 Prior work relies on the request graph per transaction to identify bottlenecks
-and speculate possible causes. One of them, Panappticon for Android, is
-closest to ours in desgin. Their traced events and causality are in a subset
-of ours. To demonstrate the inherent inaccuracy of request graph extracted
+and speculate about possible causes. One of them, Panappticon for Android, is
+closest to ours in design. Their traced events and causality are a subset
+of ours. We demonstrate the inherent inaccuracy of the request graph extracted
 with Panappticon's causal tracing, we therefore carry out the study in
-~\S\ref{sec:toystudy} with microbenchmark, and also measure the effectiveness of
-AppInsight's methodology.
+~\S\ref{sec:toystudy} with microbenchmarks. This section also evaluates the methodology of
+another tool, AppInsight.
 
-In ~\S\ref{sec:casestudy}, we carry out real-world case study with collected
-performance issues of popular applications, because they likely represent the
-bugs attractive to tech-savvy users. Among the 26 bugs we examined from the
-Github reports, most of them are not able to reproduce due to our system version
-or insufficient information. We thus decide to focus on 3 bugs reproduced
-successfully. 8 additional performance issues are collected from the daily use
-applications in the auther's laptop. As a result, we study 11 reproducible
-cases.
-
+In ~\S\ref{sec:casestudy}, we carry out real-world case studies with collected
+performance issues of popular applications, which likely represent the
+bugs attractive to tech-savvy users. Among the 26 bugs we examined from
+Github reports, most of them we are not able to reproduce due to our system version
+or insufficient report details. We thus decide to focus on 3 bugs which we
+successfully reproduced. 8 additional performance issues are collected from
+daily-used applications on the auther's laptop. As a result, we study 11
+reproducible cases.
 %Also explain what metrics/outcomes we look for. "whether these tools enable a
 %developer to identify root cause of a given performance issues" or "quantify the
 %manual effort needed to ..."
-
-Now we describe how we measure the heuristics which \xxx uses to mitigate graph
+Next, we describe how we measure the heuristics \xxx uses to mitigate graph
 inaccuracy, and manual effort required in the diagnosis. We first enable tracing
 component in our laptop and reproduce the 11 performance isssues. The tracing
 data are collected to construct event graphs, which contain vertices with
-multi-incoming edges or weak edges. We run the \xxx diagnosis algorithm, and
+multiple incoming edges or weak edges. We run the \xxx diagnosis algorithm, and
 count how many times we encounter those vertices. In the worst case that we make
 a wrong decision, before reaching the end of path slicing, \xxx allows us to
-relocate the path to a particular vertex.
+relocate the path to a nearby vertex.
