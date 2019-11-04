@@ -14,7 +14,7 @@
 	\Case {RepeatedYield} \label{a1:repeatedyield_begin}
 		\If {DataFlagEvent $\notin$ $\{$event types in \algspinningnode$\}$}
 			\State {Require users to annotate data flag}
-			\State {abort()}
+			\State {exit()}
 		\EndIf
 		\LineComment {Fall through}\label{a1:repeatedyield_end}
 	\EndCase
@@ -27,8 +27,7 @@
 			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				\State {\algrootcausenodes.append($vertex_t$)}
 				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
-			\EndIf
-			\LineComment{if t is normal running, disgnose the next thread}
+			\EndIf \Comment{if t is normal running, disgnose the next thread}
 		\EndFor \label{a1:longwait_end}
 	\EndCase
   \EndSwitch
@@ -39,17 +38,18 @@
 \Function{InteractiveSlice}{g, vertex}\label{alg:interslice-line}
 \Loop
 	\State{path\_slice.append(vertex)}
-	\If {vertex has 1 incoming causal edge}
+	\If {vertex has 1 strong incoming causal edge}
 		\State{vertex $\gets$ predecessor vertex}
 	\ElsIf {vertex has multiple incoming edges}
-		\State{vertex $\gets$ ask user to pick from predecessors}
-	\ElsIf {vertex had weak edge}
 		\State{vertex $\gets$ ask user to pick or stop}
-	\Else \LineComment{The first vertex of current thread}
-		\State\Return {path\_slice}
+	\ElsIf {vertex has 1 weak incomming edge}
+		\State{vertex $\gets$ ask user to pick or stop}
+
+	%\Else \Comment{The first vertex of current thread}
+	%	\State\Return {path\_slice}
 	\EndIf
-	\If {vertex is invalid}
-	\LineComment{user chooses to stop traversal with invalid input}
+	\If {vertex has no incoming edges or user chooses to stop}
+	%\LineComment{user chooses to stop traversal with invalid input}
 		\State\Return {path\_slice}
 	\EndIf
 \EndLoop
