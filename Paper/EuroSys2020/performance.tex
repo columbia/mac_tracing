@@ -1,18 +1,18 @@
 \begin{figure*}
-	\begin{subfigure}{5.5cm}
-		\centering\includegraphics[width = 5cm] {./figures/performance_cr_real.pdf}
-		\caption{real time}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_real.pdf}
+		\caption{real time.}
 	\end{subfigure}
-	\begin{subfigure}{5.5cm}
-		\centering\includegraphics[width = 5cm] {./figures/performance_cr_user.pdf}
-		\caption{user time}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_user.pdf}
+		\caption{user time.}
 	\end{subfigure}
-	\begin{subfigure}{5.5cm}
-		\centering\includegraphics[width = 5cm] {./figures/performance_cr_sys.pdf}
-		\caption{sys time}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_sys.pdf}
+		\caption{sys time.}
 	\end{subfigure}
 	\vspace{-0.5cm}
-	\caption{Chromium benchmark}
+	\caption{Chromium benchmark.}
 	\label{fig:chromium benchmark}
 \end{figure*}
 
@@ -29,7 +29,7 @@
 average overhead& \multicolumn{5}{c}{0.13\%}\\
 \hline
 \end{tabularx}
-\caption{Score From iBench}
+\caption{Score From iBench.}
 \label{tab:ibench}
 \end{table}
 
@@ -38,28 +38,28 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \centering
 \begin{tabular}{ll|rrr}
 \hline
- & kb/s & With Argus & Without Argus & overhead\\
+ & kb/s & With Argus & Without Argus & overhead(\%)\\
  \hline\hline
-\textbf{bonnie++}&read char & 21922 & 22149 & 0.01\\
- sequential& read block & 226931 & 244089 & 0.07\\
- & rewrite & 246807 & 267491 & 0.08\\
- & write char & 22924 & 22936 & 0.00\\
- & write block & 4073361 & 4396387 & 0.07\\
+\textbf{bonnie++}&read char & 21922 & 22149 & 1\%\\
+ sequential& read block & 226931 & 244089 & 7\%\\
+ & rewrite & 246807 & 267491 & 8\%\\
+ & write char & 22924 & 22936 & 0\%\\
+ & write block & 4073361 & 4396387 & 7\%\\
  \hline
- seq& file create & 17391 & 17381 & 0.00\\
- & file delete & 18089 & 19401 & 0.07\\
+ seq& file create & 17391 & 17381 & 0\%\\
+ & file delete & 18089 & 19401 & 7\%\\
  \hline
- random& create & 17472 & 17887 & 0.02\\
- & delete & 8849 & 9567 & 0.08\\
+ random& create & 17472 & 17887 & 2\%\\
+ & delete & 8849 & 9567 & 8\%\\
  \hline
  \hline
-\textbf{iozone} & initial write & 1199453 & 1318572 & 0.09\\
- & rewrite & 3663066 & 4059912 & 0.10\\
+\textbf{iozone} & initial write & 1199453 & 1318572 & 9\%\\
+ & rewrite & 3663066 & 4059912 & 10\%\\
  \hline
- & average & - & - & 0.05\\
+ & average & - & - & 5\%\\
 \hline
 \end{tabular}
-\caption{IO throughput with bonnie++ and iozone}
+\caption{IO throughput with bonnie++ and iozone.}
 \label{tab:iothroughput}
 \end{table}
 

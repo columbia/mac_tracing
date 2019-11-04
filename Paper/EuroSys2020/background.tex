@@ -21,7 +21,7 @@ an open-source browser engine that powers Google Chrome and, starting
 recently, Microsoft Edge~\cite{chromiumurl}. When a user types a string in
 Chromium, the \vv{browser} process sends an IPC message to the \vv{render}
 process where the rendering view and WebKit code run, to calculate the
-bounding box of the string.  \vv{render} then queries \v{fontd}, the font
+bounding box of the string.  \vv{render} then queries \vv{fontd}, the font
 service daemon, to calculate the height and length of the string in the
 given font.  Once \vv{fontd} finishes, it sends an IPC reply to wake up
 \vv{render} which in turn wakes up \vv{browser}.  The handling of user
