@@ -18,16 +18,15 @@
 Bug ID & Panappticon & AppInsight & \xxx\\
 \hline
 \hline
-2-SystemPref & \mycross(data flags) & \mycross(Windowserver) & \mycheck (2 data flags) \\
-3-SequelPro & \mycross() & \mycross(sshd) & \mycheck \\
-4-Installer & \mycross() & \mycross(SecurityAgent, authd)& \mycheck \\
-5-TeXStudio & \mycross(appkit event, timer, batching) & \mycross(fseventd) & \mycheck(3 vertices with multicoming edges)\\
+2-SystemPref & \mycross(data flags) & \mycross(WindowServer) & \mycheck (2 data flags) \\
+3-SequelPro & \mycross(batching in kernel task) & \mycross(sshd) & \mycheck(2 ME)*\\
+4-Installer & \mycross(batching in worker thread) & \mycross(SecurityAgent, authd)& \mycheck(1 WE, 1 ME)*\\
+5-TeXStudio & \mycross(appkit event, timer, batching in WindowServer) & \mycross(fseventd) & \mycheck(3 ME)*\\
 \hline
   \end{tabularx}
-  \caption{Compare Effectiveness of Causal Tracing System} 
-  \label{table:statistics}
+  \caption{Compare Effectiveness of Causal Tracing System. *WE stands for user interaction on Weak Edges, *ME stands for user interaction on Multi-incoming Edges in \xxx.} 
+  \label{table:comps}
 \end{table}
-
 
 \begin{table}[ht]
 \footnotesize
@@ -53,14 +52,11 @@ Bug ID & interactions & interaction & heuristics  & interaction\\
 \hline
   \end{tabularx}
   \parbox{\columnwidth}
-  {\caption{Path slicing for "buggy" cases} 
-  	\vspace{-0.3cm}
-	{
+  {\caption{Path slicing for buggy cases. 
 	We noticed that \xxx's query on incoming edges can be answered with the most
 	recent one, thus we automated the path slicing in \xxx with the heuristics.
 	The length of the path is usually much longer due to excessive traverses to
-	daemons and kernel task.
-    }
+	daemons and kernel task.}
   \label{table:results}
   }
 \end{table}
