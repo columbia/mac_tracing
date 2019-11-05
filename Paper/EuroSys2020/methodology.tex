@@ -1,33 +1,70 @@
-\subsection{Methodology} \label{sec:methodology}
+% \subsection{Methodology}
 
 %%In this section, we first describe how the performance issues are selected for
 %%study. Then we compare \xxx to its closest prior system, and describe how we
 %%evaluate the manual efforts needed in diagnosis.
 
-Prior work relies on the request graph per transaction to identify bottlenecks
-and speculate about possible causes. One of them, Panappticon for Android, is
-closest to ours in design. Their traced events and causality are a subset
-of ours. We demonstrate the inherent inaccuracy of the request graph extracted
-with Panappticon's causal tracing, we therefore carry out the study in
-~\S\ref{sec:toystudy} with microbenchmarks. This section also evaluates the methodology of
-another tool, AppInsight.
+Our evaluation of \xxx focuses three research questions:
 
-In ~\S\ref{sec:casestudy}, we carry out real-world case studies with collected
-performance issues of popular applications, which likely represent the
-bugs attractive to tech-savvy users. Among the 26 bugs we examined from
-Github reports, most of them we are not able to reproduce due to our system version
-or insufficient report details. We thus decide to focus on 3 bugs which we
-successfully reproduced. 8 additional performance issues are collected from
-daily-used applications on the auther's laptop. As a result, we study 11
-reproducible cases.
-%Also explain what metrics/outcomes we look for. "whether these tools enable a
-%developer to identify root cause of a given performance issues" or "quantify the
-%manual effort needed to ..."
-Next, we describe how we measure the heuristics \xxx uses to mitigate graph
-inaccuracy, and manual effort required in the diagnosis. We first enable tracing
-component in our laptop and reproduce the 11 performance isssues. The tracing
-data are collected to construct event graphs, which contain vertices with
-multiple incoming edges or weak edges. We run the \xxx diagnosis algorithm, and
-count how many times we encounter those vertices. In the worst case that we make
-a wrong decision, before reaching the end of path slicing, \xxx allows us to
-relocate the path to a nearby vertex.
+\begin{enumerate}
+
+\item \textbf{RQ1:} Can \xxx effective help users pinpoint root causes of
+  spinning cursors?  If so, how much manual effort is needed?
+
+\item \textbf{RQ2:}How does \xxx compare to other causal tracing tools.
+  While a direct comparison is difficult because systems such as
+  AppInsight and Panappticon target different domains, we want to compare
+  how their algorithms and techniques would perform in \xxx's setting.
+
+\item \textbf{RQ3:} How much overhead does \xxx's tracing tool incur?  It
+  should be small enough to not interfere with normal operations.
+
+\end{enumerate}
+
+To answer RQ1, we selected \nbug real-world spinning cursors in popular
+applications.  We first collected 26 bug reports from Github reports by
+searching for ``spinning cursor'' keywords.  We then selected three with
+sufficient details and macOS versions matching our machines, and
+reproduced them.  The remaining eight came from the applications we daily
+use that have occasional spinning cursors.  For each spinning cursor, we
+ran \xxx to collect event traces to diagnose the root cause.  The results
+are reported in \S\ref{sec:casestudy}.
+
+To answer RQ2, we selected the hard cases from the \nbug spinning cursors,
+implemented AppInsight and Panappticon's algorithms in \xxx, and compared
+their diagnosis results with \xxx.  Since these real-world applications
+are quite complex, we also compared the tools using three simple
+applications to make it less challenging for the other causal tracing
+tools.  The results are reported in \S\ref{sec:toystudy}.
+
+To answer RQ3, we ran standard macOS benchmarks to evaluate \xxx's CPU,
+I/O, memory, storage, and overall systems overhead.  The results are
+reported in \S\ref{sec:evaluation}.
+
+%% Prior work relies on the request graph per transaction to identify bottlenecks
+%% and speculate about possible causes. One of them, Panappticon for Android, is
+%% closest to ours in design. Their traced events and causality are a subset
+%% of ours. We demonstrate the inherent inaccuracy of the request graph extracted
+%% with Panappticon's causal tracing, we therefore carry out the study in
+%% ~\S\ref{sec:toystudy} with microbenchmarks. This section also evaluates the methodology of
+%% another tool, AppInsight.
+
+%% In ~\S\ref{sec:casestudy}, we carry out real-world case studies with collected
+%% performance issues of popular applications, which likely represent the
+%% bugs attractive to tech-savvy users. Among the 26 bugs we examined from
+%% Github reports, most of them we are not able to reproduce due to our system version
+%% or insufficient report details. We thus decide to focus on 3 bugs which we
+%% successfully reproduced. 8 additional performance issues are collected from
+%% daily-used applications on the auther's laptop. As a result, we study 11
+%% reproducible cases.
+%% %Also explain what metrics/outcomes we look for. "whether these tools enable a
+%% %developer to identify root cause of a given performance issues" or "quantify the
+%% %manual effort needed to ..."
+%% Next, we describe how we measure the heuristics \xxx uses to mitigate graph
+%% inaccuracy, and manual effort required in the diagnosis. We first enable tracing
+%% component in our laptop and reproduce the 11 performance isssues. The tracing
+%% data are collected to construct event graphs, which contain vertices with
+%% multiple incoming edges or weak edges. We run the \xxx diagnosis algorithm, and
+%% count how many times we encounter those vertices. In the worst case that we make
+%% a wrong decision, before reaching the end of path slicing, \xxx allows us to
+%% relocate the path to a nearby vertex.

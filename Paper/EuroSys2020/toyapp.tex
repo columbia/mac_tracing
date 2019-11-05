@@ -1,14 +1,41 @@
-\subsection{Microbenchmark} \label{sec:toystudy}
+\subsection{Comparison to Other Causal Tracing Tools} \label{sec:toystudy}
 
-In this section, we demonstrate the inaccuracy of the request graph extracted
-with prior causal tracing systems. We performed three microbenchmarks, listed
-in Table~\ref{table:microbenchmarks}. In each microbenchmark, we turn on the
-appropriate causal tracing system, launch the application we are testing, \eg
-\vv{AppList}, and perform our specified GUI interation. We then terminate the
-causal tracing system, and ask it to construct a request graph at the moment we
-clicked on a GUI element. We search for a path through the request graph from
-the GUI action to a display update, and ensure that the path matches the ground
-truth (obtained through manual investigation).
+We compared \xxx to two closely related tools, AppInsight and Panappticon.
+For Panappticon, we reimplemented its algorithm inside \xxx.  For
+AppInsight, since it traces only a single process, we analyzed how its
+algorithm would have worked without reimplementation.
+
+\begin{table}[ht]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|XXX}
+  \hline
+Bug ID & Panappticon & AppInsight & \xxx\\
+\hline
+\hline
+2-SystemPref & \mycross(data flags) & \mycross(WindowServer) & \mycheck (2 data flags) \\
+3-SequelPro & \mycross(batching in kernel task) & \mycross(sshd) & \mycheck(2 ME)*\\
+4-Installer & \mycross(batching in worker thread) & \mycross(SecurityAgent, authd)& \mycheck(1 WE, 1 ME)*\\
+5-TeXStudio & \mycross(appkit event, timer, batching in WindowServer) & \mycross(fseventd) & \mycheck(3 ME)*\\
+\hline
+  \end{tabularx}
+  \caption{Compare Effectiveness of Causal Tracing System. *WE stands for user interaction on Weak Edges, *ME stands for user interaction on Multi-incoming Edges in \xxx.} 
+  \label{table:comps}
+\end{table}
+
+We used two sets of applications for this comparison.  First, we chose the
+harder cases from the \nbug real-world spinning cursors.  It turned out
+that neither AppInsight nor Panappticon was able to diagnose any of these
+spinning cursors. Table~\ref{table:comps} shows the reasons.  Panappticon
+handles only a limited set of programming idioms, missing at least data
+flags, batching, and timers.  AppInsight was not able to capture beyond
+single process.  In contrast, with a small amount of help from users, \xxx
+successfully diagnosed all issues.
+
+Second, since these real-world applications are quite complex, we used
+another set of three toy applications to make it less challenging to
+AppInsight and Panappticon. Table~\ref{table:microbenchmarks} shows the
+results.
 
 In the \vv{AppList} case, we selected \vv{Sequel Pro} from the list of running
 applications, and clicked the \vv{Hide} button to minimize it. Within \xxx's
@@ -29,7 +56,17 @@ cannot split the batched operations without tracking the flags mentioned earlier
 in Figure ~\ref{fig:casharedflag}, A third causal tracing system, AppInsight, is
 capable of tracking the boundaries of event handlers; however, we did not run it
 because it only tracks events within one application, and would miss events in
-all daemons as well as in \vv{Sequel Pro} itself.
+all daemons as well as in \vv{Sequel Pro} itself.  Panappticon and
+AppInsight failed similarly for \vv{AbSearch} and \vv{AnimateSlider} cases.
+
+%% In each microbenchmark, we turn on the
+%% appropriate causal tracing system, launch the application we are testing, \eg
+%% \vv{AppList}, and perform our specified GUI interation. We then terminate the
+%% causal tracing system, and ask it to construct a request graph at the moment we
+%% clicked on a GUI element. We search for a path through the request graph from
+%% the GUI action to a display update, and ensure that the path matches the ground
+%% truth (obtained through manual investigation).
+
 
 
 

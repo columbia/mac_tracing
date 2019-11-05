@@ -66,16 +66,16 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \end{table}
 
 
-\subsection{Performance Evaluation}\label{sec:evaluation}
+\subsection{Performance} \label{sec:evaluation}
 
 In this section we present the performance impact of the live deployment of
 \xxx. We deployed \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU with
-2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
+2 cores and 4 thread, 10GB DDR3 memory and a 1TB SSD.
 
 \xxx has a very small space overhead with the configuration of its tracing
-tool. It uses the ring buffer with configured 2G by default to collect tracing
-events. The memory used to store events is fixed to 512M by Apple, which is pretty
-low with regards to the memory usage of modern applications. In the remaining
+tool. It uses the ring buffer with configured 2GB by default to collect tracing
+events. The memory used to store events is fixed to 512MB by Apple, 
+low compared to the memory usage of modern applications. In the remaining
 of this section, we measure \xxx's overhead overall with iBench scores, IO
 throughput degradation with bonnie++, iozone and CPU overhead with chromium
 benchmarks.
@@ -83,8 +83,8 @@ benchmarks.
 \para{iBench}
 
 We first show the five runs of iBench with and without \xxx to evaluate the
-overall performance. The machine is clean booted for each run, and the higher
-score means it performs better. As shown in Table\ref{tab:ibench}, their
+overall performance. The machine is clean booted for each run, and higher
+score is better. As shown in Table~\ref{tab:ibench}, their
 performance are almost of no difference, only 0.13\% degradation on average.
 
 \para{IO Throughput}
@@ -94,8 +94,7 @@ Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
 by characters with and without \xxx are almost same. Read and write by block
 impose less than 10\% overhead in  both microbenchmarks, bonni++ and iozone.
 With selected events in our system, the tracing tool integrated in \xxx
-only adds 5\% IO overhead on average.
-
+adds only 5\% IO overhead on average.
 
 \para{CPU}
 
