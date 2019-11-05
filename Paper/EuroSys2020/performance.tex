@@ -1,21 +1,3 @@
-\begin{figure*}
-	\begin{subfigure}{5.79cm}
-		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_real.pdf}
-		\caption{real time.}
-	\end{subfigure}
-	\begin{subfigure}{5.79cm}
-		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_user.pdf}
-		\caption{user time.}
-	\end{subfigure}
-	\begin{subfigure}{5.79cm}
-		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_sys.pdf}
-		\caption{sys time.}
-	\end{subfigure}
-	\vspace{-0.5cm}
-	\caption{Chromium benchmark.}
-	\label{fig:chromium benchmark}
-\end{figure*}
-
 \begin{table}[tb]
 \footnotesize
 \centering
@@ -34,36 +16,50 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \vspace{-0.5cm}
 \end{table}
 
-\begin{table}[tb]
-\footnotesize
+%\begin{table}[tb]
+%\footnotesize
+%\centering
+%\begin{tabular}{ll|rrr}
+%\hline
+% & kb/s & With Argus & Without Argus & overhead(\%)\\
+% \hline\hline
+%\textbf{bonnie++}&read char & 21922 & 22149 & 1\%\\
+% sequential& read block & 226931 & 244089 & 7\%\\
+% & rewrite & 246807 & 267491 & 8\%\\
+% & write char & 22924 & 22936 & 0\%\\
+% & write block & 4073361 & 4396387 & 7\%\\
+% \hline
+% seq& file create & 17391 & 17381 & 0\%\\
+% & file delete & 18089 & 19401 & 7\%\\
+% \hline
+% random& create & 17472 & 17887 & 2\%\\
+% & delete & 8849 & 9567 & 8\%\\
+% \hline
+% \hline
+%\textbf{iozone} & initial write & 1199453 & 1318572 & 9\%\\
+% & rewrite & 3663066 & 4059912 & 10\%\\
+% \hline
+% & geomean & - & - & 3.97\%\\
+%\hline
+%\end{tabular}
+%\caption{IO throughput with bonnie++ and iozone.}
+%\label{tab:iothroughput}
+%\vspace{-0.5cm}
+%\end{table}
+
+\begin{figure}
 \centering
-\begin{tabular}{ll|rrr}
-\hline
- & kb/s & With Argus & Without Argus & overhead(\%)\\
- \hline\hline
-\textbf{bonnie++}&read char & 21922 & 22149 & 1\%\\
- sequential& read block & 226931 & 244089 & 7\%\\
- & rewrite & 246807 & 267491 & 8\%\\
- & write char & 22924 & 22936 & 0\%\\
- & write block & 4073361 & 4396387 & 7\%\\
- \hline
- seq& file create & 17391 & 17381 & 0\%\\
- & file delete & 18089 & 19401 & 7\%\\
- \hline
- random& create & 17472 & 17887 & 2\%\\
- & delete & 8849 & 9567 & 8\%\\
- \hline
- \hline
-\textbf{iozone} & initial write & 1199453 & 1318572 & 9\%\\
- & rewrite & 3663066 & 4059912 & 10\%\\
- \hline
- & geomean & - & - & 3.97\%\\
-\hline
-\end{tabular}
+\includegraphics[width=\columnwidth]{./figures/performance_io.pdf}
 \caption{IO throughput with bonnie++ and iozone.}
-\label{tab:iothroughput}
-\vspace{-0.5cm}
-\end{table}
+\label{fig:iothroughput}
+\end{figure}
+
+\begin{figure}
+	\centering
+		\includegraphics[width=\columnwidth]{./figures/performance_cr.pdf}
+	\caption{Chromium benchmark.}
+	\label{fig:chromium benchmark}
+\end{figure}
 
 
 \subsection{Performance} \label{sec:evaluation}
