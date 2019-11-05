@@ -2,7 +2,7 @@
 
 In this section, we discuss the cases where the \spinningnode is blocking on
 wait event or yielding loop, corresponding to LongWait and RepeatedYield.
-These root causes are mostly can be verified by themselves, as they are
+These root causes mostly can be verified by themselves, as they are
 manifested by comparing to normal scenarios.
 
 \para{2-SystemPref}
@@ -11,7 +11,7 @@ manifested by comparing to normal scenarios.
 customize system settings, \eg additional monitors configuration.
 \vv{DisableMonitor}~\cite{disablemonitor} provides more functionality,
 enable/disable monitors online. We catch the spinning cursor when we disable
-an external monitor and rearrange windows in \vv{Display} panel.
+an external monitor and rearrange windows in the \vv{Display} panel.
 
 The log collected by \xxx contains 2 cases: 1) a baseline scenario where
 the displays are rearranged with the enabled external monitor, and 2) a
@@ -35,12 +35,12 @@ correct behavior for other applications.
 \para{3-SequelPro}
 
 \vv{Sequel Pro}~\cite{SequelPro} is a fast, easy-to-use Mac database management
-application for \vv{MySQL}. It allows user to connect to database with socket or ssh.
-We experienced the non-responsiveness of Sequel Pro when it lost network
+application for \vv{MySQL}. It allows a user to connect to a database with sockets or ssh.
+We experienced the non-responsiveness of Sequel Pro when it lost the network
 connection and tried reconnections.
 
 The tracing log contains two cases: 1) a quick network connection during login,
-and 2) Sequel Pro lost connection for a while. Although \xxx identified the
+and 2) Sequel Pro lost the connection for a while. Although \xxx identified the
 \spinningnode and \similarnode with ease, the backward slicing from \similarnode
 encountered multiple incoming edges, including one from a kernel thread.
 The kernel thread processes tasks from different applications in a batch.
