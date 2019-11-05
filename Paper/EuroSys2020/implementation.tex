@@ -61,16 +61,17 @@ path to the relevant binary image, and the symbol name of the global variable.
 %Here is a simple example of how a user asks \xxx to trace \vv{\_gOutMsgPending}:
 
 \begin{lstlisting}[language=c++,numbers=none]
-\xxx_wp <pid> <binary image path> <symbol name>
+Argus_wp <pid> <binary image path> <symbol name>
 \end{lstlisting}
 
-\noindent It first gets symbol's offset in file from the image, and find
-its memory address in the process. \xxx injects the watchpoint handler
-into \vv{CoreFoundation} with our binary instrumentation mentioned above.
-\vv{CoreFoundation} is a fundamental framework for all GUI apps, so the watch
-pointer handler can be loaded into the memory space of the target process. The
-handler invokes Apple's API \vv{kdebug\_trace} to record the value of the data
-flag and its operation type (read or write).
+The handler of the tool first gets the symbol's offset in file from the image,
+and finds its memory address in the process. Then it sets the watchpoint
+registers for all threads in the process to monitor the read and write in the
+memory address. It also invokes Apple's API \vv{kdebug\_trace} to record the
+value of the data flag and its operation type (read or write). \xxx injects
+the handler into \vv{CoreFoundation} with our binary instrumentation mentioned
+above. \vv{CoreFoundation} is a fundamental framework for all GUI apps, so the
+watch pointer handler can be loaded into the memory space of the target process.
 
 \subsection{Tracing Instructions and Calls}
 
