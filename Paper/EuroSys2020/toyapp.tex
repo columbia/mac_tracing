@@ -19,7 +19,9 @@ Bug ID & Panappticon & AppInsight & \xxx\\
 5-TeXStudio & \mycross(appkit event, timer, batching in WindowServer) & \mycross(fseventd) & \mycheck(3 ME)*\\
 \hline
   \end{tabularx}
-  \caption{Compare Effectiveness of Causal Tracing System. *WE stands for user interaction on Weak Edges, *ME stands for user interaction on Multi-incoming Edges in \xxx.} 
+  \caption{Compare Effectiveness of Causal Tracing System. *WE stands for user
+	interaction on Weak Edges, *ME stands for user interaction on Multi-incoming
+	Edges in \xxx.}
   \label{table:comps}
 \end{table}
 
@@ -59,6 +61,18 @@ because it only tracks events within one application, and would miss events in
 all daemons as well as in \vv{Sequel Pro} itself.  Panappticon and
 AppInsight failed similarly for \vv{AbSearch} and \vv{AnimateSlider} cases.
 
+In the \vv{AbSearch} case, we search people with first name "Smith" from the
+\vv{Contacts}. The event handler constructs a search element with the input
+information, and gets an array of people as search result. The \xxx's graph
+includes the user input, communications between \vv{AbSearch} and \vv{accd},
+and the display update. However, Panappticon fails to extract a complete user
+transaction graph. It misses the searching element construction.
+
+\vv{AnimatedSlider} is a simple GUI app. We input a percentage number in text
+field and press return key to initiate the user transaction. Panappticon's
+request graph contains 5 unrelated applications, which are connected from
+\vv{WindowServer}'s batch processing.
+
 %% In each microbenchmark, we turn on the
 %% appropriate causal tracing system, launch the application we are testing, \eg
 %% \vv{AppList}, and perform our specified GUI interation. We then terminate the
@@ -66,9 +80,6 @@ AppInsight failed similarly for \vv{AbSearch} and \vv{AnimateSlider} cases.
 %% clicked on a GUI element. We search for a path through the request graph from
 %% the GUI action to a display update, and ensure that the path matches the ground
 %% truth (obtained through manual investigation).
-
-
-
 
 %In this study, we chose \vv{Sequel Pro} from the list
 %of running applications, and clicked the \vv{Hide}. To find the ground truth
@@ -95,6 +106,7 @@ AppInsight failed similarly for \vv{AbSearch} and \vv{AnimateSlider} cases.
 %is also not enough to identify all under- and over-connections, therefore our
 %event graph exposes 59 vertices with multiple incoming edges.
 %
+
 \begin{table}[tb]
 	\footnotesize
 	\centering

@@ -7,14 +7,23 @@ research topics are closely related.
 
 \para{Event tracing.}
 \input{relatedwork_table}
+%Panappticon \cite{zhang2013panappticon} monitors a mobile system and uses the
+%trace to characterize the user transactions of mobile apps. Although it aims to
+%track system-wide events and correlate them without developer input, it supports
+%only two models of communication: work queue and thread pooling. AppInsight
+%\cite{ravindranath2012appinsight} instruments application to identify the
+%critical execution path in a user transaction. It supports the event callback
+%pattern, and does not trace across process or app boundaries.
 
-Panappticon \cite{zhang2013panappticon} monitors a mobile system and uses the
-trace to characterize the user transactions of mobile apps. Although it aims to
-track system-wide events and correlate them without developer input, it supports
-only two models of communication: work queue and thread pooling. AppInsight
-\cite{ravindranath2012appinsight} instruments application to identify the
-critical execution path in a user transaction. It supports the event callback
-pattern, and does not trace across process or app boundaries.
+Panappticon~\cite{zhang2013panappticon} and
+AppInsight~\cite{ravindranath2012appinsight} are two causal tracing systems
+close to \xxx in their design. We compared the programming paradigms traced
+by them with \xxx in Table~\ref{table:paradigms}. \xxx contains more complete
+tracing information compared to the two causal tracing systems. Take async
+calls as an example. AppInsight instruments upcalls from SilverLight framework;
+Panappticon traces two thread models in Android; and \xxx traces both from the
+framework and the kernel implementation of timer mechanism.
+
 Magpie~\cite{barham2004using} monitors server applications in Windows with the
 goal to model the normal behaviors of a server application in response to a
 workload. This model further helps detecting anomalies statistically. Magpie

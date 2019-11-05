@@ -13,7 +13,6 @@ average overhead& \multicolumn{5}{c}{0.13\%}\\
 \end{tabularx}
 \caption{Score From iBench. iBench evaluates overall system performance.}
 \label{tab:ibench}
-\vspace{-0.5cm}
 \end{table}
 
 %\begin{table}[tb]
@@ -86,7 +85,7 @@ performance are almost of no difference, only 0.13\% degradation on average.
 \para{IO Throughput}
 
 Next, we evaluate the IO throughput with bonnie++ and iozone. As shown in the
-Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
+Figure~\ref{fig:iothroughput}, the throughputs of sequential read and write
 by characters with and without \xxx are almost same. Read and write by block
 impose less than 10\% overhead in  both microbenchmarks, bonni++ and iozone.
 With selected events in our system, the tracing tool integrated in \xxx

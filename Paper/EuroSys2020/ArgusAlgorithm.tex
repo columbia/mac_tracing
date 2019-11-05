@@ -27,7 +27,8 @@
 			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				\State {\algrootcausenodes.append($vertex_t$)}
 				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
-			\EndIf \Comment{if t is normal running, diagnose the next thread}
+			\EndIf 
+			\LineComment{if t is normal running, diagnose the next thread}
 		\EndFor \label{a1:longwait_end}
 	\EndCase
   \EndSwitch
