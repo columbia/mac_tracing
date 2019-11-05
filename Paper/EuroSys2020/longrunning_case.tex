@@ -35,10 +35,10 @@ thread. In the pattern, the kernel thread has two incoming edges. One is from
 another kernel thread's IO completion, and the other is from \vv{TextEdit}'s timer
 creation. It not hard to reveal the high level semantics. \vv{TextEdit} arms a timer
 for IO work, and the kernel thread gets the notification for the completion of IO
-and processes the timer callback. The success of heuristics is not surprising
-because the most recent edge in the vertex reflects the purpose of the execution
-segment. Although the heuristics works for the kind of simple application, it is
-not general enough to succeed for all patterns.
+and processes the timer callback. 
+Although the most recent incoming edge to the vertex reflects the purpose of
+the execution segment in this case, it is not general enough to for all vertex
+patterns.
 
 \para{7-MSWord}
 
@@ -51,12 +51,14 @@ We compared the paths and find they diverge from the third vertex backward
 from \spinningnode. In the vertex, a \vv{Microsoft Word} thread is
 woken by another \vv{Microsoft Word} thread, and launches a service
 \vv{NSServiceControllerCopyServiceDictionarie}. The woken thread sends a message
-to \vv{launchd} to register the new service and waits for a reply message.
-With the most recent edge heuristics in automatic slicing, \xxx chooses the
-reply from \vv{launchd} as its predecessor. However, a user can more accurately
-identify that the execution segment is on behalf of another \vv{Microsoft Word}
-thread. We rely on user interaction in this case to find the true root cause,
-since \xxx is likely identifies all possibilities without priority.
+to \vv{launchd} to register the new service and waits for a reply message. In
+this case, a user can accurately identify that the execution segments is on
+behalf of \vv{Microsoft Word}, instead of \vv{launchd}. where the most recent
+incoming edge comes from. Heuristics is likely to identify all possibilities
+without priority. We rely on user interaction in this case to find the true root
+cause. We identified \vv{Microsoft Word} spends most time on file accesses and
+the copy command triggers those accesses.
+
 
 \para{Other Editing Apps}
 
