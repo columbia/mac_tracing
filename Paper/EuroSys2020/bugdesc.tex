@@ -4,97 +4,77 @@
 \begin{table}[t]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|cl}
+  \begin{tabularx}{\columnwidth}{l|l|c}
     \hline
-    \textbf{Bug ID} & \textbf{Application} & \textbf{Bug description}\\
+    \textbf{Bug ID} & \textbf{Bug description} &\textbf{User interaction}\\
     \hline
 	\hline
-	 1-Chormium & Chormium & \begin{tabular}{@{}l@{}}
-	 Typing non-english in search box\\
-	 causes webpage freeze.
-	 \end{tabular}
+	 1-Chromium & \begin{tabular}{@{}l@{}}
+	 Typing non-English in search box\\
+	 causes web page freeze.
+	 \end{tabular} & 13
 	 \\
      \hline
-	 2-SystemPref & \begin{tabular}{@{}l@{}} 
-	 System Preferences\\
-	 \end{tabular}
+	 2-SystemPref
 	 & \begin{tabular}{@{}l@{}}
 	 Disabling an online external mo-\\
 	 nitor and rearranging windows\\
 	 causes System Preferences freeze.\\
-	 \end{tabular}
+	 \end{tabular} & 1
 	 \\
      \hline
-	 3-SequelPro& \begin{tabular}{@{}l@{}} 
-	 Sequel Pro
-	 \end{tabular}
+	 3-SequelPro
 	 & \begin{tabular}{@{}l@{}}
 	 Lost connection freezes the APP.
-	 \end{tabular}
+	 \end{tabular} & 2
 	 \\
      \hline
-	 4-Installer & \begin{tabular}{@{}l@{}} 
-	 Installer
-	 \end{tabular}
+	 4-Installer 
 	 & \begin{tabular}{@{}l@{}}
 	 Moving cursor out of an authenti-\\
 	 cation window causes freeze.
-	 \end{tabular}
+	 \end{tabular} & 2
 	 \\
      \hline
-	 5-TeXStudio & \begin{tabular}{@{}l@{}} 
-	 TeXStudio
-	 %: LaTeX editor
-	 \end{tabular}
+	 5-TeXStudio 
 	 & \begin{tabular}{@{}l@{}}
 	 Modification on bib file with vim\\
 	 causes its main window hang.
-	 \end{tabular}
+	 \end{tabular} & 3
 	 \\
      \hline
-	 6-TextEdit & \begin{tabular}{@{}l@{}}
-	 TextEdit
-	 \end{tabular}
+	 6-TextEdit 
 	 & \begin{tabular}{@{}l@{}}
 	 Copying text over 30M causes\\
 	 freeze.
-	 \end{tabular}
+	 \end{tabular} & 3
 	 \\
      \hline
-	 7-MSWord & \begin{tabular}{@{}l@{}}
-	 Microsoft Words
-	 \end{tabular}
+	 7-MSWord 
 	 & \begin{tabular}{@{}l@{}}
 	 Copying a document over 400 pa-\\
 	 ges causes hang.
-	 \end{tabular}
+	 \end{tabular} & 22
 	 \\
      \hline
-	 8-Notes& \begin{tabular}{@{}l@{}} 
-	 Notes\\
-	 \end{tabular}
+	 8-Notes
 	 & \begin{tabular}{@{}l@{}}
 	 Launching Notes where stores a\\
 	 long note before causes freeze.
-	 \end{tabular}
+	 \end{tabular} & 2
 	 \\
      \hline
-	 \begin{tabular}{@{}l@{}}
-     9-SlText\\
-     10-TextMate\\
-     11-CotEditor\\
-     \end{tabular}
-    & \begin{tabular}{@{}l@{}}
-     SublimeText\\
-     TextMate\\
-     CotEditor
-     \end{tabular}
+     9-SlText
 	 & \begin{tabular}{@{}l@{}}
 	 Copying or pasting in a file\\
      with large amount of context\\
 	 causes freeze.
-	 \end{tabular}
-	\\
+	 \end{tabular} & 1
+	 \\
+	 \hline
+     10-TextMate & same as above & 0\\
+	 \hline
+     11-CotEditor& same as above & 1\\
     \hline
   \end{tabularx}
 
