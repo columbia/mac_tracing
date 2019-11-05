@@ -67,7 +67,7 @@ path to the relevant binary image, and the symbol name of the global variable.
 \noindent It first gets symbol's offset in file from the image, and find
 its memory address in the process. \xxx injects the watchpoint handler
 into \vv{CoreFoundation} with our binary instrumentation mentioned above.
-\vv{CoreFoundation} is a foundamental framework for all GUI apps, so the watch
+\vv{CoreFoundation} is a fundamental framework for all GUI apps, so the watch
 pointer handler can be loaded into the memory space of the target process. The
 handler invokes Apple's API \vv{kdebug\_trace} to record the value of the data
 flag and its operation type (read or write).
