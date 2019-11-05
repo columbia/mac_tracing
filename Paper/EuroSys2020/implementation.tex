@@ -9,7 +9,7 @@ and libraries.
 Current macOS supports a system-wide tracing
 infrastructure~\cite{linktotracetool}. It by default stores events in memory and
 flushes them to screen or disk periodically. \xxx extends this infrastructure
-with a file-backed ring buffer to support larger-scale tests and avoid
+with a file-backed ring buffer to support system-wide tests and avoid
 exhausting the disk. The file size is set to 2GB by default, approximately 19
 million events (about 5 minutes of normal operations). The size can be adjust by
 users to accommodate the desired trace history.
@@ -26,26 +26,28 @@ the following libraries: \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib},
 
 \subsection{Instrumentation}
 
-Most libraries and applications are closed-source in macOS. To hook their
-functions with techniques such as library preloading are not applicable, as
-libraries use two-level executable namespace~\cite{twolayernamespace}. Hence, we
-implemented a binary instrumentation mechanism that allows users to add tracing
-points inside a binary image.
+Most libraries and applications are closed-source in macOS. To hook
+their functions with techniques such as library preloading are not
+applicable for two reasons. First libraries use two-level executable
+namespace~\cite{twolayernamespace}. Applications access the original library
+with file name. Second \xxx traces APIs in libraries which are referenced by other
+libraries. Hence, we implemented a binary instrumentation mechanism that
+allows users to add tracing points inside a binary image.
 
-Like Detour~\cite{hunt1999detours}, we use static analysis to decide where the
-instrumentation performs and enact it at runtime. The user supplies a sequence
-of instructions for \xxx to search the locations of interest in the image, and a
-trampoline function which overwrites the sequence of instructions and produces
-tracing data with API \vv{kdebug\_trace} from Apple. \xxx generates shell code
-with the trampoline function to replace the victimized instructions. All of
-the trampoline functions are grouped into a new image with an initialization
-function that triggers the drop-in replacement. \xxx configures the image in the
-following steps to finish the instrumentation: (1) it re-exports all symbols
-from the original image, so the original code can be called like a shared
-library; (2) it renames the original image and applies original name to the
-new one to ensure the modifications are properly loaded; (3) it invokes the
-initialization function externally with \vv{dispatch\_once} when the library
-loads.
+Like Detour~\cite{hunt1999detours}, we statically scan instruction patterns
+to decide where the instrumentation performs and enact it at runtime. The
+user supplies a sequence of instructions for \xxx to search the locations of
+interest in the image, and a trampoline function which overwrites the sequence
+of instructions and produces tracing data with API \vv{kdebug\_trace} from
+Apple. \xxx generates shell code with the trampoline function to replace the
+victimized instructions. All of the trampoline functions are grouped into a new
+image with an initialization function that triggers the drop-in replacement.
+\xxx configures the image in the following steps to finish the instrumentation:
+(1) it re-exports all symbols from the original image, so the original code can
+be called like a shared library; (2) it renames the original image and applies
+original name to the new one to ensure the modifications are properly loaded;
+(3) it invokes the initialization function externally with \vv{dispatch\_once}
+when the library loads.
 
 \subsection{Tracing Data Flags} \label{subsec:tcp}
 
@@ -54,18 +56,21 @@ data dependency requires users' interaction. Users specify that reads and writes
 to a given variable should be considered data dependencies. Data flag tracing
 is possible through \xxx's binary rewriting, but we also provide a simple
 command line tool which uses watchpoint registers to record \dataflagwrite and
-\dataflagread events. The tool \vv{bp\_watch} takes as input the process ID,
+\dataflagread events. The tool \vv{\xxx\_wp} takes as input the process ID,
 path to the relevant binary image, and the symbol name of the global variable.
-Here is a simple example of how a user asks \xxx to trace \vv{\_gOutMsgPending}:
+%Here is a simple example of how a user asks \xxx to trace \vv{\_gOutMsgPending}:
 
 \begin{lstlisting}[language=c++,numbers=none]
-bp_watch Pid/of/WindowServer Path/to/CGs _gOutMsgPending
+\xxx_wp <pid> <binary image path> <symbol name>
 \end{lstlisting}
 
-\noindent \xxx loads the watchpoint handler into the address space of the target
-application by hooking it to \vv{CoreFoundation}. The handler invokes Apple's
-API \vv{kdebug\_trace} to record the value of the data flag and its operation
-type (read or write).
+\noindent It first gets symbol's offset in file from the image, and find
+its memory address in the process. \xxx injects the watchpoint handler
+into \vv{CoreFoundation} with our binary instrumentation mentioned above.
+\vv{CoreFoundation} is a foundamental framework for all GUI apps, so the watch
+pointer handler can be loaded into the memory space of the target process. The
+handler invokes Apple's API \vv{kdebug\_trace} to record the value of the data
+flag and its operation type (read or write).
 
 \subsection{Tracing Instructions and Calls}
 
