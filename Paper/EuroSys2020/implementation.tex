@@ -11,8 +11,8 @@ infrastructure~\cite{linktotracetool}. It by default stores events in memory and
 flushes them to screen or disk periodically. \xxx extends this infrastructure
 with a file-backed ring buffer to support system-wide tests and avoid
 exhausting the disk. The file size is set to 2GB by default, approximately 19
-million events (about 5 minutes of normal operations). The size can be adjust by
-users to accommodate the desired trace history.
+million events (about 5 minutes of normal operations). The size can be adjusted by
+users to accommodate the desired length of trace history.
 
 Default tracing points in macOS provide too limited information to enact causal
 tracing. We therefore instrument both the kernel~\cite{linkofxnusourcecode} (at
@@ -26,11 +26,11 @@ the following libraries: \vv{libsystem\_kernel.dylib}, \vv{libdispatch.dylib},
 
 \subsection{Instrumentation}
 
-Most libraries and applications are closed-source in macOS. To hook
-their functions with techniques such as library preloading are not
-applicable for two reasons. First libraries use two-level executable
+Most libraries and applications are closed-source in macOS. It is
+difficult to hook their functions with techniques such as library
+preloading for two reasons. First, libraries use two-level executable
 namespace~\cite{twolayernamespace}. Applications access the original library
-with file name. Second \xxx traces APIs in libraries which are referenced by other
+with file name. Second, \xxx traces APIs in libraries which are referenced by other
 libraries. Hence, we implemented a binary instrumentation mechanism that
 allows users to add tracing points inside a binary image.
 
@@ -78,13 +78,14 @@ Users may need to gather more information, such as individual instructions and
 call stacks, to come up with and verify a binary patch. \xxx integrates with
 \vv{lldb scripts} to capture this information and add it to the corresponding
 vertices in the event graph. Our \vv{lldb scripts} gather call stacks at
-relevant locations and parameters tainted by user inputs. To reduce the data
+relevant locations and parameters. To reduce the data
 collection overhead, only at each beginning of a function call does the script
-record a full call stack. While \vv{lldb} steps into functions from apps and
-frameworks to record parameters tainted, it steps over and only records the
+record a full call stack. While \vv{lldb} steps into functions from applications and
+frameworks to record parameters, it steps over and only records the
 return value of APIs from low-level libraries (i.e. those with the filename
-extension \vv{.dylib}).
+extension \vv{.dylib}). The combination of instruction-level tracing and
+occasional call-stacks offers enough detail to diagnose even the most
+arcane spinning cursors we evaluated.
 
-The combination of instruction-level tracing and occasional call-stacks offers
-more than enough detail to diagnose even the most arcane issues, and in our
-experience has been very helpful in multiple steps of an \xxx diagnosis.
+%, and in our experience has been very helpful in multiple steps of an
+%\xxx diagnosis.
