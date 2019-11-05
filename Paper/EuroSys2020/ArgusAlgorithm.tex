@@ -27,7 +27,7 @@
 			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
 				\State {\algrootcausenodes.append($vertex_t$)}
 				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
-			\EndIf \Comment{if t is normal running, disgnose the next thread}
+			\EndIf \Comment{if t is normal running, diagnose the next thread}
 		\EndFor \label{a1:longwait_end}
 	\EndCase
   \EndSwitch
@@ -42,7 +42,7 @@
 		\State{vertex $\gets$ predecessor vertex}
 	\ElsIf {vertex has multiple incoming edges}
 		\State{vertex $\gets$ ask user to pick or stop}
-	\ElsIf {vertex has 1 weak incomming edge}
+	\ElsIf {vertex has 1 weak incoming edge}
 		\State{vertex $\gets$ ask user to pick or stop}
 
 	%\Else \Comment{The first vertex of current thread}
