@@ -13,24 +13,6 @@
 \begin{table}[ht]
 \footnotesize
 \centering
-  \begin{tabularx}{\columnwidth}{l|XXX}
-  \hline
-Bug ID & Panappticon & AppInsight & \xxx\\
-\hline
-\hline
-2-SystemPref & \mycross(data flags) & \mycross(WindowServer) & \mycheck (2 data flags) \\
-3-SequelPro & \mycross(batching in kernel task) & \mycross(sshd) & \mycheck(2 ME)*\\
-4-Installer & \mycross(batching in worker thread) & \mycross(SecurityAgent, authd)& \mycheck(1 WE, 1 ME)*\\
-5-TeXStudio & \mycross(appkit event, timer, batching in WindowServer) & \mycross(fseventd) & \mycheck(3 ME)*\\
-\hline
-  \end{tabularx}
-  \caption{Compare Effectiveness of Causal Tracing System. *WE stands for user interaction on Weak Edges, *ME stands for user interaction on Multi-incoming Edges in \xxx.} 
-  \label{table:comps}
-\end{table}
-
-\begin{table}[ht]
-\footnotesize
-\centering
   \begin{tabularx}{\columnwidth}{l|cccc}
   \hline
  	   &       &\multicolumn{2}{c}{size of path}& hueristics\\
