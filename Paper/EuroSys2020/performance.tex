@@ -97,7 +97,7 @@ We evaluate \xxx's CPU overhead with chromium benchmarks by recording their
 time usage on real, user and sys. Although the overhead on sys is relatively
 higher than other two, due to the tracing events usually crossing the
 kernel boundary, they are not triggered too frequently in our daily software
-usage, including browsers. The time cost is mostly under 5\%, except the
-\vv{dummy\_benchmark.histogram}. As shown in Figure ~\ref{fig:chromium
-benchmark}, the time overhead for real, user and sys are 3.36\%, 2.15\% and 36.76\%
+usage, including browsers. The overall time cost is mostly under 5\%.
+as shown in Figure ~\ref{fig:chromium
+benchmark}. The geomean of overhead for real, user and sys are 3.36\%, 2.15\% and 36.76\%
 respectively.
