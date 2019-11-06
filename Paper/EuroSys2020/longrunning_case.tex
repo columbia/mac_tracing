@@ -16,7 +16,7 @@ other editors like vim, a spinning cursor appears in \vv{TeXStudio}'s window.
 
 \xxx recognizes the \spinningnode belongs to the category of LongRunning. The
 causal path sliced from the \spinningnode by \xxx reveals the long-running
-function is a callback from daemon \vv{fseventd}, and the long processing segment
+function is a callback from daemon \vv{fseventsd}, and the long processing segment
 is busy to CalculateGrowingBlockSize, even without modifications to the file.
 The advantage of \xxx over other debugging tools is it narrows down the root
 cause with the inter-processes execution path.
@@ -24,18 +24,19 @@ cause with the inter-processes execution path.
 \para{6-TextEdit}
 
 \vv{TextEdit} is a simple word processing and text editing tool from Apple,
-which often hangs on editing large files.  When \xxx is used to diagnose
-this issue, the heuristics of choosing the most recent edge is powerful enough 
+which often hangs on editing large files.
+When \xxx is used to diagnose
+this issue, the heuristic of choosing the most recent edge is powerful enough 
 to get the causal path.
-
 The event graph reveals a communication pattern where a kernel thread is woken
 from I/O by another kernel thread; the woken kernel thread processed
 a timer callback function armed by \vv{TextEdit} and finally woke a \vv{TextEdit}
 thread. In the pattern, the kernel thread has two incoming edges. One is from
 another kernel thread's IO completion, and the other is from \vv{TextEdit}'s timer
-creation. It not hard to reveal the high level semantics. \vv{TextEdit} arms a timer
+creation. It is not hard to reveal the high level semantics. \vv{TextEdit} arms a timer
 for IO work, and the kernel thread gets the notification for the completion of IO
 and processes the timer callback. 
+
 Although the most recent incoming edge to the vertex reflects the purpose of
 the execution segment in this case, it is not general enough to for all vertex
 patterns.
@@ -43,9 +44,9 @@ patterns.
 \para{7-MSWord}
 
 \vv{Microsoft Word} is a large and complex piece of software. \xxx can analyze
-the event graph, but it identifies multiple possible root causes: the length of
-path interactively sliced from the \spinningnode is 67, while the slicing with
-heuristics of choosing the most recent edge generates a path of 136 vertices.
+the event graph, but the graph identifies multiple possible root causes: the length of
+path interactively sliced from the \spinningnode is 67, while 
+always choosing the most recent edge generates a path of 136 vertices.
 
 We compared the paths and find they diverge from the third vertex backward
 from \spinningnode. In the vertex, a \vv{Microsoft Word} thread is
