@@ -6,56 +6,56 @@
 #include "canonization.hpp"
 
 class NormCluster {
-	cluster_t *cluster;
-	map<event_id_t, bool> &key_events;
-	vector<norm_group_t *> sort_vertexes;
-	map<group_t *, norm_group_t *> vertexes_map;
-	map<norm_group_t *, group_t *> vertexes_reverse_map;
+    cluster_t *cluster;
+    std::map<EventType::event_type_t, bool> &key_events;
+    std::vector<NormGroup *> sort_vertexes;
+    std::map<Group *, NormGroup *> vertexes_map;
+    std::map<NormGroup *, Group *> vertexes_reverse_map;
 
-	void init_vertex_degrees(vector<rel_t> &edges);
-	void create_vertexes(vector<group_t *> &nodes);
+    void init_vertex_degrees(std::vector<rel_t> &edges);
+    void create_vertexes(std::vector<Group *> &nodes);
 
-	static bool compare_vertexes_in(norm_group_t *elem1, norm_group_t *elem2);
-	norm_group_t *sort_vertexes_in(vector<norm_group_t *>::iterator begin, vector<norm_group_t *>::iterator end);
-	void remove_degree_edges_from(norm_group_t *group, node_edges_map_t &group_inedges_map, node_edges_map_t &group_outedges_map);
-	void virtualize_tid_for_groups(void);
+    static bool compare_vertexes_in(NormGroup *elem1, NormGroup *elem2);
+    NormGroup *sort_vertexes_in(std::vector<NormGroup *>::iterator begin, std::vector<NormGroup *>::iterator end);
+    void remove_degree_edges_from(NormGroup *group, node_edges_map_t &group_inedges_map, node_edges_map_t &group_outedges_map);
+    void virtualize_tid_for_groups(void);
 
 public:
-	NormCluster(cluster_t *c, map<event_id_t, bool> &key_events);
-	~NormCluster();
+    NormCluster(cluster_t *c,std::map<EventType::event_type_t, bool> &key_events);
+    ~NormCluster();
 
-	uint64_t original_size() {return cluster->get_nodes().size();}
-	uint64_t original_edges() {return cluster->get_edges().size();}
-	uint64_t get_cluster_id() {return cluster->get_cluster_id();}
+    uint64_t original_size() {return cluster->get_nodes().size();}
+    uint64_t original_edges() {return cluster->get_edges().size();}
+    uint64_t get_cluster_id() {return cluster->get_cluster_id();}
 
-	void topological_sort();
-	vector<norm_group_t *> &get_sort_vertexes(void) {return sort_vertexes;}
+    void topological_sort();
+    std::vector<NormGroup *> &get_sort_vertexes(void) {return sort_vertexes;}
 
-	bool operator==(NormCluster &other);
-	bool operator!=(NormCluster &other);
-	void decode_cluster(ofstream &output);
+    bool operator==(NormCluster &other);
+    bool operator!=(NormCluster &other);
+    void decode_cluster(std::ofstream &output);
 };
-typedef NormCluster norm_cluster_t;
+typedef NormCluster NormGroupcluster_t;
 
 ///////////////////////////////////////////////
 class Normalizer {
-	map<uint64_t, cluster_t *> &clusters;
-	/* pick key events for normalization */
-	map<event_id_t, bool> key_events;
-	map<uint64_t, norm_cluster_t *> norm_clusters;
-	vector<norm_cluster_t *> outstanders;
+    std::map<uint64_t, cluster_t *> &clusters;
+    /* pick key events for normalization */
+    std::map<EventType::event_type_t, bool> key_events;
+    std::map<uint64_t, NormGroupcluster_t *> NormGroupclusters;
+    std::vector<NormGroupcluster_t *> outstanders;
 
-	/*nomailization*/
-	void normalize_cluster(uint64_t index, cluster_t *cluster);
+    /*nomailization*/
+    void normalize_cluster(uint64_t index, cluster_t *cluster);
 
 public:
-	Normalizer(map<uint64_t, cluster_t *> &clusters);
-	~Normalizer();
-	void normalize_clusters(void);
-	void sort_clusters(void);
-	map<uint64_t, norm_cluster_t *> &get_normed_clusters(void) {return norm_clusters;}
-	void compare(Normalizer* base, const char *outfile);
-	void decode_outstand_cluster(const char *outfile);
+    Normalizer(std::map<uint64_t, cluster_t *> &clusters);
+    ~Normalizer();
+    void normalize_clusters(void);
+    void sort_clusters(void);
+    std::map<uint64_t, NormGroupcluster_t *> &get_normed_clusters(void) {return NormGroupclusters;}
+    void compare(Normalizer* base, const char *outfile);
+    void decode_outstand_cluster(const char *outfile);
 };
 typedef Normalizer normalizer_t;
 

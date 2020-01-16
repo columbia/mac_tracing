@@ -106,20 +106,20 @@ struct dyld_image_info_64 {
     uint64_t                    imageFileModDate;
 };
 
-#define DYLD_PROCESS_INFO_NOTIFY_MAX_BUFFER_SIZE	(32*1024)
-#define DYLD_PROCESS_INFO_NOTIFY_LOAD_ID			0x1000
-#define DYLD_PROCESS_INFO_NOTIFY_UNLOAD_ID			0x2000
+#define DYLD_PROCESS_INFO_NOTIFY_MAX_BUFFER_SIZE    (32*1024)
+#define DYLD_PROCESS_INFO_NOTIFY_LOAD_ID            0x1000
+#define DYLD_PROCESS_INFO_NOTIFY_UNLOAD_ID            0x2000
 
 
 struct dyld_process_info_image_entry {
-    uuid_t						uuid;
+    uuid_t                        uuid;
     uint64_t                    loadAddress;
     uint32_t                    pathStringOffset;
     uint32_t                    pathLength;
 };
 
 struct dyld_process_info_notify_header {
-	mach_msg_header_t			header;
+    mach_msg_header_t            header;
     uint32_t                    version;
     uint32_t                    imageCount;
     uint32_t                    imagesOffset;

@@ -1,27 +1,27 @@
 #include "dispatch.hpp"
 
-DispMigEvent::DispMigEvent(double abstime, string op, uint64_t tid, uint32_t core_id, string procname)
+DispatchQueueMIGServiceEvent::DispatchQueueMIGServiceEvent(double abstime, std::string op, uint64_t tid, uint32_t core_id, std::string procname)
 :EventBase(abstime, DISP_MIG_EVENT, op, tid, core_id, procname)
 {
 }
-void DispMigEvent::save_owner(void *_owner)
+void DispatchQueueMIGServiceEvent::save_owner(void *_owner)
 {
-	owner = _owner;
+    owner = _owner;
 }
 
-void *DispMigEvent::restore_owner(void)
+void *DispatchQueueMIGServiceEvent::restore_owner(void)
 {
-	return owner;
+    return owner;
 }
 
-void DispMigEvent::decode_event(bool is_verbose, ofstream &outfile)
+void DispatchQueueMIGServiceEvent::decode_event(bool is_verbose, std::ofstream &outfile)
 {
-	EventBase::decode_event(is_verbose, outfile);
-	outfile << endl;
+    EventBase::decode_event(is_verbose, outfile);
+    outfile << std::endl;
 }
 
-void DispMigEvent::streamout_event(ofstream &outfile)
+void DispatchQueueMIGServiceEvent::streamout_event(std::ofstream &outfile)
 {
-	EventBase::streamout_event(outfile);
-	outfile << endl;
+    EventBase::streamout_event(outfile);
+    outfile << std::endl;
 }

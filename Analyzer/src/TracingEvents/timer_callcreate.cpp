@@ -1,48 +1,41 @@
 #include "timer_call.hpp"
 
-TimerCreateEvent::TimerCreateEvent(double timestamp, string op, uint64_t _tid, uint32_t event_core, 
-		void * funcptr, uint64_t p0, uint64_t p1, void * qptr, string procname)
-:EventBase(timestamp, TMCALL_CREATE_EVENT, op, _tid, event_core, procname)
+TimerCreateEvent::TimerCreateEvent(double timestamp, std::string op, uint64_t _tid, uint32_t event_core, 
+        void * funcptr, uint64_t p0, uint64_t p1, void * qptr, std::string procname)
+:EventBase(timestamp, TMCALL_CREATE_EVENT, op, _tid, event_core, procname),
+TimerItem(funcptr, p0, p1, qptr)
 {
-	func_ptr = funcptr;
-	param0 = p0;
-	param1 = p1;
-	q_ptr = qptr;
-	is_called = false;
-	is_cancelled = false;
-	is_event_processing = false;
-	timercallout_event = NULL;
-	cancel_event = NULL;
+    is_event_processing = false;
+    timercallout_event = nullptr;
+    timercancel_event = nullptr;
 }
 
-void TimerCreateEvent::decode_event(bool is_verbose, ofstream &outfile)
+void TimerCreateEvent::decode_event(bool is_verbose, std::ofstream &outfile)
 {
-	EventBase::decode_event(is_verbose, outfile);
-	outfile << "\n\tqueue " << hex << q_ptr << endl;
+    EventBase::decode_event(is_verbose, outfile);
+    outfile << "\n\tqueue " << std::hex << get_q_ptr() << std::endl;
 
-	if (is_called) {
-		assert(timercallout_event);
-		outfile << "\n\t" << "called at " << fixed << setprecision(1) << timercallout_event->get_abstime();
-	} else
-		outfile << "\n\t" << "not called";
+    if (timercallout_event)
+        outfile << "\n\t" << "called at " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime();
+    else
+        outfile << "\n\t" << "not called";
 
-	outfile << "\n\tfunc_" << hex << func_ptr;
-	outfile << "(" << hex << param0 << ",";
-	outfile << hex << param1 << ")" << endl;
+    outfile << "\n\tfunc_" << std::hex << get_func_ptr();
+    outfile << "(" << std::hex << get_param0() << ",";
+    outfile << std::hex << get_param1() << ")" << std::endl;
 }
 
-void TimerCreateEvent::streamout_event(ofstream &outfile)
+void TimerCreateEvent::streamout_event(std::ofstream &outfile)
 {
-	EventBase::streamout_event(outfile);
-	outfile << "\tarm_timercallout_func_" << hex << func_ptr;
-	outfile << "(" << hex << param0 << ",";
-	outfile << hex << param1 << ")";
+    EventBase::streamout_event(outfile);
+    outfile << "\tarm_timercallout_func_" << std::hex << get_func_ptr();
+    outfile << "(" << std::hex << get_param0() << ",";
+    outfile << std::hex << get_param1() << ")";
 
-	if (is_called == true) {
-		assert(timercallout_event != NULL);
-		outfile << "\n\t" << "called at " << fixed << setprecision(1) << timercallout_event->get_abstime();
-		outfile << "\t" << hex << timercallout_event->get_tid();
-		outfile << "\t" << timercallout_event->get_procname();
-	}
-	outfile << endl;
+    if (timercallout_event != nullptr) {
+        outfile << "\n\t" << "called at " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime();
+        outfile << "\t" << std::hex << timercallout_event->get_tid();
+        outfile << "\t" << timercallout_event->get_procname();
+    }
+    outfile << std::endl;
 }

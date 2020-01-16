@@ -3,53 +3,69 @@
 
 namespace Parse
 {
-	NSAppEventParser::NSAppEventParser(string filename)
-	:Parser(filename)
-	{
-		nsappevent_events.clear();
-	}
+    NSAppEventParser::NSAppEventParser(std::string filename)
+    :Parser(filename)
+    {
+        nsappevent_events.clear();
+    }
 
-	void NSAppEventParser::process()
-	{
-		string line, deltatime, opname, procname;
-		double abstime;
-		uint64_t tag, keycode, unused, tid, coreid;
+    void NSAppEventParser::process()
+    {
+        std::string line, deltatime, opname, procname;
+        double abstime;
+        uint64_t tag, keycode, unused, tid, coreid;
 
-		while (getline(infile, line)) {
-			istringstream iss(line);
+        while (getline(infile, line)) {
+            std::istringstream iss(line);
 
-			if (!(iss >> abstime >> deltatime >> opname) ||
-				!(iss >> hex >> tag >> keycode >> unused >> unused) ||
-				!(iss >> tid >> coreid)) {
-				outfile << line << endl;
-				continue;
-			}
+            if (!(iss >> abstime >> deltatime >> opname) ||
+                !(iss >> std::hex >> tag >> keycode >> unused >> unused) ||
+                !(iss >> tid >> coreid)) {
+                outfile << line << std::endl;
+                continue;
+            }
 
-			if (!getline(iss >> ws, procname) || !procname.size())
-				procname = ""; 
+            if (!getline(iss >> std::ws, procname) || !procname.size())
+                procname = ""; 
 
-			if (opname == "NSEvent") {
-				if (nsappevent_events.find(tid) != nsappevent_events.end()){
+            if (opname == "ARGUS_AppKit_SendEvent") {
+                mtx.lock();
+                std::cout << "nsappkit 1" << std::endl;
+                mtx.unlock();
+                if (nsappevent_events.find(tid) != nsappevent_events.end()) {
+                    nsappevent_events[tid]->set_event(tag, keycode);
+                    nsappevent_events[tid]->set_complete();
+                    nsappevent_events.erase(tid);
+                } else {
+                    outfile <<"No nsapplication event for matching" << std::endl;
+                    outfile << line << std::endl;
+                }
+            }
+            
+            if (opname == "ARGUS_AppKit_GetEvent") {
+                mtx.lock();
+                std::cout << "nsappkit 2" << std::endl;
+                mtx.unlock();
 
-					nsappevent_events[tid]->set_event(tag, keycode);
-					nsappevent_events[tid]->set_complete();
-					nsappevent_events.erase(tid);
-				} else {
-					outfile <<"No nsapplication event for matching" << endl;
-					outfile << line << endl;
-				}
-			}
-			
-			if (opname == "NSAppGetEvent") {
-				nsapp_event_ev_t *nsapp_event_event = new nsapp_event_ev_t(abstime, opname, tid, tag, coreid, procname);
-				if (!nsapp_event_event) {
-					cerr << "OOM " << __func__ << endl;
-					exit(EXIT_FAILURE);
-				}
-				nsappevent_events[tid] = nsapp_event_event;
-				local_event_list.push_back(nsapp_event_event);
-			}
-			//nsapp_event_event->set_complete();
-		}
-	} 
+                NSAppEventEvent *nsapp_event_event = new NSAppEventEvent(abstime, opname, tid, tag, coreid, procname);
+                if (!nsapp_event_event) {
+                    std::cerr << "OOM " << __func__ << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+
+                mtx.lock();
+                std::cout << "nsappkit 3" << std::endl;
+                mtx.unlock();
+                local_event_list.push_back(nsapp_event_event);
+                mtx.lock();
+                std::cout << "nsappkit 4" << std::endl;
+                mtx.unlock();
+                nsappevent_events[tid] = nsapp_event_event;
+                mtx.lock();
+                std::cout << "nsappkit 5" << std::endl;
+                mtx.unlock();
+            }
+            //nsapp_event_event->set_complete();
+        }
+    } 
 }

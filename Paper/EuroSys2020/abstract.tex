@@ -1,9 +1,9 @@
-Prior systems use causal tracing, a powerful technique that traces low-level
+Prior systems have used causal tracing, a powerful technique that traces low-level
 events and builds request graphs, to diagnose performance issues. However, they
 all assume that accurate causality can be inferred from low-level tracing with
-supported communication patterns or obtained from a developer's schema upfront
+supported communication patterns, or can be obtained from a developer's schema upfront
 for all involved components.  Unfortunately, based on our study and experience
-of building a causal tracing system on macOS, we show it is difficult, if not
+building a causal tracing system on macOS, we show it is difficult, if not
 impossible, to get accurate request graphs.
 We present \xxx, a practical system for debugging performance issues in modern
 desktop applications despite the inaccuracy of causal tracing. \xxx lets a user
@@ -11,5 +11,5 @@ inspect current diagnostics and provide domain knowledge on demand to counter
 the inherent inaccuracy of causal tracing. We evaluated \xxx on \nbug
 real-world, open spinning-cursor issues in popular macOS applications. The
 root causes of these issues were largely previously unknown.  Our results
-show that \xxx effectively helps us locate all root causes of the issues
+show that \xxx effectively helps locate all root causes of the issues
 and incurs only \cpuoverhead CPU overhead for its system-wide tracing.

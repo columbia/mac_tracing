@@ -1,16 +1,16 @@
 #ifndef MKRUN_WAIT_HPP
 #define MKRUN_WAIT_HPP
 #include "wait.hpp"
-#include "mkrun.hpp"
+#include "mkrunnable.hpp"
 
-class MkrunWaitPair {
-	list<event_t *> &wait_list;
-	list<event_t *> &mkrun_list;
+class MakeRunnableWaitPair {
+    std::list<EventBase *> &wait_list;
+    std::list<EventBase *> &mkrun_list;
 public:
-	MkrunWaitPair(list<event_t *> &_wait_list, list<event_t *> &_mkrun_list);
-	void pair_wait_mkrun(void);
+    MakeRunnableWaitPair(std::list<EventBase *> &_wait_list, std::list<EventBase *> &_mkrun_list);
+    void pair_wait_mkrun(void);
 };
 
-typedef MkrunWaitPair mkrun_wait_t;
+typedef MakeRunnableWaitPair mkrun_wait_t;
 #endif
 
