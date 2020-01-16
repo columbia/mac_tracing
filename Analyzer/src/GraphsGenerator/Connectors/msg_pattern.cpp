@@ -3,204 +3,265 @@
 
 #define MSG_PATTERN_DEBUG 0
 
-MsgPattern::MsgPattern(list<event_t*> & list)
+MsgPattern::MsgPattern(std::list<EventBase*> &list)
 :ev_list(list)
 {
-	patterned_ipcs.clear();
+    patterned_ipcs.clear();
+    mig_list.clear();
+    msg_list.clear();
+    std::list<EventBase *>::iterator it;
+
+    MsgEvent *cur_msg;
+    for (it = ev_list.begin(); it != ev_list.end(); it++) {
+        cur_msg = dynamic_cast<MsgEvent *> (*it);
+        assert(cur_msg);
+        if (cur_msg->is_mig() == true)
+            mig_list.push_back(cur_msg);
+        else {
+            msg_list.push_back(cur_msg);
+            uint64_t local_port = cur_msg->get_header()->get_local_port();
+            if (local_port_msg_list_maps.find(local_port) == local_port_msg_list_maps.end()) {
+                std::list<MsgEvent *> temp_list;
+                temp_list.clear();
+                local_port_msg_list_maps[local_port] = temp_list;
+            }
+            local_port_msg_list_maps[local_port].push_back(cur_msg);
+        }
+    }
 }
+/*
+MsgPattern::MsgPattern(std::list<MsgEvent *> &_mig_list, std::list<MsgEvent *> &_msg_list)
+:mig_list(_mig_list), msg_list(_msg_list)
+{
+    patterned_ipcs.clear();
+}
+*/
 
 MsgPattern::~MsgPattern(void)
 {
-	patterned_ipcs.clear();
+    patterned_ipcs.clear();
 }
 
-void MsgPattern::update_msg_pattern(msg_ev_t * event0, msg_ev_t * event1,
-									msg_ev_t * event2, msg_ev_t* event3)
+void MsgPattern::update_msg_pattern(MsgEvent * event0, MsgEvent * event1,
+                                    MsgEvent * event2, MsgEvent* event3)
 {
-	assert(event0 != NULL && event1 != NULL);
-	event0->set_peer(event1);
-	event1->set_peer(event0);
-	if (event2 != NULL)
-		event1->set_next(event2);
-	if (event3 != NULL) {
-		assert(event2 != NULL);
-		event2->set_peer(event3);
-		event3->set_peer(event2);
-	}
-	
-	msg_episode s;
-	s.insert(event0);
-	s.insert(event1);
-	if (event2 != NULL) {
-		s.insert(event2);
-	}
-	if (event3 != NULL) {
-		s.insert(event3);
-	} 
-	patterned_ipcs.push_back(s);
+    assert(event0 != nullptr && event1 != nullptr);
+    event0->set_peer(event1);
+    event1->set_peer(event0);
+    if (event2 != nullptr)
+        event1->set_next(event2);
+    if (event3 != nullptr) {
+        assert(event2 != nullptr);
+        event2->set_peer(event3);
+        event3->set_peer(event2);
+    }
+    
+    msg_episode s;
+    s.insert(event0);
+    s.insert(event1);
+    if (event2 != nullptr) {
+        s.insert(event2);
+    }
+    if (event3 != nullptr) {
+        s.insert(event3);
+    } 
+    patterned_ipcs.push_back(s);
 }
 
-void MsgPattern::collect_patterned_ipcs(void)
+void MsgPattern::collect_mig_pattern(void)
 {
-	int size = ev_list.size();
-	list<event_t *>::iterator it;
-	int i = 0;
-	bool * mark_visit = (bool*)malloc(size * sizeof(bool));
+    std::list<MsgEvent *>::iterator it;
+    MsgEvent *cur_msg, *mig_req;
+    MsgHeader *curr_header, *mig_req_h;
+    
+    //if the first msg is recv, discard it
+    if (mig_list.front()->get_header()->check_recv() == true)
+        mig_list.pop_front();
+    //if the last msg is recv, discard it
+    if (mig_list.back()->get_header()->check_recv() == false)
+        mig_list.pop_back();
 
-	if (mark_visit == NULL) {
-		mtx.lock();
-		cerr << "Error: OOM in msg pattern analysis\n";
-		mtx.unlock();
-		exit(EXIT_FAILURE);
-	}
-	memset(mark_visit, 0, size * sizeof(bool));
+    while (!mig_list.empty()) {
+        mig_req = mig_list.front();
+        mig_list.pop_front();
+
+        if (mig_req->is_freed_before_deliver() == true)
+            continue;
+       
+        mig_req_h = mig_req->get_header();
+        //unbalanced matching
+        assert(mig_req_h->is_mig());
+        assert(mig_req_h->check_recv() == false); 
+
+        for (it = mig_list.begin(); it != mig_list.end(); it++) {
+            cur_msg  = *it;
+            curr_header = cur_msg->get_header();
+            if (curr_header->get_remote_port() ==  mig_req_h->get_local_port()
+                && curr_header->get_rport_name() == mig_req_h->get_lport_name()
+                && mig_req->get_tid() == cur_msg->get_tid()) {
+                update_msg_pattern(mig_req, cur_msg, nullptr, nullptr);
+                break;
+             }
+        }
+        //should have a maching recv
+        assert(it != mig_list.end());
+        it = mig_list.erase(it);
+    }
+}
+
+void MsgPattern::collect_msg_pattern(void)
+{
+    std::list<MsgEvent *>::iterator it;
+    MsgEvent *cur_msg;
+    MsgHeader *cur_header;
+
+
+    for (it = msg_list.begin(); !msg_list.empty() && it != msg_list.end();) {
+        cur_msg = *(it);
+        assert(cur_msg);
+        cur_header = cur_msg->get_header();
+        assert(cur_header);
+
+        if (cur_msg->is_freed_before_deliver() == true
+            || cur_header->check_recv() == true) {
+            //remove it and continue
+            assert(it != msg_list.end() && *it);
+            it = msg_list.erase(it);
+            if (it != msg_list.end())
+                assert(*(it) != cur_msg);
+            continue;
+        }
+
+        if (cur_header->get_remote_port() != 0 && cur_header->get_local_port() != 0) {
+            std::list<MsgEvent *>::iterator req_send_offset = it;
+            std::list<MsgEvent *>::iterator req_recv_offset;
+            std::list<MsgEvent *>::iterator reply_send_offset;
+            std::list<MsgEvent *>::iterator reply_recv_offset;
+            
+            uint32_t reply_sender_port_name = 0;
+            uint32_t reply_recver_port_name = cur_header->get_lport_name();
+            pid_t request_pid = cur_msg->get_pid();
+            pid_t reply_pid = -1;
+        
+            req_recv_offset = search_ipc_msg(
+                                &reply_sender_port_name,
+                                &reply_pid,
+                                cur_header->get_remote_port(),
+                                cur_header->get_local_port(),
+                                true,
+                                req_send_offset,
+                                reply_recver_port_name);
+
+            if (req_recv_offset == msg_list.end()) {
+                assert(it != msg_list.end() && *it);
+                it = msg_list.erase(it);
+                if (it != msg_list.end())
+                    assert(*(it) != cur_msg);
+                continue;
+            }
+
+            reply_send_offset = search_ipc_msg(
+                                &reply_sender_port_name,
+                                &reply_pid,
+                                cur_header->get_local_port(),
+                                0,
+                                false,
+                                req_recv_offset,
+                                reply_recver_port_name);
+            if (reply_send_offset == msg_list.end()) {
+                update_msg_pattern(*it, *req_recv_offset, nullptr, nullptr);
+                assert(req_recv_offset != msg_list.end() && *req_recv_offset);
+                msg_list.erase(req_recv_offset);
+                assert(it != msg_list.end() && *it);
+                it = msg_list.erase(it);
+                if (it != msg_list.end())
+                    assert(*(it) != cur_msg);
+                //TODO: checking if two sends connect to the same recv later
+                continue;
+            }
+
+            reply_recv_offset = search_ipc_msg(
+                                &reply_recver_port_name,
+                                &request_pid,
+                                cur_header->get_local_port(),
+                                0,
+                                true,
+                                reply_send_offset,
+                                reply_recver_port_name);
+            if (reply_recv_offset == msg_list.end()) { 
+                update_msg_pattern(*it, *req_recv_offset, nullptr, nullptr);
+                //msg_list.erase(reply_send_offset);
+                assert(req_recv_offset != msg_list.end() && *req_recv_offset);
+                msg_list.erase(req_recv_offset);
+                assert(it != msg_list.end() && *it);
+                it = msg_list.erase(it);
+                if (it != msg_list.end())
+                    assert(*(it) != cur_msg);
+                continue;
+            }
+
+            update_msg_pattern(*it, *req_recv_offset, *reply_send_offset, *reply_recv_offset);
+            assert(*reply_recv_offset);
+            msg_list.erase(reply_recv_offset);
+            assert(*reply_send_offset);
+            msg_list.erase(reply_send_offset);
+            assert(*req_recv_offset);
+            msg_list.erase(req_recv_offset);
+            it = msg_list.erase(it);
+            if (it != msg_list.end())
+                assert(*(it) != cur_msg);
+        }
+        else if (cur_header->get_remote_port() != 0 && cur_header->get_local_port() == 0) {
+            std::list<MsgEvent *>::iterator req_send_offset = it;
+            std::list<MsgEvent *>::iterator req_recv_offset;
+            uint32_t reply_sender_port_name = 0;
+            pid_t reply_pid = -1;
+
+            req_recv_offset = search_ipc_msg(
+                                &reply_sender_port_name,
+                                &reply_pid,
+                                cur_header->get_remote_port(),
+                                cur_header->get_local_port(),
+                                true,
+                                req_send_offset,
+                                0);
+            if (req_recv_offset == msg_list.end()) {
+                assert(*it);
+                it = msg_list.erase(it);
+                if (it != msg_list.end())
+                    assert(*(it) != cur_msg);
+                continue;
+            }
+            update_msg_pattern(*it, *req_recv_offset, nullptr, nullptr);
+            assert(*req_recv_offset);
+            msg_list.erase(req_recv_offset);
+            assert(*it);
+            it = msg_list.erase(it);
+            if (it != msg_list.end())
+                assert(*(it) != cur_msg);
+        }
+        else {
+            assert(*it);
+            it = msg_list.erase(it);
+            if (it != msg_list.end())
+                assert(*(it) != cur_msg);
+        }
+    }
 
 #ifdef MSG_PATTERN_DEBUG
-	mtx.lock();
-	cerr << "begin msg pattern searching (" << dec << ev_list.size()  << ")... " << endl; 
-	mtx.unlock();
+    mtx.lock();
+    std::cerr << "finish msg pattern search." << std::endl;
+    std::cerr << "total number of msg patterns: " << patterned_ipcs.size() << std::endl;
+    mtx.unlock();
 #endif
-	
-	for (it = ev_list.begin(); it != ev_list.end(); ++it, ++i) {
-		msg_ev_t * cur_msg = dynamic_cast<msg_ev_t*>(*it);
+    std::string output("output/msg_pattern.log");
+    decode_patterned_ipcs(output);
+}
 
-		if (cur_msg->is_freed_before_deliver() == true)
-			continue;
-
-		if (mark_visit[i] == true)
-			continue;
-		
-		msgh_t * header = cur_msg->get_header();
-		if (header->check_recv() == true)
-			continue;
-
-		if (header->is_mig() == true) {// special matching for mig
-			if (header->get_local_port() == 0)
-				continue;
-			list<event_t *>::iterator req_send_offset = it;
-			list<event_t *>::iterator reply_recv_offset;
-			int reply_recv_idx = i;
-			
-			reply_recv_offset = search_mig_msg(req_send_offset, &reply_recv_idx, mark_visit);
-			if (reply_recv_offset == ev_list.end()) {
-#if MSG_PATTERN_DEBUG
-				mtx.lock();
-				cerr << "Check: a mig missing reply from kernel " << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-				mtx.unlock();
-#endif
-			} else {
-				mark_visit[i] = true;
-				mark_visit[reply_recv_idx] = true;
-				update_msg_pattern(dynamic_cast<msg_ev_t*>(*req_send_offset), dynamic_cast<msg_ev_t*>(*reply_recv_offset), NULL, NULL);
-			}
-			continue;
-		}
-
-		else if (header->get_remote_port() != 0 && header->get_local_port() != 0) {
-			list<event_t *>::iterator req_send_offset = it;
-			list<event_t *>::iterator req_recv_offset;
-			list<event_t *>::iterator reply_send_offset;
-			list<event_t *>::iterator reply_recv_offset;
-			int req_send_idx = i;
-			int req_recv_idx = req_send_idx;
-			int reply_send_idx;
-			int reply_recv_idx;
-			
-			uint32_t reply_sender_port_name = 0;
-			uint32_t reply_recver_port_name = header->get_lport_name();
-			pid_t request_pid = cur_msg->get_pid();
-			pid_t reply_pid = -1;
-		
-			req_recv_offset = search_ipc_msg(
-								&reply_sender_port_name,
-								&reply_pid,
-								header->get_remote_port(),
-								header->get_local_port(),
-								true,
-								req_send_offset,
-								&req_recv_idx,
-								mark_visit, reply_recver_port_name);
-			if (req_recv_offset == ev_list.end())
-				continue;
-
-			reply_send_idx = req_recv_idx;
-			reply_send_offset = search_ipc_msg(
-								&reply_sender_port_name,
-								&reply_pid,
-								header->get_local_port(),
-								0,
-								false,
-								req_recv_offset,
-								&reply_send_idx,
-								mark_visit, reply_recver_port_name);
-			if (reply_send_offset == ev_list.end()) {
-				update_msg_pattern(dynamic_cast<msg_ev_t*>(*it), 
-							dynamic_cast<msg_ev_t*>(*req_recv_offset),
-							NULL, NULL);
-				//TODO: checking if two sends connect to the same recv later
-				continue;
-			}
-
-			reply_recv_idx = reply_send_idx;
-			reply_recv_offset = search_ipc_msg(
-								&reply_recver_port_name,
-								&request_pid,
-								header->get_local_port(),
-								0,
-								true,
-								reply_send_offset,
-								&reply_recv_idx,
-								mark_visit, reply_recver_port_name);
-			if (reply_recv_offset == ev_list.end()) { 
-				continue;
-			}
-
-			mark_visit[req_send_idx] = true;
-			mark_visit[req_recv_idx] = true;
-			mark_visit[reply_send_idx] = true;
-			mark_visit[reply_recv_idx] = true;
-			update_msg_pattern(dynamic_cast<msg_ev_t*>(*it), 
-							dynamic_cast<msg_ev_t*>(*req_recv_offset),
-							dynamic_cast<msg_ev_t*>(*reply_send_offset),
-							dynamic_cast<msg_ev_t*>(*reply_recv_offset));
-		}
-
-		else if (header->get_remote_port() != 0 && header->get_local_port() == 0) {
-			list<event_t *>::iterator req_send_offset = it;
-			list<event_t *>::iterator req_recv_offset;
-			int req_send_idx = i;
-			int req_recv_idx = req_send_idx;
-			uint32_t reply_sender_port_name = 0;
-			pid_t reply_pid = -1;
-
-			req_recv_offset = search_ipc_msg(
-								&reply_sender_port_name,
-								&reply_pid,
-								header->get_remote_port(),
-								header->get_local_port(),
-								true,
-								req_send_offset,
-								&req_recv_idx,
-								mark_visit, 0);
-			if (req_recv_offset == ev_list.end())
-				continue;
-			mark_visit[req_send_idx] = true;
-			mark_visit[req_recv_idx] = true;
-			update_msg_pattern(dynamic_cast<msg_ev_t*>(*it),
-				dynamic_cast<msg_ev_t*>(*req_recv_offset), NULL, NULL);
-		}
-	}
-
-#ifdef MSG_PATTERN_DEBUG
-	mtx.lock();
-	cerr << "finish msg pattern search." << endl;
-	cerr << "total number of msg patterns: " << patterned_ipcs.size() << endl;
-	mtx.unlock();
-#endif
-	string output("output/msg_pattern.log");
-	decode_patterned_ipcs(output);
-
-	free(mark_visit);
+void MsgPattern::collect_patterned_ipcs()
+{
+    //collect_mig_pattern();
+    collect_msg_pattern();
 }
 
 /*
@@ -214,171 +275,105 @@ void MsgPattern::collect_patterned_ipcs(void)
  * REPLY (RECV/SEND):
  * (in)port_name : reply port name in reply-sender or reply-receiver(remote port in the reply)
  */
-list<event_t *>::iterator MsgPattern::search_ipc_msg(
-			uint32_t *port_name, pid_t *pid,
-			uint64_t remote_port, uint64_t local_port,
-			bool is_recv,
-			list<event_t *>::iterator begin_it,
-			int *i,
-			bool *mark_visit, uint32_t reply_recver_port_name)
+std::list<MsgEvent *>::iterator MsgPattern::search_ipc_msg(
+            uint32_t *port_name, 
+            pid_t *pid,
+            uint64_t remote_port, uint64_t local_port,
+            bool is_recv,
+            std::list<MsgEvent *>::iterator begin_it,
+            uint32_t reply_recver_port_name)
 {
-	list<event_t *>::iterator cur_it = begin_it;
+    std::list<MsgEvent *>::iterator cur_it = begin_it;
 
-	for(cur_it++, *i = *i + 1; *i < ev_list.size(); ++cur_it, *i = *i + 1) {
-		if (cur_it == ev_list.end())
-			return cur_it;
+    for(cur_it++; cur_it != msg_list.end(); ++cur_it) {
+        MsgEvent *cur_ipc = *cur_it;
+        assert(cur_ipc);
+        MsgHeader *header = cur_ipc->get_header();
+        assert(header);
 
-		msg_ev_t *cur_ipc = dynamic_cast<msg_ev_t *>(*cur_it);
-		msgh_t *header = cur_ipc->get_header();
-
-		if (cur_ipc->is_freed_before_deliver() == true)
-			continue;
-
-		if (mark_visit[*i] == true || header->is_mig() == true)
-			continue;
-
-		if (header->check_recv() == is_recv
-			&& header->get_remote_port() == remote_port
-			&& header->get_local_port() == local_port) {
-			/*checking processes*/
-			if (*pid == -1) {
-				*pid = cur_ipc->get_pid();
-			} else {
-				if (*pid != cur_ipc->get_pid()) {
-#if MSG_PATTERN_DEBUG
-					mtx.lock();
-					cerr << "Kernel Reply send/recv with incorrect pid " << fixed << setprecision(1) << cur_ipc->get_abstime();
-					cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-					cerr << "\t" << cur_ipc->get_pid() << " != " << *pid << endl;
-					mtx.unlock();
-#endif
-					continue;
-				}
-			}
-			/*checking port names*/
-			if (*port_name == 0) {
-				assert(is_recv == true);
-				*port_name = header->get_lport_name();
-			} else {
-				if (is_recv == false && header->is_from_kernel()) {
-					if (header->get_rport_name() != reply_recver_port_name)	{
-#if MSG_PATTERN_DEBUG
-						mtx.lock();
-						cerr << "Kernel Reply send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
-						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-						cerr << "\t" << reply_recver_port_name << " != " << header->get_rport_name() << endl;
-						mtx.unlock();
-#endif
-						continue;
-					}
-				} else { //recv == true || not from kernel
-					if (*port_name != header->get_rport_name()) {
-#if MSG_PATTERN_DEBUG
-						mtx.lock();
-						cerr << "Reply Send with incorrect port name " << fixed << setprecision(1) << cur_ipc->get_abstime();
-						cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-						cerr << "\t" << *port_name << " != " << header->get_rport_name() << endl;
-						mtx.unlock();
-#endif
-						continue;
-					}
-				}
-			}
-			/*meet requirment*/
-#if MSG_PATTERN_DEBUG
-			mtx.lock();
-			cerr << "Matched: " << fixed << setprecision(1) << cur_ipc->get_abstime();
-			cerr << "\t" << fixed << setprecision(1) << (*begin_it)->get_abstime() << endl;
-			mtx.unlock();
-#endif
-			return cur_it;
-		}
-	}
-
-	return cur_it;
+        if (header->check_recv() == is_recv
+            && header->get_remote_port() == remote_port
+            && header->get_local_port() == local_port) {
+            /*checking processes*/
+            if (*pid == -1) {
+                *pid = cur_ipc->get_pid();
+            } else {
+                if (*pid != cur_ipc->get_pid()) {
+                    continue;
+                }
+            }
+            /*checking port names*/
+            if (*port_name == 0) {
+                assert(is_recv == true);
+                *port_name = header->get_lport_name();
+            } else {
+                if (is_recv == false && header->is_from_kernel()) {
+                    if (header->get_rport_name() != reply_recver_port_name) {
+                        continue;
+                    }
+                } else { //recv == true || not from kernel
+                    if (*port_name != header->get_rport_name()) {
+                        continue;
+                    }
+                }
+            }
+            /*meet requirment*/
+            return cur_it;
+        }
+    }
+    return cur_it;
 }
 
-list<event_t*>::iterator MsgPattern::search_mig_msg(list<event_t *>::iterator req_send_offset, 
-								int *curr_idx, bool *mark_visit)
+std::list<msg_episode> & MsgPattern::get_patterned_ipcs(void)
 {
-	msg_ev_t * mig_req = dynamic_cast<msg_ev_t*>(*req_send_offset);
-	msgh_t *mig_req_h = mig_req->get_header();
-
-	list<event_t *>::iterator curr_it =  req_send_offset;
-	for (curr_it++, *curr_idx = *curr_idx + 1; 
-				*curr_idx < ev_list.size();
-				++curr_it, *curr_idx = *curr_idx +1) {
-		msg_ev_t *cur_msg = dynamic_cast<msg_ev_t*>(*curr_it);
-		msgh_t * curr_header = cur_msg->get_header();
-		if (curr_header->is_mig() == false)
-			continue;
-
-#if MSG_PATTERN_DEBUG
-		if (cur_msg->is_freed_before_deliver()) {
-			mtx.lock();
-			cerr << "Error: wrong setting for free_before_deliver" << fixed << setprecision(1) << cur_msg->get_abstime() << endl;
-			mtx.unlock();
-		}
-#endif
-
-		if (curr_header->get_remote_port() ==  mig_req_h->get_local_port()
-			&& curr_header->get_rport_name() == mig_req_h->get_lport_name()
-			&& mig_req->get_tid() == cur_msg->get_tid())
-			return curr_it;
-	}
-	return curr_it;
+    return patterned_ipcs;
 }
 
-list<msg_episode> & MsgPattern::get_patterned_ipcs(void)
+std::list<msg_episode>::iterator MsgPattern::episode_of(MsgEvent *msg_event)
 {
-	return patterned_ipcs;
+    if (msg_event == nullptr)
+        return patterned_ipcs.end();
+
+    std::list<msg_episode>::iterator it;
+    for (it = patterned_ipcs.begin(); it != patterned_ipcs.end(); it++) {
+        if ((*it).find(msg_event) != (*it).end())
+            return it;
+    }
+    return it;
 }
 
-list<msg_episode>::iterator MsgPattern::episode_of(msg_ev_t *msg_event)
+std::vector<MsgEvent *> MsgPattern::sort_msg_episode(msg_episode & s)
 {
-	if (msg_event == NULL)
-		return patterned_ipcs.end();
-
-	list<msg_episode>::iterator it;
-	for (it = patterned_ipcs.begin(); it != patterned_ipcs.end(); it++) {
-		if ((*it).find(msg_event) != (*it).end())
-			return it;
-	}
-	return it;
+    std::vector<MsgEvent*> episode;
+    episode.clear();
+    std::set<MsgEvent*>::iterator s_it;
+    for (s_it = s.begin(); s_it != s.end(); s_it++) {
+        episode.push_back(*s_it);
+    }
+    sort(episode.begin(), episode.end(), Parse::EventComparator::compare_time);
+    return episode;
 }
 
-vector<msg_ev_t *> MsgPattern::sort_msg_episode(msg_episode & s)
+void MsgPattern::decode_patterned_ipcs(std::string &output_path)
 {
-	vector<msg_ev_t*> s_vector;
-	s_vector.clear();
-	set<msg_ev_t*>::iterator s_it;
-	for (s_it = s.begin(); s_it != s.end(); s_it++) {
-		s_vector.push_back(*s_it);
-	}
-	sort(s_vector.begin(), s_vector.end(), Parse::EventComparator::compare_time);
-	return s_vector;
-}
-
-void MsgPattern::decode_patterned_ipcs(string &output_path)
-{
-	ofstream output(output_path, ofstream::out);
-	list<msg_episode>::iterator it;
-	int i = 0;
-	output << "checking mach msg pattern ... " << endl;
-	output << "number of patterns " << patterned_ipcs.size() << endl;
-	for (it = patterned_ipcs.begin(); it != patterned_ipcs.end(); it++, i++) {
-		output << "## " << i <<" size = " << (*it).size() << endl;
-		vector<msg_ev_t *> cur = sort_msg_episode(*it);
-		vector<msg_ev_t *>::iterator s_it;
-		for (s_it = cur.begin(); s_it != cur.end(); s_it++) {
-			(*s_it)->decode_event(0, output);
-		}
-	}
-	output << "mach msg checking done" << endl;
-	output.close();
+    std::ofstream output(output_path, std::ofstream::out);
+    std::list<msg_episode>::iterator it;
+    int i = 0;
+    output << "checking mach msg pattern ... " << std::endl;
+    output << "number of patterns " << patterned_ipcs.size() << std::endl;
+    for (it = patterned_ipcs.begin(); it != patterned_ipcs.end(); it++, i++) {
+        output << "## " << i <<" size = " << (*it).size() << std::endl;
+        std::vector<MsgEvent *> cur = sort_msg_episode(*it);
+        std::vector<MsgEvent *>::iterator s_it;
+        for (s_it = cur.begin(); s_it != cur.end(); s_it++) {
+            (*s_it)->decode_event(0, output);
+        }
+    }
+    output << "mach msg checking done" << std::endl;
+    output.close();
 }
 
 void MsgPattern::verify_msg_pattern()
 {
-	
+    
 }

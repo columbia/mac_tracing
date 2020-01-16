@@ -1,137 +1,123 @@
 #include "parser.hpp"
 #include "interrupt.hpp"
 
-namespace Parse
+Parse::IntrParser::IntrParser(std::string filename)
+:Parser(filename)
 {
-	IntrParser::IntrParser(string filename)
-	:Parser(filename)
-	{
-		intr_events.clear();
-	}
-	
-	void IntrParser::symbolize_intr_rip(BacktraceParser *backtrace_parser)
-	{
-		list<event_t *>::iterator it;
-		intr_ev_t * intr_event;
-		if (backtrace_parser == NULL)
-			return;
+    intr_events.clear();
+}
 
-		images_t *host_image =  backtrace_parser->get_host_image();
-		if (host_image == NULL)
-			return;
+void Parse::IntrParser::symbolize_intr_for_proc(BacktraceParser *backtrace_parser, 
+	std::pair<pid_t, std::string> proc)
+{
+    images_t *image = nullptr;
+    debug_data_t cur_debugger;
+    event_list_t event_list = get_events_for_proc(proc);
 
-		debug_data_t cur_debugger;
-		bool ret = backtrace_parser->setup_lldb(&cur_debugger, host_image);
-		if (ret == false)
-			goto clear_debugger;
+    if (!event_list.size() || !backtrace_parser || !(image = backtrace_parser->proc_to_image(proc.first, proc.second)))
+        return;
 
-		cerr << "load lldb for symbolize rips ..." << endl;
-		for (it = local_event_list.begin(); it != local_event_list.end();
-			it++) {
-			intr_event = dynamic_cast<intr_ev_t *>(*it);
-			if (intr_event == NULL || intr_event->get_procname() != LoadData::meta_data.host
-				// intr_event->get_procname().find(LoadData::meta_data.host) == string::npos
-				|| intr_event->get_user_mode() == 0)
-				continue;
-			frame_info_t frame_info = {.addr = intr_event->get_rip()};
-			ret = Frames::lookup_symbol_via_lldb(&cur_debugger, &frame_info);
-			if (ret == true) {
-				string rip_symbol = frame_info.symbol
-					+ "_at_" + frame_info.filepath;
-				intr_event->set_rip_info(rip_symbol);
-			}
-		}
-		cerr << "finish rip symbolization." << endl;
-		
-	clear_debugger:
-		if (cur_debugger.debugger.IsValid()) {
-			if (cur_debugger.cur_target.IsValid())
-				cur_debugger.debugger.DeleteTarget(cur_debugger.cur_target);
-			lldb::SBDebugger::Destroy(cur_debugger.debugger);
-		}
-	}
+    if ((backtrace_parser->setup_lldb(&cur_debugger, image))) {
+        std::cerr << "load lldb for symbolize rips ..." << std::endl;
+        std::string outfile("intr_bt.log");
+        std::ofstream out_bt(outfile, std::ofstream::out | std::ofstream::app);
 
-	intr_ev_t *IntrParser::create_intr_event(double abstime, string opname,
-		istringstream & iss) 
-	{
-		string procname;
-		uint64_t intr_no, rip, user_mode, itype, tid, coreid;
+        event_list_t::iterator it;
+        IntrEvent *intr_event;
 
-		if (!(iss >> hex >> intr_no >> rip >> user_mode >> itype) ||
-			!(iss >> hex >> tid >> coreid))
-			return NULL;
+        for (it = event_list.begin(); it != event_list.end(); it++) {
+            intr_event = dynamic_cast<IntrEvent *>(*it);
+            if (!intr_event || !intr_event->get_user_mode())
+                continue;
+            Frames frameinfo(0, 1, intr_event->get_tid());
+            frameinfo.add_frame(intr_event->get_rip());
+            if (frameinfo.symbolize_with_lldb(0, &cur_debugger))
+                intr_event->set_context(frameinfo.get_sym(0) + "_at_" + frameinfo.get_filepath(0));
+            intr_event->streamout_event(out_bt);
+        }
+        std::cerr << "finish rip symbolization." << std::endl;
+        out_bt.close();
+    }
 
-		if (!getline(iss >> ws, procname) || !procname.size())
-			procname = ""; 
+    if (cur_debugger.debugger.IsValid()) {
+        if (cur_debugger.cur_target.IsValid())
+            cur_debugger.debugger.DeleteTarget(cur_debugger.cur_target);
+		cur_debugger.debugger.Clear();
+        lldb::SBDebugger::Destroy(cur_debugger.debugger);
+    }
+}
 
-		if (intr_events.find(tid) != intr_events.end())
-			return NULL;
+IntrEvent *Parse::IntrParser::create_intr_event(double abstime, std::string opname,
+        std::istringstream & iss) 
+{
+    std::string procname;
+    uint64_t intr_no, rip, user_mode, itype, tid, coreid;
 
-		intr_ev_t *new_intr = new intr_ev_t(abstime, opname, tid, intr_no, rip,
-			user_mode, coreid, procname);
-		if (!new_intr) {
-			cerr << "OOM " << __func__ << endl;
-			exit(EXIT_FAILURE);
-		}
+    if (!(iss >> std::hex >> intr_no >> rip >> user_mode >> itype) ||
+            !(iss >> std::hex >> tid >> coreid))
+        return nullptr;
+    if (!getline(iss >> std::ws, procname) || !procname.size())
+        procname = ""; 
+    if (intr_events.find(tid) != intr_events.end())
+        return nullptr;
+    IntrEvent *new_intr = new IntrEvent(abstime, opname, tid, intr_no, rip,
+            user_mode, coreid, procname);
+    if (!new_intr) {
+        std::cerr << "OOM " << __func__ << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    intr_events[tid] = new_intr;
+    local_event_list.push_back(new_intr);
+	add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), new_intr);
+    return new_intr;
+}
 
-		intr_events[tid] = new_intr;
-		local_event_list.push_back(new_intr);
-		return new_intr;
-	}
+bool Parse::IntrParser::gather_intr_info(double abstime, std::istringstream &iss)
+{
+    std::string procname;
+    uint64_t intr_no, ast, effective_policy, req_policy, tid, coreid;
 
-	bool IntrParser::collect_intr_info(double abstime, istringstream &iss)
-	{
-		string procname;
-		uint64_t intr_no, ast, effective_policy, req_policy, tid, coreid;
+    if (!(iss >> std::hex >> intr_no >> ast >> effective_policy >> req_policy)
+            || !(iss >> std::hex >> tid >> coreid))
+        return false;
+    if (!getline(iss >> std::ws, procname) || !procname.size())
+        procname = ""; 
+    if (intr_events.find(tid) == intr_events.end())
+        return false;
+    IntrEvent * intr_event = intr_events[tid];
+    if ((uint32_t)intr_no != intr_event->get_interrupt_num())
+        return false;
+    intr_event->set_sched_priority_post((int16_t)(intr_no >> 32));
+    intr_event->set_ast(ast);
+    intr_event->set_effective_policy(effective_policy);
+    intr_event->set_request_policy(req_policy);
+    intr_event->set_finish_time(abstime);
+    intr_event->set_complete();
+    intr_events.erase(tid);
+    return true;
+}
 
-		if (!(iss >> hex >> intr_no >> ast >> effective_policy >> req_policy)
-			|| !(iss >> hex >> tid >> coreid))
-			return false;
+void Parse::IntrParser::process()
+{
+    std::string line, deltatime, opname;
+    double abstime;
+    bool is_begin;
 
-		if (!getline(iss >> ws, procname) || !procname.size())
-			procname = ""; 
+    while (getline(infile, line)) {
+        std::istringstream iss(line);
 
-		if (intr_events.find(tid) == intr_events.end())
-			return false;
-		
-		intr_ev_t * intr_event = intr_events[tid];
+        if (!(iss >> abstime >> deltatime >> opname)) {
+            outfile << line << std::endl;
+            continue;
+        }
 
-		if ((uint32_t)intr_no != intr_event->get_interrupt_num())
-			return false;
-
-		intr_event->set_sched_priority_post((int16_t)(intr_no >> 32));
-		intr_event->set_ast(ast);
-		intr_event->set_effective_policy(effective_policy);
-		intr_event->set_request_policy(req_policy);
-		intr_event->set_finish_time(abstime);
-		intr_event->set_complete();
-		intr_events.erase(tid);
-		return true;
-	}
-	
-	void IntrParser::process()
-	{
-		string line, deltatime, opname;
-		double abstime;
-		bool is_begin;
-
-		while (getline(infile, line)) {
-			istringstream iss(line);
-
-			if (!(iss >> abstime >> deltatime >> opname)) {
-				outfile << line << endl;
-				continue;
-			}
-
-			is_begin = deltatime.find("(") != string::npos ? false : true;
-			if (is_begin) {
-				if (!create_intr_event(abstime, opname, iss))
-					outfile  << line << endl;
-			} else {
-				if (!collect_intr_info(abstime, iss))
-					outfile << line << endl;
-			}
-		}
-		//TODO: need check intr_events;
-	}
+        is_begin = deltatime.find("(") != std::string::npos ? false : true;
+        if (is_begin) {
+            if (!create_intr_event(abstime, opname, iss))
+                outfile  << line << std::endl;
+        } else {
+            if (!gather_intr_info(abstime, iss))
+                outfile << line << std::endl;
+        }
+    }
 }

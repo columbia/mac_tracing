@@ -1,7 +1,7 @@
 #ifndef EVENT_REF_HPP
 #define EVENT_REF_HPP
 #include "base.hpp"
-using namespace std;
+
 typedef enum {
   /*
    * Events related to the mouse (mouse down/up/moved).
@@ -119,18 +119,19 @@ typedef enum {
 } kEventClassKeyboradKind_t;
 
 
-class EventRefEvent : public EventBase {
-	uint64_t event_addr;
-	uint64_t event_class;
-	uint64_t event_kind;
-	uint64_t key_code;
+class CoreGraphicsRefEvent : public EventBase {
+    uint64_t cgs_event_addr;
+    uint64_t cgs_event_class;
+    uint64_t cgs_event_kind;
+    uint64_t key_code;
 public:
-	EventRefEvent(double timestamp, string op, uint64_t tid, uint64_t event_addr, uint64_t event_class, uint64_t event_kind, uint64_t keycode, uint32_t coreid, string procname = "");
-	uint64_t get_class() {return event_class;}
-	uint64_t get_kind() {return event_kind;}
-	const char *decode_keycode(int keyCode);
-	const char *decode_keykind(int keyKind);
-	void decode_event(bool is_verbose, ofstream &outfile);
-	void streamout_event(ofstream &outfile);
+    CoreGraphicsRefEvent(double timestamp, std::string op, uint64_t tid, uint64_t event_addr, 
+        uint64_t event_class, uint64_t event_kind, uint64_t keycode, uint32_t coreid, std::string procname = "");
+    uint64_t get_class() {return cgs_event_class;}
+    uint64_t get_kind() {return cgs_event_kind;}
+    const char *decode_keycode(int keyCode);
+    const char *decode_keykind(int keyKind);
+    void decode_event(bool is_verbose, std::ofstream &outfile);
+    void streamout_event(std::ofstream &outfile);
 };
 #endif

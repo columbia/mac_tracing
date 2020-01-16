@@ -20,9 +20,9 @@ Prior work proposed what we call \emph{causal tracing}, a powerful technique
 to construct request graphs automatically~\cite{reynolds2006pip, fonseca2007x,
 benjamin2010dapper, zhang2013panappticon, ravindranath2012appinsight}. It
 does so by inferring (1) the beginning and ending boundaries of the execution
-segments (vertices in the graph) involved in handling a request, and (2) the
+segments (vertices in a graph) involved in handling a request, and (2) the
 causality between the segments (edges)---how a segment causes others to do
-additional handling of the request. Compared to debuggers such as \spindump that
+additional handling of the request. Compared to debuggers, such as \spindump that
 capture only the current system state, causal tracing is effective at helping
 developers understand complex causal behaviors and pinpoint the root causes
 for real-world performance issues.
@@ -53,12 +53,12 @@ preceding WindowServer example). Although the number of these flags may be
 small, they often express critical causality, and not tracing them would lead
 to many missing edges in the request graph. Third, inferred edges can be
 superfluous because wake-ups do not necessarily reflect
-causality. Consider an \vv{unlock()} operation waking up an thread waiting
+causality. Consider an \vv{unlock()} operation waking up a thread waiting
 in \vv{lock()}. This wake-up can just be happenstance and the developer's
 intent is mutual exclusion. However, the two operations can also enforce a
 causal order.
 
-We believe that, without fully understanding of application semantics, request
+We believe that, without fully understanding application semantics, request
 graphs computed by causal tracing are \emph{inherently} inaccurate and both
 over- and under-approximate reality. Although developer annotations can help
 improve accuracy~\cite{reynolds2006pip, fonseca2007x}, modern applications use
@@ -71,7 +71,9 @@ In this work, we present \xxx, a dramatically different approach in the design
 space of causal tracing. As opposed to full manual schema upfront for
 all involved applications and daemons~\cite{barham2004using, reynolds2006pip,
 fonseca2007x}, \xxx calculates an event graph for a duration of the system
-execution with both true causal edges and weak ones, and enables users to
+execution with both true causal edges and weak ones, 
+%explain weak edges
+and enables users to
 provide necessary schematic information on demand in diagnosis,
 as a debugger should rightly do. Specifically, \xxx queries users a
 judicially few times to (1) resolve a few inaccurate edges that represent false
@@ -79,7 +81,7 @@ dependencies and (2) identify potential dependency due to data flags.
 
 \xxx targets two groups of users in mind: (1) technical users who wanted
 to compile informative bug reports for the applications crucial to them
-and (2) developers of the application or system who wanted to either
+and (2) developers of applications, or systems who wanted to either
 pinpoint the issue in their component or identify which component is
 responsible so they can assign the issue to the corresponding developers.
 Today's applications are often built on top of many third-party,
@@ -91,7 +93,7 @@ explicitly built \xxx to work in closed-source settings.
 
 We implement \xxx in macOS whose frameworks and applications are mostly
 closed-source. This closed-source environment therefore provides a true
-test of \xxx. We address multiple nuances of macOS that complicate causal
+test for \xxx. We address multiple nuances of macOS that complicate causal
 tracing, and build a system-wide, low-overhead, always-on tracer. \xxx
 enables users to optionally increase the granularity of tracing (\eg,
 logging call stacks and instruction streams) by integrating with existing
@@ -101,9 +103,9 @@ We evaluate \xxx on \nbug real-world, open spinning-cursor issues in widely
 used applications such as Chromium browser engine and macOS System Preferences,
 Installer, and Notes. The root causes of all \nbug issues were previously
 unknown to us and, to a large extent, the public. Our results show that \xxx is
-effective: it helps us non-developers of the applications find all root causes
+effective: it helps us, non-developers of the applications find all root causes
 of the issues, including the Chromium issue that remained open for seven years.
-\xxx mostly needs only less than 3 user queries per issue but they are crucial
+\xxx mostly needs less than 3 user queries per issue but they are crucial
 in aiding diagnosis. \xxx is also lightweight: its systems-wide tracing incurs
 only \cpuoverhead CPU overhead overall.
 

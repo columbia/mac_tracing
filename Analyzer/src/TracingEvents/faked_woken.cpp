@@ -1,20 +1,22 @@
-#include "mkrun.hpp"
-FakedwokenEvent::FakedwokenEvent(double timestamp, string op, uint64_t tid, mkrun_ev_t *_mkrun_peer, uint32_t coreid, string procname)
+#include "mkrunnable.hpp"
+
+FakedWokenEvent::FakedWokenEvent(double timestamp, std::string op, uint64_t tid,
+    MakeRunEvent *_mkrun_peer, uint32_t coreid, std::string procname)
 :EventBase(timestamp, FAKED_WOKEN_EVENT, op, tid, coreid, procname)
 {
-	mkrun_peer = _mkrun_peer;
-	set_event_peer(mkrun_peer);
+    set_event_peer(_mkrun_peer);
 }
 
-void FakedwokenEvent::decode_event(bool is_verbose, ofstream &outfile)
+void FakedWokenEvent::decode_event(bool is_verbose, std::ofstream &outfile)
 {
-	EventBase::decode_event(is_verbose, outfile);
-	outfile << endl;
+    EventBase::decode_event(is_verbose, outfile);
+    outfile << std::endl;
 }
 
-void FakedwokenEvent::streamout_event(ofstream &outfile)
+void FakedWokenEvent::streamout_event(std::ofstream &outfile)
 {
-	EventBase::streamout_event(outfile);
-	outfile << "\twaker " << hex << mkrun_peer->get_tid() << "\t" << fixed << setprecision(1) << mkrun_peer->get_abstime();
-	outfile << endl;
+    EventBase::streamout_event(outfile);
+    outfile << "\twaker " << std::hex << get_event_peer()->get_tid() << "\t"\
+        << std::fixed << std::setprecision(1) << get_event_peer()->get_abstime()\
+        << std::endl;
 }

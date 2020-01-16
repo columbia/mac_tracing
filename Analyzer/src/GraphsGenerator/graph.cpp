@@ -1,620 +1,696 @@
 #include "graph.hpp"
+#include <math.h>
+#include <boost/filesystem.hpp>
 
-static time_t time_begin, time_check, time_end;
-Edge::Edge(event_t* e1, event_t*e2, uint32_t rel)
+Edge::Edge(EventBase *e1, EventBase *e2, uint32_t rel)
 {
-	e_from = e1;
-	e_to = e2;
-	rel_type = rel;
-	from = to = NULL;
+    e_from = e1;
+    e_to = e2;
+    rel_type = rel;
+    from = to = nullptr;
+    assert(e_from && e_to);
+    weight = e_to->get_abstime() - e_from->get_abstime();
 }
 
 Edge::~Edge()
 {
-	from = to = NULL;
-	e_from = e_to = NULL;
+    from = to = nullptr;
+    e_from = e_to = nullptr;
 }
 //////////////////////////////////
-Node::Node(Graph *_p, group_t *_g)
+
+Node::Node(Graph *_p, Group *_g)
 :parent(_p), group(_g)
 {
-	out_edges.clear();
-	in_edges.clear();
-	//add_edges();
+    out_edges.clear();
+    in_edges.clear();
+    in_weak_edges.clear();
+    out_weak_edges.clear();
+    in = out = 0;
+    weight = get_end_time() - get_begin_time();
 }
 
-void Node::add_edges()
-{
-	list<event_t *> &lists = group->get_container();
-	list<event_t *>::iterator it;
-
-	for (it = lists.begin(); it != lists.end(); it++) {
-		event_t *event = *it;
-		switch (event->get_event_id()) {
-			case MSG_EVENT:
-				add_edge_for_msg(dynamic_cast<msg_ev_t *>(event));
-				break;
-			case DISP_ENQ_EVENT:
-				add_edge_for_disp_enq(dynamic_cast<enqueue_ev_t *>(event));
-				break;
-			case DISP_DEQ_EVENT:
-				add_edge_for_disp_deq(dynamic_cast<dequeue_ev_t *>(event));
-				break;
-			case TMCALL_CREATE_EVENT:
-				add_edge_for_callcreate(dynamic_cast<timercreate_ev_t *>(event));
-				break;
-			case TMCALL_CALLOUT_EVENT:
-				add_edge_for_callout(dynamic_cast<timercallout_ev_t *>(event));
-				break;
-			case TMCALL_CANCEL_EVENT:
-				add_edge_for_callcancel(dynamic_cast<timercancel_ev_t *>(event));
-				break;
-			case CA_SET_EVENT:
-				add_edge_for_caset(dynamic_cast<ca_set_ev_t *>(event));
-				break;
-			case CA_DISPLAY_EVENT:
-				add_edge_for_cadisplay(dynamic_cast<ca_disp_ev_t *>(event));
-				break;
-			case RL_BOUNDARY_EVENT: {
-				rl_boundary_ev_t *rlboundary_event = dynamic_cast<rl_boundary_ev_t *>(event);
-				if (rlboundary_event->get_owner() != NULL)
-					add_edge_for_rlitem(rlboundary_event);
-				break;
-			}
-			case BREAKPOINT_TRAP_EVENT:
-				add_edge_for_hwbr(dynamic_cast<breakpoint_trap_ev_t *>(event));
-				break;
-			case MR_EVENT:
-				add_edge_for_mkrun(dynamic_cast<mkrun_ev_t *>(event));
-				break;
-			case WAIT_EVENT:
-				add_edge_for_wait(dynamic_cast<wait_ev_t *>(event));
-				break;
-			case FAKED_WOKEN_EVENT:
-				add_edge_for_fakedwoken(dynamic_cast<fakedwoken_ev_t*>(event));
-				break;
-			default:
-				break;
-		}
-	}
-}
 
 Node::~Node()
 {
-	//remove_edges();
-	parent = NULL;
-	group  = NULL;
+    parent = nullptr;
+    group  = nullptr;
 }
-
 
 bool Node::add_in_edge(Edge *e)
 {
-	Edge *exist_edge = parent->check_and_add_edge(e);
-	bool ret = exist_edge == NULL ? true : false;
-	if (exist_edge == NULL) {
-		in_edges[e->e_to] = e;
-	} else {
-		in_edges[e->e_to] = exist_edge;
-	}
-	return ret;
+    Edge *exist_edge = parent->check_and_add_edge(e);
+    bool ret = exist_edge == nullptr ? true : false;
+    if (exist_edge == nullptr) {
+        in_edges[e->e_to] = e;
+		e->set_edge_to_node(this);
+		inc_in();
+    } else {
+        in_edges[e->e_to] = exist_edge;
+		exist_edge->set_edge_to_node(this);
+    }
+    return ret;
+}
+
+bool Node::add_in_weak_edge(Edge *e)
+{
+    Edge *exist_edge = parent->check_and_add_edge(e);
+    bool ret = exist_edge == nullptr ? true : false;
+    if (exist_edge == nullptr) {
+        in_weak_edges[e->e_to] = e;
+		e->set_edge_to_node(this);
+		inc_weak_in();
+    } else {
+        in_weak_edges[e->e_to] = exist_edge;
+		exist_edge->set_edge_to_node(this);
+    }
+    return ret;
 }
 
 bool Node::add_out_edge(Edge *e)
 {
-	Edge *exist_edge = parent->check_and_add_edge(e);
-	bool ret = exist_edge == NULL ? true : false;
-	if (exist_edge == NULL) {
-		out_edges[e->e_from] = e;
-	} else {
-		out_edges[e->e_from] = exist_edge;
-	}
-	return ret;
+    Edge *exist_edge = parent->check_and_add_edge(e);
+    bool ret = exist_edge == nullptr ? true : false;
+    if (exist_edge == nullptr) {
+        out_edges[e->e_from] = e;
+		e->set_edge_from_node(this);
+		inc_out();
+    } else {
+        out_edges[e->e_from] = exist_edge;
+		exist_edge->set_edge_from_node(this);
+    }
+    return ret;
 }
 
-void Node::add_edge_for_msg(msg_ev_t *msg_event)
+bool Node::add_out_weak_edge(Edge *e)
 {
-
-	msg_ev_t *next_msg = msg_event->get_next();
-	msg_ev_t *prev_msg = msg_event->get_prev();
-	msg_ev_t *peer_msg = msg_event->get_peer();
-
-	if (next_msg != NULL) {
-		Edge *e = new Edge(msg_event, next_msg, MSGP_REL);
-		if (!add_out_edge(e))
-			delete e;
-	} else if (prev_msg != NULL) {
-		Edge *e = new Edge(prev_msg, msg_event, MSGP_REL);
-		if (!add_in_edge(e))
-			delete e;
-	}
-
-	if (peer_msg == NULL)
-		return;
-	if (msg_event->get_header()->check_recv() == true) {
-		Edge *e = new Edge(peer_msg, msg_event, MSGP_REL);
-		if (!add_in_edge(e))
-			delete e;
-			
-	} else {
-		Edge *e = new Edge(msg_event, peer_msg, MSGP_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
+    Edge *exist_edge = parent->check_and_add_edge(e);
+    bool ret = exist_edge == nullptr ? true : false;
+    if (exist_edge == nullptr) {
+        out_weak_edges[e->e_from] = e;
+        e->set_edge_from_node(this);
+		inc_weak_out();
+    } else {
+        out_weak_edges[e->e_from] = exist_edge;
+        exist_edge->set_edge_from_node(this);
+    }
+    return ret;
 }
 
-void Node::add_edge_for_disp_enq(enqueue_ev_t *enq_event)
+std::map<EventBase *, Edge *> &Node::get_in_edges()
 {
-	dequeue_ev_t *deq_event = enq_event->get_consumer();
-	if (!deq_event)
-		return;
-	Edge *e = new Edge(enq_event, deq_event, DISP_EXE_REL);
-	if (!add_out_edge(e))
-		delete e;
+    return in_edges;
 }
 
-void Node::add_edge_for_disp_deq(dequeue_ev_t *deq_event)
+std::map<EventBase *, Edge *> &Node::get_out_edges()
 {
-	enqueue_ev_t *enq_event = deq_event->get_root();
-	if (!enq_event)
-		return;
-	Edge *e = new Edge(enq_event, deq_event, DISP_EXE_REL);
-	if (!add_in_edge(e))
-		delete e;
-}
-
-void Node::add_edge_for_callcreate(timercreate_ev_t *timer_create)
-{
-	timercallout_ev_t *timercallout_event = timer_create->get_called_peer();
-	if (timercallout_event) {
-		Edge *e = new Edge(timer_create, timercallout_event, TIMERCALLOUT_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-	timercancel_ev_t *timercancel_event = timer_create->get_cancel_peer();
-	if (timercancel_event) {
-		Edge *e = new Edge(timer_create, timercancel_event, TIMERCANCEL_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_callout(timercallout_ev_t *timer_callout)
-{
-	timercreate_ev_t *timer_create = timer_callout->get_timercreate();
-	if (timer_create) {
-		Edge *e = new Edge(timer_create, timer_callout, TIMERCALLOUT_REL);
-		if (!add_in_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_callcancel(timercancel_ev_t *timer_cancel)
-{
-	timercreate_ev_t *timer_create = timer_cancel->get_timercreate();
-	if (timer_create) {
-		Edge *e = new Edge(timer_create, timer_cancel, TIMERCANCEL_REL);
-		if (!add_in_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_caset(ca_set_ev_t *ca_set_event)
-{
-	ca_disp_ev_t *ca_display_event = ca_set_event->get_display_event();
-	if (ca_display_event) {
-		Edge *e = new Edge(ca_set_event, ca_display_event, CA_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_cadisplay(ca_disp_ev_t *ca_display_event)
-{
-	vector<ca_set_ev_t*> ca_set_events = ca_display_event->get_ca_set_events();
-	vector<ca_set_ev_t*>::iterator it;
-	for (it = ca_set_events.begin(); it != ca_set_events.end(); it++) {
-		ca_set_ev_t *ca_set_event = *it;
-		Edge *e = new Edge(ca_set_event, ca_display_event, CA_REL);
-		if (!add_in_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_rlitem(rl_boundary_ev_t *rl_event)
-{
-	event_t* owner = rl_event->get_owner();
-	if (owner != NULL) {
-		Edge *e = new Edge(owner, rl_event, RLITEM_REL);
-		if (!add_in_edge(e))
-			delete e;
-
-	}
-	event_t *consumer = rl_event->get_consumer();
-	if (consumer != NULL) {
-		Edge *e = new Edge(rl_event, consumer, RLITEM_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_hwbr(breakpoint_trap_ev_t *event)
-{
-//TODO: connectors for breakpoints thing
-}
-
-void Node::add_edge_for_mkrun(mkrun_ev_t *mkrun_event)
-{
-	event_t *peer_event = mkrun_event->get_peer_event();
-	if (peer_event) {
-		Edge *e = new Edge(mkrun_event, peer_event, MKRUN_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_fakedwoken(fakedwoken_ev_t *fakewoken)
-{
-	mkrun_ev_t *mkrun_event = fakewoken->get_peer();
-	if (mkrun_event) {
-		Edge *e = new Edge(mkrun_event, fakewoken, MKRUN_REL);
-		if (!add_in_edge(e))
-			delete e;
-	}
-}
-
-void Node::add_edge_for_wait(wait_ev_t *wait_event)
-{
-	mkrun_ev_t *mkrun_event = wait_event->get_mkrun();
-	if (mkrun_event) {
-		Edge *e = new Edge(wait_event, mkrun_event, WAIT_REL);
-		if (!add_out_edge(e))
-			delete e;
-	}
-	
-}
-
-map<event_t *, Edge *> &Node::get_in_edges()
-{
-	return in_edges;
-}
-
-map<event_t *, Edge *> &Node::get_out_edges()
-{
-	return out_edges;
+    return out_edges;
 }
 
 void Node::remove_edges()
 {
-	//cout << "Begin remove edges" << endl;
-	while (in_edges.size() > 0) {
-		assert(in_edges.begin() != in_edges.end());
-		pair<event_t *, Edge*> edge = *(in_edges.begin());
-		remove_edge(edge, false);
-	}
-	while (out_edges.size() > 0) {
-		assert(out_edges.begin() != out_edges.end());
-		pair<event_t *, Edge*> edge = *(out_edges.begin());
-		remove_edge(edge, true);
-	}
-	assert(in_edges.size() == 0 && out_edges.size() == 0);
-	//cout << "Finish remove edges" << endl;
+    while (in_edges.size() > 0) {
+        assert(in_edges.begin() != in_edges.end());
+        std::pair<EventBase *, Edge*> edge = *(in_edges.begin());
+        remove_edge(edge, false);
+    }
+    while (out_edges.size() > 0) {
+        assert(out_edges.begin() != out_edges.end());
+        std::pair<EventBase *, Edge*> edge = *(out_edges.begin());
+        remove_edge(edge, true);
+    }
+    assert(in_edges.size() == 0 && out_edges.size() == 0);
 }
 
-bool Node::find_edge_in_map(pair<event_t *, Edge *> target, bool out_edge)
+bool Node::find_edge_in_map(std::pair<EventBase *, Edge *> target, bool out_edge)
 {
-	map<event_t *, Edge *>& map = out_edge ? out_edges: in_edges;
-	assert(map.size() == out_edges.size() || map.size() == in_edges.size());
-	
-	if (map.find(target.first) != map.end()) {
-		return true;
-	}
-	return false;
+    std::map<EventBase *, Edge *> &map = out_edge ? out_edges: in_edges;
+    assert(map.size() == out_edges.size() || map.size() == in_edges.size());
+    
+    if (map.find(target.first) != map.end()) {
+        return true;
+    }
+    return false;
 }
 
-void Node::remove_edge(pair<event_t *, Edge *> edge, bool out_edge)
+void Node::remove_edge(std::pair<EventBase *, Edge *> edge, bool out_edge)
 {
-	assert(edge.first != NULL && edge.second != NULL);
-	assert(edge.second->e_from == edge.first || edge.second->e_to == edge.first);
-	if (find_edge_in_map(edge, out_edge) == false) {
-		//cout << "Edge has deleted" << endl;
-		return;
-	}
-	//cout << "Begin remove edge" << endl;
-	Edge *e = edge.second;
-	
-	if (e->from == e->to) {
-		//circle edge
-		in_edges.erase(e->e_to);
-		out_edges.erase(e->e_from);
-	}
-	else if (out_edge) {
-		Node *peer = e->to;
-		if (peer) {
-			out_edges.erase(e->e_from);
-			peer->remove_edge(make_pair(e->e_to, e), false);
-		}
-	} else {
-		Node *peer = e->from;
-		if (peer) {
-			in_edges.erase(e->e_to);
-			peer->remove_edge(make_pair(e->e_from, e), true);
-		}
-	}
-	//cout << "Remove edge from parent" << endl;
-	parent->remove_edge(e);
-	//cout << "Finish remove edge" << endl;
+    assert(edge.first != nullptr && edge.second != nullptr);
+    assert(edge.second->e_from == edge.first || edge.second->e_to == edge.first);
+    if (find_edge_in_map(edge, out_edge) == false) {
+        return;
+    }
+    Edge *e = edge.second;
+    
+    if (e->from == e->to) {
+        in_edges.erase(e->e_to);
+        out_edges.erase(e->e_from);
+    }
+    else if (out_edge) {
+        Node *peer = e->to;
+        if (peer) {
+            out_edges.erase(e->e_from);
+            peer->remove_edge(std::make_pair(e->e_to, e), false);
+        }
+    } else {
+        Node *peer = e->from;
+        if (peer) {
+            in_edges.erase(e->e_to);
+            peer->remove_edge(std::make_pair(e->e_from, e), true);
+        }
+    }
+    parent->remove_edge(e);
 }
 
 int Node::compare_syscall_ret(Node *peer)
 {
-	return get_group()->compare_syscall_ret(peer->get_group());
+    return get_group()->compare_syscall_ret(peer->get_group());
 }
 
 int Node::compare_timespan(Node *peer)
 {
-	return get_group()->compare_timespan(peer->get_group());
+    return get_group()->compare_timespan(peer->get_group());
 }
 
 int Node::compare_wait_cost(Node *peer)
 {
-	return get_group()->compare_wait(peer->get_group());
+    return get_group()->compare_wait(peer->get_group());
 }
 
 double Node::get_begin_time()
 {
-	return group->get_first_event()->get_abstime();
+    return group->get_first_event()->get_abstime();
 }
 
 double Node::get_end_time()
 {
-	return group->get_last_event()->get_abstime();
+    EventBase *last_event = group->get_last_event();
+    if (last_event->get_event_type() == WAIT_EVENT) {
+        WaitEvent *wait = dynamic_cast<WaitEvent *>(last_event);
+        MakeRunEvent* mkrun = dynamic_cast<MakeRunEvent *>(wait->get_event_peer());
+        if (mkrun && mkrun->is_external())
+            return mkrun->get_abstime();       
+    }
+    return last_event->get_abstime();
 }
 
-bool Node::contains_noncausual_mk_edge()
+bool Node::contains_nsapp_event()
 {
-	return group->contains_noncausual_mk_edge();
+    return group->contains_nsappevent() != nullptr;
+}
+
+bool Node::contains_view_update()
+{
+    return group->contains_view_update() != nullptr;
 }
 
 bool Node::wait_over()
 {
-	return group->wait_over();
-	
+    return group->wait_over();
 }
 
-///////////////////////////////////
-Graph::Graph(groups_t *_groups_ptr)
+Node *Node::prev_weak_in_thread()
 {
-	groups_ptr = _groups_ptr;
-	init_graph();
+    gid_t search_gid = get_gid();
+    Node *search_node = nullptr;
+
+    while (search_node == nullptr) {
+        search_node = parent->id_to_node(--search_gid);
+        if (search_gid < group->get_group_id() - 10 || search_gid <= (group->get_group_id() & ~(0xfffffULL) ))
+            break;
+    }
+
+    return search_node;
+}
+
+EventBase *Node::index_to_event(int index)
+{
+    std::list<EventBase *> &container = group->get_container();
+    std::list<EventBase *>::iterator it = container.begin();
+
+    if (index >= container.size() || index < 0)
+        return nullptr;
+
+    std::advance(it, index);
+    return *it;    
+}
+///////////////////////////////////
+std::string Graph::create_output_path(std::string input_path)
+{
+    boost::filesystem::path outdir("./output/");
+    if (!(boost::filesystem::exists(outdir)))  
+        boost::filesystem::create_directory(outdir);
+
+    std::string filename;
+    size_t dir_pos = input_path.find_last_of("/");
+    if (dir_pos != std::string::npos) {
+        filename = input_path.substr(dir_pos + 1);
+    } else {
+        filename = input_path;
+    }
+
+    size_t pos = filename.find(".");
+    if (pos != std::string::npos)
+        return outdir.c_str() + filename.substr(0, pos);
+    else
+        return outdir.c_str() + filename;
+}
+
+Graph::Graph()
+{
+    std::string out_file = create_output_path(LoadData::meta_data.data);
+    std::string event_output_path = out_file + "_events.stream";
+    std::string group_output_path = out_file + "_groups.stream";
+
+    event_lists_ptr = new EventLists(LoadData::meta_data);
+    groups_ptr = new Groups(event_lists_ptr);
+
+    event_lists_ptr->streamout_all_event(event_output_path);
+    groups_ptr->streamout_groups(group_output_path);
+    construct_inside = true;
+    create_graph = true;
+
+	edges.clear();
+	nodes.clear();
+    nodes_map.clear();
+    edge_map.clear();
+}
+
+Graph::Graph(Groups *_groups_ptr)
+{
+    event_lists_ptr = nullptr;
+    groups_ptr = _groups_ptr;
+    construct_inside = false;
+    create_graph = true;
+
+	edges.clear();
+	nodes.clear();
+    nodes_map.clear();
+    edge_map.clear();
 }
 
 Graph::~Graph(void)
 {
-	//while(nodes.size() > 0) {
-		//remove_node(*(nodes.begin()));
-	//}
-	nodes_map.clear();
-	tid_glist_map.clear();
-	edge_map.clear();
-	while(nodes.size() > 0) {
-		delete(*(nodes.begin()));
-	}
+    nodes_map.clear();
+    edge_map.clear();
 
-	while(edges.size() > 0) {
-		delete(*(edges.begin()));
-	}
-}
+    if (create_graph) {
+        std::vector<Node *>::iterator node_it;
+        for (node_it = nodes.begin(); node_it != nodes.end(); node_it++) {
+            Node *node = *(node_it);
+            assert(node);
+            delete(node);
+        }
 
-typedef std::unique_ptr<boost::asio::io_service::work> asio_worker;
+        std::vector<Edge *>::iterator edge_it;
+        for (edge_it = edges.begin(); edge_it != edges.end(); edge_it++) {
+            Edge *edge = *(edge_it);
+            assert(edge);
+            delete(edge);
+        }
+    }
 
-void Graph::init_graph()
-{
-	time(&time_begin);
-	cerr << "Begin generate graph..." << endl;
+    if (construct_inside) {
+        assert(groups_ptr && event_lists_ptr);
+        delete groups_ptr;
+        delete event_lists_ptr;
+    }
 
-	boost::asio::io_service ioService;
-	boost::thread_group threadpool;
-	asio_worker work(new asio_worker::element_type(ioService));
-	
-	for (int i = 0 ; i < LoadData::meta_data.nthreads; i++)
-		threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &ioService));
-
-	map<uint64_t, group_t *> groups = groups_ptr->get_groups();
-	map<uint64_t, group_t *>::iterator it;
-	for (it = groups.begin(); it != groups.end(); it++) {
-		group_t* cur_group = it->second;
-		Node *node = new Node(this, cur_group);
-		nodes.push_back(node);
-		nodes_map[cur_group] = node;
-		//cout << " Generate node for Node " << hex << cur_group->get_group_id() << endl;
-		ioService.post(boost::bind(&Node::add_edges, node));
-	}
-
-	work.reset();
-	threadpool.join_all();
-
-	time(&time_check);
-	cerr << "graph generate cost "  << fixed << setprecision(1) << difftime(time_check, time_begin) << " seconds" << endl;
-
-	//update the Node pointers in edges
-	vector<Edge *>::iterator e_it;
-	for (e_it = edges.begin(); e_it != edges.end(); e_it++) {
-		Edge *cur_edge = *e_it;
-		assert(cur_edge);
-		assert(cur_edge->e_from && cur_edge->e_to);
-
-		group_t *cur_edge_from_group = groups_ptr->group_of(cur_edge->e_from);
-		group_t *cur_edge_to_group = groups_ptr->group_of(cur_edge->e_to);
-
-		//exclude the edge introduced by hardware beakpoint
-		if (cur_edge_from_group == NULL || cur_edge_to_group == NULL)
-			continue;
-#if 0
-		if (cur_edge_from_group == NULL) {
-			if (cur_edge->e_to->get_procname() == "kernel_task") {
-				continue;
-			} else {
-				cerr << "Error event at " << fixed << setprecision(1) << cur_edge->e_from->get_abstime() << endl;
-				cerr << "Peer process is " << cur_edge->e_to->get_procname();
-				cerr << " at " << fixed << setprecision(1) << cur_edge->e_to->get_abstime() << endl;
-				assert(cur_edge_from_group);
-			}
-		}
-
-		if (cur_edge_to_group == NULL) {
-			if (cur_edge->e_from->get_procname() == "kernel_task") {
-				continue;
-			} else {
-					cerr << "Error event at " << fixed << setprecision(1) << cur_edge->e_to->get_abstime() << endl;
-					cerr << "Peer process is " << cur_edge->e_from->get_procname();
-					cerr << " at " << fixed << setprecision(1) << cur_edge->e_from->get_abstime() << endl;
-					assert(cur_edge_to_group);
-			}
-		}
-#endif
-
-		Node *cur_edge_from = nodes_map[cur_edge_from_group];
-		Node *cur_edge_to = nodes_map[cur_edge_to_group];
-		assert(cur_edge_from && cur_edge_to);
-
-		cur_edge->from = cur_edge_from;
-		cur_edge->to = cur_edge_to;
-	}
-	time(&time_end);
-	cerr << "Time cost for graph_init is "  << fixed << setprecision(1) << difftime(time_end, time_begin) << " seconds" << endl;
+    nodes.clear();
+    edges.clear();
 }
 
 void Graph::remove_node(Node *node)
 {
-	//cout << "Begin remove node" << endl;
-	assert(node != NULL);
-	//remove node as well as the connecting edges
-	node->remove_edges();
-	vector<Node *>::iterator it = find(nodes.begin(), nodes.end(), node);
-	assert(it != nodes.end() && *it == node);
-	nodes.erase(it);
-	delete node;
-	//cout << "Finish remove node" << endl;
+    assert(node != nullptr);
+    node->remove_edges();
+    std::vector<Node *>::iterator it = find(nodes.begin(), nodes.end(), node);
+    assert(it != nodes.end() && *it == node);
+    nodes.erase(it);
+    delete node;
 }
 
 void Graph::remove_edge(Edge *edge)
 {
-	assert(edge != NULL);
-	vector<Edge *>::iterator it = find(edges.begin(), edges.end(), edge);
-	if (it != edges.end()) {
-		edges.erase(it);
-		delete edge;
-	}
+    assert(edge != nullptr);
+    std::vector<Edge *>::iterator it = find(edges.begin(), edges.end(), edge);
+    if (it != edges.end()) {
+        edges.erase(it);
+        delete edge;
+    }
+}
+
+Node *Graph::check_and_add_node(Node *node)
+{
+    Node *ret = nullptr;
+	//check if the node of the same group exists.
+	if (nodes_map.find(node->get_group()) != nodes_map.end()) {
+        ret = nodes_map[node->get_group()];
+    } else {
+        nodes.push_back(node);
+		nodes_map[node->get_group()] = node;
+    }
+    return ret;
 }
 
 Edge *Graph::check_and_add_edge(Edge *e)
 {
-	Edge *ret = NULL;
-	graph_edge_mtx.lock();
-	/*
-	vector<Edge *>::iterator it;
-	for (it = edges.begin(); it != edges.end(); it++)
-		if (**it == *e) {
-			assert((*it)->e_from == e->e_from);
-			assert((*it)->e_to == e->e_to);
-			graph_edge_mtx.unlock();
-			return *it;
-		}
-	*/
-	if (edge_map.find(e->e_from) != edge_map.end()) {
-		if (edge_map[e->e_from]->e_to == e->e_to) {
-			ret = edge_map[e->e_from];
-			graph_edge_mtx.unlock();
-			return ret;
-		}
-	}
-	edge_map[e->e_from] = e;
-	edges.push_back(e);
-	graph_edge_mtx.unlock();
-	return NULL;
+    Edge *ret = nullptr;
+    graph_edge_mtx.lock();
+    if (edge_map.find(e->e_from) != edge_map.end()) {
+        //assert(edge_map[e->e_from]->e_to == e->e_to);
+        if (edge_map[e->e_from]->e_to == e->e_to) {
+            ret = edge_map[e->e_from];
+            graph_edge_mtx.unlock();
+            return ret;
+        } else {
+            //notify cases of multiple outgoing edges type : wait event, woken (connected with wake up and faked woken)
+            std::cerr << "Same edge from end at " << std::fixed << std::setprecision(1)\
+                    << e->e_from->get_abstime() << " with to end ";
+			std::cerr << std::fixed << std::setprecision(1) << e->e_to->get_abstime() << " and ";
+			std::cerr << edge_map[e->e_from]->e_to->get_abstime() << std::endl;
+        }
+    }
+    //if no the same begin and end, add new edge
+    edge_map[e->e_from] = e;
+    edges.push_back(e);
+    graph_edge_mtx.unlock();
+    return ret;
 } 
-
-void Graph::add_edge(Edge *e)
-{
-	edges.push_back(e);
-	//data structure subjects to modification if performance is not satisfied.
-}
-
-vector<Node *> Graph::get_nodes_for_tid(tid_t tid)
-{
-	vector<Node *> result;
-	result.clear();
-	// the version constructed with groups
-	gid_group_map_t tgroups = groups_ptr->get_groups_by_tid(tid);
-	gid_group_map_t::iterator it;
-	for (it = tgroups.begin(); it != tgroups.end(); it++){
-		assert(nodes_map.find(it->second) != nodes_map.end());
-		result.push_back(nodes_map[it->second]);
-	}
-	//add versions that constructed with nodes
-	return result;
-}
-
-vector<Node *> Graph::get_nodes_in_thread_after(Node *cur_node)
-{
-	vector<Node *> ret = get_nodes_for_tid(cur_node->get_tid());
-	vector<Node *>::iterator it = find(ret.begin(), ret.end(), cur_node);
-	ret.erase(ret.begin(), it);
-	return ret;
-}
 
 Node *Graph::id_to_node(group_id_t gid)
 {
-	group_t * id_to_group = groups_ptr->get_group_by_gid(gid);
-	if (nodes_map.find(id_to_group) != nodes_map.end())
-		return nodes_map[id_to_group];
-	cerr << "Unknown group id " << hex << gid << endl;
-	return NULL;
+    Group *id_to_group = groups_ptr->get_group_by_gid(gid);
+    if (id_to_group == nullptr) {
+        std::cerr << "Unknown group id 0x" << std::hex << gid << std::endl;
+        return nullptr;
+    }
+
+    if (nodes_map.find(id_to_group) != nodes_map.end())
+        return nodes_map[id_to_group];
+    
+    std::cerr << "Node 0x" << std::hex << gid << " not included in graph" << std::endl;
+    return nullptr;
+}
+
+std::vector<Node *> Graph::get_nodes_for_tid(tid_t tid)
+{
+    std::vector<Node *> result;
+    Groups::gid_group_map_t tgroups = groups_ptr->get_groups_by_tid(tid);
+    Groups::gid_group_map_t::iterator it;
+
+    result.clear();
+    for (it = tgroups.begin(); it != tgroups.end(); it++) {
+        assert(nodes_map.find(it->second) != nodes_map.end());
+        result.push_back(nodes_map[it->second]);
+    }
+    return result;
+}
+
+std::vector<Node *> Graph::get_buggy_node_candidates(Node *cur_node)
+{
+    Node *spinning_node = get_spinning_node();
+    std::vector<Node *> ret = get_nodes_for_tid(cur_node->get_tid());
+    std::vector<Node *>::iterator it = find(ret.begin(), ret.end(), cur_node);
+    ret.erase(ret.begin(), it);
+    for (it = ret.begin(); it != ret.end(); it++)
+        if ((*it)->get_group()->get_first_event()->get_abstime() 
+            > spinning_node->get_group()->get_first_event()->get_abstime())
+            break;
+    ret.erase(it, ret.end());
+    return ret;
+}
+
+Node *Graph::node_of(EventBase *event)
+{
+	Group *group = groups_ptr->group_of(event);
+	if (group == nullptr) return nullptr;
+	if (nodes_map.find(group) != nodes_map.end())
+		return nodes_map[group];
+	return nullptr;
+}
+
+Group *Graph::group_of(EventBase *event)
+{
+	if (groups_ptr == nullptr) return nullptr;
+	return groups_ptr->group_of(event);
 }
 
 Node *Graph::get_spinning_node()
 {
-	group_t *spinning_group = groups_ptr->spinning_group();
-	if (spinning_group == NULL)
-		return NULL;
-	if (nodes_map.find(spinning_group) != nodes_map.end()) {
-		assert(spinning_group);
-		assert(nodes_map[spinning_group]);
-		return nodes_map[spinning_group];
-	}
-	return NULL;
+    Group *spinning_group = groups_ptr->spinning_group();
+    if (spinning_group == nullptr)
+        return nullptr;
+    if (nodes_map.find(spinning_group) != nodes_map.end()) {
+        assert(spinning_group);
+        assert(nodes_map[spinning_group]);
+        return nodes_map[spinning_group];
+    }
+    return nullptr;
+} 
+
+void Graph::graph_statistics()
+{
+    std::cout << "Graph size: " << std::endl;
+    std::cout << "Edges numer = " << std::dec << edges.size() << std::endl;
+    std::cout << "Nodes numer = " << std::dec << nodes.size() << std::endl;
+
+    std::map<uint32_t, uint32_t> edge_categories;
+    std::set<std::string> procs_set;
+    std::vector<uint64_t> multin_grs; 
+
+    edge_categories.clear();
+    procs_set.clear();
+    multin_grs.clear();
+
+    std::vector<Edge *>::iterator e_it;
+    for (e_it = edges.begin(); e_it != edges.end(); e_it++) {
+        Edge *cur_edge = *e_it;
+        edge_categories[cur_edge->rel_type] = edge_categories[cur_edge->rel_type] + 1;
+    }
+    std::vector<Node *>::iterator it;
+    for (it = nodes.begin(); it != nodes.end(); it++) {
+        Node *node = *it;
+        assert(node->get_group());
+        if (node->get_in() > 1)
+            multin_grs.push_back(node->get_gid());
+        procs_set.insert(node->get_group()->get_first_event()->get_procname());
+    }
+
+    std::map<uint32_t, uint32_t>::iterator map_it;
+    for (map_it = edge_categories.begin(); map_it != edge_categories.end(); map_it++)
+        std::cout << "Edge Category[" << map_it->first << "] = " << std::dec << map_it->second << std::endl;
+
+	std::cout << "number of multiple-incoming-edge nodes = " << std::dec << multin_grs.size() << std::endl; 
+    std::vector<uint64_t>::iterator mult_it;
+    for (mult_it = multin_grs.begin(); mult_it != multin_grs.end(); mult_it++)
+        std::cout << "\t0x" << std::hex << *mult_it;
+    std::cout << std::endl;
+
+	std::cout << "number of procs = " << std::dec <<  procs_set.size() << std::endl; 
+    std::set<std::string>::iterator proc_it;
+    for (proc_it = procs_set.begin(); proc_it != procs_set.end(); proc_it++)
+        std::cout << "\t" << *(proc_it);
+    std::cout << std::endl;
 }
 
-void Graph::streamout_nodes_and_edges(string path)
-{
-	ofstream output(path);
-	vector<Node *>::iterator it;
-	for (it = nodes.begin(); it != nodes.end(); it++) {
-		Node *node = *it;
-		map<event_t *, Edge *> edges = node->get_out_edges();
-		if (edges.size() > 3) {
-			output << "Randomly check node with group " << hex << node->get_gid() << endl; 
-			map<event_t *, Edge *>::iterator e_it;
-			for (e_it = edges.begin(); e_it != edges.end(); e_it++) {
-				Edge *cur_edge = e_it->second;
-				assert(node == cur_edge->from);
-				output << "Edge " << fixed << setprecision(1) << cur_edge->e_from->get_abstime();
-				output << "->" << fixed << setprecision(1) << cur_edge->e_to->get_abstime() << endl;
-			}
-			break;
+void Graph::tfl_nodes(std::string path) {
+    std::string event_path(path + "_events");
+    std::list<EventBase *> event_list;
+
+    std::vector<Node *>::iterator it;
+    for (it = nodes.begin(); it != nodes.end(); it++) {
+        Group *cur_group = (*it)->get_group();
+        assert(cur_group);
+        std::list<EventBase *> &container = cur_group->get_container();
+        event_list.insert(event_list.end(), container.begin(), container.end());
+    }
+    event_list.sort(Parse::EventComparator::compare_time);
+    /*
+    std::list<EventBase *>::iterator lit;
+    uint32_t index = 0;
+    for (lit = event_list.begin(); lit != event_list.end(); lit++) {
+        (*lit)->tfl_index = index;
+        ++index; 
+    }
+    */
+    EventLists tfl_lists(event_list);
+    tfl_lists.tfl_all_event(event_path);
+}
+
+void Graph::tfl_edges_between(uint64_t from, uint64_t to, std::string in, std::string out) {
+	std::ifstream weak_edge(in);
+	std::ofstream output_edge(out);
+	uint64_t edge_from, edge_to;
+	for (auto cur_edge: edges) {
+		edge_from = cur_edge->e_from->get_tfl_index();
+		edge_to = cur_edge->e_to->get_tfl_index();
+		if (edge_to == 0) {
+			//faked woken
+			EventBase *real_event = cur_edge->to->get_group()->get_real_first_event();
+			assert(real_event);
+			edge_to = real_event->get_tfl_index();
 		}
+
+		if (edge_from > from && edge_from < to)
+			output_edge << std::dec << edge_from << "\t" << edge_to << std::endl;
 	}
-	output.close();
+	output_edge << "Weak Edges derived from reachable path" << std::endl;
+	std::string line;
+	while(getline(weak_edge, line)) {
+		std::istringstream iss(line);
+		if (!(iss >> edge_from >> edge_to))
+			break;
+		if (edge_from > from && edge_from < to)
+			output_edge << std::dec << edge_from << "\t" << edge_to << std::endl;
+	}
+	weak_edge.close();
+	output_edge.close();
 }
 
-void Graph::check_pattern_for_mkrun(string path)
+void Graph::tfl_edges(std::string path) {
+    std::string edge_path(path + "_edges");
+    std::ofstream output_edge(edge_path);
+
+	std::vector<Edge *>::iterator it;
+	output_edge << "#number of edge = " << std::dec << edges.size() << std::endl; 
+	for (it = edges.begin(); it != edges.end(); it++) {
+		Edge *cur_edge = *it;
+        //if (cur_edge->rel_type == WEAK_REL)
+        //    continue;
+		assert(cur_edge);
+
+		uint64_t edge_to = cur_edge->e_to->get_tfl_index();
+		if (edge_to == 0) {
+			//faked woken
+			assert(cur_edge->to);
+			assert(cur_edge->to->get_group());
+			EventBase *real_event = cur_edge->to->get_group()->get_real_first_event();
+			assert(real_event);
+			edge_to = real_event->get_tfl_index();
+		}
+        output_edge << std::dec << cur_edge->e_from->get_tfl_index();
+        output_edge << " to "<< std::dec << edge_to;
+        output_edge <<"\t" << std::dec << (uint32_t)(log10(cur_edge->e_to->get_abstime() - cur_edge->e_from->get_abstime()));
+        output_edge << std::endl;
+    }
+    output_edge.close();
+}
+
+void Graph::tfl_nodes_and_edges(std::string path)
 {
-	ofstream output(path);
-	vector<Node *>::iterator it;
-	for (it = nodes.begin(); it != nodes.end(); it++) {
-		Node *node = *it;
-		if(node->contains_noncausual_mk_edge() == true)
-			output << "Group id " << hex << node->get_group()->get_group_id() << endl;
+    tfl_nodes(path);
+    tfl_edges(path);
+}
+
+void Graph::show_event_info(uint64_t tfl_index, std::ostream &out)
+{
+	if (event_lists_ptr == nullptr)
+		out << "No tfl infomation maintained in the graph " << std::endl;
+	EventBase *event = event_lists_ptr->tfl_index2event(tfl_index);
+	if (event == nullptr)
+		out << "No corresponding event found" << std::endl;
+	event->streamout_event(out);
+	out << std::endl;
+}
+
+void Graph::streamout_nodes(std::string path) 
+{
+    std::string node_path(path + "_nodes");
+    std::ofstream output(node_path);
+    std::vector<Node *>::iterator it;
+    
+	std::cout << "number of nodes = " << std::dec << nodes.size() << std::endl; 
+    for (it = nodes.begin(); it != nodes.end(); it++) {
+        Node *node = *it;
+        assert(node->get_group());
+		output << "#Group " << node->get_gid() << std::endl;
+        node->get_group()->streamout_group(output);
+    }
+    output.close();
+
+}
+
+void Graph::streamout_edges(std::string path)
+{
+    std::string edge_path(path + "_edges");
+    std::ofstream output_edge(edge_path);
+	std::vector<Edge *>::iterator it;
+	std::cout << "number of edge = " << std::dec << edges.size() << std::endl; 
+	int i = 0;
+	for (it = edges.begin(); it != edges.end(); it++) {
+		Edge *cur_edge = *it;
+		assert(cur_edge);
+		assert(cur_edge->from);
+        output_edge << "\t" << cur_edge->e_from->get_procname();
+        output_edge << ' ' << std::hex << cur_edge->from->get_gid() << ' ';
+        output_edge << std::fixed << std::setprecision(1) << cur_edge->e_from->get_abstime();
+        output_edge << "->";
+        output_edge << cur_edge->e_to->get_procname();
+        output_edge << ' ' << std::hex << cur_edge->e_to->get_group_id() << ' ';
+        output_edge << std::fixed << std::setprecision(1) << cur_edge->e_to->get_abstime() << std::endl;
+		++i;
 	}
-	output.close();
+    output_edge.close();
+}
+
+void Graph::streamout_nodes_and_edges(std::string path)
+{
+    streamout_nodes(path);
+    streamout_edges(path);
+}
+
+void Graph::check_heuristics()
+{
+    std::vector<Node *>::iterator it;
+	std::cout << "number of nodes = " << std::dec << nodes.size() << std::endl; 
+    for (it = nodes.begin(); it != nodes.end(); it++) {
+        Node *node = *it;
+        assert(node->get_group());
+        int divide_by_msg = node->get_group()->is_divide_by_msg();
+
+        if (divide_by_msg & DivideOldGroup) {
+            Group *peer_group = groups_ptr->get_group_by_gid(node->get_gid() + 1);
+            if (peer_group != nullptr) {
+                std::cout << node->get_group()->get_procname();
+                std::cout << " Node 0x" << std::hex << node->get_gid();
+                std::cout << " and Node 0x" << std::hex << peer_group->get_group_id();
+                std::cout << " are divided by msg heuristics" << std::endl;
+
+                std::set<std::string> peer_set = peer_group->get_group_peer();
+                std::set<std::string> cur_set = node->get_group()->get_group_peer();
+                std::set<std::string>::iterator it;
+
+                for (it = cur_set.begin(); it != cur_set.end(); it++)
+                    std::cout << "\t" << *it;
+                std::cout << std::endl;
+
+                for (it = peer_set.begin(); it != peer_set.end(); it++)
+                    std::cout << "\t" << *it;
+                std::cout << std::endl;
+            }
+        }
+
+        if (divide_by_msg & DivideNewGroup) {
+            Group *peer_group = groups_ptr->get_group_by_gid(node->get_gid() - 1);
+            
+            if (peer_group != nullptr) {
+                std::cout << node->get_group()->get_procname();
+                std::cout << " Node 0x" << std::hex << peer_group->get_group_id();
+                std::cout << " and Node 0x" << std::hex << node->get_gid();
+                std::cout << " are divided by msg heuristics" << std::endl;
+
+                std::set<std::string> peer_set = peer_group->get_group_peer();
+                std::set<std::string> cur_set = node->get_group()->get_group_peer();
+                std::set<std::string>::iterator it;
+
+                for (it = peer_set.begin(); it != peer_set.end(); it++)
+                    std::cout << "\t" << *it;
+                std::cout << std::endl;
+                for (it = cur_set.begin(); it != cur_set.end(); it++)
+                    std::cout << "\t" << *it;
+                std::cout << std::endl;
+            }
+        }
+    }//end of for
 }

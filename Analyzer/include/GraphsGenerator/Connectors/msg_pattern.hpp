@@ -2,27 +2,35 @@
 #define MSG_PATTERN_HPP
 #include "mach_msg.hpp"
 
-typedef set<msg_ev_t *> msg_episode;
-typedef vector<msg_ev_t *> msg_episode_v;
+typedef std::set<MsgEvent *> msg_episode;
+typedef std::vector<MsgEvent *> msg_episode_v;
 
 class MsgPattern {
-	list<event_t*> &ev_list;
-	list<msg_episode> patterned_ipcs;
-	list<event_t*>::iterator search_ipc_msg(uint32_t *, pid_t *,
-						uint64_t, uint64_t, bool,
-						list<event_t *>::iterator, int *, bool *, uint32_t);
-	list<event_t *>::iterator search_mig_msg(list<event_t *>::iterator, int *, bool *);
-	void update_msg_pattern(msg_ev_t *, msg_ev_t *, msg_ev_t *, msg_ev_t *);
-	list<msg_episode>::iterator episode_of(msg_ev_t*);
-	vector<msg_ev_t *> sort_msg_episode(msg_episode & s);
-	
+    std::list<EventBase*> &ev_list;
+    std::list<MsgEvent*> mig_list;
+    std::list<MsgEvent*> msg_list;
+    std::map<uint64_t, std::list<MsgEvent*> > local_port_msg_list_maps;
+
+    std::list<msg_episode> patterned_ipcs;
+    std::list<MsgEvent*>::iterator search_ipc_msg(
+                uint32_t *, pid_t *, uint64_t,
+                uint64_t, bool, 
+                std::list<MsgEvent *>::iterator, uint32_t);
+
+    void update_msg_pattern(MsgEvent *, MsgEvent *, MsgEvent *, MsgEvent *);
+    std::list<msg_episode>::iterator episode_of(MsgEvent*);
+    std::vector<MsgEvent *> sort_msg_episode(msg_episode & s);
+    
 public:
-	MsgPattern(list<event_t *> &event_list);
-	~MsgPattern(void);
-	void collect_patterned_ipcs(void);
-	list<msg_episode> & get_patterned_ipcs(void);
-	void verify_msg_pattern(void);
-	void decode_patterned_ipcs(string & output_path);
+    MsgPattern(std::list<EventBase *> &event_list);
+    //MsgPattern(std::list<MsgEvent *> &_mig_list, std::list<MsgEvent *> &_msg_list);
+    ~MsgPattern(void);
+    void collect_mig_pattern();
+    void collect_msg_pattern();
+    void collect_patterned_ipcs(void);
+    std::list<msg_episode> &get_patterned_ipcs(void);
+    void verify_msg_pattern(void);
+    void decode_patterned_ipcs(std::string & output_path);
 };
 
 typedef MsgPattern msgpattern_t;

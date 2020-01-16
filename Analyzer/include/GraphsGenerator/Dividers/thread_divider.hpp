@@ -6,83 +6,90 @@
 #define THD_BACKTRACE   1
 #define THD_TIMERCREATE 2
 #define THD_TIMERCANCEL 3
-#define THD_TIMERCALL	4
+#define THD_TIMERCALL    4
 
 class ThreadDivider {
+public:
+    uint32_t msg_induced_node;
+    uint32_t wait_block_disp_node;
 protected:
-	uint64_t gid_base;
-	group_t *cur_group;
-	map<uint64_t, group_t *> ret_map;
+    uint64_t gid_base;
+    Group *cur_group;
+    std::map<uint64_t, Group *> ret_map;
 
-	intr_ev_t *potential_root;
-	backtrace_ev_t *backtrace_for_hook;
-	voucher_ev_t *voucher_for_hook;
-	syscall_ev_t *syscall_event;
-	syscall_ev_t *pending_msg_sent;
+    IntrEvent *potential_root;
+    BacktraceEvent *backtrace_for_hook;
+    VoucherEvent *voucher_for_hook;
+    SyscallEvent *syscall_event;
+    SyscallEvent *pending_msg_sent;
 
-	dequeue_ev_t *dequeue_event;
-	//blockinvoke_ev_t *mig_server_invoker;
+    BlockDequeueEvent *dequeue_event;
+    //BlockInvokeEvent *mig_server_invoker;
 
-	stack<disp_mig_ev_t *> dispatch_mig_servers;
-	stack<blockinvoke_ev_t *> current_disp_invokers;
+    std::stack<DispatchQueueMIGServiceEvent *> dispatch_mig_servers;
+    std::stack<BlockInvokeEvent *> current_disp_invokers;
 
-	fakedwoken_ev_t *faked_wake_event;
+    FakedWokenEvent *faked_wake_event;
 
-	list<event_t *> tid_list;
-	uint64_t index;
-	map<uint64_t, map<uint64_t, group_t*> > &submit_result;
+    std::list<EventBase *> tid_list;
+    uint64_t index;
+    std::map<uint64_t,std::map<uint64_t, Group*> > &submit_result;
 
 public:
-	ThreadDivider(int index, map<uint64_t, map<uint64_t, group_t*> >&sub_results, list<event_t *> ev_list);
+    ThreadDivider(int index,std::map<uint64_t,std::map<uint64_t, Group*> >&sub_results, std::list<EventBase *> ev_list);
 
-	group_t *create_group(uint64_t id, event_t *root_event);
-	group_t *gid2group(uint64_t gid);
-	void delete_group(group_t *del_group);
+    Group *create_group(uint64_t id, EventBase *root_event);
+    Group *gid2group(uint64_t gid);
+    void delete_group(Group *del_group);
 
-	void add_general_event_to_group(event_t *event);
-	void store_event_to_group_handler(event_t *event);
+    void add_general_event_to_group(EventBase *event);
+    void store_event_to_group_handler(EventBase *event);
 
-	void add_tsm_event_to_group(event_t *event);
-	void add_mr_event_to_group(event_t *event);
-	bool matching_wait_syscall(wait_ev_t *wait);
-	void add_wait_event_to_group(event_t *event);
-	void add_timercallout_event_to_group(event_t *event);
-	void add_disp_invoke_event_to_group(event_t *event);
-	bool check_group_with_voucher(voucher_ev_t *voucher, group_t *cur_group, pid_t msg_peer);
-	void add_msg_event_into_group(event_t *event);
-	void add_hwbr_event_into_group(event_t *event);
-	void add_disp_mig_event_to_group(event_t *event);
+    void add_tsm_event_to_group(EventBase *event);
+    void add_mr_event_to_group(EventBase *event);
+    bool matching_wait_syscall(WaitEvent *wait);
+    void add_wait_event_to_group(EventBase *event);
+    void add_timercallout_event_to_group(EventBase *event);
+    void add_disp_invoke_begin_event(BlockInvokeEvent *invoke_event);
+    void add_disp_invoke_end_event(BlockInvokeEvent *invoke_event, BlockInvokeEvent *begin_invoke);
+    void add_disp_invoke_event_to_group(EventBase *event);
+    void check_hooks(MsgEvent *msg_event);
+    void add_events(MsgEvent *msg_event, bool need_calculate);
+    void add_msg_event_into_group(EventBase *event);
+    void add_hwbr_event_into_group(EventBase *event);
+    void add_disp_mig_event_to_group(EventBase *event);
+    std::set<std::string> calculate_msg_peer_set(MsgEvent *, VoucherEvent *);
 
-	void decode_groups(map<uint64_t, group_t *> &uievent_groups, string filepath);
-	void streamout_groups(map<uint64_t, group_t *>& uievent_groups, string filepath);
-	virtual void divide();
+    void decode_groups(std::map<uint64_t, Group *> &uievent_groups, std::string filepath);
+    void streamout_groups(std::map<uint64_t, Group *>& uievent_groups, std::string filepath);
+    virtual void divide();
 };
 
-class RLThreadDivider: public ThreadDivider {
-	bool no_entry_observer;
-	group_t *save_cur_rl_group_for_invoke;
-	blockinvoke_ev_t *invoke_in_rl;
+class RunLoopThreadDivider: public ThreadDivider {
+    bool no_entry_observer;
+    Group *save_cur_rl_group_for_invoke;
+    BlockInvokeEvent *invoke_in_rl;
 public:
-	RLThreadDivider(int index, map<uint64_t, map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list, bool no_observer_entry);
-	~RLThreadDivider();
-	void add_observer_event_to_group(event_t *event);
-	void add_nsappevent_event_to_group(event_t *event);
-	void add_rlboundary_event_to_group(event_t *event);
-	void add_disp_invoke_event_to_group(event_t *event);
-	void add_msg_event_into_group(event_t *event);
+    RunLoopThreadDivider(int index,std::map<uint64_t,std::map<uint64_t, Group *> >&sub_results, std::list<EventBase *> ev_list, bool no_observer_entry);
+    ~RunLoopThreadDivider();
+    void add_observer_event_to_group(EventBase *event);
+    void add_nsappevent_event_to_group(EventBase *event);
+    void add_rlboundary_event_to_group(EventBase *event);
+    void add_disp_invoke_event_to_group(EventBase *event);
+    void add_msg_event_into_group(EventBase *event);
 
-	void decode_groups(string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
-	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
-	virtual void divide();
+    void decode_groups(std::string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
+    void streamout_groups(std::string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
+    virtual void divide();
 };
 
 class WQThreadDivider: public ThreadDivider {
-	
+    
 public:
-	WQThreadDivider(int index, vector<map<uint64_t, group_t *> >&sub_results, list<event_t *> ev_list);
-	void decode_groups(string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
-	void streamout_groups(string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
-	virtual void divide();
+    WQThreadDivider(int index, std::vector<std::map<uint64_t, Group *> >&sub_results, std::list<EventBase *> ev_list);
+    void decode_groups(std::string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
+    void streamout_groups(std::string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
+    virtual void divide();
 }; 
 
 #endif
