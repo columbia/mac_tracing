@@ -44,9 +44,10 @@ void Parse::BreakpointTrapParser::symbolize_eip(
 }
 #endif
 
+#if defined (__APPLE__)
 void Parse::BreakpointTrapParser::symbolize_hwbrtrap_for_proc(
         BacktraceParser *backtrace_parser,
-        std::pair<pid_t, std::string> proc)
+		key_t proc)
 {
     images_t *image = nullptr;
     debug_data_t cur_debugger;
@@ -99,6 +100,7 @@ void Parse::BreakpointTrapParser::symbolize_hwbrtrap(BacktraceParser *backtrace_
     for (auto it = proc_event_list_map.begin(); it != proc_event_list_map.end(); it++)
         symbolize_hwbrtrap_for_proc(backtrace_parser, it->first);
 }
+#endif
 
 void Parse::BreakpointTrapParser::process()
 {
@@ -133,7 +135,8 @@ void Parse::BreakpointTrapParser::process()
             if (arg3)
                 breakpoint_trap_event->add_addr(arg3);
             local_event_list.push_back(breakpoint_trap_event);
-            add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), breakpoint_trap_event);
+			key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+            add_to_proc_map(key, breakpoint_trap_event);
         } else {
             BreakpointTrapEvent *breakpoint_trap_event = breakpoint_trap_events[tid];
             if (arg1)

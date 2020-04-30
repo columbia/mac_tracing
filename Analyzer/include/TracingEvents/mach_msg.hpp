@@ -10,7 +10,7 @@
 #define MACH_MSGH_BITS_ZERO        0x00000000
 #define MACH_MSGH_BITS_REMOTE_MASK 0x0000001f
 #define MACH_MSGH_BITS_LOCAL_MASK  0x00001f00
-#define MACH_MSGH_VOUCHER_MSAK     0x001f0000
+#define MACH_MSGH_BITS_VOUCHER_MASK     0x001f0000
 #define    MACH_MSGH_BITS_PORTS_MASK        \
         (MACH_MSGH_BITS_REMOTE_MASK |    \
          MACH_MSGH_BITS_LOCAL_MASK |    \
@@ -35,6 +35,22 @@
 #define MACH_RCV_MSG     0x00000002
 
 #define NAME_IDX(name) name // ((name) >> 8)
+
+#if !defined(__APPLE__)
+#define	MACH_MSGH_BITS_OTHER(bits)				\
+		((bits) &~ MACH_MSGH_BITS_PORTS_MASK)
+#define MACH_MSG_TYPE_MOVE_RECEIVE	16	/* Must hold receive rights */
+#define MACH_MSG_TYPE_MOVE_SEND		17	/* Must hold send rights */
+#define MACH_MSG_TYPE_MOVE_SEND_ONCE	18	/* Must hold sendonce rights */
+#define MACH_MSG_TYPE_COPY_SEND		19	/* Must hold send rights */
+#define MACH_MSG_TYPE_MAKE_SEND		20	/* Must hold receive rights */
+#define MACH_MSG_TYPE_MAKE_SEND_ONCE	21	/* Must hold receive rights */
+#define MACH_MSG_TYPE_COPY_RECEIVE	22	/* Must hold receive rights */
+#define MACH_MSG_TYPE_PORT_NAME		15
+typedef unsigned int  mach_msg_bits_t;
+typedef unsigned int mach_msg_copy_options_t;
+typedef unsigned int mach_msg_type_name_t;
+#endif
 
 class MsgHeader {
 private:
@@ -131,6 +147,7 @@ public:
     bool is_mig(void) {assert(header); return header->is_mig();}
     void decode_event(bool is_verbose, std::ofstream &outfile);
     void streamout_event(std::ofstream &outfile);
+    void tfl_event(std::ofstream &outfile);
 };
 
 #endif

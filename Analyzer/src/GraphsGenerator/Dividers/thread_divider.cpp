@@ -1,12 +1,14 @@
 #include "thread_divider.hpp"
 
 #define DEBUG_THREAD_DIVIDER 0
+
 ThreadDivider::ThreadDivider(int _index,std::map<uint64_t,std::map<uint64_t, Group *> >&sub_results, std::list<EventBase *> ev_list)
 :submit_result(sub_results)
 {
     gid_base = ev_list.front()->get_tid() << GROUP_ID_BITS;
     cur_group = nullptr;
     potential_root = nullptr;
+
     backtrace_for_hook = nullptr;
     voucher_for_hook = nullptr;
     syscall_event = nullptr;
@@ -25,11 +27,9 @@ Group *ThreadDivider::create_group(uint64_t id, EventBase *root_event)
     Group *new_gptr = new Group(id, root_event);
 
     if (new_gptr == nullptr) {
-#if DEBUG_THREAD_DIVIDER
         mtx.lock();
-        std::cerr << "Error: OOM can not create a new group." << std::endl;
+        LOG_S(INFO) << __func__ << ": OOM can not create a new group." << std::endl;
         mtx.unlock();
-#endif
         exit(EXIT_FAILURE);
     }
 
@@ -63,6 +63,10 @@ void ThreadDivider::add_general_event_to_group(EventBase *event)
         faked_wake_event = nullptr;
     }
     cur_group->add_to_container(event);
+	EventBase *peer = event->get_event_peer();
+	if (peer != nullptr && peer->get_procname() != event->get_procname()) {
+		cur_group->add_group_peer(peer->get_procname() + std::to_string(peer->get_pid()));
+	}
 }
 
 void ThreadDivider::store_event_to_group_handler(EventBase *event)
@@ -87,6 +91,13 @@ void ThreadDivider::store_event_to_group_handler(EventBase *event)
             dequeue_event = dynamic_cast<BlockDequeueEvent *>(event);
             break;
         case FAKED_WOKEN_EVENT:
+			if (faked_wake_event) {
+				mtx.lock();
+				LOG_S(INFO) << "Thread woken but without meaningful operations collected "\
+					<< std::hex << event->get_tid() << " at "\
+					<< std::fixed << std::setprecision(1) << event->get_abstime() << std::endl;
+				mtx.unlock();
+			}
             faked_wake_event = dynamic_cast<FakedWokenEvent *>(event);
             break;
         default:
@@ -94,36 +105,39 @@ void ThreadDivider::store_event_to_group_handler(EventBase *event)
     }
 }
 
-/* general group generation per thread */
 void ThreadDivider::divide()
 {
-    std::list<EventBase *>::iterator it;
-    EventBase *event = nullptr;
+    //std::list<EventBase *>::iterator it;
+    //EventBase *event = nullptr;
 
-    for (it = tid_list.begin(); it != tid_list.end(); it++) {
-        event = *it;
+    //for (it = tid_list.begin(); it != tid_list.end(); it++) {
+     //   event = *it;
+#if DEBUG_THREAD_DIVIDE
+	if (tid_list.size() > 0)
+    	LOG_S(INFO) << "Begin dividing thread 0x" << std::hex << tid_list.front()->get_tid() << std::endl;
+#endif
+	for (auto event: tid_list) {
         switch (event->get_event_type()) {
+			//1. Ignore certeain events
             case VOUCHER_CONN_EVENT:
             case VOUCHER_DEALLOC_EVENT:
             case VOUCHER_TRANS_EVENT:
                 break;
+			//2. store info events to the handler for further hooking
+			/*
             case SYSCALL_EVENT:
                 if (event->get_op() == "BSC_sigreturn")
                     break;
+			*/
             case INTR_EVENT:
                 add_general_event_to_group(event);
             case BACKTRACE_EVENT:
             case VOUCHER_EVENT:
             case FAKED_WOKEN_EVENT:
-            //case DISP_DEQ_EVENT:
                 store_event_to_group_handler(event);
                 break;
-            //case TSM_EVENT:
-            //    add_tsm_event_to_group(event);
-            //    break;
-            //case MR_EVENT:
-            //    add_mr_event_to_group(event);
-            //    break;
+
+			//3. add hueristics for dividing batching
             case WAIT_EVENT:
                 add_wait_event_to_group(event);
                 break;
@@ -131,23 +145,16 @@ void ThreadDivider::divide()
                 add_timercallout_event_to_group(event);
                 break;
             case DISP_ENQ_EVENT: {
-                add_general_event_to_group(event);
                 BlockEnqueueEvent *enqueue_event = dynamic_cast<BlockEnqueueEvent *>(event);
-                enqueue_event->set_nested_level(cur_group->get_blockinvoke_level());
+                add_general_event_to_group(event);
                 break;
             }
             case DISP_DEQ_EVENT: {
                 BlockDequeueEvent *dequeue_event = dynamic_cast<BlockDequeueEvent *>(event);
-                
-                if (dequeue_event->is_executed()) {
+                if (dequeue_event->is_executed())
                     store_event_to_group_handler(event);
-                } else {
+                else
                     add_general_event_to_group(event);
-                    dequeue_event->set_nested_level(cur_group->get_blockinvoke_level());
-                }
-                
-                //add_general_event_to_group(event);
-                //dequeue_event->set_nested_level(cur_group->get_blockinvoke_level());
                 break;
             }
             case DISP_INV_EVENT:
@@ -159,26 +166,30 @@ void ThreadDivider::divide()
             }
             case MSG_EVENT:
                 add_msg_event_into_group(event);
-                //store_event_to_group_handler(event);
                 break;
-            case BREAKPOINT_TRAP_EVENT:
-                add_hwbr_event_into_group(event);
-                break;
+		   // covered by msg peer hueristics
+           // case BREAKPOINT_TRAP_EVENT:
+           //    add_hwbr_event_into_group(event);
+           //    break;
             default:
                 add_general_event_to_group(event);
         }
     }
     submit_result[index] = ret_map;
+#if DEBUG_THREAD_DIVIDE
+	if (tid_list.size() > 0)
+    	LOG_S(INFO) << "Finish dividing thread 0x" << std::hex << tid_list.front()->get_tid() << std::endl;
+#endif
 
 #if DEBUG_THREAD_DIVIDER
     if (msg_induced_node || wait_block_disp_node) {
         tid_t tid = (*(tid_list.begin()))->get_tid();
         std::string proc_name = (*(tid_list.begin()))->get_procname();
         mtx.lock();
-        std::cerr << "Thread Divider " << proc_name << " ";
-        std::cerr << std::hex << index << " tid = 0x" << std::hex << tid << ":\n";
-        std::cerr << "\tmsg_induced_node " << std::dec << msg_induced_node << std::endl;
-        std::cerr << "\twait_block_disp_node " << std::dec << wait_block_disp_node<< std::endl;
+        LOG_S(INFO) << "Thread Divider " << proc_name << " "\
+       		<< std::hex << index << " tid = 0x" << std::hex << tid << ":\n"\
+        	<< "\tmsg_induced_node = " << std::dec << msg_induced_node << "\n"\
+        	<< "\twait_block_disp_node = " << std::dec << wait_block_disp_node << std::endl;
         mtx.unlock();
     }
 #endif
@@ -189,7 +200,7 @@ void ThreadDivider::decode_groups(std::map<uint64_t, Group *> & uievent_groups, 
     std::ofstream output(filepath);
     if (output.fail()) {
         mtx.lock();
-        std::cerr << "Error: unable to open file " << filepath << " for write " << std::endl;
+        LOG_S(INFO) << "Error: unable to open file " << filepath << " for write " << std::endl;
         mtx.unlock();
         return;
     }
@@ -210,7 +221,7 @@ void ThreadDivider::streamout_groups(std::map<uint64_t, Group *> & uievent_group
     std::ofstream output(filepath);
     if (output.fail()) {
         mtx.lock();
-        std::cerr << "Error: unable to open file " << filepath << " for write " << std::endl;
+        LOG_S(INFO) << "Error: unable to open file " << filepath << " for write " << std::endl;
         mtx.unlock();
         return;
     }

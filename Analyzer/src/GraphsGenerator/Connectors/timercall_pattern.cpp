@@ -3,8 +3,11 @@
 
 #define TIMERCALL_DEBUG 0
 
-TimerCallPattern::TimerCallPattern(std::list<EventBase*> &_timercreate_list, std::list<EventBase *> &_timercallout_list, std::list<EventBase*> &_timercancel_list)
-:timercreate_list(_timercreate_list), timercallout_list(_timercallout_list), timercancel_list(_timercancel_list)
+TimerCallPattern::TimerCallPattern(std::list<EventBase*> &_timercreate_list, 
+std::list<EventBase *> &_timercallout_list, std::list<EventBase*> &_timercancel_list)
+:timercreate_list(_timercreate_list), 
+timercallout_list(_timercallout_list), 
+timercancel_list(_timercancel_list)
 {
 }
 
@@ -12,40 +15,89 @@ void TimerCallPattern::connect_timercall_patterns(void)
 {
 #ifdef TIMERCALL_DEBUG
     mtx.lock();
-    std::cerr << "begin matching timercall pattern ... " << std::endl;
+    LOG_S(INFO) << "begin matching timercall pattern ... " << std::endl;
     mtx.unlock();
 #endif
     connect_create_and_cancel();
-    connect_create_and_timercallout();
+    connect_create_and_callout();
 #ifdef TIMERCALL_DEBUG
     mtx.lock();
-    std::cerr << "finish matching timercall pattern. " << std::endl;
+    LOG_S(INFO) << "finish matching timercall pattern. " << std::endl;
     mtx.unlock();
 #endif
 }
 
 void TimerCallPattern::connect_create_and_cancel(void)
 {
-    std::list<EventBase *>::iterator it;
-    std::list<EventBase *> mix_list;
-    std::list<TimerCreateEvent*> tmp_create_list;
-    TimerCreateEvent * timercreate_event;
-    TimerCancelEvent * timercancel_event;
 
+    std::list<EventBase *> mix_list;
     mix_list.insert(mix_list.end(), timercreate_list.begin(), timercreate_list.end());
     mix_list.insert(mix_list.end(), timercancel_list.begin(), timercancel_list.end());
     EventLists::sort_event_list(mix_list);
+	
+#if 1
+	create_map_t timer_create;
+	for (auto it : mix_list) {
+		switch (it->get_event_type()) {
+			case TMCALL_CREATE_EVENT: {
+    			TimerCreateEvent *timercreate_event = dynamic_cast<TimerCreateEvent *>(it);
+				key_t key = {.ptr = timercreate_event->get_func_ptr(),
+							.p0 = timercreate_event->get_param0(),
+							.p1 = timercreate_event->get_param1()};
+				timer_create[key] = timercreate_event;
+				break;
+			}
+			case TMCALL_CANCEL_EVENT: {
+    			TimerCancelEvent *timercancel_event = dynamic_cast<TimerCancelEvent *>(it);
+				connect_timercreate_for_timercancel(timer_create, timercancel_event);
+				break;
+			}
+		}
+	}
+	
+#else
+
+    std::list<EventBase *>::iterator it;
+    std::list<TimerCreateEvent*> tmp_create_list;
 
     for (it = mix_list.begin(); it != mix_list.end(); it++) {
-        timercreate_event = dynamic_cast<TimerCreateEvent *>(*it);
+        TimerCreateEvent *timercreate_event = dynamic_cast<TimerCreateEvent *>(*it);
         if (timercreate_event) {
             tmp_create_list.push_back(timercreate_event);
         } else {
-            timercancel_event = dynamic_cast<TimerCancelEvent *>(*it);
+            TimerCancelEvent *timercancel_event = dynamic_cast<TimerCancelEvent *>(*it);
             connect_timercreate_for_timercancel(tmp_create_list, timercancel_event);
         }
     }
-    //TODO : check the rest events
+#endif
+
+}
+
+bool TimerCallPattern::connect_timercreate_for_timercancel(create_map_t &recent_create, TimerCancelEvent *timercancel_event)
+{
+	try {
+		key_t key = {.ptr = timercancel_event->get_func_ptr(),
+			.p0 = timercancel_event->get_param0(),
+			.p1 = timercancel_event->get_param1()};
+		TimerCreateEvent *create = recent_create.at(key);
+		if (timercancel_event->check_root(create) == true) {
+            timercancel_event->set_timercreate(create);
+            create->cancel_call(timercancel_event);
+			recent_create.erase(key);
+			return true;
+		}
+  	}
+  	catch (const std::out_of_range& oor) {
+#if TIMERCALL_DEBUG
+		mtx.lock();
+		std::cout << "Warn: no timercreate for timercancel "\
+				  << std::fixed << std::setprecision(1) \
+				  << timercancel_event->get_abstime() << std::endl; 
+		mtx.unlock();
+#endif
+		return false;
+	}
+	return false;
 }
 
 bool TimerCallPattern::connect_timercreate_for_timercancel(std::list<TimerCreateEvent *>&tmp_create_list, TimerCancelEvent *timercancel_event)
@@ -62,23 +114,46 @@ bool TimerCallPattern::connect_timercreate_for_timercancel(std::list<TimerCreate
     }
 #if TIMERCALL_DEBUG
     mtx.lock();
-    std::cerr << "Warn: no timercreate for timercancel " << std::fixed << std::setprecision(1) << timercancel_event->get_abstime() << std::endl; 
+    LOG_S(INFO) << "Warn: no timercreate for timercancel " << std::fixed << std::setprecision(1) << timercancel_event->get_abstime() << std::endl; 
     mtx.unlock();
 #endif
     return false;
 }
 
-void TimerCallPattern::connect_create_and_timercallout(void)
+void TimerCallPattern::connect_create_and_callout(void)
 {
-    std::list<EventBase *>::iterator it;
     std::list<EventBase *> mix_list;
-    std::list<TimerCreateEvent*> tmp_create_list;
-    TimerCreateEvent * timercreate_event;
-    TimerCalloutEvent * timercallout_event;
-
     mix_list.insert(mix_list.end(), timercreate_list.begin(), timercreate_list.end());
     mix_list.insert(mix_list.end(), timercallout_list.begin(), timercallout_list.end());
     EventLists::sort_event_list(mix_list);
+
+#if 1
+	create_map_t timer_create;
+	for (auto it : mix_list) {
+		switch (it->get_event_type()) {
+			case TMCALL_CREATE_EVENT: {
+        		TimerCreateEvent *create_event = dynamic_cast<TimerCreateEvent *>(it);
+				key_t key = {.ptr = create_event->get_func_ptr(),
+							.p0 = create_event->get_param0(),
+							.p1 = create_event->get_param1()};
+				timer_create[key] = create_event;
+				//timer_create[create_event->get_func_ptr()] = create_event;
+				break;
+			}
+			case TMCALL_CALLOUT_EVENT: {
+            	TimerCalloutEvent *callout_event = dynamic_cast<TimerCalloutEvent *>(it);
+				connect_timercreate_for_timercallout(timer_create, callout_event);
+				break;
+			}
+		}
+	}
+
+#else
+    std::list<TimerCreateEvent*> tmp_create_list;
+    std::list<EventBase *>::iterator it;
+    TimerCreateEvent * timercreate_event;
+    TimerCalloutEvent * timercallout_event;
+
     for (it = mix_list.begin(); it != mix_list.end(); it++) {
         timercreate_event = dynamic_cast<TimerCreateEvent *>(*it);
         if (timercreate_event) {
@@ -88,6 +163,33 @@ void TimerCallPattern::connect_create_and_timercallout(void)
             connect_timercreate_for_timercallout(tmp_create_list, timercallout_event);
         }
     }
+#endif
+}
+
+bool TimerCallPattern::connect_timercreate_for_timercallout(create_map_t &recent_create, TimerCalloutEvent *timercallout_event)
+{
+	try {
+		key_t key = {.ptr = timercallout_event->get_func_ptr(),
+			.p0 = timercallout_event->get_param0(),
+			.p1 = timercallout_event->get_param1()};
+		TimerCreateEvent *create = recent_create.at(key);
+		//TimerCreateEvent *create = recent_create.at(timercallout_event->get_func_ptr());
+		if (timercallout_event->check_root(create) == true) {
+            create->set_called_peer(timercallout_event);
+            timercallout_event->set_timercreate(create);
+			recent_create.erase(key);
+			return true;
+		}
+  	}
+  	catch (const std::out_of_range& oor) {
+#if TIMERCALL_DEBUG
+		mtx.lock();
+		LOG_S(INFO) << "Warn: no timercreate for timercallout " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime() << std::endl; 
+		mtx.unlock();
+#endif
+		return false;
+	} 
+	return false;
 }
 
 bool TimerCallPattern::connect_timercreate_for_timercallout(std::list<TimerCreateEvent*> &tmp_create_list, TimerCalloutEvent *timercallout_event)
@@ -105,7 +207,7 @@ bool TimerCallPattern::connect_timercreate_for_timercallout(std::list<TimerCreat
 
 #if TIMERCALL_DEBUG
     mtx.lock();
-    std::cerr << "Warn: no timercreate for timercallout " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime() << std::endl; 
+    LOG_S(INFO) << "Warn: no timercreate for timercallout " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime() << std::endl; 
     mtx.unlock();
 #endif
     return false;

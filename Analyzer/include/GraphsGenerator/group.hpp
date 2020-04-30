@@ -73,17 +73,24 @@ class GroupSemantics {
     EventBase *nsapp_event;
     EventBase *caset_event;
     std::set<std::string> group_peer;
+
     std::map<std::string, uint32_t> group_tags;
+
 public:
+	std::pair<int, std::list<uint64_t> > propagate_frames;
+
     GroupSemantics(EventBase *root);
     ~GroupSemantics();
     void set_root(EventBase *root);
     void add_group_peer(std::set<std::string>);
+    void add_group_peer(std::string);
+
+
     void add_group_tags(std::string desc);
+    std::map<std::string, uint32_t> &get_group_tags(void) {return group_tags;}
 
     EventBase *get_root(void) const {return root;}
     std::set<std::string> &get_group_peer(void) {return group_peer;}
-    std::map<std::string, uint32_t> &get_group_tags(void) {return group_tags;}
     void set_nsappevent(EventBase *event) {nsapp_event = event;}
     void set_view_update(EventBase *event) {caset_event = event;}
     EventBase *contains_nsappevent(void) {return nsapp_event;}
@@ -107,7 +114,10 @@ private:
 
 public:
     Group(uint64_t _group_id, EventBase *_root);
-    Group(Group const &g):GroupDivideFlag(), GroupSemantics(g.get_root()){*this = g;}
+    Group(Group const &g):GroupDivideFlag(), GroupSemantics(g.get_root()){
+		*this = g; 
+		propagate_frames.first = -1;
+	}
     /*TODO:construct groups from files*/
     /*Group(std::string file)*/
     ~Group();
@@ -115,7 +125,9 @@ public:
     tid_t get_tid(void) {return get_first_event()->get_tid();}
     group_id_t get_group_id(void) {return group_id;}
     std::string get_procname(void);
+	pid_t get_pid(void) {return get_first_event()->get_pid();}
 
+	void propagate_bt(int index, BacktraceEvent *bt_event);
     void add_to_container(EventBase *);
     void add_to_container(Group *);
     void empty_container(void);
@@ -158,7 +170,6 @@ protected:
     op_events_t &op_lists;
     tid_evlist_t tid_lists;
 
-protected:
     pid_t tid2pid(uint64_t tid);
     void prepare_list_for_tid(tid_t tid, tid_evlist_t &);
     void threads_wait_graph(event_list_t &_list);
@@ -172,7 +183,7 @@ public:
         tid_lists.clear();
         threads_wait_graph(op_lists[0]);
     }
-    ~ListsCategory() {tid_lists.clear();}
+    ~ListsCategory() {tid_lists.clear();/*TODO: delete fake woken events*/}
     void update_events_in_thread(uint64_t tid);
     op_events_t &get_op_lists(void){return op_lists;}
     tid_evlist_t &get_tid_lists(void) {return tid_lists;}
@@ -200,6 +211,7 @@ public:
     ~ThreadType() {main_thread = nsevent_thread = -1; categories.clear();}
     void check_rlthreads(event_list_t &, event_list_t &);
     void check_host_uithreads(event_list_t &);
+	bool is_runloop_thread(tid_t tid); 
     tid_t get_main_thread() {return main_thread;}
 };
 
@@ -219,7 +231,7 @@ private:
     void para_identify_thread_types(void);
     void para_preprocessing_tidlists(void);
     void para_connector_generate(void);
-    void para_group(void); 
+	void para_thread_divide(void);
     void collect_groups(std::map<uint64_t, Group *> &sub_groups);
 
 public:

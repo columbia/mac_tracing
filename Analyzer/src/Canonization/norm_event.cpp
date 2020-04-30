@@ -17,7 +17,6 @@ bool NormEvent::operator==(NormEvent &other)
         return false;
     if (event_type != other.event_type)
         return false;
-    
     if (event_type != WAIT_EVENT && peer != -1 && other.peer != -1) {
         if (peer != other.peer)
             return false;
@@ -32,6 +31,16 @@ bool NormEvent::operator==(NormEvent &other)
             WaitEvent *peer_event = dynamic_cast<WaitEvent *>(peer);
             if (cur_event->get_wait_resource() != peer_event->get_wait_resource())
                 ret = false;
+			SyscallEvent *cur_syscall = cur_event->get_syscall();
+			SyscallEvent *peer_syscall = peer_event->get_syscall();
+			if ((cur_syscall != nullptr && peer_syscall == nullptr)
+				|| (cur_syscall == nullptr && peer_syscall != nullptr))
+				return false;
+			if (cur_syscall != nullptr && peer_syscall != nullptr) {
+				LOG_S(INFO) << cur_syscall->get_op() << "\t" << peer_syscall->get_op() << std::endl;
+				if (cur_syscall->get_op() != peer_syscall->get_op())
+					return false;
+			}
             break;
         }
         case MSG_EVENT: {
@@ -49,7 +58,7 @@ bool NormEvent::operator==(NormEvent &other)
                 ret = false;    
             break;
         }
-        case RL_BOUNDARY_EVENT:    {
+        case RL_BOUNDARY_EVENT: {
             RunLoopBoundaryEvent *cur_event = dynamic_cast<RunLoopBoundaryEvent *>(event);
             RunLoopBoundaryEvent *peer_event = dynamic_cast<RunLoopBoundaryEvent *>(peer);
             if (cur_event->get_state() != peer_event->get_state())

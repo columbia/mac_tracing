@@ -1,5 +1,6 @@
 #include "mkrunnable.hpp"
 #include "wait.hpp"
+#include <cstring>
 
 MakeRunEvent::MakeRunEvent(double timestamp, std::string op, uint64_t _tid, uint64_t _peer_tid,
     uint64_t _event_source, uint64_t _mr_type, pid_t _pid, pid_t _peer_pid,

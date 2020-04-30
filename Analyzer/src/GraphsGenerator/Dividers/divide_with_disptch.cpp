@@ -4,48 +4,58 @@
 //////////////////////////////////////////////
 //event schemas for divider
 /////////////////////////////////////////////
+
 void ThreadDivider::add_disp_invoke_begin_event(BlockInvokeEvent *invoke_event)
 {
     current_disp_invokers.push(invoke_event);
+    invoke_event->set_nested_level(current_disp_invokers.size());
     /*1. a new execution segment should initiate only when it is dequeued from dispatch queue */
-    if (cur_group && invoke_event->get_root()) {
-        if (cur_group->get_blockinvoke_level() > 0) {
+    if (invoke_event->get_root()) {
+		if (cur_group != nullptr && cur_group->get_blockinvoke_level() > 0) {
+#if DEBUG_THREAD_DIVIDER 
             mtx.lock();
-            std::cerr << "Nested block [currently it is not divided, check if it need isolated] ";
-            std::cerr << "begins at " << std::fixed << std::setprecision(1) << invoke_event->get_abstime() << std::endl;
-            std::cerr << "Parent at " << std::fixed << std::setprecision(1);
-            std::cerr << cur_group->get_first_event()->get_abstime() << std::endl;
+            LOG_S(INFO) << "Nested block [isolated items inside hueristically] \n" \
+						<< "\tBlock begins at " << std::fixed << std::setprecision(1)\
+						<< invoke_event->get_abstime() << std::endl\
+						<< "\tParent at" << std::fixed << std::setprecision(1) \
+          				<< cur_group->get_first_event()->get_abstime() << std::endl;
             mtx.unlock();
-        } else {
-            cur_group->set_divide_by_disp(DivideOldGroup);
-            cur_group = nullptr;
-        }
+#endif
+        	cur_group->set_divide_by_disp(DivideOldGroup);
+		}
+		//have a new group
+        cur_group = nullptr;
     }
 
     /*2. attach the dequeue event */
     if (dequeue_event) {
         if (invoke_event->get_root() == dequeue_event) {
+            dequeue_event->set_nested_level(invoke_event->get_nested_level());
             add_general_event_to_group(dequeue_event);
-            dequeue_event->set_nested_level(cur_group->get_blockinvoke_level());
             dequeue_event = nullptr;
         } else {
             mtx.lock();
-            std::cerr << "Event begins at " << std::fixed << std::setprecision(1) << invoke_event->get_abstime() << std::endl;
-            std::cerr << "No matched to nearest dequeue event at " << std::fixed << std::setprecision(1);
-            std::cerr << dequeue_event->get_abstime() << std::endl;
+			LOG_S(INFO) << "Block beginning at " << std::fixed << std::setprecision(1) \
+						<< invoke_event->get_abstime() \
+            			<< " doesn't  match to nearest dequeue event at "\
+						<< std::fixed << std::setprecision(1)\
+            			<< dequeue_event->get_abstime() << std::endl;
             mtx.unlock();
         }
     }
 
+#if DEBUG_THREAD_DIVIDER 
     /*3. check dispatch_mig_server*/
     if (!dispatch_mig_servers.empty()) {
         mtx.lock();
-        std::cerr << std::hex << invoke_event->get_tid() << " ";
-        std::cerr << ": nest block invoke event inside dispatch_mig_server. ";
-        std::cerr << "InvokeBlock begins at " << std::fixed << std::setprecision(1);
-        std::cerr << invoke_event->get_abstime() << std::endl;
+		LOG_S(INFO) << "Nested block [dispatch_mig_server] \n"\
+					<< "\tBlock begins at " << std::fixed << std::setprecision(1)\
+        			<< invoke_event->get_abstime() << std::endl\
+					<< "\tParent at" << std::fixed << std::setprecision(1) \
+					<< dispatch_mig_servers.top()->get_abstime() << std::endl;
         mtx.unlock();
     }
+#endif
 
     /*4. processing the backtrace */
     if (backtrace_for_hook && backtrace_for_hook->hook_to_event(invoke_event, DISP_INV_EVENT)) {
@@ -57,10 +67,9 @@ void ThreadDivider::add_disp_invoke_begin_event(BlockInvokeEvent *invoke_event)
 
     /*5. add event to group*/
     add_general_event_to_group(invoke_event);
+    cur_group->blockinvoke_level_inc();
 	if (invoke_event->get_desc().size() > 0)
     	cur_group->add_group_tags(invoke_event->get_desc());
-    invoke_event->set_nested_level(cur_group->get_blockinvoke_level());
-    cur_group->blockinvoke_level_inc();
 }
 
 void ThreadDivider::add_disp_invoke_end_event(BlockInvokeEvent *invoke_event, BlockInvokeEvent *begin_invoke)
@@ -69,19 +78,19 @@ void ThreadDivider::add_disp_invoke_end_event(BlockInvokeEvent *invoke_event, Bl
     if (!current_disp_invokers.empty()) {
 #if DEBUG_THREAD_DIVIDER
         mtx.lock();
-        std::cerr << std::hex << invoke_event->get_tid() << " ";
-        std::cerr << " pop current_disp_invokers size " << current_disp_invokers.size();
-        std::cerr << " invoke_block end at "<< std::fixed << std::setprecision(1);
-        std::cerr << invoke_event->get_abstime();
-        std::cerr << " for " << std::fixed << std::setprecision(1) << current_disp_invokers.top()->get_abstime() << std::endl;
+		LOG_S(INFO) << "End of Block" << std::hex << invoke_event->get_tid() << " "\
+         			<< " current_disp_invokers size " << current_disp_invokers.size() << std::endl\
+					<< "\t invoke_block end at "<< std::fixed << std::setprecision(1)\
+					<< invoke_event->get_abstime() << std::endl\
+         			<< "\twhich begins from " << std::fixed << std::setprecision(1)\
+					<< current_disp_invokers.top()->get_abstime() << std::endl;
         mtx.unlock();
 #endif
     } else {
         //should not happened in the process of dividing, as it has checked in the process of parsing.
         mtx.lock(); 
-        std::cerr << std::hex << invoke_event->get_tid() << " ";
-        std::cerr << "[error] empty stack of invoker_begin at " << std::fixed << std::setprecision(1);
-        std::cerr << invoke_event->get_abstime();
+       	LOG_S(INFO) << "[error] empty stack: no begin event for block " << std::fixed << std::setprecision(1)\
+					<< invoke_event->get_abstime() << " tid = "<< std::hex << invoke_event->get_tid() << std::endl;
         mtx.unlock();
         //assert(!current_disp_invokers.empty());
         add_general_event_to_group(invoke_event);
@@ -91,12 +100,13 @@ void ThreadDivider::add_disp_invoke_end_event(BlockInvokeEvent *invoke_event, Bl
     if (!(begin_invoke == current_disp_invokers.top())) {
         //should not happened in the process of dividing, as it has checked in the process of parsing.
         mtx.lock();
-        std::cerr << std::hex << invoke_event->get_tid() << " ";
-        std::cerr << "[error] matching at " << std::hex << std::fixed << std::setprecision(1);
-        std::cerr << invoke_event->get_abstime();
-        std::cerr << ". Top of stack is at" << std::hex << std::fixed << std::setprecision(1);
-        std::cerr << current_disp_invokers.top()->get_abstime() << std::endl;
+        LOG_S(INFO) << "[error] matching at matching\t"\
+				 	<< "\t block end " << std::hex << std::fixed << std::setprecision(1)\
+        			<< invoke_event->get_abstime() << std::endl\
+        			<< "\tTop of stack is at" << std::hex << std::fixed << std::setprecision(1)\
+        			<< current_disp_invokers.top()->get_abstime() << std::endl;
         mtx.unlock();
+
         assert(begin_invoke == current_disp_invokers.top());
     }
 
@@ -106,50 +116,37 @@ void ThreadDivider::add_disp_invoke_end_event(BlockInvokeEvent *invoke_event, Bl
     if (!dispatch_mig_servers.empty()) {
         DispatchQueueMIGServiceEvent *current_mig_server = dispatch_mig_servers.top();
         if (current_mig_server->get_mig_invoker() == begin_invoke) {
-            cur_group = (Group *)(current_mig_server->restore_owner());
-            assert(cur_group && cur_group->get_blockinvoke_level() > 0);
+            //cur_group = (Group *)(current_mig_server->restore_owner());
+            //assert(cur_group && cur_group->get_blockinvoke_level() > 0);
             dispatch_mig_servers.pop();
         }
     }
     
     /*3. check the case dispatch block get broken*/
-    if (cur_group == nullptr) {
-        mtx.lock();
-        std::cerr << "invoke block is broken at " << std::fixed << std::setprecision(1) << invoke_event->get_abstime() << std::endl;
-        std::cerr << "It begins at " << std::fixed << std::setprecision(1) << begin_invoke->get_abstime() << std::endl;
-        mtx.unlock();
-        cur_group = gid2group(begin_invoke->get_group_id());
-    }
-
+    if (cur_group == nullptr || gid2group(begin_invoke->get_group_id()) != cur_group) {
 #if DEBUG_THREAD_DIVIDER
-    if (gid2group(begin_invoke->get_group_id()) != cur_group) {
         mtx.lock();
-        std::cerr << "Warn: invoke_block(not_queued) end at "<< std::fixed << std::setprecision(1);
-        std::cerr << invoke_event->get_abstime();
-        std::cerr << " in Group 0x" << std::hex << cur_group->get_group_id();
-        std::cerr << "; block begins invoke_block(not_queued) at "<< std::fixed << std::setprecision(1);
-        std::cerr << begin_invoke->get_abstime();
-        std::cerr << " in Group 0x" << std::hex << begin_invoke->get_group_id();
-        std::cerr << std::endl;
+        LOG_S(INFO) << "Invoke block is broken" << std::endl\
+				<< "\tBlock ends at " << std::fixed << std::setprecision(1)\
+				<< invoke_event->get_abstime() << std::endl\
+        		<< "\tBlock begins at " << std::fixed << std::setprecision(1)\
+				<< begin_invoke->get_abstime() << std::endl;
+		if (cur_group != nullptr)
+        	LOG_S(INFO) << "\tBlock begins in Group 0x"\
+					<< std::hex << begin_invoke->get_group_id() << std::endl\
+					<< "\tBlock ends in Group 0x"\
+					<< std::hex << cur_group->get_group_id() << std::endl;
+					
         mtx.unlock();
-    }
 #endif
+	} else { // (cur_group == gid2group(begin_invoke->get_group_id()))
+		cur_group->blockinvoke_level_dec();
+	}
 
-    if (cur_group->get_blockinvoke_level() <= 0) {
-        mtx.lock();
-        std::cerr << "Error: unbalanced invoke at " << std::fixed << std::setprecision(1) << invoke_event->get_abstime() << std::endl;
-        assert(cur_group->get_first_event());
-        std::cerr << "group begins at " << std::fixed << std::setprecision(1) << cur_group->get_first_event()->get_abstime() << std::endl;
-        mtx.unlock();
-        assert(cur_group && cur_group->get_blockinvoke_level() > 0);
-    }
-    
     add_general_event_to_group(invoke_event);
     cur_group->add_group_tags(invoke_event->get_desc());
-    cur_group->blockinvoke_level_dec();
-    invoke_event->set_nested_level(cur_group->get_blockinvoke_level());
 
-    if (begin_invoke->get_root() && cur_group->get_blockinvoke_level() == 0) {
+    if (begin_invoke->get_root()) {
         cur_group->set_divide_by_disp(DivideOldGroup);
         cur_group = nullptr;
     }
@@ -167,6 +164,7 @@ void ThreadDivider::add_disp_invoke_event_to_group(EventBase *event)
          */
         BlockInvokeEvent *begin_invoke = dynamic_cast<BlockInvokeEvent *>(invoke_event->get_root());
         assert(begin_invoke);
+		invoke_event->set_nested_level(begin_invoke->get_nested_level());
         add_disp_invoke_end_event(invoke_event, begin_invoke);    
     }
 }
@@ -188,9 +186,9 @@ void ThreadDivider::add_disp_mig_event_to_group(EventBase *event)
     } else {
 #ifdef DEBUG_THREAD_DIVIDER
         mtx.lock();
-        std::cerr << "Error: dispatch_mig_server called outside block invoke";
-        std::cerr << " at " << std::fixed << std::setprecision(1) << event->get_abstime() << std::endl;
-        std::cerr << "Unable to identify the end of dispatch_mig_server in such cases" << std::endl;
+        LOG_S(INFO) << "Error: dispatch_mig_server called outside block invoke" \
+        	<< " at " << std::fixed << std::setprecision(1) << event->get_abstime() \
+        	<< ";\n\tunable to identify the end of dispatch_mig_server in such cases" << std::endl;
         mtx.unlock();
 #endif
     }

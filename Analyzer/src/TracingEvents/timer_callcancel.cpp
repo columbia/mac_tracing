@@ -44,5 +44,6 @@ void TimerCancelEvent::streamout_event(std::ofstream &outfile)
     EventBase::streamout_event(outfile);
     outfile << "\tkern_timercancel_func_" << std::hex << get_func_ptr();
     outfile << "(" << std::hex << get_param0() << ",";
-    outfile << std::hex << get_param1() << ")" << std::endl;
+    outfile << std::hex << get_param1() << ")";
+	outfile << std::hex << q_ptr << std::endl;
 }

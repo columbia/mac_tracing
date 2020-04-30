@@ -28,6 +28,7 @@ public:
     uint64_t get_item(void) {return item;}
     uint32_t get_ref(void) {return ref;}
     void set_nested_level(uint64_t level) {nested_level = level;}
+	uint64_t get_nested_level() {return nested_level;}
 };
 
 class FuncInfo {

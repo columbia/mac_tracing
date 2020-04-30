@@ -3,7 +3,7 @@
 #include "eventlistop.hpp"
 #include <iterator>
 
-#define RL_BOUNDARY_DEBUG 1
+#define RL_BOUNDARY_DEBUG 0
 
 RunLoopTaskConnection::RunLoopTaskConnection(std::list<EventBase *> &_rl_item_list, tid_evlist_t &_tid_lists)
 :tid_lists(_tid_lists), rl_item_list(_rl_item_list)
@@ -31,7 +31,7 @@ void RunLoopTaskConnection::connect_for_source1(RunLoopBoundaryEvent *rl_boundar
 #if RL_BOUNDARY_DEBUG
     if (rit == cur_tid_list.rend()) {
         mtx.lock();
-        std::cerr << "No matching event found for Source1 " << std::fixed << std::setprecision(1) << rl_boundary_event->get_abstime() << std::endl;
+        LOG_S(INFO) << "No matching event found for Source1 " << std::fixed << std::setprecision(1) << rl_boundary_event->get_abstime() << std::endl;
         mtx.unlock();
     }
 #endif
@@ -53,7 +53,7 @@ void RunLoopTaskConnection::connect_for_source0(RunLoopBoundaryEvent *rl_boundar
             rl_boundary_event->set_owner(*rit);
             if (rl_event->get_consumer() != nullptr) {
                 mtx.lock();
-                std::cerr << "Multiple comsumers matched to source 0 event "\
+                LOG_S(INFO) << "Multiple comsumers matched to source 0 event "\
                     << std::fixed << std::setprecision(1) << rl_event->get_abstime() << std::endl;
                 mtx.unlock();
             }
@@ -64,7 +64,7 @@ void RunLoopTaskConnection::connect_for_source0(RunLoopBoundaryEvent *rl_boundar
 #if RL_BOUNDARY_DEBUG
     if (rit == rl_item_list.rend()) {
         mtx.lock();
-        std::cerr << "No matching event found for Source0 "\
+        LOG_S(INFO) << "No matching event found for Source0 "\
             << std::fixed << std::setprecision(1) << rl_boundary_event->get_abstime() << std::endl;
         mtx.unlock();
     }
@@ -87,7 +87,7 @@ void RunLoopTaskConnection::connect_for_blocks(RunLoopBoundaryEvent *rl_boundary
 #if RL_BOUNDARY_DEBUG
     if (rit == rl_item_list.rend()) {
         mtx.lock();
-        std::cerr << "No matching event found for Block " << std::fixed << std::setprecision(1) << rl_boundary_event->get_abstime() << std::endl;
+        LOG_S(INFO) << "No matching event found for Block " << std::fixed << std::setprecision(1) << rl_boundary_event->get_abstime() << std::endl;
         mtx.unlock();
     }
 #endif

@@ -1,5 +1,5 @@
 #include "canonization.hpp"
-#define DEBUG_NORMGROUP 0
+#define DEBUG_NORMGROUP 1
 
 NormGroup::NormGroup(Group *g,std::map<EventType::event_type_t, bool> &_key_events)
 :key_events(_key_events)
@@ -21,66 +21,100 @@ NormGroup::~NormGroup(void)
 
 void NormGroup::normalize_events(void)
 {
-    std::list<EventBase *> &events = group->get_container();
-    std::list<EventBase *>::iterator it;
-#if DEBUG_NORMGROUP 
-    std::cerr << "Normalize Group #" << std::hex << group->get_group_id() << std::endl;
-#endif
-
-            
-    for (it = events.begin(); it != events.end(); it++) {
-        if ((*it)->get_op() == "MSC_thread_switch")
+    //std::list<EventBase *> &events = group->get_container();
+    //std::list<EventBase *>::iterator it;
+    //for (it = events.begin(); it != events.end(); it++) {
+	for (auto event: group->get_container()) {
+        if (event->get_op() == "MSC_thread_switch" 
+			|| key_events[event->get_event_type()] == false)
             continue;
-        if (key_events[(*it)->get_event_type()] == true) {
-            NormEvent *NormGroupevent = new NormEvent((*it));
-            if (!NormGroupevent) {
-                std::cerr << "OOM, no space for NormGroupevent" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-#if DEBUG_NORMGROUP 
-            std::cerr << std::hex << get_group_id() << " Event " << (*it)->get_op();
-            std::cerr << " at " << std::fixed << std::setprecision(1) << (*it)->get_abstime() << std::endl;
-#endif
-            normalized_events.push_back(NormGroupevent);
-        }
+
+        //if (key_events[(*it)->get_event_type()] == true) {
+		NormEvent *NormGroupEvent = new NormEvent(event);
+		if (!NormGroupEvent) {
+			LOG_S(INFO) << "OOM, no space for NormGroupevent" << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		normalized_events.push_back(NormGroupEvent);
+        //}
     }
+}
+
+void NormGroup::print_events()
+{
+    LOG_S(INFO) << "Normalize Group #" << std::hex << group->get_group_id() << std::endl;
+	for (auto event: normalized_events) {
+		EventBase *real_event = event->get_real_event();
+		LOG_S(INFO) << std::hex << get_group_id()\
+			<< " Event " << real_event->get_op() \
+			<< " at "\
+			<< std::fixed << std::setprecision(1) << real_event->get_abstime()
+			<< std::endl;
+	}
 }
 
 bool NormGroup::is_subset_of(std::list<NormEvent *> peer_set)
 {
-    std::list<NormEvent *>::iterator this_it;
-    std::list<NormEvent *>::iterator other_it;
+    auto peer_rit = peer_set.rbegin();
+    auto this_rit = normalized_events.rbegin();
+    int len = normalized_events.size();
+    int peer_len = peer_set.size();
+    //len = len > 5 ? 5 : len;
+	len = len > peer_len ? peer_len : len;
+	
 
-    for(this_it = normalized_events.begin(), other_it = peer_set.begin();
-        this_it != normalized_events.end() && other_it != peer_set.end(); ) {
-        //if ((*other_it)->get_real_event()->get_op() == "MACH_wait") {
-       //}
-        while(other_it != peer_set.end() && (**this_it) != (**other_it))
-            other_it++;
-        if (other_it != peer_set.end()) {
 #if DEBUG_NORMGROUP 
-            std::cerr << "Event "<< std::fixed << std::setprecision(1) << (*this_it)->get_real_event()->get_abstime();
-            std::cerr << " == "; 
-            std::cerr << "Event "<< std::fixed << std::setprecision(1) << (*other_it)->get_real_event()->get_abstime();
-            std::cerr << std::endl;
+	LOG_S(INFO) << "check last " << std::dec << len << " events" << std::endl;
 #endif
-        } else {
-            return false;
-        }    
-        assert(other_it != peer_set.end() && this_it != normalized_events.end());
-        this_it++;
-        //other_it++; comment out this line to exclude the repeating calls due to failure
-    }
+	while (len > 0) {
+		assert(this_rit != normalized_events.rend());
+		bool equal = false;
+		while (peer_len > 0) {
+			assert(peer_rit != peer_set.rend());
+			equal = (**this_rit) == (**peer_rit);
 
-    if (this_it == normalized_events.end())
+#if DEBUG_NORMGROUP 
+			if (equal) {
+            LOG_S(INFO) << "Event " << std::fixed << std::setprecision(1)\
+				<< (*this_rit)->get_real_event()->get_abstime()\
+            	<< " == "\
+            	<< "Event "<< std::fixed << std::setprecision(1)\
+				<< (*peer_rit)->get_real_event()->get_abstime()\
+            	<< std::endl;
+			} else {
+            LOG_S(INFO) << "Event " << std::fixed << std::setprecision(1)\
+				<< (*this_rit)->get_real_event()->get_abstime()\
+            	<< " != "\
+            	<< "Event "<< std::fixed << std::setprecision(1)\
+				<< (*peer_rit)->get_real_event()->get_abstime()\
+            	<< std::endl;
+			}
+#endif
+
+			peer_len--;
+			peer_rit++;
+			if (equal) {
+				//check next event
+				break;
+			}
+		}
+
+		if (equal == false)
+			return false;
+		this_rit++;
+		len--;
+	}
+
+    if (len <= 0)
         return true;
-
     return false;
 }
+
 
 bool NormGroup::operator==(NormGroup &other)
 {
 
+#if 0
     if (get_group_tags().size()) {
         std::map<std::string, uint32_t> peer_group_tags = other.get_group_tags();
         std::map<std::string, uint32_t>::iterator it;
@@ -95,40 +129,25 @@ bool NormGroup::operator==(NormGroup &other)
                 return false;
         }
     }
+#endif
 
     std::list<NormEvent *> other_normalized_events = other.get_normalized_events();
 #if DEBUG_NORMGROUP 
-    std::cerr << "Group # " <<  std::hex << get_group_id() << " size = " << normalized_events.size() << std::endl;
-    std::cerr << "Group # " <<  std::hex << other.get_group_id() << " size = " << other_normalized_events.size() << std::endl;
+    LOG_S(INFO) << "Group # " <<  std::hex << get_group_id() << " size = " << normalized_events.size() << std::endl;
+	print_events();
+    LOG_S(INFO) << "Group # " <<  std::hex << other.get_group_id() << " size = " << other_normalized_events.size() << std::endl;
+	other.print_events();
 #endif
 
     if (!is_subset_of(other_normalized_events) || !other.is_subset_of(normalized_events)) {
 #if DEBUG_NORMGROUP 
-        std::cerr << "Group #"<< std::hex << get_group_id() << " != " << "Group #" << std::hex <<other.get_group_id() << std::endl;
+        LOG_S(INFO) << "Group #"<< std::hex << get_group_id() << " != " << "Group #" << std::hex <<other.get_group_id() << std::endl;
 #endif
         return false;
     }
-    /*
-    std::list<NormEvent *>::iterator this_it;
-    std::list<NormEvent *>::iterator other_it;
 
-    // TODO: number of event may be misleading, for events repeated periodically 
-    //if (other_normalized_events.size() != normalized_events.size())
-        //return false;
-    this_it = normalized_events.begin();
-    other_it = other_normalized_events.begin();
-    
-
-    for(; this_it != normalized_events.end() && other_it != other_normalized_event.end(); ) {
-        
-        if (**this_it != **other_it)
-            return false;
-        this_it++;
-        other_it++;
-    }
-    */
 #if DEBUG_NORMGROUP 
-    std::cerr << "Group #"<< std::hex << get_group_id() << " == " << "Group #" << std::hex <<other.get_group_id() << std::endl;
+    LOG_S(INFO) << "Group #"<< std::hex << get_group_id() << " == " << "Group #" << std::hex <<other.get_group_id() << std::endl;
 #endif
     return true;
 }

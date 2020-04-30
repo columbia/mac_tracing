@@ -1,17 +1,40 @@
 #include "critical_path.hpp"
+#define DEBUG_CPATH 0
 
-CriticalPath::CriticalPath(Graph *graph_, Node *root_, Node *end_, std::string path_ )
-:graph(graph_), root_node(root_), end_node(end_), output_path(path_)
+CriticalPath::CriticalPath(Graph *graph_, Node *root_, Node *end_, std::string path)
+:graph(graph_), root_node(root_), end_node(end_)
 {
-    if (root_node != nullptr && end_node != nullptr) {
-		bool success = extract_path();
-		if (success && output_path != "critical_path.log")
-			save_weak_edges_to_file(output_path);
+	visited.clear();
+	if (!root_node || !end_node) {
+		LOG_S(INFO) << "Unable to initiate object" << std::endl;
+		return;
+	}
+	root_ev = root_node->get_group()->get_first_event();
+	end_ev = end_node->get_group()->get_last_event();
+	reachable = extract_path();
+	if (reachable)
+		append_path_to_file(path, detailed_path); 
+}
 
-        if (success)
-        	save_path_to_file("critical_path.log", detailed_path); 
-    }
-	//maintain a reachable node set to exclude recursively visit of unreachable node
+CriticalPath::CriticalPath(Graph *graph_, uint64_t root_id, uint64_t end_id, std::string path_)
+:graph(graph_)
+{
+	root_node = graph->id_to_node(root_id);
+	end_node = graph->id_to_node(end_id);
+	CriticalPath(graph, root_node, end_node, path_);
+}
+
+CriticalPath::CriticalPath(Graph *graph_, Node *root_, Node *end_, EventBase *root_ev_, EventBase *end_ev_, std::string path)
+:graph(graph_), root_node(root_), end_node(end_), root_ev(root_ev_), end_ev(end_ev_)
+{
+	visited.clear();
+	if (!root_node || !end_node) {
+		LOG_S(INFO) << "Unable to initiate object" << std::endl;
+		return;
+	}
+	reachable = extract_path();
+	if (reachable)
+		append_path_to_file(path, detailed_path); 
 }
 
 CriticalPath::~CriticalPath()
@@ -26,9 +49,6 @@ CriticalPath::~CriticalPath()
 
 void CriticalPath::print_ident(int ident)
 {
-	//for (int i = 0; i < ident; i++) {
-		//std::cout << ' ';
-	//}
 	std::cout << std::hex << std::left << std::setw(3) << ident;
 }
 
@@ -44,17 +64,17 @@ bool CriticalPath::extract_path()
     std::cout << "Begin extracting critical path from id 0x"\
          << std::hex << root_node->get_gid() << " to 0x"\
          << std::hex << end_node->get_gid() << std::endl;
+    detailed_path = critical_path_to_root(0, end_node, nullptr);//end_node->get_group()->get_last_event());
+	if (detailed_path.size() > 0)
+		visited[end_node] = true;
+	else
+		visited[end_node] = false;
 
-    //EventBase *last_update = end_node->get_group()->contains_view_update();
-    //assert(last_update);
-
-    detailed_path = critical_path_to(0, end_node, end_node->get_group()->get_last_event());
-    //path = critical_path_to(0, end_node, end_node->get_group()->get_last_event()->get_abstime());
 	std::cout << "Finish extracing critical path from id 0x"\
          << std::hex << root_node->get_gid() << " to 0x"\
          << std::hex << end_node->get_gid() << ", length = "\
 		 << std::dec << detailed_path.size() << std::endl;
-		
+	
 	return detailed_path.size() > 0;
 }
 
@@ -70,13 +90,12 @@ bool CriticalPath::edge_weight_compare(Edge *edge1, Edge *edge2)
     return edge1->get_weight() < edge2->get_weight();
 }
 
-CriticalPath::edge_map_t CriticalPath::in_edges_before_deadline(event_to_edge_map_t in_edges, double deadline)
+//in_edges map: sink event -> edge
+CriticalPath::edge_sink_map_t CriticalPath::filt_with_deadline(edge_map_t in_edges, double deadline)
 {
-    edge_map_t ret;
-    event_to_edge_map_t::iterator it;
-
+    edge_sink_map_t ret;
     ret.clear();
-    for (it = in_edges.begin(); it != in_edges.end(); it++) {
+    for (auto it = in_edges.begin(); it != in_edges.end(); it++) {
         if (it->second->from == it->second->to)
             continue;
         if ((it->first)->get_abstime() < deadline + 0.005)
@@ -85,33 +104,60 @@ CriticalPath::edge_map_t CriticalPath::in_edges_before_deadline(event_to_edge_ma
     return ret;
 }
 
-std::vector<Edge *> CriticalPath::sort_in_edges(edge_map_t in_edges)
+std::vector<Edge *> CriticalPath::sort_edges(edge_sink_map_t in_edges)
 {
-    edge_map_t::iterator it;
     std::vector<Edge *> sorted_edges;
 
-    for (it = in_edges.begin(); it != in_edges.end(); it++) {
+    for (auto it = in_edges.begin(); it != in_edges.end(); it++) {
         sorted_edges.push_back(it->first);
         sort(sorted_edges.begin(), sorted_edges.end(), CriticalPath::edge_weight_compare);
     }
 	return sorted_edges;
 }
 
-std::vector<Node *> CriticalPath::sort_nodes_from_edges(edge_map_t in_edges)
+std::vector<Edge *> CriticalPath::filter_with_deadline(edge_map_t in_edges, double deadline)
 {
-    edge_map_t::iterator it;
+	std::vector<Edge *> ret;
+	ret.clear();
+
+	std::unordered_map<Node *, Edge *> visited;
+	visited.clear();
+
+	for (auto elem : in_edges) {
+		if (elem.second->from  == elem.second->to)
+			continue;
+		assert(elem.first == elem.second->e_to);
+
+		if (elem.first->get_abstime() < deadline + 0.005
+			&& elem.second->e_from->get_abstime() > root_node->get_begin_time()) {
+			Node *sel = elem.second->from;
+			if (visited.find(sel) != visited.end()) {
+				if (visited[sel]->e_from->get_abstime() < elem.second->e_from->get_abstime())
+					visited[sel] = elem.second;
+			} else {
+				visited[sel] = elem.second;
+			}
+			//ret.push_back(elem.second);
+		}
+	}
+	for (auto elem: visited) {
+		ret.push_back(elem.second);
+	}
+	//sort(ret.begin(), ret.end(), CriticalPath::edge_weight_compare);
+	return ret;
+}
+
+std::vector<Node *> CriticalPath::get_sorted_nodes(edge_sink_map_t in_edges)
+{
     std::vector<Edge *> sorted_edges;
-
-    for (it = in_edges.begin(); it != in_edges.end(); it++) {
+    for (auto it = in_edges.begin(); it != in_edges.end(); it++) {
         sorted_edges.push_back(it->first);
-        sort(sorted_edges.begin(), sorted_edges.end(), CriticalPath::edge_weight_compare);
     }
+    sort(sorted_edges.begin(), sorted_edges.end(), CriticalPath::edge_weight_compare);
 
-    std::vector<Edge *>::iterator edge_it;
     std::map<Node *, bool> visited_maps;
     std::vector<Node *> candidates;
-
-    for (edge_it = sorted_edges.begin(); edge_it != sorted_edges.end(); edge_it++) {
+    for (auto edge_it = sorted_edges.begin(); edge_it != sorted_edges.end(); edge_it++) {
         if (visited_maps.find((*edge_it)->from) == visited_maps.end())
             candidates.push_back((*edge_it)->from);
         visited_maps[(*edge_it)->from] = true;
@@ -122,257 +168,138 @@ std::vector<Node *> CriticalPath::sort_nodes_from_edges(edge_map_t in_edges)
     return candidates;   
 }
 
-std::vector<Element *> CriticalPath::add_weak_edge(int ident, Node *cur_node, EventBase *deadline)
+bool CriticalPath::valid(int ident, Node *cur_node, Edge *edge)
 {
-    event_to_edge_map_t weak_edges = cur_node->get_in_weak_edges();
-    std::vector<Element *> ret_path;
-    ret_path.clear();
+    if (edge != nullptr) {
+        assert(edge->from == cur_node);
+     }
 
-    if (weak_edges.size() == 0) {
+    if (cur_node == nullptr) {
+#if DEBUG_CPATH
 		print_ident(ident);
-		Node *prev = graph->id_to_node(cur_node->get_gid() -1);
-		if (prev != nullptr) {
-			ret_path = critical_path_to(ident + 1, prev, prev->get_group()->get_last_event());
-			if (ret_path.size() > 0) {
-				Element *cur_element =  new Element(cur_node->get_group()->get_first_event(), cur_node, 
-						cur_node->get_group()->get_last_event());
-				ret_path.push_back(cur_element);
-				store_weak_edges[cur_node->get_gid()] = prev->get_gid();
-			}
-		}
-        return ret_path;
+        std::cout << "Path reaches nullptr" << std::endl;
+#endif
+        return false;
     }
-
-    event_to_edge_map_t::iterator it = weak_edges.begin();
-    Node *prev_weak = it->second->from;
-
-	print_ident(ident);
-    std::cout << "\tWeak edge from 0x";
-    if (prev_weak == nullptr) {
-        std::cout << std::hex << weak_edges[0]->e_from->get_group_id() \
-            << "to 0x" << std::hex << cur_node->get_tid() << " is not in graph" << std::endl;
-        return ret_path;
-    }
-
-    std::cout << std::hex << prev_weak->get_gid();
-    std::cout << " to 0x" << std::hex << cur_node->get_gid() << std::endl;
-    ret_path = critical_path_to(ident + 1, prev_weak, prev_weak->get_group()->get_last_event());
-	if (ret_path.size() > 0) {
-		Element *cur_element =  new Element(cur_node->get_group()->get_first_event(), cur_node, 
-			cur_node->get_group()->get_last_event());
-		ret_path.push_back(cur_element);
-		store_weak_edges[cur_node->get_gid()] = prev_weak->get_gid();
+    
+	if (!cur_node->get_group()) {
+#if DEBUG_CPATH
+		std::cout << "Invalid Node 0x" << std::hex << cur_node->get_gid() << std::endl;
+#endif
+        return false;
 	}
-	return ret_path;
-}
 
-std::vector<Node *> CriticalPath::add_weak_edge(int ident, Node *cur_node, double deadline)
-{
-    event_to_edge_map_t weak_edges = cur_node->get_in_weak_edges();
-    std::vector<Node *> ret_path;
-    ret_path.clear();
+	EventBase *last_event = edge != nullptr ? edge->e_from : end_ev;
 
-    if (weak_edges.size() == 0) {
+    if (last_event->get_abstime() < root_ev->get_abstime()) {
+#if DEBUG_CPATH
 		print_ident(ident);
-        std::cout << "\tNo weak edge and stop searching" << std::endl; 
-		Node *prev = graph->id_to_node(cur_node->get_gid() -1);
-		if (prev != nullptr)
-			return critical_path_to(ident + 1, prev, deadline);
-        return ret_path;
+        std::cout << "Path goes over root node" << std::endl;
+#endif
+        return false;
     }
 
-    event_to_edge_map_t::iterator it = weak_edges.begin();
-    Node *prev_weak = it->second->from;
-
-	print_ident(ident);
-    std::cout << "\tWeak edge from 0x";
-    if (prev_weak == nullptr) {
-        std::cout << std::hex << weak_edges[0]->e_from->get_group_id() \
-            << "to 0x" << std::hex << cur_node->get_tid() << " is not in graph\n";
-        return ret_path;
+    if (cur_node == root_node) {
+		print_ident(ident);
+        std::cout << "Path reaches root node" << std::endl;
     }
-
-    //Node *prev_weak = end->prev_weak_in_thread();
-
-    std::cout << std::hex << prev_weak->get_gid();
-    std::cout << " to 0x" << std::hex << cur_node->get_gid() << std::endl;
-    return critical_path_to(ident + 1, prev_weak, deadline);
+    return true;
 }
 
-std::vector<Element *> CriticalPath::critical_path_to(int ident, Node *cur_node, EventBase *deadline)
+std::vector<Element *> CriticalPath::critical_path_to_root(int ident, Node *cur_node, Edge *edge) 
 {
 	std::vector<Element *> ret_path;
 	ret_path.clear();
-    if (cur_node == nullptr) {
-		print_ident(ident);
-        std::cout << "Path reaches nullptr" << std::endl;
+	if (!cur_node)
+		return ret_path;
+
+	if (visited.find(cur_node) != visited.end()) {
+		if (visited[cur_node] == false)
+			return ret_path;
+	}
+
+    if (!valid(ident, cur_node, edge)) {
+		LOG_S(INFO) << std::dec << ident <<  " " << std::hex << cur_node->get_gid() << " returned " << std::endl;
         return ret_path;
-    }
-    
-    if (cur_node->get_group()->get_last_event()->get_abstime()
-        < root_node->get_group()->get_first_event()->get_abstime()) {
-		print_ident(ident);
-        std::cout << "Path goes over root node" << std::endl;
-        return ret_path;
-    }
+	}
+#if DEBUG_CPATH
+	LOG_S(INFO) << std::dec << ident << " search node 0x"  << std::hex << cur_node->get_gid() << std::endl;
+#endif
+
+	Group *cur_group = cur_node->get_group();
+    EventBase *end_event = edge == nullptr? end_ev : edge->e_from;
 
     if (cur_node == root_node) {
-		Element *cur_element =  new Element(cur_node->get_group()->get_first_event(), cur_node, 
-										cur_node->get_group()->get_last_event());
+		Element *cur_element = new Element(nullptr,
+                                        cur_group->get_first_event(),
+										cur_node, 
+                                        end_event,
+                                        false);
         ret_path.push_back(cur_element);
-		print_ident(ident);
-        std::cout << "Path reaches root node" << std::endl;
+		visited[cur_node]= true;
         return ret_path;
     }
 
-    edge_map_t in_edges = in_edges_before_deadline(cur_node->get_in_edges(), deadline->get_abstime());
-    if (in_edges.size() == 0) {
-        //weak edge
-        ret_path = add_weak_edge(ident + 1, cur_node, deadline);
-        if (ret_path.size() > 0) {
-			Element *cur_element = new Element(cur_node->get_group()->get_first_event(), cur_node, deadline);
-            ret_path.push_back(cur_element);
-		}
-        return ret_path;
-    }
-
-	print_ident(ident);
-    std::cout << "Number of edges to 0x" << std::hex << cur_node->get_gid()\
-            << " = " << in_edges.size() << std::endl;
-    
-    std::vector<Edge *> candidates = sort_in_edges(in_edges);
-	for (auto edge_it = candidates.begin(); edge_it != candidates.end(); edge_it++) {
-		Node *from = (*edge_it)->from;
+    //try strong edges
+    auto candidates = filter_with_deadline(cur_node->get_in_edges(), end_event->get_abstime());
+#if DEBUG_CPATH
+	LOG_S(INFO) << std::dec << ident << " Incomming strong edges  = " << candidates.size() << std::endl;  
+#endif
+    //std::vector<Edge *> candidates = sort_edges(in_edges);
+    for (auto s_edge: candidates) {
+		Node *from = s_edge->from;
+		assert(s_edge->to == cur_node);
         assert(from != nullptr);
-		print_ident(ident);
-		std::cout << "Select Edge from 0x" << std::hex << from->get_gid() << " to 0x" << cur_node->get_gid() << std::endl;
-        ret_path = critical_path_to(ident + 1, from, (*edge_it)->e_from);
-
+        ret_path = critical_path_to_root(ident + 1, s_edge->from, s_edge);
 		if (ret_path.size() > 0) {
-			Element *cur_element = new Element((*edge_it)->e_to, cur_node, deadline);
+#if DEBUG_CPATH
+            print_ident(ident);
+            std::cout << "Strong Edge from 0x"\
+                << std::hex << from->get_gid()\
+                << " to 0x"\
+                << cur_node->get_gid()\
+                << std::endl;
+#endif
+			Element *cur_element = new Element(s_edge, s_edge->e_to, cur_node, end_event, false);
 			ret_path.push_back(cur_element);
+			visited[cur_node]= true;
 			return ret_path;
 		}	
 	}
-    return ret_path;
-}
 
-std::vector<Node *> CriticalPath::critical_path_to(int ident, Node *cur_node, double deadline)
-{
-    std::vector<Node *> ret_path;
-    ret_path.clear();
-    if (cur_node == nullptr) {
-		print_ident(ident);
-        std::cout << "Path reaches nullptr" << std::endl;
-        return ret_path;
-    }
-    
-    if (cur_node->get_group()->get_last_event()->get_abstime()
-        < root_node->get_group()->get_first_event()->get_abstime()) {
-		print_ident(ident);
-        std::cout << "Path goes over root node" << std::endl;
-        return ret_path;
-    }
-
-    if (cur_node == root_node) {
-        ret_path.push_back(cur_node);
-		print_ident(ident);
-        std::cout << "Path reaches root node" << std::endl;
-        return ret_path;
-    }
-
-    edge_map_t in_edges = in_edges_before_deadline(cur_node->get_in_edges(), deadline);
-    if (in_edges.size() == 0) {
-        //process weak edge cases
-        ret_path = add_weak_edge(ident + 1, cur_node, deadline);
-        if (ret_path.size() > 0)
-            ret_path.push_back(cur_node);
-        return ret_path;
-    }
-
-	print_ident(ident);
-    std::cout << "Number of edges to 0x" << std::hex << cur_node->get_gid()\
-            << " = " << in_edges.size() << std::endl;
-    
-    std::vector<Node *> candidates = sort_nodes_from_edges(in_edges);
-    std::vector<Node *>::iterator node_it;
-    for (node_it = candidates.begin(); node_it != candidates.end(); node_it++) {
-        Node *from = *node_it;
+    //try weak edges
+    //auto weak_edges = filt_with_deadline(cur_node->get_in_weak_edges(), end_event->get_abstime());
+    //std::vector<Edge *> weak_candidates = sort_edges(weak_edges);
+	auto weak_candidates = filter_with_deadline(cur_node->get_in_weak_edges(), end_event->get_abstime());
+#if DEBUG_CPATH
+	LOG_S(INFO) << std::dec << ident << " Incomming weak edges  = " << weak_candidates.size() << std::endl;  
+#endif
+    for (auto w_edge: weak_candidates) {
+        Node *from = w_edge->from;
         assert(from != nullptr);
-		print_ident(ident);
-		std::cout << "Select Edge from 0x" << std::hex << from->get_gid() << " to 0x" << cur_node->get_gid() << std::endl;
-        ret_path = critical_path_to(ident + 1, from, calculate_deadline(in_edges, from));
+        ret_path = critical_path_to_root(ident + 1, from, w_edge);
 
-        if (ret_path.size() > 0) {
-           ret_path.push_back(cur_node);
-           return ret_path;
+        if (ret_path.size() > 0) {//element are reached with a weak edge
+#if DEBUG_CPATH
+			print_ident(ident);
+			std::cout << "Weak edge from 0x"\
+				<< std::hex << from->get_gid()\
+				<< " to 0x"\
+				<< cur_node->get_gid()\
+				<< std::endl;
+#endif
+            Element *cur_element = new Element(w_edge, w_edge->e_to, cur_node, end_event, true);
+            ret_path.push_back(cur_element);
+			visited[cur_node]= true;
+            return ret_path;
         }
     }
+	assert(ret_path.size() == 0);
+	visited[cur_node] = false;
     return ret_path;
 }
 
-double CriticalPath::calculate_deadline(edge_map_t in_edges, Node *from)
-{
-    edge_map_t::iterator it;
-    for (it = in_edges.begin(); it != in_edges.end(); it++) {
-       if (it->first->from == from)
-            return it->first->e_from->get_abstime();
-    }
-    //should not come here
-    assert(false);
-    return 0;
-}
-
-void CriticalPath::save_path(std::ofstream &output)
-{
-	output << "\tPath from 0x" << std::hex << root_node->get_gid() \
-			<< " to 0x" << std::hex << end_node->get_gid() << std::endl;
-    output << "\tCritical path size = " << detailed_path.size() << std::endl;
-
-	for (auto element : detailed_path) {
-        Group *cur_group = element->segment->get_group();
-        output << std::hex << " \t-> 0x" << cur_group->get_group_id() << "\t" << cur_group->get_procname();
-        output << "\t" << std::fixed << std::setprecision(1) << cur_group->calculate_time_span() << std::endl;
-        cur_group->streamout_group(output, element->in, element->out);
-    }
-    output << std::endl;
-}
-
-void CriticalPath::save_path_to_file(std::string filepath)
-{
-	//write data to log
-    std::ofstream output(filepath);
-    std::vector<Node *>::iterator pit;
-    output << "Critical path size = " << path.size() << std::endl;
-    for (pit = path.begin(); pit != path.end(); pit++) {
-        Group *cur_group = (*pit)->get_group();
-        output << std::hex << " \t-> 0x" << cur_group->get_group_id() << "\t" << cur_group->get_procname();
-        output << "\t" << std::fixed << std::setprecision(1) << cur_group->calculate_time_span() << std::endl;
-        cur_group->streamout_group(output);
-    }
-    output << std::endl;
-    output.close();
-}
-
-void CriticalPath::save_path_to_file(std::string filepath, std::vector<Node *> &path)
-{
-	//write data to log
-	std::ofstream output(filepath, std::ios::app);
-	
-    std::vector<Node *>::iterator pit;
-    output << "Critical path size = " << path.size() << std::endl;
-    for (pit = path.begin(); pit != path.end(); pit++) {
-        Group *cur_group = (*pit)->get_group();
-        output << std::hex << " \t-> 0x" << cur_group->get_group_id();
-        output << "\t" << cur_group->get_procname();
-        output << "\t" << std::fixed << std::setprecision(1);
-        output << cur_group->calculate_time_span() << std::endl;
-    }
-    output << std::endl;
-    output.close();
-}
-
-void CriticalPath::save_path_to_file(std::string filepath, std::vector<Element *> &path)
+void CriticalPath::append_path_to_file(std::string filepath, std::vector<Element *> &path)
 {
 	//write data to log
 	std::ofstream output(filepath, std::ios::app);
@@ -382,34 +309,13 @@ void CriticalPath::save_path_to_file(std::string filepath, std::vector<Element *
     output << "Critical path size = " << path.size() << std::endl;
 
 	for (auto element : path) {
-        Group *cur_group = element->segment->get_group();
-        output << std::hex << " \t-> 0x" << cur_group->get_group_id() << "\t" << cur_group->get_procname();
-        output << "\t" << std::fixed << std::setprecision(1) << cur_group->calculate_time_span() << std::endl;
-        cur_group->streamout_group(output, element->in, element->out);
+        Group *cur_group = element->node()->get_group();
+        output << std::hex << " \t-> 0x" << cur_group->get_group_id()\
+               << "\t" << cur_group->get_procname()\
+               << "\t" << std::fixed << std::setprecision(1)\
+               << cur_group->calculate_time_span() << std::endl;
+        cur_group->streamout_group(output, element->begin(), element->end());
     }
-
     output << std::endl;
     output.close();
-}
-
-void CriticalPath::save_weak_edges_to_file(std::string output_path)
-{
-	std::ofstream output(output_path, std::ios::app);
-	for (auto element : store_weak_edges) {
-		Node *to_node = graph->id_to_node(element.first);
-		assert(to_node);
-		Node *from_node = graph->id_to_node(element.second);
-		assert(from_node);
-	
-		Group *to = to_node->get_group();
-		assert(to);
-		Group *from = from_node->get_group();
-		assert(from);
-		//if (to->get_group_id() == from->get_group_id() - 1) {
-		output << std::dec <<  from->get_last_event()->get_tfl_index();
-		output  << "\t" << std::dec << to->get_real_first_event()->get_tfl_index();
-		output << std::endl;
-		
-	}
-	output.close();
 }

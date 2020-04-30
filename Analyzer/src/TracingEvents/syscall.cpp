@@ -1,5 +1,5 @@
 #include "syscall.hpp"
-#define DEBUG_SYSCALL_EVT 1
+#define DEBUG_SYSCALL_EVT 0
 
 SyscallEvent::SyscallEvent(double timestamp, std::string op, uint64_t tid, uint64_t sc_class, uint32_t event_core, std::string procname)
 :EventBase(timestamp, SYSCALL_EVENT, op, tid, event_core, procname)
@@ -104,4 +104,10 @@ void SyscallEvent::streamout_event(std::ofstream &outfile)
             outfile << ",\t" << sc_entry->args[i] << " = " << args[i];
 
     outfile << std::endl;
+}
+
+void SyscallEvent::tfl_event(std::ofstream &outfile)
+{
+	EventBase::tfl_event(outfile);
+	outfile << " " << replace_blank(sc_entry->syscall_name);
 }

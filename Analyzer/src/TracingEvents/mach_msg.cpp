@@ -32,8 +32,11 @@ void MsgEvent::decode_event(bool is_verbose, std::ofstream &outfile)
     if (is_freed_before_deliver())
         outfile << "\n\tfreed before deliver";
     
+
+#if defined(__APPLE__)
     if (bt)
         outfile  << "\n\tbacktrace at: " << std::fixed << std::setprecision(2) << bt->get_abstime() << std::endl;
+#endif
     if (voucher)
         outfile << "\n\tvoucher at: " << std::fixed << std::setprecision(2) << voucher->get_abstime() << std::endl;
 
@@ -63,4 +66,17 @@ void MsgEvent::streamout_event(std::ofstream &outfile)
 
     outfile << "\tmsgh_id " << std::dec << header->get_msgh_id();
     outfile << std::endl;
+}
+
+void MsgEvent::tfl_event(std::ofstream &outfile)
+{
+	EventBase::tfl_event(outfile);
+    if (is_freed_before_deliver())
+		outfile << " failed";
+	else {
+		if (header->check_recv())
+			outfile << " receive";
+		else
+			outfile << " send";
+	}
 }

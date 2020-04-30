@@ -5,11 +5,37 @@
 #include "backtraceinfo.hpp"
 #include "parse_helper.hpp"
 #include "loader.hpp"
-#include <stdio.h>
+//#include <stdio.h>
 
 namespace Parse
 {
     typedef std::list<EventBase *> event_list_t;
+
+	struct key_t {
+		pid_t first;
+		std::string second;
+		
+		bool operator == (const key_t &k) const
+		{
+			return first == k.first && second == k.second;
+		}
+		bool operator < (const key_t &k) const
+		{
+			if (first != k.first)
+				return first < k.first;
+			return second < k.second;
+		}
+		bool operator > (const key_t &k) const
+		{
+			return !(*this < k) && !(*this == k);
+		}		
+		bool operator != (const key_t &k) const
+		{
+			return !(*this == k);
+		}
+
+	};
+
     class Parser {
     protected:
         //typedef std::list<EventBase *> event_list_t;
@@ -18,18 +44,19 @@ namespace Parse
         std::ofstream outfile;
         event_list_t local_event_list;
 		
-        //std::map<std::string, event_list_t> proc_event_list_map;
-        //event_list_t get_events_for_proc(std::string);
-        //void add_to_proc_map(std::string, EventBase *event);
-        std::map<std::pair<pid_t, std::string>, event_list_t> proc_event_list_map;
-        event_list_t get_events_for_proc(std::pair<pid_t, std::string>);
-        void add_to_proc_map(std::pair<pid_t, std::string>, EventBase *event);
+       // std::map<std::pair<pid_t, std::string>, event_list_t> proc_event_list_map;
+       // event_list_t get_events_for_proc(std::pair<pid_t, std::string>);
+       // void add_to_proc_map(std::pair<pid_t, std::string>, EventBase *event);
+		
+        std::map<key_t, event_list_t> proc_event_list_map;
+        event_list_t get_events_for_proc(key_t);
+        void add_to_proc_map(key_t, EventBase *event);
 
     public:
         Parser(std::string _filename);
         virtual ~Parser();
-        event_list_t &collect(void) {return local_event_list;}
-        std::map<std::pair<pid_t, std::string>, event_list_t> &get_event_list_map() {return proc_event_list_map;}
+        event_list_t collect(void) {return local_event_list;}
+        std::map<key_t, event_list_t> &get_event_list_map() {return proc_event_list_map;}
         virtual void process() {}
     };
 
@@ -84,7 +111,9 @@ namespace Parse
     public:
         IntrParser(std::string filename);
         void process();
-        void symbolize_intr_for_proc(BacktraceParser *backtrace_parser, std::pair<pid_t, std::string> proc);
+#if defined(__APPLE__)
+        void symbolize_intr_for_proc(BacktraceParser *backtrace_parser, key_t proc);
+#endif
     };
 
     class WqnextParser: public Parser {
@@ -134,12 +163,16 @@ namespace Parse
         bool process_dequeue(std::string opname, double abstime, std::istringstream &iss);
         bool process_block_invoke(std::string opname, double abstime, std::istringstream &iss);
         bool process_migservice(std::string opname, double abstime, std::istringstream &iss);
+#if defined(__APPLE__)
         void symbolize_block_invoke(debug_data_t *, event_list_t);
         void symbolize_block_dequeue(debug_data_t *, event_list_t);
+#endif
     public:
         DispatchParser(std::string filename);
         void process();
-        void symbolize_block_for_proc(BacktraceParser *parser, std::pair<pid_t, std::string> proc);
+#if defined(__APPLE__)
+        void symbolize_block_for_proc(BacktraceParser *parser, key_t proc);
+#endif
     };
 
     class TimercallParser:public Parser {
@@ -152,7 +185,9 @@ namespace Parse
     public:
         TimercallParser(std::string filename);
         void process();
-        void symbolize_func_ptr_for_proc(BacktraceParser *parser, std::pair<pid_t, std::string> proc);
+#if defined(__APPLE__)
+        void symbolize_func_ptr_for_proc(BacktraceParser *parser, key_t proc);
+#endif
     };
     
     class BacktraceParser: public Parser {
@@ -168,7 +203,8 @@ namespace Parse
             }
         } raw_path_t;
         typedef std::list<BacktraceEvent *> backtrace_list_t;
-        typedef std::pair<pid_t, std::string> proc_key_t;
+        //typedef std::pair<pid_t, std::string> proc_key_t;
+		typedef Parse::key_t proc_key_t;
         typedef std::map<addr_t, std::string> symmap_t;
         typedef std::map<std::string, symmap_t> path_to_symmap_t;
 
@@ -177,8 +213,8 @@ namespace Parse
         std::string path_log;
         std::map<tid_t, BacktraceEvent*> backtrace_events;
         std::map<uint64_t, images_t*> images_events;
-        std::map<uint64_t, raw_path_t*> image_subpaths;
         std::map<proc_key_t, images_t *> proc_images_map;
+        std::map<uint64_t, raw_path_t*> image_subpaths;
         std::map<proc_key_t, backtrace_list_t> proc_backtraces_map;
         path_to_symmap_t path_to_vmsym_map;
 
@@ -186,18 +222,23 @@ namespace Parse
         void collect_backtrace_for_proc(BacktraceEvent *backtrace_event, std::string procname);
         void gather_frames(BacktraceEvent *backtrace_event, double abstime, uint64_t *frames, uint64_t size, bool is_end);
         bool process_frame(std::string opname, double abstime, std::istringstream &iss, bool is_end);
-		std::list<BacktraceEvent *> get_event_list(std::pair<pid_t, std::string> key);
+		std::list<BacktraceEvent *> get_event_list(proc_key_t key);
+		//std::list<BacktraceEvent *> get_event_list(std::pair<pid_t, std::string> key);
 
 
         //collect image information
-        bool collect_image_for_proc(images_t *cur_image);
         bool complete_path(tid_t tid);
         bool gather_path(tid_t tid, addr_t vm_offset, addr_t *addrs);
         bool create_image(tid_t tid, std::string procname);
         bool process_path(std::string opname, double abstime, std::istringstream &iss);
         bool process_path_from_log(void);
+        bool collect_image_for_proc(images_t *cur_image);
         void symbolize_backtraces();
-        
+		void parse_frame(std::string line, BacktraceEvent *cur_event);
+		void read_symbol_from_file();
+#if defined(__APPLE__)
+		void symbolize_backtraces_with_lldb();
+#endif
     public:
         BacktraceParser(std::string filename, std::string path_log);
         ~BacktraceParser();
@@ -205,7 +246,9 @@ namespace Parse
         images_t *get_host_image();
         images_t *proc_to_image(pid_t pid, std::string procname);
         path_to_symmap_t &get_symbol_map() {return path_to_vmsym_map;}
+#if defined(__APPLE__)
         bool setup_lldb(debug_data_t *debugger_data, images_t *images);
+#endif
         void process();
     };
     
@@ -229,18 +272,18 @@ namespace Parse
     };
 
     class BreakpointTrapParser: public Parser {
-    //public:
-       // typedef std::list<EventBase *> event_list_t;
     private:
         std::map<uint64_t, BreakpointTrapEvent *> breakpoint_trap_events;
-        //std::map<std::string, event_list_t> proc_event_list_map;
-        //void add_to_proc_map(std::string, EventBase *event);
-        void symbolize_hwbrtrap_for_proc(BacktraceParser *, std::pair<pid_t, std::string> procname);
+#if defined(__APPLE__)
+        void symbolize_hwbrtrap_for_proc(BacktraceParser *, key_t proc);
+#endif
 
     public:
         BreakpointTrapParser(std::string filename);
         void process();
+#if defined(__APPLE__)
         void symbolize_hwbrtrap(BacktraceParser *backtrace_parser);
+#endif
     };
     
     class EventRefParser: public Parser {
@@ -268,7 +311,9 @@ namespace Parse
         //void add_to_proc_map(std::string, EventBase *event);
     public:
         RLBoundaryParser(std::string filename);
-        void symbolize_rlblock_for_proc(BacktraceParser *parser, std::pair<pid_t, std::string> proc);
+#if defined(__APPLE__)
+        void symbolize_rlblock_for_proc(BacktraceParser *parser, key_t proc);
+#endif
         void process();
     };
     
@@ -278,6 +323,8 @@ namespace Parse
         void process();
     };
 
+#if defined(__APPLE__)
     void extra_symbolization(std::map<uint64_t, Parser *> &parsers);
+#endif
 }
 #endif

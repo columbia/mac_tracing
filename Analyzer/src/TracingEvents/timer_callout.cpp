@@ -75,6 +75,7 @@ void TimerCalloutEvent::streamout_event(std::ofstream &outfile)
     outfile << "\tkern_timercallout_";
     outfile << "func_" << std::hex << get_func_ptr() << "(" << std::hex << get_param0() << ",";
     outfile << std::hex << get_param1() << ")";
+	outfile << std::hex << q_ptr;
     if (create_event != nullptr) {
         outfile << "\n\ttimer armed at: ";
         outfile << "\t" << std::fixed << std::setprecision(1) << create_event->get_abstime();

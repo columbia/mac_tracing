@@ -8,6 +8,7 @@ Parse::Parser::Parser(std::string _filename)
         std::cerr << "Error: fail to read file " << filename << std::endl;
         exit(EXIT_FAILURE);
     }
+
     outfile.open(filename+".remain");
     if (outfile.fail()) {
         std::cerr << "Error: fail to write file " << filename + ".remain" << std::endl;
@@ -32,11 +33,12 @@ Parse::Parser::~Parser()
     }
 }
 
-void Parse::Parser::add_to_proc_map(std::pair<pid_t, std::string> proc, EventBase *event)
+void Parse::Parser::add_to_proc_map(Parse::key_t proc, EventBase *event)
 {
 	if (proc.first == -1 && proc.second == "")
 		return;
 	
+	/*
 	event_list_t event_list = get_events_for_proc(proc);
 	if (event_list.size() == 0) {
 		event_list.push_back(event);
@@ -50,15 +52,24 @@ void Parse::Parser::add_to_proc_map(std::pair<pid_t, std::string> proc, EventBas
 			proc_event_list_map[it->first] = it->second;
 		}
 	}
+	*/
+	if (proc_event_list_map.find(proc) == proc_event_list_map.end()) {
+		event_list_t empty;
+		empty.clear();
+		proc_event_list_map[proc] = empty;
+	}
+	proc_event_list_map[proc].push_back(event);
 }
 
-Parse::event_list_t Parse::Parser::get_events_for_proc(std::pair<pid_t, std::string> proc)
+Parse::event_list_t Parse::Parser::get_events_for_proc(Parse::key_t proc)
 {
+	/*
     event_list_t ret;
     ret.clear();
 	for (auto it = proc_event_list_map.begin(); it != proc_event_list_map.end(); it++) {
 		if ((it->first).first == proc.first && (it->first).second == proc.second)
 			return it->second;
 	}
-    return ret;
+	*/
+    return proc_event_list_map[proc];
 }

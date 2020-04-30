@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<body onload="startRendering()">
+    <canvas id="myCanvas" style="border:1px solid #c3c3c3;" >
+        Your browser does not support the canvas element.
+    </canvas>
+    
+    <script src="./data.js"></script>
+
+    
+<script>
+    var myconfig = {
+        "scale-x": {
+        
+         }
+    }
+    
+    var width = 1000;
+    var height = 600;
+    var leftMargin = 20;
+    var rightMargin = 30;
+    
+    var myGraph;
+
+    function startRendering() {
+        myGraph = new graph();
+        myGraphArea.start();
+    }
+
+    var myGraphArea = {
+        canvas: document.getElementById("myCanvas"),
+        start : function() {
+            this.canvas.width = width + 50;
+            this.canvas.height = height + 50;
+            this.context = this.canvas.getContext("2d");
+            document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+            updateGraphArea();
+        },
+        clear : function() {
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    function graph() {
+        this.zoomY = 1;
+        this.zoomX = 1;
+        
+        this.zoomSpeedY = 1;
+        this.zoomSpeedX = 1;
+        
+        this.scrollY = 0;
+        this.scrollX = 0;
+        
+        this.update = function() {
+            leftMargin = 20;
+            var dist = this.zoomX * (width-leftMargin-rightMargin)/(lanes.length - 1);
+            //XScroll
+            leftMargin += leftMargin - this.scrollX * (width-leftMargin-rightMargin);
+            
+            var laneMap = new Map();
+            
+            //draw lanes
+            for(i = 0; i < lanes.length; i++) {
+                this.canvas_swimlane(myGraphArea.context, leftMargin+dist*i, height, lanes[i]);    
+                laneMap.set(lanes[i], i);
+            }
+            
+            //time to pixel transformation
+            var minStartTime = Infinity;
+            var maxEndTime = 0;
+            for(i = 0; i < groups.length; i++) {
+                minStartTime = Math.min(minStartTime, groups[i].start);
+                maxEndTime = Math.max(maxEndTime, groups[i].end);
+            }
+            
+            //ZoomY
+            var ratioY = (this.zoomY * height) / (maxEndTime - minStartTime);
+            
+            //YScroll
+            var yPercent = this.scrollY / this.zoomY;
+            minStartTime = minStartTime + yPercent * (maxEndTime - minStartTime);
+            
+            for(i = 0; i < groups.length; i++) {
+                groups[i].start = (groups[i].start - minStartTime) * ratioY;
+                groups[i].end = (groups[i].end - minStartTime) * ratioY;
+            }
+
+            for(i = 0; i < arrows.length; i++) {
+                arrows[i].timeFrom = (arrows[i].timeFrom - minStartTime) * ratioY;
+                arrows[i].timeTo = (arrows[i].timeTo - minStartTime) * ratioY;
+            }
+            
+            //draw groups
+            for(i = 0; i < groups.length; i++) {
+                var x = leftMargin + dist * laneMap.get(groups[i].lane);
+                this.canvas_group(myGraphArea.context, x, groups[i].start, groups[i].end - groups[i].start, groups[i].duration, groups[i].name);
+            }
+
+            //draw arrows
+            for(i = 0; i < arrows.length; i++) {
+                var fromX = leftMargin + dist * laneMap.get(arrows[i].laneFrom);
+                var fromY = arrows[i].timeFrom;
+                var toX = leftMargin + dist * laneMap.get(arrows[i].laneTo);
+                var toY = arrows[i].timeTo;
+                this.canvas_arrow(myGraphArea.context, fromX, fromY, toX, toY, arrows[i].label);
+            }
+            
+        }
+        
+        this.canvas_swimlane = function(context, x, y, name) {
+            context.beginPath();
+            context.save();
+            context.setLineDash([5, 3]);
+            context.moveTo(x, 0);
+            context.lineTo(x, y);
+            context.fillStyle = "#0000FF";
+            context.fillText(name, x - 2, y + 10);
+            context.stroke();
+            context.closePath();
+            context.restore();
+        }
+        
+        this.canvas_group = function(context, x, y, len, duration, name) {
+            context.fillStyle = "#A52A2A";
+            //"#FF00FF";
+            context.fillRect(x-5, y, 10, len);
+            
+            context.save();
+            context.translate(x+5, y);
+            context.rotate( Math.PI/2);
+            context.textAlign = "left";
+            context.fillStyle = "#A52A2A";
+            //"#FF00FF";
+            context.fillText((parseFloat(duration/10000).toFixed(4)).toString().concat("ms"), 5, -10);
+            context.fillText(name, 5, -2);
+            context.restore();
+        }
+        
+        this.canvas_arrow = function(context, fromx, fromy, tox, toy, label){
+            var headlen = 10;   // length of head in pixels
+            var angle;
+            context.beginPath();
+            context.moveTo(fromx, fromy);
+            
+            if(fromx === tox) {
+                if (label.indexOf("wait") != -1 || label.indexOf("recv") != -1) {
+                    //just fill text label 
+                } else {
+                    context.bezierCurveTo(fromx+80, fromy, tox+80, toy, tox, toy);    
+                    angle = Math.atan2(0, -80);
+                }
+            } else {
+                context.lineTo(tox, toy);
+                angle = Math.atan2(toy-fromy,tox-fromx);
+            }
+            context.lineTo(tox-headlen*Math.cos(angle-Math.PI/12),toy-headlen*Math.sin(angle-Math.PI/12));
+            context.moveTo(tox, toy);
+            context.lineTo(tox-headlen*Math.cos(angle+Math.PI/12),toy-headlen*Math.sin(angle+Math.PI/12));
+            
+            context.fillStyle = "#000000";
+            context.fillText(label, fromx + 2, fromy);
+            
+            context.stroke();
+            context.closePath();
+        }
+        
+    }
+
+    function updateGraphArea() {
+        myGraphArea.clear();
+        myGraph.update();
+        document.getElementById("zoomSpeedY").value = myGraph.zoomSpeedY;
+        document.getElementById("zoomY").textContent = myGraph.zoomY;
+        document.getElementById("scrollY").value = myGraph.scrollY;
+        document.getElementById("scaleY").textContent = myGraph.zoomY;
+        
+        document.getElementById("zoomSpeedX").value = myGraph.zoomSpeedX;
+        document.getElementById("zoomX").textContent = myGraph.zoomX;
+        document.getElementById("scrollX").value = myGraph.scrollX;
+        document.getElementById("scaleX").textContent = myGraph.zoomX;
+        
+    }
+    
+    function zoomInY() {
+        var relativePosition = myGraph.scrollY / myGraph.zoomY;
+        myGraph.zoomY += myGraph.zoomSpeedY;
+        myGraph.scrollY = myGraph.zoomY * relativePosition;
+        updateGraphArea();
+    }
+    
+    function zoomOutY() {
+        if(myGraph.zoomY > myGraph.zoomSpeedY) {
+            var relativePosition = myGraph.scrollY / myGraph.zoomY;
+            myGraph.zoomY -= myGraph.zoomSpeedY;
+            myGraph.scrollY = myGraph.zoomY * relativePosition;
+            updateGraphArea();
+        }
+    }
+    
+    function zoomInX() {
+        var relativePosition = myGraph.scrollX / myGraph.zoomX;
+        myGraph.zoomX += myGraph.zoomSpeedX;
+        myGraph.scrollX = myGraph.zoomX * relativePosition;
+        updateGraphArea();
+    }
+    
+    function zoomOutX() {
+        if(myGraph.zoomX > myGraph.zoomSpeedX) {
+            var relativePosition = myGraph.scrollX / myGraph.zoomX;
+            myGraph.zoomX -= myGraph.zoomSpeedX;
+            myGraph.scrollX = myGraph.zoomX * relativePosition;
+            updateGraphArea();
+        }
+    }
+    
+    function setZoomSpeedY() {
+        myGraph.zoomSpeedY = parseInt(document.getElementById("zoomSpeedY").value);
+    }
+    
+    function setZoomSpeedX() {
+        myGraph.zoomSpeedX = parseInt(document.getElementById("zoomSpeedX").value);
+    }
+    
+    function setScrollY() {
+        myGraph.scrollY = parseFloat(document.getElementById("scrollY").value);
+        updateGraphArea();
+    }
+    
+    function setScrollX() {
+        myGraph.scrollX = parseFloat(document.getElementById("scrollX").value);
+        updateGraphArea();
+    }
+    
+    function move(event) {
+        var dist = 1 / 10;
+        if(event.keyCode === 38) {  //up            
+            myGraph.scrollY -= dist;
+        } else if (event.keyCode === 40) { //down
+            myGraph.scrollY += dist;
+        } else if (event.keyCode === 37) { //left
+            myGraph.scrollX -= dist;
+        } else if (event.keyCode === 39) { //right
+            myGraph.scrollX += dist;
+        }
+        
+        updateGraphArea();
+    }
+    
+</script>
+    
+<div style="text-align:left;width:480px;">
+    ZoomY: <span id="zoomY"></span>&nbsp;&nbsp;&nbsp;<button onclick="zoomInY()" onkeydown="move(event)">+</button><button onclick="zoomOutY()" onkeydown="move(event)">-</button><input type="number" id="zoomSpeedY" onchange="setZoomSpeedY()"><br>
+    Y: <input type="number" id="scrollY" onchange="setScrollY()"/> / <span id="scaleY"/> 
+</div>
+<br>
+<div style="text-align:left;width:480px;">
+    ZoomX: <span id="zoomX"></span>&nbsp;&nbsp;&nbsp;<button onclick="zoomInX()" onkeydown="move(event)">+</button><button onclick="zoomOutX()" onkeydown="move(event)">-</button><input type="number" id="zoomSpeedX" onchange="setZoomSpeedX()"><br>
+    X: <input type="number" id="scrollX" onchange="setScrollX()"/> / <span id="scaleX"/> 
+</div>
+    
+</body>
+</html>

@@ -38,6 +38,7 @@ public:
     bool is_empty() {return normalized_events.size() == 0;}
     bool operator==(NormGroup &other);
     bool operator!=(NormGroup &other);
+	void print_events();
 };
 ///////////////////////////////////////////
 #include "graph.hpp"

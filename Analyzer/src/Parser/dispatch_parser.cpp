@@ -48,6 +48,7 @@ bool Parse::DispatchParser::checking_block_invoke_pair(BlockInvokeEvent *new_inv
     }
 }
 
+#if defined(__APPLE__)
 void Parse::DispatchParser::symbolize_block_dequeue(debug_data_t *cur_debugger_ptr,
     event_list_t event_list)
 {
@@ -114,7 +115,7 @@ void Parse::DispatchParser::symbolize_block_invoke(debug_data_t *cur_debugger_pt
 
 
 void Parse::DispatchParser::symbolize_block_for_proc(BacktraceParser *backtrace_parser,
-        std::pair<pid_t, std::string> proc)
+	key_t proc)
 {
     images_t *image = nullptr;
     debug_data_t cur_debugger;
@@ -147,6 +148,7 @@ void Parse::DispatchParser::symbolize_block_for_proc(BacktraceParser *backtrace_
         lldb::SBDebugger::Destroy(cur_debugger.debugger);
     }
 }
+#endif
 
 bool Parse::DispatchParser::process_enqueue(std::string opname, double abstime,
         std::istringstream &iss)
@@ -168,7 +170,8 @@ bool Parse::DispatchParser::process_enqueue(std::string opname, double abstime,
 
         new_enqueue->set_complete();
         local_event_list.push_back(new_enqueue);
-        add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), new_enqueue);
+		Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+        add_to_proc_map(key, new_enqueue);
         return true;
     }
     return true;
@@ -220,8 +223,8 @@ bool Parse::DispatchParser::create_dequeue_event(uint32_t ref, std::string opnam
     }
     local_event_list.push_back(new_dequeue);
     dequeue_events[tid] = new_dequeue;
-    add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), new_dequeue);
-    //add_to_proc_map(procname, new_dequeue);
+	Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+	add_to_proc_map(key, new_dequeue);
     return true;
 }
 
@@ -266,8 +269,8 @@ bool Parse::DispatchParser::process_block_invoke(std::string opname, double abst
 
     new_invoke->set_complete();
     local_event_list.push_back(new_invoke);
-    add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), new_invoke);
-    //add_to_proc_map(procname, new_invoke);
+	Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+	add_to_proc_map(key, new_invoke);
     return true;
 }
 

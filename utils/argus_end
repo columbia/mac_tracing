@@ -1,0 +1,7 @@
+#!/bin/bash
+command -v pidof > /dev/null 2>&1 || { echo >&2 "pidof is required, but it is not installed. Aborting,"; exit 1; }
+echo "Try to kill ring_trace returns "
+kill -s SIGINT `pidof ring_trace`
+echo $?
+echo "Decode trace file"
+sudo ./ring_trace -R $1.trace -N ~/Documents/Beachball/System/TraceCodes/trace.codes -N ~/Documents/Beachball/System/TraceCodes/argus_trace.codes

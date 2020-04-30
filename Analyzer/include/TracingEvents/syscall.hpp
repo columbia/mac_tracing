@@ -34,5 +34,6 @@ public :
 
     void decode_event(bool is_verbose, std::ofstream &outfile);
     void streamout_event(std::ofstream &outfile);
+    void tfl_event(std::ofstream &outfile);
 };
 #endif

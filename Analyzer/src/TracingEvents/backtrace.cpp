@@ -4,6 +4,8 @@
 
 #define DEBUG_BT 0
 
+static std::map<std::string, uint64_t> symbol_freq;
+
 BacktraceEvent::BacktraceEvent(double abstime, std::string _op, uint64_t _tid, 
     uint64_t _tag, uint64_t _max_frames, uint32_t _core_id, std::string _procname)
 :EventBase(abstime, BACKTRACE_EVENT, _op, _tid, _core_id, _procname),
@@ -64,13 +66,41 @@ bool BacktraceEvent::hook_to_event(EventBase *event, event_type_t event_type)
     return ret;
 }
 
-/*
-void BacktraceEvent::symbolize_frame(debug_data_t *debugger, 
-    std::map<std::string,std::map<uint64_t, std::string> > &image_vmsymbol_map)
+//count symbol when parsing
+void BacktraceEvent::count_symbols()
 {
-    symbolication(debugger, image_vmsymbol_map);
+	for(auto frame: frames_info) {
+		if (symbol_freq.find(frame.symbol) == symbol_freq.end())
+			symbol_freq[frame.symbol] = 1;
+		else
+			symbol_freq[frame.symbol]++;
+	}
 }
-*/
+
+//update the freq of sysmbols based on the whole log
+std::list<Frames::frame_info_t> BacktraceEvent::sort_symbols()
+{
+	std::list<Frames::frame_info_t> frames;
+	frames.clear();
+
+	for (int i = 0; i < frames_info.size(); i++) {
+		if (symbol_freq.find(frames_info[i].symbol) != symbol_freq.end()) {
+			frames_info[i].freq = symbol_freq[frames_info[i].symbol];
+		}
+		frames.push_back(frames_info[i]);
+	}
+	frames.sort(Frames::compare_freq);
+	return frames;
+}
+
+std::list<uint64_t> BacktraceEvent::get_frames()
+{
+	std::list<uint64_t> ret;
+	ret.clear();
+	for (auto frame: frames_info)
+		ret.push_back(frame.addr);
+	return ret;
+}
 
 void BacktraceEvent::decode_event(bool is_verbose, std::ofstream &outfile)
 {
@@ -88,6 +118,7 @@ void BacktraceEvent::decode_event(bool is_verbose, std::ofstream &outfile)
 void BacktraceEvent::streamout_event(std::ostream &out) 
 {
     EventBase::streamout_event(out);
+	out<<std::endl;
     decode_frames(out);
 }
 
@@ -99,4 +130,28 @@ void BacktraceEvent::streamout_event(std::ofstream &outfile)
     else
         outfile << "\\n\tno hooked" << std::endl;
     decode_frames(outfile);
+}
+
+void  BacktraceEvent::tfl_event(std::ofstream &outfile)
+{
+	EventBase::tfl_event(outfile);
+#if 0
+	std::string tmp, syms;
+	syms.clear();
+	bool init = true;
+	for (auto item: frames_info) {
+		tmp = replace_blank(item.symbol);
+		if (tmp.size() > 0) {
+			if (init == false) 
+				syms += " ";
+			else
+				init = false;
+			syms += tmp;
+		}
+	}
+	if (syms.size() > 0)
+		outfile << " " << syms;
+	else
+		outfile << " N/A";
+#endif
 }

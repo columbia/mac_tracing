@@ -6,12 +6,14 @@ EventBase::EventBase(double _timestamp, int _event_type, std::string _op, uint64
 TimeInfo(_timestamp),
 EventType(_event_type, _op)
 {
+	assert(event_type > 0 && event_type <= 28);
     core_id = _core_id;
     group_id = -1;
     complete = false;
     event_prev = nullptr;
     event_peer = nullptr;
     tfl_index = 0;
+	propagated_frames.clear();
 }
 
 
@@ -52,28 +54,39 @@ void EventBase::streamout_event(std::ostream &out)
 {
     out << std::right << std::hex << get_group_id();
     out << "\t" << std::fixed << std::setprecision(1) << get_abstime();
-    out << "\t" << get_tid();
+    out << "\t" << std::hex << get_tid();
     out << "\t" << get_procname();
     out << "\t" << get_op();
+	out << "\t 0x" << std::hex << get_group_id();
     if (event_peer != nullptr)
-     	out << "\t" << event_peer->get_tid()\
+     	out << "\t" << std::hex << event_peer->get_tid()\
         	<< "\t" << event_peer->get_procname()\
     		<< "\t" << std::fixed << std::setprecision(1) << event_peer->get_abstime();
 }
 
-void EventBase::tfl_event(std::ofstream  &outfile)
+std::string EventBase::replace_blank(std::string s)
+{
+	std::string ret(s);
+	assert(s.size() == ret.size());
+	std::replace(ret.begin(), ret.end(), ' ', '#');
+	return ret;
+}
+
+void EventBase::tfl_event(std::ofstream &outfile)
 {
     double prev = event_prev != nullptr? event_prev->get_abstime(): -1;
-    outfile << get_procname() << "\t" << get_event_type();
+    outfile << replace_blank(get_procname()) << " " << std::dec << get_event_type();
     if (event_peer != nullptr)
-        outfile << "\t" << event_peer->get_procname();
+        outfile << " " << replace_blank(event_peer->get_procname());
     else
-        outfile << "\tN/A";
+        outfile << " N/A";
 
     if (event_prev != nullptr)
-        outfile << "\t" << std::fixed << std::dec << int(log10(get_abstime() - prev));
+        outfile << " " << std::fixed << std::dec << int(log10(get_abstime() - prev));
     else
-        outfile << "\tN/A";
-    outfile << "\t" << get_group_id();
-    outfile << std::endl;
+        outfile << " N/A"; 
+	for (auto frame: propagated_frames)
+		outfile << " " << std::hex << get_pid() << "_" << std::hex << frame;
+
+    //outfile << "\t" << std::hex << get_group_id();
 }
