@@ -24,7 +24,6 @@ protected:
     SyscallEvent *pending_msg_sent;
 
     BlockDequeueEvent *dequeue_event;
-    //BlockInvokeEvent *mig_server_invoker;
 
     std::stack<DispatchQueueMIGServiceEvent *> dispatch_mig_servers;
     std::stack<BlockInvokeEvent *> current_disp_invokers;
@@ -70,26 +69,19 @@ class RunLoopThreadDivider: public ThreadDivider {
     Group *save_cur_rl_group_for_invoke;
     BlockInvokeEvent *invoke_in_rl;
 public:
-    RunLoopThreadDivider(int index,std::map<uint64_t,std::map<uint64_t, Group *> >&sub_results, std::list<EventBase *> ev_list, bool no_observer_entry);
+    RunLoopThreadDivider(int index,std::map<uint64_t,std::map<uint64_t, Group *> >&sub_results,
+		std::list<EventBase *> ev_list, bool no_observer_entry);
     ~RunLoopThreadDivider();
     void add_observer_event_to_group(EventBase *event);
     void add_nsappevent_event_to_group(EventBase *event);
     void add_rlboundary_event_to_group(EventBase *event);
-    void add_disp_invoke_event_to_group(EventBase *event);
-    void add_msg_event_into_group(EventBase *event);
+	
+    //void add_disp_invoke_event_to_group(EventBase *event);
+    //void add_msg_event_into_group(EventBase *event);
 
     void decode_groups(std::string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
     void streamout_groups(std::string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
     virtual void divide();
 };
-
-class WQThreadDivider: public ThreadDivider {
-    
-public:
-    WQThreadDivider(int index, std::vector<std::map<uint64_t, Group *> >&sub_results, std::list<EventBase *> ev_list);
-    void decode_groups(std::string filepath) {ThreadDivider::decode_groups(ret_map, filepath);}
-    void streamout_groups(std::string filepath) {ThreadDivider::streamout_groups(ret_map, filepath);}
-    virtual void divide();
-}; 
 
 #endif

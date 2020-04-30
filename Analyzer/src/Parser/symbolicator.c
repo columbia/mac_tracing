@@ -1,3 +1,4 @@
+#if defined(__APPLE__)
 #include "symbolicator.h"
 #include "dyld_process_info_internal.h"
 #include <assert.h>
@@ -804,3 +805,4 @@ const char *get_sym_for_addr(pid_t pid, uint64_t vmoffset, const char *path)
     return strdup(symbol);
 }
 */
+#endif

@@ -31,11 +31,13 @@ void TimerCreateEvent::streamout_event(std::ofstream &outfile)
     outfile << "\tarm_timercallout_func_" << std::hex << get_func_ptr();
     outfile << "(" << std::hex << get_param0() << ",";
     outfile << std::hex << get_param1() << ")";
+	outfile << std::hex << q_ptr << std::endl;
 
     if (timercallout_event != nullptr) {
         outfile << "\n\t" << "called at " << std::fixed << std::setprecision(1) << timercallout_event->get_abstime();
         outfile << "\t" << std::hex << timercallout_event->get_tid();
         outfile << "\t" << timercallout_event->get_procname();
+		outfile << "\t" << std::hex << timercallout_event->get_q_ptr();
     }
     outfile << std::endl;
 }

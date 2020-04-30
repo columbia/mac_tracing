@@ -4,13 +4,14 @@
 #include "base.hpp"
 #include "interrupt.hpp"
 
+//wakeuo type used to discriminate edges
 #define UNKNOWN_MR       -1
-
 #define WAKEUP_ALL        0x0100
 #define WAKEUP_ONE        0x0200
 #define WAKEUP_THR        0x0300
 #define CLEAR_WAIT        0x0400
 
+//directly cull ouat the wake edges
 //#define SCHED_TSM_MR      5
 //#define INTR_MR           6
 //#define WORKQ_MR          7
@@ -55,6 +56,7 @@ public:
     bool check_interrupt(IntrEvent *potential_root);
     bool is_timeout() {return (mr_type & time_out) == time_out;}
     bool is_external() {return (mr_type & external) == external;}
+	bool is_weak() {return !(mr_type & WAKEUP_THR) && !(mr_type & WAKEUP_ONE);}
     uint64_t get_peer_tid(void) {return peer_tid;}
     void pair_wait(WaitEvent *_wait) {wait = _wait;}
     WaitEvent *get_wait(void) {return wait;}

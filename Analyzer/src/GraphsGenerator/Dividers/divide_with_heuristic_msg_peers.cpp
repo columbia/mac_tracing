@@ -1,4 +1,5 @@
 #include "thread_divider.hpp"
+#define OVERRIDE_DISP
 //////////////////////////////////////////////
 //event schemas for divider
 /////////////////////////////////////////////
@@ -78,13 +79,13 @@ void ThreadDivider::add_msg_event_into_group(EventBase *event)
 #if DEBUG_THREAD_DIVIDER
     mtx.lock();
     if (msg_event->get_peer() == nullptr)
-        std::cerr << "Missing peer for message at " \
-        << std::fixed << std::setprecision(1) \
-        << msg_event->get_abstime() << std::endl;
+		LOG_S(INFO) << "Missing peer for message at " \
+			<< std::fixed << std::setprecision(1) \
+			<< msg_event->get_abstime() << std::endl;
     else if (msg_event->get_peer()->get_pid() == -1)
-        std::cerr << "Missing peer pid for message at " \
-        << std::fixed << std::setprecision(1) \
-        << msg_event->get_abstime() << std::endl;
+		LOG_S(INFO) << "Missing peer pid for message at " \
+			<< std::fixed << std::setprecision(1) \
+			<< msg_event->get_abstime() << std::endl;
     mtx.unlock();
 #endif
 
@@ -92,7 +93,7 @@ void ThreadDivider::add_msg_event_into_group(EventBase *event)
     if (msg_event->is_freed_before_deliver() 
         || msg_event->get_peer() == nullptr
         || !cur_group
-#ifndef ANTIBATCH
+#ifndef OVERRIDE_DISP
         || cur_group->get_blockinvoke_level() > 0
 #endif
         ){

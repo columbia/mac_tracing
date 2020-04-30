@@ -38,12 +38,14 @@ void Parse::RLBoundaryParser::process()
         }
         rl_boundary_event->set_complete();
         local_event_list.push_back(rl_boundary_event);
-		add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), rl_boundary_event);
+		Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+		add_to_proc_map(key, rl_boundary_event);
     }
 }
 
+#if defined(__APPLE__)
 void Parse::RLBoundaryParser::symbolize_rlblock_for_proc(BacktraceParser *parser,
-	std::pair<pid_t, std::string> proc)
+	key_t proc)
 {
 
     images_t *image = nullptr;
@@ -80,3 +82,4 @@ void Parse::RLBoundaryParser::symbolize_rlblock_for_proc(BacktraceParser *parser
         lldb::SBDebugger::Destroy(cur_debugger.debugger);
     }
 }
+#endif

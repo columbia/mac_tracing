@@ -1,4 +1,6 @@
 #include "loader.hpp"
+#include <unistd.h>
+#include <fcntl.h>
 namespace LoadData
 {
     meta_data_t meta_data = {
@@ -10,7 +12,7 @@ namespace LoadData
                 .procs_file = "./input/current_procs.log", /*optional for load_all()*/
                 .host = "Undefined",
                 .pid = 0,
-                .nthreads = 6
+                .nthreads = 4
    };
 
     //std::map<uint64_t, std::pair<pid_t, std::string> > tpc_maps;
@@ -41,6 +43,11 @@ namespace LoadData
             else
                 tpc_maps[tid] = new ProcessInfo(tid, pid, command);       
         }
+        
+        for (auto element: LoadData::tpc_maps) {
+            assert(element.second != nullptr);
+        }
+
         infile.close();
     }
     
@@ -49,6 +56,7 @@ namespace LoadData
         std::string proc_comm = "";
         std::map<uint64_t, ProcessInfo *>::iterator it;
         for (it = LoadData::tpc_maps.begin(); it !=  LoadData::tpc_maps.end(); it++) {
+            assert(it->second);
             if ((it->second)->get_pid() == pid) {
                 return (it->second)->get_procname();
             }

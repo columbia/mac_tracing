@@ -23,6 +23,8 @@ int main(int argc, char* argv[]) {
     signal(SIGSEGV, debug_handler);
     signal(SIGABRT, debug_handler);
     signal(SIGINT, debug_handler);
+	loguru::init(argc, argv);
+	loguru::add_file("debugging_info", loguru::Truncate, loguru::Verbosity_INFO);
 	ArgusLoop commands;
     mainloop(commands);
     return 0;

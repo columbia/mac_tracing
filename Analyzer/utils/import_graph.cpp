@@ -63,10 +63,11 @@ void ImportedGraph::import_edges(std::string graph_path)
             continue;
         }
 
-        Edge *new_edge =  new Edge(e_from , e_to, IMPORT_REL);
-        if (!from->add_out_edge(new_edge))
-            delete new_edge;
-        to->add_in_edge(from->get_out_edges()[e_from]);
+        //Edge *new_edge =  new Edge(e_from , e_to, IMPORT_REL);
+        //if (!from->add_out_edge(new_edge))
+            //delete new_edge;
+		//auto edges = from->get_out_edges();
+       // to->add_in_edge(from->get_out_edges()[e_from]);
     }
 }
 

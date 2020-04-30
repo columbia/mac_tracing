@@ -6,8 +6,9 @@ Parse::TimercallParser::TimercallParser(std::string filename)
 {}
 
 
+#if defined(__APPLE__)
 void Parse::TimercallParser::symbolize_func_ptr_for_proc(BacktraceParser *backtrace_parser,
-	std::pair<pid_t, std::string> proc)
+	key_t proc)
 {
     images_t *image = nullptr;
     debug_data_t cur_debugger;
@@ -42,7 +43,7 @@ void Parse::TimercallParser::symbolize_func_ptr_for_proc(BacktraceParser *backtr
         lldb::SBDebugger::Destroy(cur_debugger.debugger);
     }
 }
-
+#endif
 
 
 bool Parse::TimercallParser::process_timercreate(std::string opname, double abstime,
@@ -59,7 +60,8 @@ bool Parse::TimercallParser::process_timercreate(std::string opname, double abst
             opname, tid, coreid, (void*)func_ptr,
             param0, param1, (void*)q_ptr, procname);
     local_event_list.push_back(timercreate_event);
-	add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), timercreate_event);
+	Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+	add_to_proc_map(key, timercreate_event);
     timercreate_event->set_complete();
     return true;
 }

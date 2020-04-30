@@ -1,11 +1,11 @@
 #include "graph.hpp"
+
 TransactionGraph::TransactionGraph(uint64_t gid)
 :Graph()
 {
     if (!groups_ptr) return;
     root = groups_ptr->get_group_by_gid(gid);
     main_nodes.clear();
-    weak_nodes.clear();
     init_graph();
 }
 
@@ -15,7 +15,6 @@ TransactionGraph::TransactionGraph(Groups *_groups_ptr, uint64_t gid)
     if (!groups_ptr) return;
     root = groups_ptr->get_group_by_gid(gid);
     main_nodes.clear();
-    weak_nodes.clear();
     init_graph();
 }
 
@@ -73,7 +72,7 @@ Edge *TransactionGraph::get_outgoing_connection_for_callcreate(Node *node, Timer
 		else
 			return e;
     }
-/*
+#ifdef CONNECT_CANCEL
     TimerCancelEvent *timercancel_event = timer_create->get_cancel_peer();
     if (timercancel_event) {
         Edge *e = new Edge(timer_create, timercancel_event, TIMERCANCEL_REL);
@@ -82,7 +81,7 @@ Edge *TransactionGraph::get_outgoing_connection_for_callcreate(Node *node, Timer
         else
             return e;
     }
-*/
+#endif
 	return nullptr;
 }
 
@@ -144,6 +143,13 @@ Edge *TransactionGraph::add_weak_edge(Node *node)
 {
 	Group *cur_group = node->get_group();
     Group *next_group = groups_ptr->get_group_by_gid(node->get_gid() + 1);
+
+    if (!(cur_group->is_divide_by_msg() & DivideOldGroup)
+        && !(cur_group->is_divide_by_disp() & DivideOldGroup)
+        && !(cur_group->is_divide_by_wait() & DivideOldGroup)
+        )
+        return nullptr;
+
 	if (next_group == nullptr)
 		return nullptr;
 
@@ -168,9 +174,8 @@ std::map<Group *, Edge *> TransactionGraph::get_outgoing_connections(Node *node,
 
 	ret.clear();
 	it = find(lists.begin(), lists.end(), event_after);
-	if (it == lists.end()) {
+	if (it == lists.end())
 		return ret;
-	}
 
 	for (; it != lists.end(); it++) {
 		EventBase *event = *it;
@@ -209,7 +214,6 @@ std::map<Group *, Edge *> TransactionGraph::get_outgoing_connections(Node *node,
 			if (ret.find(peer_group) == ret.end())
                 ret[peer_group] = edge;
 		}
-        
 	}// end of for
 
     if ((cur_group->is_divide_by_msg() & DivideOldGroup)
@@ -236,7 +240,6 @@ Node *TransactionGraph::augment_node(Group *cur_group, EventBase *event_after)
     Node *node = nullptr;
     if (nodes_map.find(cur_group) != nodes_map.end()) {
         node = nodes_map[cur_group];
-        //node->inc_in();
         return node;
     }
 
@@ -320,9 +323,6 @@ void TransactionGraph::init_graph()
         if (begin == true){
             std::cout << "WeakEdge from 0x" << std::hex << cur_gid - 1 <<  " to 0x" << std::hex << cur_gid << std::endl;
             Edge *e = add_weak_edge(main_nodes[cur_gid -1]);
-            //Edge *e = get_outgoing_weak_edge(main_nodes[cur_gid - 1],
-            //            main_nodes[cur_gid - 1]->get_group()->get_last_event(),
-            //           event_after);
             cur_node->add_in_weak_edge(e);
         }
 	} 
@@ -341,8 +341,7 @@ Node *TransactionGraph::get_end_node()
     if (end_node != nullptr)
         return end_node;
 
-    std::map<uint64_t, Node *>::reverse_iterator rit;
-    for (rit = main_nodes.rbegin(); rit != main_nodes.rend(); rit++)
+    for (auto rit = main_nodes.rbegin(); rit != main_nodes.rend(); rit++)
         if (rit->second->contains_view_update())
             end_node = main_nodes[rit->first];
     return end_node;

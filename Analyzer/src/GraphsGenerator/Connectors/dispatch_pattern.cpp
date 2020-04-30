@@ -12,14 +12,14 @@ void DispatchPattern::connect_dispatch_patterns(void)
 {
 #ifdef DISP_PATTERN_DEBUG
     mtx.lock();
-    std::cerr << "begin matching dispatch... " << std::endl;
+    LOG_S(INFO) << "begin matching dispatch... " << std::endl;
     mtx.unlock();
 #endif
     connect_enq_and_deq();
     connect_deq_and_exe();
 #ifdef DISP_PATTERN_DEBUG
     mtx.lock();
-    std::cerr << "finish matching dispatch. " << std::endl;
+    LOG_S(INFO) << "finish matching dispatch. " << std::endl;
     mtx.unlock();
 #endif
 }
@@ -27,32 +27,38 @@ void DispatchPattern::connect_dispatch_patterns(void)
 void DispatchPattern::connect_enq_and_deq(void)
 {
     std::list<EventBase *> mix_list;
-    std::list<EventBase *>::iterator it;
     std::list<BlockEnqueueEvent*> tmp_enq_list;
-    BlockEnqueueEvent * enq_event;
-    BlockDequeueEvent * deq_event;
+    BlockEnqueueEvent *enq_event;
+    BlockDequeueEvent *deq_event;
 
     mix_list.insert(mix_list.end(), enqueue_list.begin(), enqueue_list.end());
     mix_list.insert(mix_list.end(), dequeue_list.begin(), dequeue_list.end());
     EventLists::sort_event_list(mix_list);
+	
+	for(auto event: mix_list) {
+		switch(event->get_event_type()) {
+			case DISP_ENQ_EVENT:
+        		enq_event = dynamic_cast<BlockEnqueueEvent*>(event);
+            	tmp_enq_list.push_back(enq_event);
+				break;
+			case DISP_DEQ_EVENT:
+				deq_event = dynamic_cast<BlockDequeueEvent*>(event);
+				connect_dispatch_enqueue_for_dequeue(tmp_enq_list, deq_event);
+				break;
+			default:
+				break;
+		}
+	}
 
-    for (it = mix_list.begin(); it != mix_list.end(); it++) {
-        enq_event = dynamic_cast<BlockEnqueueEvent*>(*it);
-        if (enq_event) {
-            tmp_enq_list.push_back(enq_event);
-        } else {
-            deq_event = dynamic_cast<BlockDequeueEvent*>(*it);
-            connect_dispatch_enqueue_for_dequeue(tmp_enq_list, deq_event);
-        }
-    }
 #if DISP_PATTERN_DEBUG
     //TODO: check the rest events
+    std::list<EventBase *>::iterator it;
     for (it = enqueue_list.begin(); it != enqueue_list.end(); it++) {
         enq_event = dynamic_cast<BlockEnqueueEvent*>(*it);
         if (enq_event->is_consumed() == false) {
             mtx.lock();
-            std::cerr << "Warn: Not matched enqueue " << std::fixed << std::setprecision(1) << enq_event->get_abstime();
-            std::cerr << "\t" << std::hex << enq_event->get_tid() << "\t" << enq_event->get_ref()<< std::endl;
+            LOG_S(INFO) << "Warn: Not matched enqueue " << std::fixed << std::setprecision(1) << enq_event->get_abstime();
+            LOG_S(INFO) << "\t" << std::hex << enq_event->get_tid() << "\t" << enq_event->get_ref()<< std::endl;
             mtx.unlock();
         }
     }
@@ -62,38 +68,44 @@ void DispatchPattern::connect_enq_and_deq(void)
 void DispatchPattern::connect_deq_and_exe(void)
 {
     std::map<tid_t, std::list<EventBase *> > qevents_maps;
-    std::list<EventBase *>::iterator it;
-    for (it = dequeue_list.begin(); it != dequeue_list.end(); it++) {
-        tid_t tid = (*it)->get_tid();
+	for (auto event: dequeue_list) {
+		tid_t tid = event->get_tid();
         if (qevents_maps.find(tid) != qevents_maps.end()) {
             std::list<EventBase *> tmp_list;
             qevents_maps[tid] = tmp_list;
         }
-        qevents_maps[tid].push_back(*it);
-    }
-    for (it = execute_list.begin(); it != execute_list.end(); it++) {
-        tid_t tid = (*it)->get_tid();
-        if (qevents_maps.find(tid) != qevents_maps.end()) {
-            std::list<EventBase *> tmp_list;
-            qevents_maps[tid] = tmp_list;
-        }
-        qevents_maps[tid].push_back(*it);
-    }
+        qevents_maps[tid].push_back(event);
+	}
 
-    std::map<tid_t, std::list<EventBase *> >::iterator map_it;
-    for (map_it = qevents_maps.begin(); map_it != qevents_maps.end(); map_it++) {
-        std::list<EventBase *> cur_list = map_it->second;
+	for (auto event: execute_list) {
+		tid_t tid = event->get_tid();
+        if (qevents_maps.find(tid) != qevents_maps.end()) {
+            std::list<EventBase *> tmp_list;
+            qevents_maps[tid] = tmp_list;
+        }
+        qevents_maps[tid].push_back(event);
+	}
+	
+	for (auto element: qevents_maps) {
+        std::list<EventBase *> cur_list = element.second;
         std::list<BlockDequeueEvent*> tmp_deq_list;
         EventLists::sort_event_list(cur_list);
-        for (it = cur_list.begin(); it != cur_list.end(); it++) {
-            BlockDequeueEvent *deq_event = dynamic_cast<BlockDequeueEvent *>(*it);
-            if (deq_event) {
-                tmp_deq_list.push_back(deq_event);
-            } else {
-                BlockInvokeEvent *invoke_event = dynamic_cast<BlockInvokeEvent*>(*it);
-                if (invoke_event->is_begin()) 
-                    connect_dispatch_dequeue_for_execute(tmp_deq_list, invoke_event);
-            }
+		BlockDequeueEvent *deq_event;
+		BlockInvokeEvent *invoke_event;
+		for (auto event: cur_list) {
+			switch (event->get_event_type()) {
+				case DISP_DEQ_EVENT:
+            		deq_event = dynamic_cast<BlockDequeueEvent *>(event);
+                	tmp_deq_list.push_back(deq_event);
+					break;
+				case DISP_INV_EVENT:
+                	invoke_event = dynamic_cast<BlockInvokeEvent*>(event);
+                	if (invoke_event->is_begin()) 
+                    	connect_dispatch_dequeue_for_execute(tmp_deq_list, invoke_event);
+					break;
+				default:
+					break;
+			}
         }
     }
 }
@@ -114,10 +126,10 @@ bool DispatchPattern::connect_dispatch_enqueue_for_dequeue(std::list<BlockEnqueu
     }
 #if DISP_PATTERN_DEBUG
     mtx.lock();
-    std::cerr << "Warn: no enqueue found for dequeue " << std::fixed << std::setprecision(1) << dequeue_event->get_abstime();
-    std::cerr << "\t" << std::hex << dequeue_event->get_tid() << std::endl;
+    LOG_S(INFO) << "Warn: no enqueue found for dequeue " << std::fixed << std::setprecision(1) << dequeue_event->get_abstime();
+    LOG_S(INFO) << "\t" << std::hex << dequeue_event->get_tid() << std::endl;
     if (dequeue_event -> is_duplicate())
-        std::cerr << "Duplicate Dequeue at " << std::fixed << std::setprecision(1) << dequeue_event->get_abstime() << std::endl;
+        LOG_S(INFO) << "Duplicate Dequeue at " << std::fixed << std::setprecision(1) << dequeue_event->get_abstime() << std::endl;
     mtx.unlock();
 #endif
     return false;
@@ -133,7 +145,8 @@ bool DispatchPattern::connect_dispatch_dequeue_for_execute(std::list<BlockDequeu
         dequeue_event = *deq_it;
         if (dequeue_event->get_vtable_ptr() >= 0xff)
             continue;
-        if (dequeue_event->get_func_ptr() == invoke_event->get_func()) {
+        if (dequeue_event->get_func_ptr() == invoke_event->get_func() 
+			|| dequeue_event->get_func_ptr() == invoke_event->get_ctxt()) {
             invoke_event->set_root(dequeue_event);
             dequeue_event->set_executed(invoke_event);
             tmp_deq_list.erase(next(deq_it).base());
@@ -142,8 +155,8 @@ bool DispatchPattern::connect_dispatch_dequeue_for_execute(std::list<BlockDequeu
     }
 #if DISP_PATTERN_DEBUG
     mtx.lock();
-    std::cerr << "Warn: no dequeue found for blockinvoke " << std::fixed << std::setprecision(1) << invoke_event->get_abstime();
-    std::cerr << "\t" << std::hex << invoke_event->get_tid() << std::endl;
+    LOG_S(INFO) << "Warn: no dequeue found for blockinvoke " << std::fixed << std::setprecision(1) << invoke_event->get_abstime();
+    LOG_S(INFO) << "\t" << std::hex << invoke_event->get_tid() << std::endl;
     mtx.unlock();
 #endif
     return false;

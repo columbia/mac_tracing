@@ -22,6 +22,8 @@
  * @APPLE_LICENSE_HEADER_END@
  */
 
+#if defined(__APPLE__)
+
 #ifndef _DYLD_PROCESS_INFO_INTERNAL_H_
 #define _DYLD_PROCESS_INFO_INTERNAL_H_
 
@@ -132,4 +134,4 @@ struct dyld_process_info_notify_header {
 
 #endif // _DYLD_PROCESS_INFO_INTERNAL_H_
 
-
+#endif

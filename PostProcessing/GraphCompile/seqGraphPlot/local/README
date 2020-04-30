@@ -1,0 +1,2 @@
+#javac -cp .:`find . -name "*.jar" | tr "\n" ":"` [javafile]
+#java -cp .:`find . -name "*.jar" | tr "\n" ":"` [javaclass] [input] [output]

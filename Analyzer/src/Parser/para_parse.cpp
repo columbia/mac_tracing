@@ -5,7 +5,7 @@
 #include <boost/filesystem.hpp>
 typedef std::unique_ptr<boost::asio::io_service::work> asio_worker;
 //typedef std::list<EventBase *> event_list_t;
-
+#if defined(__APPLE__)
 void Parse::extra_symbolization(std::map<uint64_t, Parser *> &parsers)
 {
     std::cerr << "Symbolize additional events with backtrace parser ... " << std::endl;
@@ -25,27 +25,23 @@ void Parse::extra_symbolization(std::map<uint64_t, Parser *> &parsers)
         IntrParser *intrparser =
             dynamic_cast<IntrParser*>(parsers[INTR]);
 		//get_all proc
-        std::map<std::pair<pid_t, std::string>, event_list_t> &proc_event_list_map
+        std::map<Parse::key_t, event_list_t> &proc_event_list_map
 			= intrparser->get_event_list_map();
 		std::cerr << "size of proc map = " << proc_event_list_map.size() << std::endl;
-		auto it = proc_event_list_map.begin();
-		for (; it != proc_event_list_map.end(); it++) {
-			//if ((it->first).second == LoadData::meta_data.host)
-        		intrparser->symbolize_intr_for_proc(backtraceparser, it->first);
-		}
+		for (auto element : proc_event_list_map)
+			intrparser->symbolize_intr_for_proc(backtraceparser, element.first);
+	
     }
 
     if (parsers.find(DISP_EXE) != parsers.end()) {
         DispatchParser *dispparser =
             dynamic_cast<DispatchParser *>(parsers[DISP_EXE]);
 		//get_all proc
-        std::map<std::pair<pid_t, std::string>, event_list_t> &proc_event_list_map
+        std::map<Parse::key_t, event_list_t> &proc_event_list_map
 			= dispparser->get_event_list_map();
 	
-		auto it = proc_event_list_map.begin();
-		for (; it != proc_event_list_map.end(); it++)
-			//if ((it->first).second == LoadData::meta_data.host)
-        		dispparser->symbolize_block_for_proc(backtraceparser, it->first);
+		for (auto element : proc_event_list_map)
+        	dispparser->symbolize_block_for_proc(backtraceparser, element.first);
     }
 
     if (parsers.find(DISP_DEQ) != parsers.end()) {
@@ -53,12 +49,11 @@ void Parse::extra_symbolization(std::map<uint64_t, Parser *> &parsers)
             dynamic_cast<DispatchParser *>(parsers[DISP_DEQ]);
 
 		//get_all proc
-        std::map<std::pair<pid_t, std::string>, event_list_t> &proc_event_list_map
+        std::map<Parse::key_t, event_list_t> &proc_event_list_map
 			= dispparser->get_event_list_map();
-		auto it = proc_event_list_map.begin();
-		for (; it != proc_event_list_map.end(); it++)
-			//if ((it->first).second == LoadData::meta_data.host)
-        		dispparser->symbolize_block_for_proc(backtraceparser, it->first);
+
+		for (auto element : proc_event_list_map)
+        	dispparser->symbolize_block_for_proc(backtraceparser, element.first);
     }
 
     if (parsers.find(RL_BOUNDARY) != parsers.end()) {
@@ -66,12 +61,11 @@ void Parse::extra_symbolization(std::map<uint64_t, Parser *> &parsers)
             dynamic_cast<RLBoundaryParser *>(parsers[RL_BOUNDARY]);
 
 		//get_all proc
-        std::map<std::pair<pid_t, std::string>, event_list_t> &proc_event_list_map
+        std::map<Parse::key_t, event_list_t> &proc_event_list_map
 			= rlboundaryparser->get_event_list_map();
-		auto it = proc_event_list_map.begin();
-		for (; it != proc_event_list_map.end(); it++)
-			//if ((it->first).second == LoadData::meta_data.host)
-        		rlboundaryparser->symbolize_rlblock_for_proc(backtraceparser, it->first);
+
+		for (auto element : proc_event_list_map)
+        	rlboundaryparser->symbolize_rlblock_for_proc(backtraceparser, element.first);
     }
 
     if (parsers.find(BREAKPOINT_TRAP) != parsers.end()) {
@@ -85,24 +79,20 @@ void Parse::extra_symbolization(std::map<uint64_t, Parser *> &parsers)
             dynamic_cast<TimercallParser *>(parsers[MACH_CALLCREATE]);
 
 		//get_all proc
-        std::map<std::pair<pid_t, std::string>, event_list_t> &proc_event_list_map
+        std::map<Parse::key_t, event_list_t> &proc_event_list_map
 			= timerparser->get_event_list_map();
-		auto it = proc_event_list_map.begin();
-		for (; it != proc_event_list_map.end(); it++)
-			//if ((it->first).second == LoadData::meta_data.host)
-        		timerparser->symbolize_func_ptr_for_proc(backtraceparser, it->first);
+		for (auto element : proc_event_list_map)
+        	timerparser->symbolize_func_ptr_for_proc(backtraceparser, element.first);
     }
     std::cerr << "Finished parsing!\n";
 }
+#endif
 
 std::map<uint64_t, std::list<EventBase *> > Parse::parse(std::map<uint64_t, std::string>& files)
 {
-    std::map<uint64_t, std::string>::iterator it;
+    //std::map<uint64_t, std::string>::iterator it;
     std::map<uint64_t, Parser *> parsers;
-    std::map<uint64_t, Parser *>::iterator th_it;
-    Parser *parser;
-    std::map<uint64_t, std::list<EventBase *>> ret_lists;
-    std::list<EventBase *> result;
+    //std::map<uint64_t, Parser *>::iterator th_it;
 
     boost::asio::io_service ioService;
     boost::thread_group threadpool;
@@ -112,71 +102,75 @@ std::map<uint64_t, std::list<EventBase *> > Parse::parse(std::map<uint64_t, std:
         threadpool.create_thread( boost::bind(&boost::asio::io_service::run,
                     &ioService));
 
-    for (it = files.begin(); it != files.end(); it++) {
+    Parser *parser;
+    //for (it = files.begin(); it != files.end(); it++) {
+	for (auto file : files) {
         parser = nullptr;
-        switch(it->first) {
+        switch(file.first) {
             case MACH_IPC_MSG: 
-                parser = new MachmsgParser(it->second);
+                parser = new MachmsgParser(file.second);
                 break;
             case MACH_IPC_VOUCHER_INFO: 
             case MACH_IPC_VOUCHER_CONN:
             case MACH_IPC_VOUCHER_TRANSIT:
             case MACH_IPC_VOUCHER_DEALLOC:
             case MACH_BANK_ACCOUNT:
-                parser = new VoucherParser(it->second);
+                parser = new VoucherParser(file.second);
                 break;
             case MACH_MK_RUN:
-                parser = new MkrunParser(it->second);
+                parser = new MkrunParser(file.second);
                 break;
             case INTR:
-                parser = new IntrParser(it->second);
+                parser = new IntrParser(file.second);
                 break;
             case MACH_TS:
-                parser = new TsmaintainParser(it->second);
+                parser = new TsmaintainParser(file.second);
                 break;
             case MACH_WAIT:
-                parser = new WaitParser(it->second);
+                parser = new WaitParser(file.second);
                 break;
             case DISP_ENQ:
             case DISP_DEQ:
             case DISP_EXE:
             case DISP_MIG:
-                parser = new DispatchParser(it->second);
+                parser = new DispatchParser(file.second);
                 break;
             case MACH_CALLCREATE:
             case MACH_CALLOUT:
             case MACH_CALLCANCEL:
-                parser = new TimercallParser(it->second);
+                parser = new TimercallParser(file.second);
                 break;
+#if defined(__APPLE__)
             case BACKTRACE:
-                parser = new BacktraceParser(it->second,
+                parser = new BacktraceParser(file.second,
                         LoadData::meta_data.libinfo_file);
                 break;
+#endif
             case MACH_SYS:
             case BSD_SYS:
-                parser = new SyscallParser(it->second);
+                parser = new SyscallParser(file.second);
                 break;
             case CA_SET:
             case CA_DISPLAY:
-                parser = new CAParser(it->second);
+                parser = new CAParser(file.second);
                 break;
             case BREAKPOINT_TRAP:
-                parser = new BreakpointTrapParser(it->second);
+                parser = new BreakpointTrapParser(file.second);
                 break;
             case RL_OBSERVER:
-                parser = new RLObserverParser(it->second);
+                parser = new RLObserverParser(file.second);
                 break;
             case EVENTREF:
-                parser = new EventRefParser(it->second);
+                parser = new EventRefParser(file.second);
                 break;
             case NSAPPEVENT:
-                parser = new NSAppEventParser(it->second);
+                parser = new NSAppEventParser(file.second);
                 break;
             case RL_BOUNDARY:
-                parser = new RLBoundaryParser(it->second);
+                parser = new RLBoundaryParser(file.second);
                 break;
             case APP_LOG:
-                parser = new AppLogParser(it->second);
+                parser = new AppLogParser(file.second);
                 break;
 
             default:
@@ -184,11 +178,11 @@ std::map<uint64_t, std::list<EventBase *> > Parse::parse(std::map<uint64_t, std:
         }        
 
         if (parser) {
-            parsers[it->first] = parser;
+            parsers[file.first] = parser;
             //ioService.post(boost::bind([parser] {parser->process();}));
             ioService.post(boost::bind(&Parser::process, parser));
         } else {
-            std::cerr << "Check : fail to begin parser " << it->first << std::endl;
+            std::cerr << "Check : fail to begin parser " << file.first << std::endl;
         }
     }
     work.reset();
@@ -197,16 +191,48 @@ std::map<uint64_t, std::list<EventBase *> > Parse::parse(std::map<uint64_t, std:
 
     extra_symbolization(parsers);
 
+    std::map<uint64_t, std::list<EventBase *>> ret_lists;
+    std::list<EventBase *> result;
+
+	ret_lists.clear();
+	result.clear();
+
+	for (auto element: parsers) {
+		ret_lists[element.first] = element.second->collect();
+		ret_lists[0].insert(ret_lists[0].end(), ret_lists[element.first].begin(), ret_lists[element.first].end());
+		/*
+		try {
+			delete element.second;
+			element.second = nullptr;
+		} catch (const std::string &s) {
+			std::cout << "error: " << s << std::endl;
+		}
+		*/
+	}
+	
+
+
+/*
     for (th_it = parsers.begin(); th_it != parsers.end(); th_it++) {
         result.insert(result.end(), (th_it->second)->collect().begin(),
                 (th_it->second)->collect().end());
         ret_lists[th_it->first] = (th_it->second)->collect();
+		std::cout << "Parser " << std::dec << th_it->first << " has " << std::hex << ret_lists[th_it->first].size() << std::endl;
+		for (auto event: th_it->second->collect()) {
+			if (event->get_event_type() < 0) {
+				std::cout << "Parser " << std::dec << th_it->first << " 0x" << std::hex << th_it->first << std::endl;
+			}
+			assert(event->get_event_type() > 0);
+		}
         delete th_it->second;
     }
+*/
+	//for (auto element : parsers)
     parsers.clear();
 
-    assert(ret_lists.find(0) == ret_lists.end());
-    ret_lists[0] = result;
+    //assert(ret_lists.find(0) == ret_lists.end());
+    //ret_lists[0] = result;
+	std::cout << "Parsed " << std::dec << ret_lists[0].size() << " events in total "<< std::endl;
     return ret_lists;
 }
 
@@ -294,7 +320,12 @@ std::map<uint64_t, std::list<EventBase *> > Parse::divide_and_parse()
 {
     std::map<uint64_t, std::string> files = divide_files(LoadData::meta_data.data,
             LoadData::map_op_code);
-    std::map<uint64_t, std::list<EventBase*>> lists = parse(files);
+    std::map<uint64_t, std::list<EventBase*> > lists = parse(files);
+	for (auto event: lists[0]) {
+		if (event->get_event_type() < 0)
+			std::cout << event->get_event_type() << std::endl;
+		assert(event->get_event_type() > 0);
+	}
     return lists;
 }
 

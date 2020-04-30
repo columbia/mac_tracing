@@ -7,6 +7,7 @@ Frames::Frames(uint64_t _tag, uint64_t _max_frames, uint64_t _tid)
     max_frames = _max_frames;
     tid = _tid;
     frames_info.clear();
+	is_spinning = false;
 }
 
 #if DEBUG_SYM
@@ -65,6 +66,7 @@ bool Frames::add_frame(addr_t addr)
     new_frame.addr = addr;
     new_frame.symbol.clear();
     new_frame.filepath.clear();
+	new_frame.freq = 0;
     frames_info.push_back(new_frame);
     return true;
 }
@@ -78,8 +80,29 @@ bool Frames::add_frame(addr_t addr, std::string path)
     new_frame.addr = addr;
     new_frame.filepath = path;
     new_frame.symbol.clear();
+	new_frame.freq = 0;
     frames_info.push_back(new_frame);
     return true;
+}
+
+bool Frames::add_frame(int index, addr_t addr, std::string symbol, std::string path, uint64_t freq)
+{
+	if (frames_info.size() < index) {
+		LOG_S(INFO) << "Error: add frame to backtrace at index (!= "\
+			<< std::dec << frames_info.size() << ") "\
+			<< std::dec << index << std::endl;
+		return false;
+	}
+	if (frames_info[index].addr != addr) {
+		LOG_S(INFO) << "Error: frame addr = " \
+			<< std::hex << frames_info[index].addr\
+			<< " != " << std::hex << addr << std::endl;
+	}
+    assert(frames_info[index].addr == addr);
+    update_frame_path(index, path);
+    update_frame_sym(index, symbol);          
+	frames_info[index].freq = freq;
+	return true;
 }
 
 bool Frames::contains_symbol(std::string func)
@@ -133,6 +156,20 @@ std::string Frames::addr_to_sym(uint64_t vm_offset, symmap_t &vm_sym_map)
     return next->second;
 }
 
+bool Frames::need_correct(int index)
+{
+    if (frames_info.size() > max_frames
+        || frames_info.size() <= index
+        || LoadData::meta_data.pid == 0)
+        return false;
+
+    if (get_filepath(index).find("CoreGraphics") == std::string::npos)
+        return true;
+
+    return false;
+}
+
+#if defined(__APPLE__)
 bool Frames::symbolize_with_lldb(int index, debug_data_t *debugger_data)
 {
     //if (frames_info.size() > max_frames || frames_info.size() <= index)
@@ -227,19 +264,6 @@ bool Frames::correct_symbol(int index, path_to_symmap_t &path_to_vmsym_map)
     return false;
 }
 
-bool Frames::need_correct(int index)
-{
-    if (frames_info.size() > max_frames
-        || frames_info.size() <= index
-        || LoadData::meta_data.pid == 0)
-        return false;
-
-    if (get_filepath(index).find("CoreGraphics") == std::string::npos)
-        return true;
-
-    return false;
-}
-
 void Frames::symbolication(debug_data_t *debugger_data, path_to_symmap_t &path_to_vmsym_map)
 {
     for (int index = 0; index < frames_info.size(); index++) {
@@ -250,10 +274,20 @@ void Frames::symbolication(debug_data_t *debugger_data, path_to_symmap_t &path_t
         }   
         
         bool success = symbolize_with_lldb(index, debugger_data);
+		
 
-        // if (success == false || 
-		if (need_correct(index) == true)
+        if (success == false || 
+			need_correct(index) == true)
             success = correct_symbol(index, path_to_vmsym_map);
+
+		if (success == false) {
+			std::cout << "Fail to symbolize symbol for tid = " << std::hex << tid << " ";
+			if (LoadData::tpc_maps.find(tid) != LoadData::tpc_maps.end()) {
+				ProcessInfo *info = LoadData::tpc_maps[tid];
+				std::cout << " in proc " << info->get_procname() << " ";
+			}
+			std::cout << "at 0x" << std::hex << get_addr(index) << std::endl;
+		}
 
         if (image->get_modules().find(get_filepath(index)) != image->get_modules().end()
             && (get_sym(index).find("__lldb_unnamed_function") != std::string::npos
@@ -265,25 +299,34 @@ void Frames::symbolication(debug_data_t *debugger_data, path_to_symmap_t &path_t
         }
     }
     
-    if (contains_symbol(std::string("NSEventThread")) && contains_symbol(LoadData::meta_data.suspicious_api))
+    if (contains_symbol("NSEventThread") && contains_symbol(LoadData::meta_data.suspicious_api)) {
+		mtx.lock();
+		std::cout << "NSEventThread spinning is detected " << std::endl;
+		decode_frames(std::cout);
+		mtx.unlock();
         is_spinning = true;
+	}
 }
+#endif
 
 void Frames::decode_frames(std::ofstream &outfile)
 {
     for (int index = 0; index < frames_info.size(); index++)
         outfile << "Frame [" << std::setfill('0') << std::setw(2) << std::hex << index <<"]: "\
-            << "0x" << std::setfill('0') << std::setw(16) << std::hex << get_addr(index) << " : "\
-            << get_sym(index) << "\t" << get_filepath(index) << std::endl;
+            << "0x" << std::setfill('0') << std::setw(16) << std::hex << get_addr(index) << " :"\
+            << get_sym(index) << "\t" << get_filepath(index)\
+			<< "\t" << std::dec << frames_info[index].freq << std::endl;
     outfile << std::endl;
 }
 
 void Frames::decode_frames(std::ostream &out)
 {
     for (int index = 0; index < frames_info.size(); index++)
-        out << get_sym(index) << "\t" << get_filepath(index) << std::endl;
+        out << "[" << std::dec << index << "] : "<< get_sym(index) << "\t" << get_filepath(index)\
+		<< "\t" << frames_info[index].freq << std::endl;
 }
 
+/*
 void Frames::store_symbols(std::map<std::string, std::string> &symbol_maps)
 {
     for (int index = 0; index < frames_info.size(); index++) {
@@ -293,3 +336,4 @@ void Frames::store_symbols(std::map<std::string, std::string> &symbol_maps)
             symbol_maps[str_index.str()] = get_sym(index) + "\t" + get_filepath(index);
     }
 }
+*/

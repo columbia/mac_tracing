@@ -42,38 +42,38 @@ void Parse::BacktraceParser::collect_backtrace_for_proc(
         BacktraceEvent *backtrace_event, std::string procname)
 {
     uint64_t tid = backtrace_event->get_tid();
-	std::pair<pid_t, std::string> key;
+	proc_key_t key;
+	key.second = procname;
 
     if (LoadData::tpc_maps.find(tid) == LoadData::tpc_maps.end()) {
-        //outfile << "unknown pid for tid " << std::hex << tid << " at " << __func__ << std::endl;
-		key = std::make_pair(-1, procname);
+        outfile << "unknown pid for tid " << std::hex << tid << " at " << __func__ << std::endl;
+		key.first = -1;
     } else {
     	ProcessInfo *p = LoadData::tpc_maps[tid];
-    	key = std::make_pair(p->get_pid(), p->get_procname());
+		key.first = p->get_pid();
+	}
+	
+
+	if (proc_backtraces_map.find(key) == proc_backtraces_map.end()) {
+		std::list<BacktraceEvent *> l;
+		l.clear();
+		proc_backtraces_map[key] = l;
 	}
 
-	for (auto element: proc_backtraces_map) {
-		if (element.first.first == key.first && element.first.second == key.second) {
-			//outfile << std::hex << key.first << " size " << element.second.size() << std::endl;
-			element.second.push_back(backtrace_event);
-			proc_backtraces_map[element.first] = element.second;
-			//outfile << std::hex << key.first << " size " << element.second.size() << std::endl;
-			return;
-		}
-	}
-    std::list<BacktraceEvent *> l;
-    l.clear();
-	l.push_back(backtrace_event);
-    proc_backtraces_map[key] = l;
-	//outfile << std::hex << key.first << " init size " << proc_backtraces_map[key].size() << std::endl;
+	//outfile << std::hex << key.first << " before size " << proc_backtraces_map[key].size() << std::endl;
+	proc_backtraces_map[key].push_back(backtrace_event);
+	//outfile << std::hex << key.first << " after size " << proc_backtraces_map[key].size() << std::endl;
 }
 
 void Parse::BacktraceParser::gather_frames(BacktraceEvent *backtrace_event,
         double abstime, uint64_t *frames, uint64_t size, bool is_end)
 {
     int i = size - 1;
-    while(frames[i] == 0 && i >= 0)
+    while(frames[i] == 0 && i >= 0) {
+		is_end = true;
         i--;
+	}
+
     if (i >= 0) {
         size = frames[i] == 0 ? 0 : i + 1;
         backtrace_event->add_frames(frames, size);
@@ -138,10 +138,9 @@ retry:
 //////////////////////////////////
 bool Parse::BacktraceParser::collect_image_for_proc(images_t *cur_image)
 {
-    std::string procname = cur_image->get_procname();
-    pid_t pid = cur_image->get_pid();
+	proc_key_t key = {.first = cur_image->get_pid(), .second = cur_image->get_procname()};
 
-	//for (auto it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
+	/*
 	for (auto element : proc_images_map) {
 		if (element.first.first == pid && element.first.second == procname) {
 			outfile << "Check reload image for " << procname \
@@ -149,10 +148,15 @@ bool Parse::BacktraceParser::collect_image_for_proc(images_t *cur_image)
 			return false;
 		}
 	}
-
-    std::pair<pid_t, std::string> key = std::make_pair(pid, procname);
-   proc_images_map[key] = cur_image;
-   return true;
+	*/
+	
+	if (proc_images_map.find(key) != proc_images_map.end()) {
+		outfile << "Reload image for " << key.second\
+				<< "\tpid = " << std::dec << key.first << std::endl;
+		return false;
+	}
+   	proc_images_map[key] = cur_image;
+   	return true;
 }
 
 bool Parse::BacktraceParser::complete_path(tid_t tid)
@@ -337,58 +341,181 @@ bool Parse::BacktraceParser::process_path_from_log(void)
     return true;
 }
 
-std::list<BacktraceEvent *> Parse::BacktraceParser::get_event_list(std::pair<pid_t, std::string> key)
+std::list<BacktraceEvent *> Parse::BacktraceParser::get_event_list(
+	proc_key_t key)
 {
-	for(auto it = proc_backtraces_map.begin(); it != proc_backtraces_map.end(); it++) {
-		if ((it->first).first == key.first && (it->first).second == key.second)
-			return it->second;
+	if (proc_backtraces_map.find(key) == proc_backtraces_map.end()) {
+		backtrace_list_t event_list;
+		event_list.clear();
+		return event_list;
 	}
-	backtrace_list_t event_list;
-	event_list.clear();
-	return event_list;
+	return proc_backtraces_map[key];
 }
+
+void Parse::BacktraceParser::parse_frame(std::string line, BacktraceEvent *cur_event)
+{
+	if (cur_event == nullptr) {
+		LOG_S(INFO) << "unable to attach symbol to event: " << line << std::endl; 
+		return;
+	}
+
+	//matching frames in the event
+	size_t pos_0 = line.find("Frame [") + sizeof("Frame [") - 1;
+	size_t pos_1 = line.find("]");
+
+	if (pos_0 == std::string::npos || pos_1 == std::string::npos)
+		return;
+
+	int index = std::stoi(line.substr(pos_0, pos_1 - pos_0), nullptr, 16);
+
+	line = line.substr(pos_1);
+	pos_0 = line.find("0x") + 2;
+	pos_1 = line.find(" :");
+	if (pos_0 == std::string::npos || pos_1 == std::string::npos)
+		return;
+	uint64_t addr = std::stoull(line.substr(pos_0, pos_1 - pos_0), nullptr, 16);
+
+	pos_0 = pos_1 + sizeof(" :") - 1;
+	pos_1 = line.find("\t");
+	if (pos_0 == std::string::npos || pos_1 == std::string::npos)
+		return;
+	std::string symbol = line.substr(pos_0, pos_1 - pos_0);
+
+	line = line.substr(pos_1 + sizeof("\t") - 1);
+	pos_1 = line.find("\t");
+	if (pos_1 == std::string::npos)
+		return;
+	std::string path = line.substr(0, pos_1);
+
+	pos_0 = pos_1 + sizeof("\t") - 1;
+	if (pos_1 == std::string::npos)
+		return;
+	uint64_t freq = std::stoull(line.substr(pos_0), nullptr, 10);
+
+	cur_event->add_frame(index, addr, symbol, path, freq);
+}
+
+void Parse::BacktraceParser::read_symbol_from_file()
+{
+	//convert file to event backtrace symbols 
+    std::string btInfo("backtrace_bt_info");
+	std::ifstream pFile(btInfo);
+	if (!pFile) {
+		LOG_S(INFO) << "unable to open file: " << btInfo << std::endl; 
+		return; 
+	}
+	if (pFile.peek() == std::ifstream::traits_type::eof()) {
+		LOG_S(INFO) << "file " << btInfo << " is empty" << std::endl;
+		pFile.close();
+		return;
+	}
+	std::string line;
+	backtrace_list_t event_list;
+	size_t pos = std::string::npos;
+	key_t key;
+	size_t size;
+
+	while (getline(pFile, line)) {
+		if ((pos = line.find("Decode backtrace for ")) != std::string::npos) {
+			key.second = line.substr(pos + sizeof("Decode backtrace for ") - 1);
+			LOG_S(INFO) << "Read backtrace for " << key.second << std::endl;
+		}
+
+		if ((pos = line.find("Pid = ")) != std::string::npos) {
+			LOG_S(INFO) << "Pid = " << line.substr(pos + sizeof("Pid = ") - 1) << std::endl;
+			key.first = std::stoi(line.substr(pos + sizeof("Pid = ") - 1));
+		}
+
+		if ((pos = line.find("List size = ")) != std::string::npos) {
+
+			if (key.second.size() == 0 || key.first == -1)
+				continue;
+
+			event_list = get_event_list(key);
+			if (event_list.size() == 0)
+				continue;
+
+			size = std::stoi(line.substr(pos + sizeof("List size = ") - 1));
+			LOG_S(INFO) << "Size = " << std::dec << event_list.size() << std::endl;
+			assert(event_list.size() == size);
+
+			auto it = event_list.begin();
+			bool begin_event = false;
+			BacktraceEvent *cur_event = nullptr;
+			while (it != event_list.end() && getline(pFile, line)) {
+				if (line.find("ARGUS_DBG_BT") != std::string::npos) {
+					if (begin_event ==  false) {
+						begin_event = true;
+					} else {
+						//matching next event in the list
+						(*it)->count_symbols();
+						++it;
+					}
+					cur_event = *it;
+					continue;
+				}
+
+				if ((pos = line.find("Decode backtrace for ")) != std::string::npos) {
+					key.second = line.substr(pos + sizeof("Decode backtrace for ") - 1);
+					key.first = -1;
+					LOG_S(INFO) << "Read backtrace for " << key.second << std::endl;
+					break;
+				}
+
+				if (line.find("Frame") == std::string::npos) {
+					cur_event = nullptr;
+					continue;
+				}
+				parse_frame(line, cur_event);
+			}
+			key.first = -1;
+			key.second ="";
+		}
+	}
+	pFile.close();
+}
+
 
 void Parse::BacktraceParser::symbolize_backtraces()
 {
-    std::string outfile("backtrace_bt.log");
-    std::ofstream out_bt(outfile, std::ofstream::out | std::ofstream::app);
+    std::string btInfo("backtrace_bt_info");
+	std::ifstream pFile(btInfo);
+	bool read_from_file = false;
+	if (pFile && pFile.peek() != std::ifstream::traits_type::eof()) {
+		read_from_file = true;
+	}
+	if (pFile)
+		pFile.close();
 
-	out_bt << "number of images = " << proc_images_map.size() << std::endl;
-
-    std::map<proc_key_t, images_t *>::iterator image_it;
-    debug_data_t cur_debugger;
-    backtrace_list_t event_list;
-    backtrace_list_t::iterator event_it;
-
-    for (image_it = proc_images_map.begin(); image_it != proc_images_map.end(); image_it++) {
-        //event_list = proc_backtraces_map[image_it->first];
-		event_list = get_event_list(image_it->first);
-#if DEBUG_PARSER
-        std::cerr << "Get proc_images and decode backtrace for ";
-        std::cerr << (image_it->first).second << std::endl;
-        std::cerr << "pid = " << (image_it->first).first << std::endl;
-        std::cerr << "backtrace list size = " << event_list.size() << std::endl;
+	if (read_from_file) {
+		read_symbol_from_file();
+	} else {
+#if defined(__APPLE__)
+		symbolize_backtraces_with_lldb();
 #endif
-        out_bt<< "Get proc_images and decode backtrace for ";
-        out_bt<< (image_it->first).second << std::endl;
-        out_bt << "pid = " << (image_it->first).first << std::endl;
-        out_bt<< "backtrace list size = " << event_list.size() << std::endl;
+	}
+}
 
-        if (event_list.size() == 0 
-                ||!setup_lldb(&cur_debugger, image_it->second))
+#if defined(__APPLE__)
+void Parse::BacktraceParser::symbolize_backtraces_with_lldb()
+{
+
+	std::map<proc_key_t, images_t *>::iterator image_it;
+	debug_data_t cur_debugger;
+	backtrace_list_t event_list;
+	backtrace_list_t::iterator event_it;
+
+	for (image_it = proc_images_map.begin(); image_it != proc_images_map.end(); image_it++) {
+		event_list = get_event_list(image_it->first);
+		if (event_list.size() == 0 
+				||!setup_lldb(&cur_debugger, image_it->second))
             goto clear_debugger;
 
-        out_bt<< "backtrace list size = " << event_list.size() << std::endl;
         for (event_it = event_list.begin(); event_it != event_list.end(); event_it++) {
             (*event_it)->set_image(image_it->second);
             (*event_it)->symbolication(&cur_debugger, path_to_vmsym_map);
-            (*event_it)->streamout_event(out_bt);
+			(*event_it)->count_symbols();
         }
-
-        std::cerr << "Finished backtrace decode for ";
-        std::cerr << (image_it->first).second << std::endl;
-        std::cerr << "pid = " << (image_it->first).first << std::endl;
-        std::cerr << "backtrace list size = " << event_list.size() << std::endl;
 
 clear_debugger:    
         if (cur_debugger.debugger.IsValid()) {
@@ -398,27 +525,39 @@ clear_debugger:
             lldb::SBDebugger::Destroy(cur_debugger.debugger);
         } 
     }
+
+	//save backtrace to a json file
+    std::string outfile("backtrace_bt.log");
+    std::ofstream out_bt(outfile, std::ofstream::out);//| std::ofstream::app);
+    for (image_it = proc_images_map.begin(); image_it != proc_images_map.end(); image_it++) {
+		event_list = get_event_list(image_it->first);
+		if (event_list.size() == 0)
+			continue;
+
+        out_bt << "Decode backtrace for "\
+			 << (image_it->first).second << std::endl;
+        out_bt << "Pid = " << std::dec << (image_it->first).first << std::endl;
+        out_bt << "List size = " << std::dec <<  event_list.size() << std::endl;
+        for (event_it = event_list.begin(); event_it != event_list.end(); event_it++) {
+			(*event_it)->sort_symbols();
+            (*event_it)->streamout_event(out_bt);
+		}
+	}
     out_bt.close();
 }
+#endif
 
-/*
-images_t *Parse::BacktraceParser::get_host_image()
-{
-    return proc_to_image(-1, LoadData::meta_data.host);
-}
-*/
 
 images_t *Parse::BacktraceParser::proc_to_image(pid_t pid, std::string procname)
 {
+	proc_key_t key = {.first = pid, .second = procname};
+	if (proc_images_map.find(key) != proc_images_map.end())
+		return proc_images_map[key];
 
-    std::map<proc_key_t, images_t *>::iterator it;
-    for (it = proc_images_map.begin(); it != proc_images_map.end(); it++) {
-        if ((it->first).second == procname && (it->first).first == pid)
-            return it->second;
-    }
     return nullptr;
 }
 
+#if defined(__APPLE__)
 bool Parse::BacktraceParser::setup_lldb(debug_data_t *debugger_data, images_t *images)
 {
     lldb::SBError err;
@@ -477,6 +616,7 @@ bool Parse::BacktraceParser::setup_lldb(debug_data_t *debugger_data, images_t *i
     }
     return true;
 }
+#endif
 
 void Parse::BacktraceParser::process()
 {
@@ -486,7 +626,7 @@ void Parse::BacktraceParser::process()
 
     process_path_from_log();
 
-    while(getline(infile, line)) {
+    while (getline(infile, line)) {
         std::istringstream iss(line);
         if (!(iss >> abstime >> deltatime >> opname)) {
             outfile << line << std::endl;

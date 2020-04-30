@@ -19,7 +19,7 @@ void CoreAnimationConnection::core_animation_connection (void)
     
 #ifdef DEBUG_CA_CONN
     mtx.lock();
-    std::cerr << "begin core animation matching... " << std::endl;
+    LOG_S(INFO) << "begin core animation matching... " << std::endl;
     mtx.unlock();
 #endif
     for (it = mix_list.begin(); it != mix_list.end(); it++) {
@@ -48,7 +48,7 @@ void CoreAnimationConnection::core_animation_connection (void)
         if (display_event->ca_set_event_size() == 0) {
 #if DEBUG_CA_CONN
             mtx.lock();
-            std::cerr << "Unable to find corresponding set events for display CALayer "\
+            LOG_S(INFO) << "Unable to find corresponding set events for display CALayer "\
                 << std::hex << object_addr << " at "\
                 << std::fixed << std::setprecision(1) << display_event->get_abstime() << std::endl; 
             mtx.unlock();
@@ -59,7 +59,7 @@ void CoreAnimationConnection::core_animation_connection (void)
     mix_list.clear();
 #ifdef DEBUG_CA_CONN
     mtx.lock();
-    std::cerr << "finish core animation matching." << std::endl;
+    LOG_S(INFO) << "finish core animation matching." << std::endl;
     mtx.unlock();
 #endif
 }

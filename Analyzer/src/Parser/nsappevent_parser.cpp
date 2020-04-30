@@ -29,9 +29,6 @@ namespace Parse
                 procname = ""; 
 
             if (opname == "ARGUS_AppKit_SendEvent") {
-                mtx.lock();
-                std::cout << "nsappkit 1" << std::endl;
-                mtx.unlock();
                 if (nsappevent_events.find(tid) != nsappevent_events.end()) {
                     nsappevent_events[tid]->set_event(tag, keycode);
                     nsappevent_events[tid]->set_complete();
@@ -43,9 +40,6 @@ namespace Parse
             }
             
             if (opname == "ARGUS_AppKit_GetEvent") {
-                mtx.lock();
-                std::cout << "nsappkit 2" << std::endl;
-                mtx.unlock();
 
                 NSAppEventEvent *nsapp_event_event = new NSAppEventEvent(abstime, opname, tid, tag, coreid, procname);
                 if (!nsapp_event_event) {
@@ -53,17 +47,8 @@ namespace Parse
                     exit(EXIT_FAILURE);
                 }
 
-                mtx.lock();
-                std::cout << "nsappkit 3" << std::endl;
-                mtx.unlock();
                 local_event_list.push_back(nsapp_event_event);
-                mtx.lock();
-                std::cout << "nsappkit 4" << std::endl;
-                mtx.unlock();
                 nsappevent_events[tid] = nsapp_event_event;
-                mtx.lock();
-                std::cout << "nsappkit 5" << std::endl;
-                mtx.unlock();
             }
             //nsapp_event_event->set_complete();
         }

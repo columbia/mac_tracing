@@ -7,8 +7,9 @@ Parse::IntrParser::IntrParser(std::string filename)
     intr_events.clear();
 }
 
+#if defined(__APPLE__)
 void Parse::IntrParser::symbolize_intr_for_proc(BacktraceParser *backtrace_parser, 
-	std::pair<pid_t, std::string> proc)
+	Parse::key_t proc)
 {
     images_t *image = nullptr;
     debug_data_t cur_debugger;
@@ -46,6 +47,7 @@ void Parse::IntrParser::symbolize_intr_for_proc(BacktraceParser *backtrace_parse
         lldb::SBDebugger::Destroy(cur_debugger.debugger);
     }
 }
+#endif
 
 IntrEvent *Parse::IntrParser::create_intr_event(double abstime, std::string opname,
         std::istringstream & iss) 
@@ -68,7 +70,8 @@ IntrEvent *Parse::IntrParser::create_intr_event(double abstime, std::string opna
     }
     intr_events[tid] = new_intr;
     local_event_list.push_back(new_intr);
-	add_to_proc_map(std::make_pair(LoadData::tid2pid(tid), procname), new_intr);
+	Parse::key_t key = {.first = LoadData::tid2pid(tid), .second = procname};
+	add_to_proc_map(key, new_intr);
     return new_intr;
 }
 

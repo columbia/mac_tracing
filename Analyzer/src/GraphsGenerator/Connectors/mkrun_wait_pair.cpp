@@ -3,6 +3,8 @@
 
 #define MKRUN_WAIT_DEBUG 0
 
+//TODO: may be not useful
+//Thank about remove the pairs
 MakeRunnableWaitPair::MakeRunnableWaitPair(std::list<EventBase *> &_wait_list, std::list<EventBase *> &_mkrun_list)
 :wait_list(_wait_list), mkrun_list(_mkrun_list)
 {
@@ -22,7 +24,7 @@ void MakeRunnableWaitPair::pair_wait_mkrun(void)
 
 #ifdef MKRUN_WAIT_DEBUG
     mtx.lock();
-    std::cerr << "begin matching mkrun and wait ... " << std::endl;
+    LOG_S(INFO) << "begin matching mkrun and wait ... " << std::endl;
     mtx.unlock();
 #endif
     for (it = mix_sorted_list.begin(); it != mix_sorted_list.end(); it++) {
@@ -31,7 +33,7 @@ void MakeRunnableWaitPair::pair_wait_mkrun(void)
 #if MKRUN_WAIT_DEBUG
             if (wait_map.find(wait->get_tid()) != wait_map.end()) {
                 mtx.lock();
-                std::cerr << "Warning: multiple waits " << std::fixed << std::setprecision(1) << wait->get_abstime() << std::endl;
+                LOG_S(INFO) << "Warning: multiple waits " << std::fixed << std::setprecision(1) << wait->get_abstime() << std::endl;
                 mtx.unlock();
             }
 #endif
@@ -45,7 +47,7 @@ void MakeRunnableWaitPair::pair_wait_mkrun(void)
             } else {
 #if MKRUN_WAIT_DEBUG
                 mtx.lock();
-                std::cerr << "Warning: no wait to make runnable " << std::fixed << std::setprecision(1) << mr_event->get_abstime() << std::endl;
+                LOG_S(INFO) << "Warning: no wait to make runnable " << std::fixed << std::setprecision(1) << mr_event->get_abstime() << std::endl;
                 mtx.unlock();
 #endif
             }
@@ -53,7 +55,7 @@ void MakeRunnableWaitPair::pair_wait_mkrun(void)
     }
 #ifdef MKRUN_WAIT_DEBUG
     mtx.lock();
-    std::cerr << "finish matching mkrun and wait." << std::endl;
+    LOG_S(INFO) << "finish matching mkrun and wait." << std::endl;
     mtx.unlock();
 #endif
 }

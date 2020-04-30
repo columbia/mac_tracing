@@ -1,4 +1,3 @@
-/*This file is credit to David Williams-King*/
 #ifndef SHELL_COMMAND_H
 #define SHELL_COMMAND_H
 
@@ -6,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <functional>
+#include "loguru.hpp"
 
 class Arguments {
 private:
@@ -22,6 +22,16 @@ public:
     std::size_t size() const { return args.size(); }
     std::string front() const { return args.front(); }
     std::string get(size_t i) const { return (i < args.size() ? args[i] : ""); }
+
+	uint64_t get_num(size_t i, std::string hex) {
+		uint64_t ret;
+		if (hex == "hex" && asHex(i, &ret))
+			return ret;
+		if (hex == "dec" && asDec(i, &ret))
+			return ret;
+		LOG_S(INFO) << "invalid arg " << std::dec << i << std::endl;
+		return -1;
+	}
 
     std::vector<std::string>::iterator begin() { return args.begin(); }
     std::vector<std::string>::const_iterator begin() const { return args.begin(); }

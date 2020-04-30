@@ -1,0 +1,1 @@
+clang++ -include graph.hpp graph.cpp main.cpp -o gen_mscin

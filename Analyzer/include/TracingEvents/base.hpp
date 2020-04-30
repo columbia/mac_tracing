@@ -8,17 +8,33 @@
 #include <iomanip>
 #include <string>
 #include <cassert>
-#include <xpc/xpc.h>
-#include <mach/message.h>
 #include <queue>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <stack>
+#include <algorithm>
+#include <ctype.h>
+
+#if defined(__APPLE__)
+#include <xpc/xpc.h>
+#include <mach/message.h>
+#endif
+
+#define LOGURU_WITH_STREAMS 1
+#include "loguru.hpp"
+
 
 extern std::mutex mtx;
 typedef uint64_t tid_t;
 typedef int event_type_t;
+
+#if !defined(__APPLE__)
+#include <cstring>
+typedef uint64_t addr_t;
+#endif
+
 
 //EventType::event_type_t
 #define MSG_EVENT                   1
@@ -82,6 +98,7 @@ public:
 //#define BACKTRACE_EVENT             14
 		event_category_map[BACKTRACE_EVENT] = Semantics; 
 //#define SYSCALL_EVENT               15
+		event_category_map[SYSCALL_EVENT] = Semantics;
 //#define VOUCHER_EVENT               16
 //#define VOUCHER_CONN_EVENT          17
 //#define VOUCHER_DEALLOC_EVENT       18
@@ -94,6 +111,7 @@ public:
 //#define NSAPPEVENT_EVENT            25
 //#define DISP_MIG_EVENT              26
 //#define RL_BOUNDARY_EVENT           27
+		event_category_map[RL_BOUNDARY_EVENT] = Structure;
 //#define APPLOG_EVENT                28
 		event_category_map[APPLOG_EVENT] = Semantics; 
 	}
@@ -108,6 +126,10 @@ public:
 		if (event_category_map.find(id) == event_category_map.end())
 			return false;
 		return event_category_map[id] == Structure;
+	}
+
+	bool is_tfl_filtered(event_type_t id) {
+		return id == SYSCALL_EVENT || id == APPLOG_EVENT || id == BACKTRACE_EVENT;
 	}
 };
 	
@@ -149,20 +171,34 @@ private:
     pid_t pid;
     std::string procname;
 public:
-    ProcessInfo(tid_t tid_, std::string procname_) {tid = tid_; procname = procname_; pid = -1;}
-    ProcessInfo(tid_t tid_, pid_t pid_, std::string procname_) {tid = tid_; procname = procname_; pid = pid_;}
-    ProcessInfo(ProcessInfo &p) {tid = p.get_tid(); procname = p.get_procname(); pid = p.get_pid();}
+    ProcessInfo(tid_t tid_, std::string procname_) {tid = tid_; procname = procname_; pid = -1; valid_procname();}
+    ProcessInfo(tid_t tid_, pid_t pid_, std::string procname_) {tid = tid_; procname = procname_; pid = pid_; valid_procname();}
+    ProcessInfo(ProcessInfo &p) {tid = p.get_tid(); procname = p.get_procname(); pid = p.get_pid(); valid_procname();}
 
     tid_t get_tid(void) {return tid;}
     pid_t get_pid(void) {return pid;}
+	void valid_procname() {
+		bool valid = true;
+		for (int i = 0; i < procname.size(); i++) {
+			if (!(isalpha(procname[i]) || isspace(procname[i]) || isdigit(procname[i]) || procname[i] == '_')) {
+				valid = false;
+				break;
+			}
+		}
+		if (!valid)
+			procname="";
+	}
+
     std::string& get_procname(void) {return procname;}
 
     void override_procname(std::string _procname) {procname = _procname;}
     void set_pid(pid_t _pid) {pid = _pid;}
 
     void update_process_info(tid_t tid_, pid_t pid_, std::string procname_) {
-        pid = pid_;
+        if (pid_ > 0)
+            pid = pid_;
         tid = tid_;
+        if (procname_.size() > 0)
         procname = procname_;
     }
 
@@ -193,8 +229,8 @@ public:
 class EventType {
 public:
     typedef int event_type_t;
-private:
     event_type_t event_type;
+private:
     std::string op;
 public:
     EventType(event_type_t event_type_, std::string op_) {op = op_; event_type = event_type_;}
@@ -209,6 +245,7 @@ class EventBase: public ProcessInfo, public TimeInfo, public EventType {
     uint64_t group_id;
     bool complete;
     uint64_t tfl_index;
+	std::list<uint64_t> propagated_frames;
 
 public:
     EventBase(double timestamp_, int event_type_, std::string op_, tid_t tid_, uint32_t core_id_, std::string procname_ = "");
@@ -220,15 +257,18 @@ public:
     void set_group_id(uint64_t gid_) {group_id = gid_;}
     void set_complete(void) {complete = true;}
     void set_tfl_index(uint64_t i) {tfl_index = i;}
+	void set_propagated_frame(std::list<uint64_t> frames) { propagated_frames = frames;}
+	EventBase *get_prev_event(void) {return event_prev;}
     EventBase *get_event_peer(void) {return event_peer;}
     uint32_t get_coreid(void) {return core_id;}
     uint64_t get_group_id(void) {return group_id;}
     bool is_complete(void) {return complete;}
     uint64_t get_tfl_index() {return tfl_index;}
+	std::string replace_blank(std::string);
 
     virtual void decode_event(bool is_verbose_, std::ofstream &outfile);
     virtual void streamout_event(std::ofstream &outfile);
     virtual void streamout_event(std::ostream &outfile);
-    void tfl_event(std::ofstream &outfile);
+    virtual void tfl_event(std::ofstream &outfile);
 };
 #endif

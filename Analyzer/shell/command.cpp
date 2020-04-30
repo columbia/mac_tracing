@@ -1,4 +1,3 @@
-/*This file is credit to David Williams-King*/
 #include <iostream>
 #include <sstream>
 #include "command.h"

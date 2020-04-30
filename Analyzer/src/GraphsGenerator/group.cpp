@@ -25,6 +25,11 @@ void GroupSemantics::set_root(EventBase *r)
     root = r;
 }
 
+void GroupSemantics::add_group_peer(std::string proc)
+{
+	group_peer.insert(proc);
+}
+
 void GroupSemantics::add_group_peer(std::set<std::string> procs)
 {
     if (procs.size())
@@ -43,6 +48,7 @@ Group::Group(uint64_t _group_id, EventBase *_root)
     time_span = 0.0;
     sorted = false;
     container.clear();
+	propagate_frames.first = -1;
 }
 
 Group::~Group(void)
@@ -69,6 +75,50 @@ std::string Group::get_procname(void)
     return "";
 }
 
+void Group::propagate_bt(int index, BacktraceEvent *bt_event)
+{
+	assert(bt_event != nullptr);
+
+	std::list<uint64_t> ret;
+	ret.clear();
+
+	std::list<uint64_t> cur = bt_event->get_frames();
+
+	if (propagate_frames.first >= 0) {
+		std::list<uint64_t> prev = propagate_frames.second;
+
+		if (prev.size() > 0) {
+			for (auto it = cur.begin(); it != cur.end(); it++)
+				if (std::find(prev.begin(), prev.end(), *it) != prev.end()) {
+					ret.insert(ret.end(), it, cur.end());
+					break;
+				}
+		}
+	}
+	if (cur.size() > 3) {
+		auto it = cur.begin();
+		std::advance(it, 2);
+		ret.insert(ret.end(), it, cur.end());
+	}
+
+
+	if (propagate_frames.first >= 0)
+		assert(propagate_frames.first < container.size());
+	else
+		assert(propagate_frames.first == -1);
+
+	auto it = container.begin();
+	std::advance(it, propagate_frames.first + 1);
+
+	for (; it != container.end(); it++) {
+		(*it)->set_propagated_frame(ret);
+	}
+	propagate_frames.first = index;
+	propagate_frames.second = cur;
+
+	bt_event->set_propagated_frame(cur);
+}
+
 void Group::add_to_container(EventBase *event)
 {
     assert(event);
@@ -77,7 +127,6 @@ void Group::add_to_container(EventBase *event)
         set_nsappevent(event);
     if (!contains_view_update() && event->get_event_type() == CA_SET_EVENT)
         set_view_update(event);
-
     /*
     if (contains_nsappevent() && event->get_event_type() == TMCALL_CREATE_EVENT) {
         TimerCreateEvent *timer_event = dynamic_cast<TimerCreateEvent *>(event);
@@ -87,6 +136,8 @@ void Group::add_to_container(EventBase *event)
     */
     event->set_group_id(group_id);
     container.push_back(event);
+	if (event->get_event_type() == BACKTRACE_EVENT)
+		propagate_bt(container.size() - 1, dynamic_cast<BacktraceEvent *>(event));
 }
 
 void Group::add_to_container(Group *group)
@@ -240,6 +291,7 @@ int Group::compare_syscall_ret(Group *peer)
 //if no wait event inside the group. return 0
 int Group::compare_wait(Group *peer)
 {
+#if 0
     std::list<EventBase *> &peer_container = peer->get_container();
     std::list<EventBase *>::iterator cur_it, peer_it;
     int ret = 0;
@@ -264,7 +316,36 @@ int Group::compare_wait(Group *peer)
         cur_it++;
         peer_it++;
     }
-    return ret;
+#endif
+    WaitEvent *peer_wait = dynamic_cast<WaitEvent *>((peer->get_container()).back());
+    WaitEvent *cur_wait = dynamic_cast<WaitEvent *>(container.back());
+    if (!peer_wait || !cur_wait) {
+        LOG_S(INFO) << " Not waits captured for both Group 0x"\
+			 << std::hex << group_id \
+             << " and 0x"\
+			 << std::hex << peer->get_group_id() << std::endl;
+        return 0;
+    }
+    double cur_wait_time = cur_wait->get_time_cost();
+    double peer_wait_time = peer_wait->get_time_cost();
+    if ((cur_wait_time < 0.001 && peer_wait_time < 1000000) 
+		|| cur_wait_time - peer_wait_time > 1000000) {
+        LOG_S(INFO) << "Group 0x"\
+			 << std::hex << cur_wait->get_group_id()\
+			 << " is long waiting, while Group 0x"\
+             << std::hex << peer_wait->get_group_id()\
+			 << " returns normally" << std::endl;
+        return 1;
+    }
+    else if (cur_wait_time > 0.1 && cur_wait_time < 1500000
+		 && peer_wait_time - cur_wait_time > 1000000) {
+        LOG_S(INFO) << "Group 0x" << std::hex << cur_wait->get_group_id()\
+			 << " returns normally while Group 0x"\
+             << std::hex << peer_wait->get_group_id()\
+			 << " is long waiting" << std::endl;
+        return -1;
+    }
+    return 0;
 }
 
 int Group::compare_timespan(Group *peer)

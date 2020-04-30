@@ -230,8 +230,6 @@ namespace Parse
         {
 			new_msg_event = new_msg(opname, kmsg_addr, abstime, tid, coreid, procname);
 
-            //if (!(new_msg_event = new_msg(opname, kmsg_addr, abstime,
-                //tid, coreid, procname))) {
 			if (new_msg_event == nullptr) {
                 std::cerr << "OOM " << __func__ << std::endl;
                 exit(EXIT_FAILURE);

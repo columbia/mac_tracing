@@ -9,8 +9,9 @@ MsgPattern::MsgPattern(std::list<EventBase*> &list)
     patterned_ipcs.clear();
     mig_list.clear();
     msg_list.clear();
-    std::list<EventBase *>::iterator it;
 
+/*
+    std::list<EventBase *>::iterator it;
     MsgEvent *cur_msg;
     for (it = ev_list.begin(); it != ev_list.end(); it++) {
         cur_msg = dynamic_cast<MsgEvent *> (*it);
@@ -19,23 +20,19 @@ MsgPattern::MsgPattern(std::list<EventBase*> &list)
             mig_list.push_back(cur_msg);
         else {
             msg_list.push_back(cur_msg);
-            uint64_t local_port = cur_msg->get_header()->get_local_port();
-            if (local_port_msg_list_maps.find(local_port) == local_port_msg_list_maps.end()) {
-                std::list<MsgEvent *> temp_list;
-                temp_list.clear();
-                local_port_msg_list_maps[local_port] = temp_list;
-            }
-            local_port_msg_list_maps[local_port].push_back(cur_msg);
         }
     }
-}
-/*
-MsgPattern::MsgPattern(std::list<MsgEvent *> &_mig_list, std::list<MsgEvent *> &_msg_list)
-:mig_list(_mig_list), msg_list(_msg_list)
-{
-    patterned_ipcs.clear();
-}
 */
+    MsgEvent *cur_msg;
+	for (auto event: ev_list) {
+		assert(event->get_event_type() == MSG_EVENT);
+        cur_msg = dynamic_cast<MsgEvent *> (event);
+		if (cur_msg->is_mig() == true)
+            mig_list.push_back(cur_msg);
+        else 
+            msg_list.push_back(cur_msg);
+	}
+}
 
 MsgPattern::~MsgPattern(void)
 {
@@ -250,8 +247,8 @@ void MsgPattern::collect_msg_pattern(void)
 
 #ifdef MSG_PATTERN_DEBUG
     mtx.lock();
-    std::cerr << "finish msg pattern search." << std::endl;
-    std::cerr << "total number of msg patterns: " << patterned_ipcs.size() << std::endl;
+    LOG_S(INFO) << "finish msg pattern search." << std::endl;
+    LOG_S(INFO) << "total number of msg patterns: " << patterned_ipcs.size() << std::endl;
     mtx.unlock();
 #endif
     std::string output("output/msg_pattern.log");
@@ -278,7 +275,8 @@ void MsgPattern::collect_patterned_ipcs()
 std::list<MsgEvent *>::iterator MsgPattern::search_ipc_msg(
             uint32_t *port_name, 
             pid_t *pid,
-            uint64_t remote_port, uint64_t local_port,
+            uint64_t remote_port,
+			uint64_t local_port,
             bool is_recv,
             std::list<MsgEvent *>::iterator begin_it,
             uint32_t reply_recver_port_name)
@@ -324,7 +322,7 @@ std::list<MsgEvent *>::iterator MsgPattern::search_ipc_msg(
     return cur_it;
 }
 
-std::list<msg_episode> & MsgPattern::get_patterned_ipcs(void)
+std::list<msg_episode> &MsgPattern::get_patterned_ipcs(void)
 {
     return patterned_ipcs;
 }

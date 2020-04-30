@@ -1,3 +1,4 @@
+#if defined(__APPLE__)
 #ifdef __cplusplus
 extern "C"
 {
@@ -69,4 +70,5 @@ bool get_syms_for_libpath(pid_t pid,
 #endif
 #ifdef __cplusplus
 }
+#endif
 #endif
