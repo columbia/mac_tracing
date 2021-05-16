@@ -10,3 +10,8 @@ install_name_tool -change libRatings.C.dylib /usr/lib/system/orig.libsystem_kern
 
 echo "After"
 otool -l hook_machmsg.dylib | grep -A2 LC_REEXPORT_DYLIB
+<<<<<<< HEAD
+=======
+
+codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v hook_machmsg.dylib
+>>>>>>> 1ac4a65cb85d961de7a44c85027a7e90dd4779ac

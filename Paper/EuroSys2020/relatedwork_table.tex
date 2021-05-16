@@ -1,0 +1,26 @@
+\begin{table}[ht]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|XXX}
+  \hline
+Paradigm & Panappticon & AppInsight & \xxx\\
+\hline
+\hline
+%User input & \mycheck & \mycheck & \mycheck \\
+%Display update & \mycheck & \mycheck & \mycheck\\
+Async calls & MessageQueue, & Upcall & libdispath\\
+			& ThreadPoolExecutor &  & runloop \\
+			&	&	&timer\\
+IPC calls & \mycheck & \mycross & \mycheck \\
+Batching & \mycross & \mycross & \mycheck \\
+Data flag & \mycross & \mycross  & \mycheck \\
+Wait-Wakeup & 4 primitives & Silverlight methods & system wide \\
+%Fork & \mycheck & \mycorss & \mycross \\
+%Interrupts &\mycross & \mycross &\mycheck\\
+%Timeshare Maintain &\mycross &\mycross &\mycheck\\
+%Syscall and backtrace
+\hline
+  \end{tabularx}
+  \caption{Programming paradigms tracked.} 
+  \label{table:paradigms}
+\end{table}

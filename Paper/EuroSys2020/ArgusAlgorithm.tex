@@ -1,0 +1,59 @@
+\begin{algorithm}
+\caption{Diagnosis algorithm.}
+\label{alg:alg-diagnosis}
+\begin{algorithmic}[1]
+\Require{g - EventGraph; \algspinningnode - the vertex in the UI thread when the spinning cursor occurs}
+\Ensure{\algrootcausenodes - vertices for user to inspect root cause}
+\Statex
+\Function{Diagnose}{g, \algspinningnode} \label{alg:diagnose-line}%\funclabel{alg:diagnose} \label{alg:diagnose-line}
+  \Switch {\algspinningnode.block\_type}
+    \Case {LongRunning} \label{a1:longrunning_begin}
+		\State {slice $\gets$ InteractiveSlice(\algspinningnode)}
+		\State\Return {vertex contains UI event} \label{a1:longrunning_end}
+	\EndCase
+	\Case {RepeatedYield} \label{a1:repeatedyield_begin}
+		\If {DataFlagEvent $\notin$ $\{$event types in \algspinningnode$\}$}
+			\State {Require users to annotate data flag}
+			\State {exit()}
+		\EndIf
+		\LineComment {Fall through}\label{a1:repeatedyield_end}
+	\EndCase
+	\Case {LongWait} \label{a1:longwait_begin}
+		\State {\algsimilarnode $\gets$ FindSimilarVertex to \algspinningnode}
+		%vertex has similar event sequence to \algspinningnode}
+		\State {normal\_path $\gets$ InteractiveSlice(\algsimilarnode)}
+		\For {each t $\in$ $\{$threads in normal\_path$\}$}
+			\State {$vertex_t$ $\gets$ vertex in t before \algspinningnode spins}
+			\If {$vertex_t$ $\in$ $\{$LongRunning, RepeatedYield, LongWait$\}$}
+				\State {\algrootcausenodes.append($vertex_t$)}
+				\State {\algrootcausenodes.append(Diagnose(g, $vertex_t$)}
+			\EndIf 
+			\LineComment{if t is normal running, diagnose the next thread}
+		\EndFor \label{a1:longwait_end}
+	\EndCase
+  \EndSwitch
+  \State\Return{\algrootcausenodes}
+\EndFunction
+
+\Statex
+\Function{InteractiveSlice}{g, vertex}\label{alg:interslice-line}
+\Loop
+	\State{path\_slice.append(vertex)}
+	\If {vertex has 1 strong incoming causal edge}
+		\State{vertex $\gets$ predecessor vertex}
+	\ElsIf {vertex has multiple incoming edges}
+		\State{vertex $\gets$ ask user to pick or stop}
+	\ElsIf {vertex has 1 weak incoming edge}
+		\State{vertex $\gets$ ask user to pick or stop}
+
+	%\Else \Comment{The first vertex of current thread}
+	%	\State\Return {path\_slice}
+	\EndIf
+	\If {vertex has no incoming edges or user chooses to stop}
+	%\LineComment{user chooses to stop traversal with invalid input}
+		\State\Return {path\_slice}
+	\EndIf
+\EndLoop
+\EndFunction
+\end{algorithmic}
+\end{algorithm}

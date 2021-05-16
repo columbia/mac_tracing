@@ -11,3 +11,7 @@ install_name_tool -change /System/Library/Frameworks/AppKit.framework/Versions/C
 echo "After"
 otool -l HookAppKit | grep -A2 LC_REEXPORT_DYLIB
 otool -l HookAppKit | grep -A2 LC_LOAD_DYLIB
+<<<<<<< HEAD
+=======
+codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v HookAppKit
+>>>>>>> 1ac4a65cb85d961de7a44c85027a7e90dd4779ac

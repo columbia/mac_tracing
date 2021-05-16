@@ -1,0 +1,94 @@
+\section{Handling Inaccuracies in Causal Tracing}\label{sec:inaccuracy}
+
+As explained in \S\ref{sec:background}, causal tracing builds a graph to connect
+execution segments on behalf of a request that spread across separate threads
+and processes. Based on our experience building a causal tracing system on
+commercial closed-source macOS, we believe such graphs are inherently inaccurate
+and contain both \emph{over-connections} which do not really map to
+causality, and \emph{under-connections}, missing edges between two vertices
+with one causally influencing the other. In this section, we present
+several inherently inaccurate patterns (\S\ref{subsec:pattern}) and \xxx's
+mitigation methods (\S\ref{subsec:handle}).
+
+\subsection{Inherent Inaccuracies} \label{subsec:pattern}
+
+\input{patternfigure}
+
+\subsubsection{Over Connections} \label{subsec:overconnections}
+
+Over connections usually occur when (1) intra-thread boundaries are missing due
+to unknown batch processing programming paradigms or (2) superfluous wake-ups
+that do not always imply causality.
+
+\paragraph{Dispatch message batching}
+
+While traditional causal tracing assumes the entire execution of a callback
+function is on behalf of one request, we found some daemons implement their
+service loop inside the callback function and create false dependencies. In the
+code snippet in Figure~\ref{fig:dispatchmessagebatching} from the \vv{fontd}
+daemon , function \vv{dispatch\_client\_callout} is installed as a callback to
+a work from dispatch queue. It subsequently calls \vv{dispatch\_mig\_server()}
+which runs the typical server loop and handles messages from different apps.
+Applications or daemons frequently use batching for performance, which
+necessarily intermingles handling of irrelevant events, making it
+fundamentally difficult to automatically infer event handling boundaries.
+
+\paragraph{Batching in event processing}
+
+Message activities inside a system call are assumed to be related traditionally.
+However, to presumably save on kernel boundary crossings, macOS system daemon
+\vv{WindowServer} uses a single system call to receive data and send data for
+an unrelated event from different processed in its event loop in Figure
+~\ref{fig:batchingineventprocessing}. This batch processing artificially makes
+many events appear dependent.
+
+\paragraph{Mutual exclusion}
+
+In a typical implementation of mutual exclusion, a thread's unlock operation
+wakes up a thread waiting in lock. Such a wake-up may be, but is not always,
+intended as causality. However, without knowing the developer intent, any
+wake-up is typically treated as causality. 
+
+\subsubsection{Under Connections}\label{subsec:underconnections}
+
+We observe that under connections mostly result from missing data
+dependencies.  This pattern is more general than shared-memory flags in ad
+hoc synchronization~\cite{xiong2010ad} because it occurs even within a
+single thread. 
+
+\paragraph{Data dependency in event processing}
+The code in Figure~\ref{fig:batchingineventprocessing} also illustrates a causal
+linkage caused by data dependency in one thread. \vv{WindowServer} saves the reply
+message in variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.
+When it calls \vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is
+any pending message.
+
+\paragraph{CoreAnimation shared flags}
+As shown in the code snippet Figure~\ref{fig:casharedflag}, worker thread can set a
+field \vv{need\_display} inside a CoreAnimation object whenever the object needs
+to be repainted. The main thread iterates over all animation objects and reads
+this flag, rendering any such object. This shared-memory communication creates
+a dependency between the main thread and the worker so accesses to these field
+flags need to be tracked.
+
+%%However, since each object has such a field flag, \xxx cannot afford to monitor
+%%each using a watch point register. Instead, it uses instrumentation to modify
+%%the CoreAnimation library to trace events on these flags.
+
+\paragraph{Spinning cursor shared flag}
+The very fact that spinning cursors are displayed involves data
+flags. Each application contains an \vv{NSEvent} thread which fetches
+\vv{CoreGraphics} events from the \vv{WindowServer} daemon, converts them
+to \vv{NSApp} events to dispatch to the application's main thread, sets
+flag \vv{sCGEventIsDispatchToMainThread} as shown in
+Figure~\ref{fig:spinningcursorsharedflags}, and arms a timer to monitor
+the processing times of the main thread.  If any \vv{NSApp} event takes
+longer than two seconds to process, the main thread will not clear flag
+\vv{sCGEventIsDispatchToMainThread}.  When the timer in \vv{NSEvent}
+fires, it sets flag \vv{sCGEventIsMainThreadSpinning} and invokes
+\vv{WindowServer} to display a spinning cursor.  An interesting fact is
+that accesses to these shared-memory flags are controlled via a lock --
+the lock is used for mutual exclusion, and does not imply a happens before
+relationship.
+
+\input{handling_inaccuracy}

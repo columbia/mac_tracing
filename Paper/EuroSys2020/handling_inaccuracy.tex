@@ -1,0 +1,45 @@
+\subsection{Handling Inaccuracies} \label{subsec:handle}
+
+\subsubsection{Mitigating Over-Connections}\label{subsec:fix-over}
+
+From a high-level, \xxx deals with over-connections by heuristically splitting
+an execution segment that appears mixing handling of multiple requests.
+
+Specifically, \xxx splits based on three criteria. First, \xxx recognizes a small
+set of well-known batch processing patterns such as \vv{dispatch\_mig\_server()}
+(\S\ref{subsec:overconnections}) and splits the batch into individual items. Second,
+when a wait operation such as \vv{recv()} blocks, \xxx splits the segment at the
+entry of the blocking wait. The rationale is that blocking wait is typically
+done as the last step in event processing. Third, if a segment
+communicates to too many peering processes, \xxx splits the segment when the
+set of peers differs. Specifically, for each message, \xxx maintains a set
+of two peers including (1) the direct sender or receiver of the message and
+(2) the beneficiary of the message (macOS allows a process to send or receive
+messages on behalf of a third process). \xxx splits when two consecutive message
+operations have non-overlapping peer sets.
+
+\subsubsection{Mitigating Under-Connections}\label{subsec:fix-under}
+
+The heuristics in the preceding subsection splits execution segments to
+reduce over-connections, but they may occasionally remove true causal
+edges. \xxx thus adds weak causal edges connecting the split segments to
+mitigate under-connection. When a weak edge is encountered during
+diagnosis, it queries users to decide whether to follow the weak edge or
+stop (\S\ref{sec:overview}).
+
+The other primary under-connections are due to data
+dependencies. Currently \xxx queries the user to identify the data
+flags. It is conceivable to leverage memory protection techniques to infer
+them automatically, as demonstrated in previous record-replay
+work~\cite{king2005debugging, dunlap2008execution}, which we leave it for
+future work.
+
+To discover a data flag, the user re-runs the application with \xxx to
+collect instruction traces of both the normal and spinning cases.  These
+traces record operand values of each instruction, so comparing them
+reveals the address of the data flag that leads to their divergence.  Once
+the user identifies the address of the data flag, \xxx traces it using
+either binary instrumentation (\eg, the \vv{need\_display} flag in
+CoreAnimation; see \S\ref{subsec:underconnections}), or its watchpoint
+tool (\S\ref{subsec:tcp}). \xxx add a causal edge from a write to a data
+flag to its corresponding read.

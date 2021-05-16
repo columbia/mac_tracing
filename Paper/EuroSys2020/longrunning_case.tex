@@ -1,0 +1,122 @@
+\subsubsection{Long Running}
+
+In this section, we discuss the cases where the \spinningnode is busy on the
+CPU. Most text editing apps fall into this bug category. We studied bugs on
+TeXstudio, TextEdit, Microsoft Word, SublimeText, TextMate and CotEditor,
+to reveal the root causes.
+
+\para{5-TeXStudio}
+
+\vv{TeXstudio}~\cite{TeXStudio} is an integrated writing environment for
+creating LaTeX documents. We noticed a user reported spinning cursor on the
+modification of bibliography (bib) file. Although the issue was closed by the
+developer for insufficient information, we reproduced it with our bib file
+around 500 items in a \vv{TeXStudio} tab. When we touch the file in
+other editors like vim, a spinning cursor appears in \vv{TeXStudio}'s window.
+
+\xxx recognizes the \spinningnode belongs to the category of LongRunning. The
+causal path sliced from the \spinningnode by \xxx reveals the long-running
+function is a callback from daemon \vv{fseventsd}, and the long processing segment
+is busy to CalculateGrowingBlockSize, even without modifications to the file.
+The advantage of \xxx over other debugging tools is it narrows down the root
+cause with the inter-processes execution path.
+
+\para{6-TextEdit}
+
+\vv{TextEdit} is a simple word processing and text editing tool from Apple,
+which often hangs on editing large files.
+When \xxx is used to diagnose
+this issue, the heuristic of choosing the most recent edge is powerful enough 
+to get the causal path.
+The event graph reveals a communication pattern where a kernel thread is woken
+from I/O by another kernel thread; the woken kernel thread processed
+a timer callback function armed by \vv{TextEdit} and finally woke a \vv{TextEdit}
+thread. In the pattern, the kernel thread has two incoming edges. One is from
+another kernel thread's IO completion, and the other is from \vv{TextEdit}'s timer
+creation. It is not hard to reveal the high level semantics. \vv{TextEdit} arms a timer
+for IO work, and the kernel thread gets the notification for the completion of IO
+and processes the timer callback. 
+
+Although the most recent incoming edge to the vertex reflects the purpose of
+the execution segment in this case, it is not general enough to for all vertex
+patterns.
+
+\para{7-MSWord}
+
+\vv{Microsoft Word} is a large and complex piece of software. \xxx can analyze
+the event graph, but the graph identifies multiple possible root causes: the length of
+path interactively sliced from the \spinningnode is 67, while 
+always choosing the most recent edge generates a path of 136 vertices.
+
+We compared the paths and find they diverge from the third vertex backward
+from \spinningnode. In the vertex, a \vv{Microsoft Word} thread is
+woken by another \vv{Microsoft Word} thread, and launches a service
+\vv{NSServiceControllerCopyServiceDictionarie}. The woken thread sends a message
+to \vv{launchd} to register the new service and waits for a reply message. In
+this case, a user can accurately identify that the execution segments is on
+behalf of \vv{Microsoft Word}, instead of \vv{launchd}. where the most recent
+incoming edge comes from. Heuristics is likely to identify all possibilities
+without priority. We rely on user interaction in this case to find the true root
+cause. We identified \vv{Microsoft Word} spends most time on file accesses and
+the copy command triggers those accesses.
+
+
+\para{Other Editing Apps}
+
+Select, copy, paste, delete, insert and save are common operations for text
+editing. However, these operations on a large context usually trigger spinning
+cursors. In Table~\ref{table:texteditapps}, we list the root causes reported by
+\xxx, including the most costly functions in the event handler, and the user
+input event (derived from path slicing).
+
+\begin{table}[tb]
+\vspace{-0.2cm}
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|l|l}
+  \hline
+                  &                     &\\
+  \textbf{BUG-ID} & \textbf{costly API} &UI\\
+  \hline
+  \hline
+  8-Notes         & \begin{tabular}{@{}l@{}}
+  					\vv{1)NSDetectScrollDevicesThe}\\
+					\vv{\xspace -nInvokeOnMainQueue}\\
+					\end{tabular}
+   		          & \begin{tabular}{@{}l@{}}
+				  	\vv{system defined event}
+					\end{tabular}
+				  \\
+  \hline
+  9-SlText   & \begin{tabular}{@{}l@{}} 
+					\vv{1)px\_copy\_to\_clipboard}\\
+  					\vv{2)\_\_CFToUTF8Len}\\
+  					\end{tabular}
+				  & \vv{key c}
+				  \\
+  \hline
+  10-TextMate      & \begin{tabular}{@{}l@{}}
+  					\vv{1)-[OakTextView paste:]}\\
+					\vv{2)CFAttributedStringSet}\\
+					\vv{3)TASCIIEncoder::Encode}\\
+  					\end{tabular}
+				  & \vv{key v}
+				  \\
+  \hline
+  11-CotEditor    & \begin{tabular}{@{}l@{}}
+  					\vv{1)CFStorageGetValueAtIndex}\\
+					\vv{2)-[NSBigMutableString}\\
+					\vv{\xspace characterAtIndex:]}\\
+  					\end{tabular}
+   		          & \begin{tabular}{@{}l@{}}
+				  	\vv{key Return}
+  					\end{tabular}
+
+				  \\
+  \hline
+  \end{tabularx}
+  \caption{Root cause of spinning cursor in editing Apps.}
+  \label{table:texteditapps}
+  \vspace{-0.2cm}
+\end{table}
+

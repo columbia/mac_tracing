@@ -1,0 +1,300 @@
+\section{Dependency Semantics}
+\label{sec:dependency-semantics}
+\subsection{Tracing Events}
+The log that \xxx collects consists of a sequence of tracing events, falling into
+three categories: semantics tracing events, dependency tracing events and
+boundary tracing events.  Semantics events include system calls, backtraces,
+and instruction logs.  These events help diagnosis and are also used by \xxx to
+find similar events in its analysis.  Boundary events are recorded within a
+single thread where we may eventually place an execution segment boundary.
+These events tend to be the calls to and returns from wait operations.
+Dependency events are recorded whenever one thread comunnicates with
+another,such that we will eventually create causual links---for example, a
+thread calls \textit{mach\_msg\_send} and delivers message to anther thread
+which calls \textit{mach\_msg\_receive}. These two dependency events will
+eventually be used to create a link in the graph.  These categories are not
+disjoint.  For instance, most events are logged together with the call stacks
+in which they occur.  Similarly, the return from aforementioned
+\vv{mach\_msg\_receive} is both a dependency event and a boundary event as it
+begins a new execution segment.
+
+\subsection{Dependency Patterns}
+\label{sec:patterns}
+We encountered several instances of runtime event dependencies, correct or
+incorrect, between thread contexts. We present several generalized cases
+below.
+
+
+\para{P1: Signal or interrupt handling}
+Sometimes, a signal or interrupt handler happens to run within a thread's
+context, for example, a timer interrupt.  As discussed in the previous section,
+\xxx logs wait and wake-up events inside the kernel to increase the
+completeness of tracing, so it may log events that occur in the call to signal
+or interrupt handler.
+
+We identify the start and end of the signal-handling code to splice it away
+from the containing context, since it is usually unrelated.
+
+{\footnotesize \begin{verbatim}
+Thread in Notes application:
+stat()
+interrupt() {
+  state = save_contex  
+  lapic_interrupt(intr, state)
+}
+wait(lock_mutex)
+\end{verbatim}
+}
+
+\para{P2: Kernel takes over context}
+As part of a thread context switch, an execution context may enter kernel
+space. As shown below, the code will enter kernel scheduling by calling
+\vv{sched\_timeshare\_consider\_maintenance}, which in turn wakes up another
+\texttt{kernel\_task} thread.  Again, such a wake-up does not reflect the
+application's intent, and should be filtered out from the containing context.  
+
+To detect this case, we filter wakeups from the kernel timer, interrupt
+handler, or kernel shared time maintenance. Such cases represent spurious
+dependencies. However, sometimes when a worker thread wakes up another worker
+thread, this can represent a true dependency. The distinguishing feature is
+whether a synchronization primitive (including shared memory) is used.
+
+{\footnotesize \begin{verbatim}
+thread_invoke(self, new_thread, reason) {
+// thread switch, kernel space
+  sched_timeshare_consider_maintenance() {
+    thread_wakeup(sched_timeshare_miantenance_continue);
+  }
+  ast_context(new_thread);
+}
+\end{verbatim}
+}
+
+\para{P3: Batching and data dependency in event processing}
+The WindowServer MacOS system daemon contains an event loop which waits on Mach
+messages. Conceptually, it processes a series of independent events from
+different processes. However, to presumably save on kernel boundary crossings,
+it uses a single system call to receive data and send data for an unrelated
+event. This batch processing artificially makes many events appear dependent,
+and we split the execution segments to maintain the independence of the events.
+
+This case also illustrates a causal linkage caused by data dependency within
+one thread.  As the code shows, WindowServer saves the reply message in
+variable \vv{\_gOutMsg} inside function \vv{CGXPostReplyMessage}.  When it calls
+\vv{CGXRunOneServicePass}, it sends out \vv{\_gOutMsg} if there is any pending
+message.  This data dependency needs to be captured in order to establish a
+causal link between the handling of the previous request and the send of the
+reply.  Interestingly, it is an example of a data dependency within the same
+thread.  \xxx uses watch point registers to capture events on these data flags
+and establish causal links between them.
+
+{\footnotesize \begin{verbatim}
+while() {
+  CGXPostReplyMessage(msg) {
+  // send _gOutMsg if it hasn't been sent
+    push_out_message(_gOutMsg)
+    _gOutMsg = msg
+    _gOutMessagePending = 1
+  }
+  CGXRunOneServicePass() {
+    if (_gOutMessagePending)
+      mach_msg_overwrite(MSG_SEND | MSG_RECV, _gOutMsg)
+    else
+      mach_msg(MSG_RECV)
+    ... // process received message
+  }
+}
+\end{verbatim}
+}
+
+\para{P4: CoreAnimation shared flags}
+A worker thread can set a field \vv{need\_display} inside a CoreAnimation object
+whenever the object needs to be repainted. The main thread iterates over all
+animation objects and reads this flag, rendering any such object.
+
+This shared-memory communication creates a dependency between the main thread
+and the worker so accesses to these field flags need to be tracked.  However,
+since each object has such a field flag, \xxx cannot afford to monitor each
+using a watch point register.  Instead, it uses instrumentation to modify the
+CoreAnimation library to trace events on these flags.
+
+{\footnotesize \begin{verbatim}
+Worker thread that needs to update UI:
+ObjCoreAnimation->need_display = 1
+
+Main thread: 
+traverse all CoreAnimationobjects
+if (obj->need_display == 1)
+  render(obj)
+
+\end{verbatim}
+}
+
+\para{P5: Spinning cursor shared flag}
+Whenever the system determines that the main thread has hung for a certain
+period, and the spinning beach ball should be displayed, a shared-memory flag
+is set. Access to this flag is controlled via a lock, i.e. the lock is used for
+mutual exclusion, and does not imply a happens before relationship.  Thus, \xxx
+captures accesses to these flags using watch-point registers to add causal
+edges correctly.
+
+{\footnotesize \begin{verbatim}
+NSEvent thread:
+CGEventCreateNextEvent() {
+  if (sCGEventIsMainThreadSpinning == 0x0)
+     if (sCGEventIsDispatchToMainThread == 0x1)
+       CFRunLoopTimerCreateWithHandler{
+         if (sCGEventIsDispatchToMainThread == 0x1)
+           sCGEventIsMainThreadSpinning = 0x1
+           CGSConnectionSetSpinning(0x1);
+       }
+}
+
+Main thread
+Convert1CGEvent(0x1);
+if (sCGEventIsMainThreadSpinning == 0x1)
+  CGSConnectionSetSpinning(0x0);
+  sCGEventIsMainThreadSpinning = 0x0;
+  sCGEventIsDispatchedToMainThread = 0x0;
+\end{verbatim}
+}
+
+\para{P6: Dispatch message batching}
+The message dispatch service dequeues messages from many processes and staggers
+processing of the messages. This creates false dependencies between each
+message in the dispatch queue.  As illustrated in the following code snipped
+from the \vv{fontd} daemon, function \vv{dispatch\_execute} is installed as a
+callback to a dispatch queue.  It subsequently calls
+\vv{dispatch\_mig\_server()} which runs the typical server loop and handles many
+messages.
+To avoid incorrectly linking many irrelevant processes through such
+batching processing patterns, \xxx adopts the aforementioned heuristics to
+split an execution segment when it observes that the segment sends out messages
+to two distinct processes.
+This pattern does pose a challenge for automated causal tracing tools that
+assume that the entire execution of a callback function is on behalf of one
+request.  The code shown uses a dispatch-queue callback, but inside the
+callback, it does work on behalf of many different requests.  Any application
+or daemon can implement its  own server loop this way, which makes it
+fundamentally difficult to automatically infer event handling boundaries.
+
+{\footnotesize \begin{verbatim}
+Worker thread in fontd daemon:
+dispatch_async(block)
+
+Main thread in fontd daemon:
+block = dispatch_queue.dequeue()
+dispatch_execute(block)
+  dispatch_mig_server()
+
+dispatch_msg_server()
+  for(;;)
+    mach_msg(send_reply, recev_request)
+    call_back()
+    set_reply()
+\end{verbatim}
+}
+
+\para{P7: Mach message mismatch}
+When RPC-style inter-process communication is used, most systems would use the
+same thread to send the call request and receive the return.  They would also
+use one recipient thread to process the call.  However, in MacOS, the thread
+sending the call request may be different from the one receiving the return,
+and multiple threads may be used in the recipient thread to handle the request.
+
+Fortunately, the messages involved typically carry metadata such as the
+\vv{reply\_port} shown in the following diagram, so \xxx can easily link the
+corresponding events together.
+
+{\footnotesize \begin{verbatim}
+SCIM calls XPC_connection_send_msg
+t1_scim   t2_chromium       t3_chromium     t4_scim
+|         |                 |               |
+mach_msg_send(remote_port, reply_port)      |
+          |                 |               |
+          dispatch_mach_msg_receive(remote_port, reply_port)
+                            |               |
+                            mach_msg_send(reply_port)
+                                            |
+                                    mach_msg_receive(reply_port)
+
+\end{verbatim}
+}
+
+\para{P8: Runloop callbacks batch processing}
+As is common in event driven programming, many methods can post a callback and
+macOS uses runloop as a common idiom to process callbacks.  As shown in the
+following step-by-step description of the macOS runloop, an iteration of the
+runloop does 10 different stages of processing, each of which may do work on
+behalf of completely irrelevant requests.  Since there are no obvious events
+(\eg, a wait operation) to split the execution, \xxx uses instrumentation to
+add beginning and ending points for macOS runloops.  In general, any
+application or daemon can create its own version of the runloop, posing
+challenges for automated inference of event processing boundaries.
+% // another thread installs cb
+% performSelector:onThread:withObject:waitUntilDone;
+
+{\footnotesize \begin{verbatim}
+Run loop sequence of events //developer.apple.com
+1-3.Notify observers
+4.Fire any non-port-based input sources
+5.If a port-based input source is ready and waiting to fire,
+    process the event immediately. Go to step 9.
+6.Notify observers that the thread is about to sleep.
+7.Put the thread to sleep until:
+    //one of the following events occurs
+    An event arrives for a port-based input source.
+    A timer fires.
+    The timeout value set for the run loop expires.
+    The run loop is explicitly woken up.
+8.Notify observers that the thread just woke up.
+9.Process the pending event.
+  If a user-defined timer fired,
+    process the timer event
+    restart the loop.
+    Go to step 2.
+  If an input source fired
+    deliver the event.
+  If the run loop was explicitly woken up, but not timed out,
+    restart the loop. Go to step 2.
+10.Notify observers that the run loop has exited.
+
+\end{verbatim}
+}
+
+%% \para{P9: Timers}
+%% Most timers in MacOS are repeat timers, meaning that the timer reregisters itself before finishing.
+%% This creates complex dependencies because timers are invoked asyncronously during interrupts.
+
+%% {\footnotesize \begin{verbatim}
+%% \
+%% timer_create
+%%      |       \ (may or may not fire)
+%%      |        timer_expire
+%%      |
+%% timer_cancel
+%%      |
+%% timer_create
+%%      |
+%% timer_create  // repeat timer?
+%%             \timer_expire
+
+%% \end{verbatim}
+%% }
+
+\subsection{Discussion}
+
+These patterns reinforce our insights described in Section~\ref{sec:intro}.
+First, as illustrated by patterns P3, P6, and P7, batch processing is
+frequently used to lump work on behalf of different requests together, causing
+inaccurate edges that do not reflect causality in the event graph.  Some amount
+of manual schema is needed, but annotating all applications and daemons upfront
+to expose batch processing would be strenuous and error-prone.  We believe
+\xxx's interactive approach represents a better design trade off.  Second, as
+illustrated by P3, P4, and P5, systems use data flags for causal linkage.  They
+do so in both multi-threaded and single-threaded environments.  Such data
+dependencies can be crucial for diagnosing performance issues -- the spinning
+cursor's display itself uses shared memory flags as shown in P5.  Third, as P1,
+P2, and P5 show, wake-ups do not necessarily reflect causal linkage.  Lastly,
+systems may deviate from well-established patterns such as in P7 or create
+their custom primitives such as in P6.

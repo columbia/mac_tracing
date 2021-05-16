@@ -1,0 +1,13 @@
+\subsection{Microsoft Word}
+
+Copying context in Microsoft Word produced 1.14GB trace file, which contained
+474,178 edges and 306,171 vertexes.  While the spinning cursor showed up for
+the application, the main thread was busy with system calls, \textit{lseek},
+\textit{fstat64}, \textit{fcntl} and \textit{read} on the same file,
+\textit{\_\_CFStringCreateImmutableFunnel3} and \textit{platform\_memmove} over
+2 seconds.  They are on the behalf of \textit{-[NSPasteboard\
+\_setData:forType:index:usesPboardTypes:]}.
+
+We collected 1.04GB tracing data for Paste operation. Its graph contains
+161,921 edges and 110,680 vertexes.  The spinning node are dominated by
+\textit{lseek}, \textit{fstat64}, \textit{fcntl} and \textit{write}.

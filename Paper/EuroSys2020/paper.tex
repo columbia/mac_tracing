@@ -1,0 +1,204 @@
+%\documentclass[pageno]{jpaper}
+\documentclass[sigplan,screen,10pt]{acmart}
+\settopmatter{printacmref=false} % Removes citation information below abstract
+\renewcommand\footnotetextcopyrightpermission[1]{} % removes footnote with conference information in first column
+\pagestyle{plain}
+
+\usepackage[normalem]{ulem}
+\usepackage{xspace}
+\usepackage{tabularx}
+\usepackage[flushleft]{threeparttable}
+\usepackage{booktabs}
+
+\usepackage{tikz}
+\usepackage{tikzpeople}
+\usepackage{tikz-uml} 
+\usetikzlibrary{shapes, shapes.misc}
+\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+\usetikzlibrary{patterns}
+\usetikzlibrary{positioning}
+
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amssymb}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+\usepackage{threeparttable}
+\usepackage{listings, multicol}
+\usepackage{color}
+\usepackage{bbding, pifont, amsfonts}
+
+\usepackage{graphicx}
+\usepackage{subcaption}
+\graphicspath{{figures/}}
+\raggedbottom
+%\addtolength{\parskip}{-0.3mm}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     macro
+% in short.
+\newcommand{\eg}{{e.g.}}
+\newcommand{\ie}{{i.e.}}
+\newcommand{\etc}{{etc}}
+%\newcommand{\para}[1]{\vspace{-0.2cm}\noindent{\bf #1}}
+\newcommand{\para}{\vspace{-0.15cm}\paragraph}
+\newcommand{\wrt}{{w.r.t. }}
+\newcommand{\cf}{{cf. }}
+\newcommand{\etal}{{et al. }}
+\newcommand{\vv}[1]{{\textit{#1}}}
+\newcommand{\mycheck}[0]{\ding{51}}
+\newcommand{\mycross}[0]{\ding{55}}
+
+
+% paper-specific definitions
+\newcommand{\sys}[0]{Argus\xspace}
+\newcommand{\xxx}[0]{Argus\xspace}
+\newcommand{\mytitle}[0]{\textbf {Argus : Debugging Performance Issues in Modern Applications with Interactive Causal Tracing}}
+
+\newcommand{\appinsight}[0]{AppInsight\xspace}
+\newcommand{\panappticon}[0]{Panappticon\xspace}
+\newcommand{\spindump}[0]{\vv{spindump}\xspace}
+\newcommand{\spinningnode}[0]{spinning vertex\xspace}
+\newcommand{\similarnode}[0]{similar vertex\xspace}
+\newcommand{\similarnodes}[0]{similar vertices\xspace}
+\newcommand{\rootcausenodes}[0]{root cause vertices\xspace}
+\newcommand{\dataflagread}[0]{\vv{data\_flag\_read}\xspace}
+\newcommand{\dataflagwrite}[0]{\vv{data\_flag\_write}\xspace}
+
+\newcommand{\algspinningnode}[0]{spinning\_vertex\xspace}
+\newcommand{\algrootcausenodes}[0]{root\_cause\_vertices\xspace}
+\newcommand{\algsimilarnodes}[0]{similar\_vertices\xspace}
+\newcommand{\algsimilarnode}[0]{similar\_vertex\xspace}
+
+\newcommand{\nlibchanges}[0]{57\xspace}
+\newcommand{\napps}[0]{11\xspace}
+\newcommand{\nbug}[0]{11\xspace}
+\newcommand{\cpuoverhead}[0]{3.36\%\xspace}
+\newcommand{\IOoverhead}[0]{3.97\%\xspace}
+
+%for algorithm
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\And{\textbf{and} }
+\algnewcommand\Or{\textbf{or} }
+\algnewcommand{\algorithmicgoto}{\textbf{go to}}%
+\algnewcommand{\Goto}[1]{\algorithmicgoto~\ref{#1}}%
+\algrenewcomment[1]{\(\triangleright\) #1}
+
+\newcommand{\commentsymbol}{//}% or \% or $\triangleright$
+\algrenewcommand\algorithmiccomment[1]{\commentsymbol{} #1}
+
+\newcommand{\LineComment}[1]{\State /* \textit{#1} */}
+%\algnewcommand{\LineComment}[1]{\State \(\triangleright\) #1}
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}%
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}%
+\algtext*{EndCase}%
+%%\algtext*{EndSwitch}%
+
+\let\oldemptyset\emptyset
+\let\emptyset\varnothing
+\makeatletter
+\algrenewcommand\ALG@beginalgorithmic{\footnotesize}
+%\makeatother
+
+%\makeatletter
+\renewcommand{\Function}[2]{%
+  \csname ALG@cmd@\ALG@L @Function\endcsname{#1}{#2}%
+  \def\jayden@currentfunction{#1}%
+}
+\newcommand{\funclabel}[1]{%
+  \@bsphack
+  \protected@write\@auxout{}{%
+    \string\newlabel{#1}{{\jayden@currentfunction}{\thepage}}%
+  }%
+  \@esphack
+}
+\makeatother
+
+% for verbatim
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\RecustomVerbatimEnvironment{BVerbatim}{BVerbatim}{formatcom=\bigskip}
+%%\newenvironment{myBVerbatim}%
+%%{\bigskip\VerbatimEnvironment
+%%\begin{BVerbatim}}
+%%{\end{BVerbatim}%
+%%\bigskip}
+%\fvset{xleftmargin=\mathindent}
+
+%for lslistings
+\lstdefinestyle{customc}{
+  language=C,                 % the language of the code
+  basicstyle=\ttfamily,        	   % style for all of the code
+  keywordstyle=\color{blue},       % keyword style
+  identifierstyle=\color{black}, % style for variables and identifiers
+  commentstyle=\selectfont\itshape\color{green!60!black},      % comment style
+  columns=fullflexible,
+  stringstyle=\color{mymauve},     % style for string literals
+  tabsize=2,                       % sets default tabsize (in spaces)
+  backgroundcolor=\color{white},   % requires the color package
+  %frame=single,                    % put a border around the code
+  basicstyle=\footnotesize,
+  xleftmargin=.25in,
+  numbers=left,                    % line numbers (none, left, right)
+  numberstyle=\tiny\color{red},    % the style that is used for line numbers
+  numbersep=5pt,                   % how far the line-numbers are from the code 
+  showspaces=false,                % visibly indicate spaces everywhere
+  showstringspaces=false,          % visibly indicate spaces within strings only
+  showtabs=false,                  % visibly indicate tabs within strings
+  breaklines=true,                 % toggle automated line wrapping
+  breakatwhitespace=false,         % if wrapping is on, enable to break on whitespace only
+  deletekeywords={...},            % exclude keywords from chosen language
+  morekeywords={*,...},            % add words to be treated as keywords
+  captionpos=b                     % sets the caption-position (bottom)
+}
+
+
+\lstdefinestyle{customasm}{
+  belowcaptionskip=1\baselineskip,
+  frame=L,
+  xleftmargin=\parindent,
+  language=[x86masm]Assembler,
+  basicstyle=\footnotesize\ttfamily,
+  commentstyle=\itshape\color{purple!40!black},
+}
+
+\lstset{escapechar=@,style=customc}
+
+\newcolumntype{Z}{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}X}
+
+\begin{document}
+\title{\mytitle}
+
+%\pagestyle{plain}
+%\settopmatter{printfolios=true}
+%\maketitle
+
+%\thispagestyle{empty}
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\pagestyle{plain}
+\settopmatter{printfolios=true}
+\maketitle
+
+\input{intro}
+\input{background}
+\input{overview}
+\input{inaccuracy}
+\input{implementation}
+\input{results}
+\input{discussion}
+\input{related}
+\input{conclusion}
+
+\bibliographystyle{plain}
+\bibliography{bib/biblio}
+
+\end{document}
+

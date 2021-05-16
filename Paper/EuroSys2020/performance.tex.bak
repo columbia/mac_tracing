@@ -1,0 +1,107 @@
+\begin{figure*}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_real.pdf}
+		\caption{real time.}
+	\end{subfigure}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_user.pdf}
+		\caption{user time.}
+	\end{subfigure}
+	\begin{subfigure}{5.79cm}
+		\centering\includegraphics[width = 5.77cm] {./figures/performance_cr_sys.pdf}
+		\caption{sys time.}
+	\end{subfigure}
+	\vspace{-0.5cm}
+	\caption{Chromium benchmark.}
+	\label{fig:chromium benchmark}
+\end{figure*}
+
+\begin{table}[tb]
+\footnotesize
+\centering
+\begin{tabularx}{\columnwidth}{l|XXXXX}
+\hline
+ & 1st & 2nd & 3rd & 4th & 5th\\
+\hline\hline
+ without \xxx& 5.98 & 6.23 & 6.18 & 6.05 & 6.28\\
+ with \xxx& 6.29 & 6.01 & 6.09 & 6.28 & 6.01\\
+\hline
+average overhead& \multicolumn{5}{c}{0.13\%}\\
+\hline
+\end{tabularx}
+\caption{Score From iBench.}
+\label{tab:ibench}
+\end{table}
+
+\begin{table}[tb]
+\footnotesize
+\centering
+\begin{tabular}{ll|rrr}
+\hline
+ & kb/s & With Argus & Without Argus & overhead(\%)\\
+ \hline\hline
+\textbf{bonnie++}&read char & 21922 & 22149 & 1\%\\
+ sequential& read block & 226931 & 244089 & 7\%\\
+ & rewrite & 246807 & 267491 & 8\%\\
+ & write char & 22924 & 22936 & 0\%\\
+ & write block & 4073361 & 4396387 & 7\%\\
+ \hline
+ seq& file create & 17391 & 17381 & 0\%\\
+ & file delete & 18089 & 19401 & 7\%\\
+ \hline
+ random& create & 17472 & 17887 & 2\%\\
+ & delete & 8849 & 9567 & 8\%\\
+ \hline
+ \hline
+\textbf{iozone} & initial write & 1199453 & 1318572 & 9\%\\
+ & rewrite & 3663066 & 4059912 & 10\%\\
+ \hline
+ & average & - & - & 3.97\%\\
+\hline
+\end{tabular}
+\caption{IO throughput with bonnie++ and iozone.}
+\label{tab:iothroughput}
+\end{table}
+
+
+\subsection{Performance Evaluation}\label{sec:evaluation}
+
+In this section we present the performance impact of the live deployment of
+\xxx. We deployed \xxx on a MacBookPro9,2, which has Intel Core i5-3210M CPU with
+2 cores and 4 thread, 10GB DDR3 memory and a 1T SSD.
+
+\xxx has a very small space overhead with the configuration of its tracing
+tool. It uses the ring buffer with configured 2G by default to collect tracing
+events. The memory used to store events is fixed to 512M by Apple, which is pretty
+low with regards to the memory usage of modern applications. In the remaining
+of this section, we measure \xxx's overhead overall with iBench scores, IO
+throughput degradation with bonnie++, iozone and CPU overhead with chromium
+benchmarks.
+
+\para{iBench}
+
+We first show the five runs of iBench with and without \xxx to evaluate the
+overall performance. The machine is clean booted for each run, and the higher
+score means it performs better. As shown in Table\ref{tab:ibench}, their
+performance are almost of no difference, only 0.13\% degradation on average.
+
+\para{IO Throughput}
+
+Next, we evaluate the IO throughput with bonnie++ and iozone. As shown in the
+Table~\ref{tab:iothroughput}, the throughputs of sequential read and write
+by characters with and without \xxx are almost same. Read and write by block
+impose less than 10\% overhead in  both microbenchmarks, bonni++ and iozone.
+With selected events in our system, the tracing tool integrated in \xxx
+only adds 5\% IO overhead on average.
+
+
+\para{CPU}
+
+We evaluate \xxx's CPU overhead with chromium benchmarks by recording their
+time usage on real, user and sys. Although the overhead on sys is relatively
+higher than other two, due to the tracing events usually crossing the
+kernel boundary, they are not triggered too frequently in our daily software
+usage, including browsers. The time cost is mostly under 5\%, except the
+\vv{dummy\_benchmark.histogram}. As shown in Figure ~\ref{fig:chromium
+benchmark}, the time overhead for real, user and sys are 3.36\%, 2.15\% and 36.76\%
+respectively.

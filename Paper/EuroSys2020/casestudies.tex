@@ -1,0 +1,32 @@
+\subsection{Diagnosis Effectiveness}\label{sec:casestudy}
+
+In this section, we demonstrate how \xxx helps diagnose \nbug
+spinning-cursor cases in popular applications. Table~\ref{table:bugs-desc}
+describes the operations we perform on each application that trigger a
+spinning cursor.  \xxx successfully helped us find root-cause paths for
+all spinning cursors.  As shown in Table~\ref{table:bugs-desc}, at most
+three user queries suffices in most cases to find the root cause path
+accurately. Although complex applications like Microsoft Word and Chromium
+require more queries (13 and 22 respectively), many of them result from
+repeated patterns. They can be easily identified by users.
+
+%% Overall, in the case of simple text editing applications, \xxx can identify the
+%% UI event that causes a spinning cursor by merely relying on a few heuristics.
+%% However, these heuristics may make the wrong decision in complicated cases, and
+%% misidentify the relationships between intra/inter-thread events. It is unlikely
+%% that there exists a single graph search method that works in all cases, e.g.
+%% when given the choice between multiple incoming edges, the most recent match is
+%% sometimes correct, but sometimes not. This is why our system relies on expert
+%% knowledge of users to reconstruct a developer's intent and accurately diagnose
+%% performance issues.
+
+%Last paragraph: %In the remaining of this section, we
+%present the case studies by category in (\S\ref{XXX}).
+
+\input{bugdesc}
+\input{statistics_table}
+
+\input{longwait_and_repeatedyield_case}
+\input{longrunning_case}
+
+%\subsubsection{Summary}

@@ -7,3 +7,4 @@ otool -l hook_pthread.dylib | grep -A2 LC_LOAD_DYLIB
 install_name_tool -change libRatings.C.dylib /usr/lib/system/orig.libsystem_pthread.dylib hook_pthread.dylib 
 echo "After"
 otool -l hook_pthread.dylib | grep -A2 LC_REEXPORT_DYLIB
+codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v hook_pthread.dylib

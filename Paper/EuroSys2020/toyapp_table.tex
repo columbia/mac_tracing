@@ -1,0 +1,46 @@
+\begin{table}[tb]
+\footnotesize
+\centering
+  \begin{tabularx}{\columnwidth}{l|X|X}
+\hline
+Microbenchmark & Panappticon & \xxx \\
+\hline\hline
+	  \begin{tabular}{@{}l@{}}
+		  AppList (minimize\\
+		  an running app)
+	  \end{tabular}
+	  & 
+	  \begin{tabular}{@{}l@{}}
+		  connects 7 unrelated\\
+		  apps due to lack of\\
+		  boundaries on batching.
+	  \end{tabular}
+	  &
+	 \begin{tabular}{@{}l@{}}
+		 event graph contains\\
+		 59 vertices with multiple\\
+		 incoming edges.
+	 \end{tabular}
+\\
+\hline
+
+	 \begin{tabular}{@{}l@{}}
+AbSearch (searches Contacts with first name)
+	 \end{tabular}
+         & 
+	 \begin{tabular}{@{}l@{}}
+		 \mycross misses connections to the searching
+          element construction due to lack of tracing data flag.
+	 \end{tabular}
+         & 
+	 \begin{tabular}{@{}l@{}}
+		 \mycross event graph contains 72 vertices with multi-incoming edges.\\
+\hline
+AnimatedSlider (moves slide bar with input percentage in text field)
+            & \mycross connects 5 unrelated apps due to lack of boundaries on batching.
+            & \mycross event graph contains 9 vertices with multi-incoming edges.\\
+\hline
+  \end{tabularx}
+\caption{Inaccuracy of request graph for microbenchmarks.}
+\label{table:microbenchmarks}
+\end{table}

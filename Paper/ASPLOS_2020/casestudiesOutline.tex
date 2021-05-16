@@ -1,0 +1,49 @@
+\begin{itemize}
+\item{brief description}
+\item{advantage over lldb/spindump}
+\item{advantage over traditional causal tracing}
+\item{user interaction required in the process}
+\item{verification of the root cause}
+\end{itemize}
+
+\subsection{Blocking Cases}
+\begin{itemize}
+\item sequelpro <- ssh connection
+\item installer <- user input blocked
+\end{itemize}
+
+%%\input{sequelpro}
+%%\input{texstudio}
+%%\input{installer}
+
+\subsection{Yielding Loop Cases}
+\begin{itemize}
+\item system preferences <-branches on a shared variable, add monitor on the variable
+	\begin{itemize}
+		\item find similar node: compare proceeding nodes, differential metrics
+		\item shared variable and script to find out why they have different branches
+	\end{itemize}
+\end{itemize}
+
+\subsection{CPU Busy Cases}
+\begin{itemize}
+\item  a table on case description, corresponding root cause reported by Argus
+	\begin{itemize}
+	\item textstudio <- synchronization once the file get touched %recheck data if it can trace back to vim (vim->fsevent->textstudio)
+	\item notes
+	\item textedit
+	\item mswords
+	\item sublimetext
+	\item textmate
+	\item coteditor
+	\end{itemize}
+\end{itemize}
+
+\begin{itemize}
+\item #nodes, #edges
+\item dividing batching nodes
+\item data flag
+\item similar nodes
+\item length of the root cause path
+\item number of user needs to make decision on which edge to choose
+\end{itemize}

@@ -1,0 +1,270 @@
+\documentclass[sigplan,10pt]{acmart}
+\settopmatter{printacmref=false}
+\makeatletter
+\renewcommand\@formatdoi[1]{\ignorespaces}
+\makeatother
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\pagestyle{plain}
+\settopmatter{printfolios=true}
+
+%\settopmatter{printfolios=true}
+\special{papersize=8.5in,11in}
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+%\usepackage[noheadfoot,
+            %left=1in,right=1in,top=1in,bottom=1in,
+            %columnsep=0.25in
+            %]{geometry}
+%\usepackage[small,compact]{titlesec}
+%\usepackage[font={small,bf}]{caption}
+%\usepackage[nolineno,noindent,norules]{lgrind}
+%\usepackage{tightenum}
+%\usepackage{float}
+%\usepackage{xspace}
+%\usepackage{times,pifont}
+%\usepackage{mathptmx}
+%\usepackage{subfig,graphics,graphicx,color}
+%\usepackage{multirow}
+%\usepackage{dblfloatfix} %% correctly orders single- and double-col figures
+%\usepackage{hyphenat}
+%\usepackage{mathrsfs}
+%\usepackage{subfig}
+%\usepackage{amssymb,amsmath,centernot}
+%\usepackage{lastpage}
+%\usepackage{flushend}
+%\usepackage{hhline}
+%\usepackage{authblk}
+%\usepackage[hyphens]{url}
+\usepackage{adjustbox}
+\usepackage{algorithm}
+\usepackage{listings}
+\usepackage[noend]{algpseudocode}
+%\newcommand{\doi}{XXXXXX}
+\usepackage{xspace}
+
+\usepackage{tikz}
+\usepackage{tikzpeople}
+\usetikzlibrary{shapes, shapes.misc}
+\usetikzlibrary{arrows, arrows.meta, decorations.markings}
+\usetikzlibrary{patterns}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+
+
+%%% ================= START of SOSP '13 template ================= 
+% \makeatletter
+% 
+% \def\ftype@copyrightbox{8}
+% \def\@copyrightspace{
+% \@float{copyrightbox}[b]
+% \begin{center}
+% \setlength{\unitlength}{1pc}
+% \begin{picture}(20,6.0) 
+% \put(0,3){\parbox{\columnwidth}{\scriptsize
+% 
+% %*** SAMPLE. AUTHOR PUT SUPPLIED TEXT HERE ****
+% 
+% \noindent
+% \rule{6.0 cm}{0.2pt}\\
+% Permissiondddd to make digital or hard copies of part or all of this work 
+% for personal or classroom use is granted without fee provided that
+% copies are not made or distributed for profit or commercial advantage 
+% and that copies bear this notice and the full citation on the first
+% page. Copyrights for third-party components of this work must be
+% honored.  For all other uses, contact the Owner/Author. 
+% 
+% \vspace{\baselineskip}\noindent
+% Copyright is held by the Owner/Author(s).\\
+% \textit{SOSP'15}.\\
+% ACM XXXXXXX.
+% 
+% \noindent
+% http://dx.doi.org/\doi}
+% }
+% \end{picture}
+% \end{center}
+% \end@float}
+% 
+% \def\maketitle{\par
+%  \begingroup
+%    \def\thefootnote{\fnsymbol{footnote}}
+%    \def\@makefnmark{\hbox
+%        to 0pt{$^{\@thefnmark}$\hss}}
+%      \twocolumn[\@maketitle]
+% \@thanks
+%  \endgroup
+%  \setcounter{footnote}{0}
+%  \let\maketitle\relax
+%  \let\@maketitle\relax
+%  \gdef\@thanks{}\gdef\@author{}\gdef\@title{}\gdef\@subtitle{}\let\thanks\relax
+%  \@copyrightspace}
+% 
+% \makeatother
+
+%%% ================= END of SOSP '13 template ================= 
+
+
+
+%\newcommand{\comment}[1]{}
+\frenchspacing
+%\doublespacing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     macro
+% paper-specific definitions
+\newcommand{\sys}[0]{Argus\xspace}
+\newcommand{\xxx}[0]{Argus\xspace}
+\newcommand{\nbug}[0]{11\xspace}
+%\newcommand{\mytitle}[0]{\textbf {\sys: Understanding Livelocks Through Full-System Tracing}}
+%\newcommand{\mytitle}[0]{\textbf {Argus : Understanding App Behavior Through Full-System Tracing}}
+\newcommand{\mytitle}[0]{\textbf {Argus: Debugging Performance Issues in
+    Modern Applications with Interactive Causal Tracing}}
+\newcommand{\mykeywords}[0]{Performance debug}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% hyperref stuff
+%\usepackage[square,comma,numbers,sort]{natbib}
+%\usepackage{hypernat}
+%\usepackage[draft]{hyperref}
+%\usepackage{hyperref}
+
+%% fill in pdf info here
+\hypersetup{%
+colorlinks=false,
+pdfborder={0 0 0},
+pdftitle={\mytitle},
+pdfkeywords={\mykeywords},
+bookmarksnumbered,
+pdfstartview={FitH},
+urlcolor=cyan,
+pdfpagelabels=true,
+pdfdisplaydoctitle=true,
+}%
+
+%\usepackage{breakurl}
+%\usepackage[all]{hypcap}
+%\renewcommand{\url}{\burl}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some NICE fonts
+
+\newfont{\BIG}{cminch}                             %--- One-inch font
+\newfont{\sfbHuge}{cmssbx10 scaled\magstep5}       %-- 25pt sans serif bold
+\newfont{\sfbLarger}{cmssbx10 scaled\magstep3}   %-- 12+pt sans serif boldd
+\newfont{\sfblarger}{cmssbx10 scaled\magstep2}   %-- 12+pt sans serif bold
+\newfont{\sfblarge}{cmssbx10 scaled\magstep1}      %-- 12pt sans serif bold
+\newfont{\sfbeleven}{cmssbx10 scaled\magstephalf}  %-- 11pt sans serif bold
+\newfont{\sfb}{cmssbx10}                           %-- 10pt sans serif bold
+\newfont{\sfeight}{cmss8}                          %-- 8pt sans serif
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+%   space tweaking
+
+%\textwidth = 6.5 in
+%\textheight = 9.0 in
+%\setlength{\topmargin}{-.5in}
+
+%\headheight = 0.0 in
+%\headsep = 0.0 in
+%\parskip = 0.2in
+%\parindent = 0.0in
+
+\renewcommand{\topfraction}{0.95}
+\addtolength{\textfloatsep}{-0.1in}
+%\addtolength{\floatsep}{0.025in}
+\renewcommand\floatpagefraction{.9}
+%\renewcommand\bottomfraction{.9}
+\renewcommand\textfraction{.1}
+%\renewcommand\footnotetextcopyrightpermission[1]{}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+
+\setlength{\parindent}{9pt}
+
+% Rescue
+\makeatletter
+\def\v#1{{\mbox{\fontfamily{cmtt}\fontsize{\f@size}{\f@size}\selectfont #1}}}
+
+\newcommand{\messaging}[0]{\textsc{Messaging}\xspace}
+\newcommand{\pthread}[0]{\mbox{Pthreads}\xspace}
+
+% In short.
+\newcommand{\eg}{{e.g.}}
+\newcommand{\ie}{{i.e.}}
+\newcommand{\etc}{{etc}}
+\newcommand{\para}[1]{\vspace{.00in}\noindent{\bf #1}}
+\newcommand{\wrt}{{w.r.t. }}
+\newcommand{\cf}{{cf. }}
+\newcommand{\etal}{{et al. }}
+
+% operations.
+\newcommand{\psynchcvwait}[0]{\v{psynch\_cv\_wait()}\xspace}
+\newcommand{\send}[0]{\v{send()}\xspace}
+\newcommand{\recv}[0]{\v{recv()}\xspace}
+
+% stats.
+\newcommand{\proxy}{\mbox{\textsc{Proxy}}\xspace}
+\newcommand{\serviceA}{\mbox{\textsc{Service A}}\xspace}
+
+\def\LGfsize{\footnotesize}
+%\pagestyle{empty}
+
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\begin{document}
+
+% Hack for: Package caption Error: No float type 'copyrightbox' defined.
+%\newcounter{copyrightbox}
+
+\date{}
+
+%\title{\mytitle\\
+%\rm \Large Title For Paper}
+\title{\mytitle}
+
+%\author[+]{\hspace{0 mm}\fontsize{10}{10}\selectfont SOSP
+%2019 submission \#XX}
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Add page number.
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\thispagestyle{plain}
+\pagestyle{plain}
+\setlength{\footskip}{20pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{sloppypar}
+
+\input{intro}
+%\input{background}
+\input{overview}
+%\input{design}
+%\input{approach_overview}
+\input{patterns}
+%\input{builtin_event_schema}
+%\input{analysis_methodology}
+\input{implementation}
+\input{casestudies}
+\input{evaluation}
+\input{discussion}
+\input{related}
+\input{conclusion}
+
+\end{sloppypar}
+
+\clearpage
+% uncomment to tweak with bib spacing
+%\setlength\bibsep{2.25pt}
+%{
+%\small
+\bibliographystyle{abbrvnat}
+%\bibliographystyle{ACM-Reference-Format}
+\bibliography{bib/biblio}
+%}
+
+\end{document}
