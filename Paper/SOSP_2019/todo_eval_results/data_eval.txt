@@ -1,2 +1,0 @@
-ibench score: normal run: 5.98 6.23 6.18 6.05 6.28
-			  tracing run: 6.29 6.01 6.09 6.28 6.01
