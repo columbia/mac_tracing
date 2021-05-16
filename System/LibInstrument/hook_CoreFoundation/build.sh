@@ -10,4 +10,3 @@ install_name_tool -change /System/Library/Frameworks/CoreFoundation.framework/Ve
 echo "After"
 otool -l HookCoreFoundation | grep -A2 LC_REEXPORT_DYLIB
 otool -l HookCoreFoundation | grep -A2 LC_LOAD_DYLIB
-codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v HookCoreFoundation

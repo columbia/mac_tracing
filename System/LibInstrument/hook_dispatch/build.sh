@@ -5,4 +5,3 @@ otool -l hook_dispatch.dylib | grep -A2 LC_REEXPORT_DYLIB
 install_name_tool -change libRatings.C.dylib /usr/lib/system/orig.libdispatch.dylib hook_dispatch.dylib 
 echo "After"
 otool -l hook_dispatch.dylib | grep -A2 LC_REEXPORT_DYLIB
-codesign -f -s "iPhone Developer: Lingmei Weng (FU6Q67TW73)" -v hook_dispatch.dylib
