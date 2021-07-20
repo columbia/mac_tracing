@@ -1,0 +1,1892 @@
+diff -ura xnu-4903.270.47/bsd/dev/i386/systemcalls.c xnu-4903.270.47_trace/bsd/dev/i386/systemcalls.c
+--- xnu-4903.270.47/bsd/dev/i386/systemcalls.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/bsd/dev/i386/systemcalls.c	2020-09-19 23:28:51.000000000 -0400
+@@ -71,6 +71,168 @@
+ #define code_is_kdebug_trace(code) (((code) == SYS_kdebug_trace) ||   \
+ 	                            ((code) == SYS_kdebug_trace64) || \
+ 	                            ((code) == SYS_kdebug_trace_string))
++//dirty hack
++#include <sys/filedesc.h>
++#include <sys/file_internal.h>
++#define f_flag f_fglob->fg_flag
++#define f_type f_fglob->fg_ops->fo_type
++#define f_msgcount f_fglob->fg_msgcount
++#define f_cred f_fglob->fg_cred
++#define f_ops f_fglob->fg_ops
++#define f_offset f_fglob->fg_offset
++#define f_data f_fglob->fg_data
++
++#define SYS_semwait_signal 334
++
++#define SYS_read		   3
++#define	SYS_write          4
++#define SYS_write_nocancel 397
++
++#define code_is_cv(code) ((code) == SYS_psynch_cvwait || \
++					(code) == SYS_psynch_cvsignal)
++
++#define code_is_fop(code) ((code) == SYS_read || (code) == SYS_write || (code) == SYS_write_nocancel)
++
++#include <kern/backtrace.h>
++#define IS_USERADDR64_CANONICAL(addr)                   \
++	((addr) < (VM_MAX_USER_PAGE_ADDRESS))
++#define INVALID_USER_FP(FP) ((FP) == 0 || !IS_USERADDR64_CANONICAL((FP)))
++
++static void
++get_filepath(proc_t p, int fd)
++{
++	//struct filedesc *fdp = p->p_fd;
++	struct fileproc *fp;
++	struct vnode *vp = NULLVP;
++
++	proc_fdlock(p);
++	if (fp_lookup(p, fd, &fp, 1)) {
++		proc_fdunlock(p);
++		return;
++	}
++
++	char pathbufp[MAXPATHLEN] = "";
++	int pathlen = MAXPATHLEN;
++
++	if (fp->f_type != DTYPE_VNODE) {
++		fp_drop(p, fd, fp, 1);
++		proc_fdunlock(p);
++		return;
++	}
++
++	vp = (struct vnode *)fp->f_data;
++	proc_fdunlock(p);
++
++	pathlen = MAXPATHLEN;
++
++	if ((vnode_getwithref(vp)) == 0) {
++		vn_getpath(vp, pathbufp, &pathlen);
++		(void)vnode_put(vp);
++	}
++	fp_drop(p, fd, fp, 0);
++	//kdebug_trace
++	for (int cur = 0; cur < pathlen; cur += 24) {
++		int dump = pathlen - cur > 24 ? 24 : pathlen - cur;
++		uint64_t content[3] = {0};
++		memcpy((void *)content, (const void *)(pathbufp + cur), dump);
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++				ARGUS_DBG_PATH | DBG_FUNC_NONE, fp,
++				content[0], content[1], content[2], 0);
++	}
++}
++
++static uint32_t
++light_backtrace(uintptr_t *bt, unsigned max, uint32_t *out_frames, uint64_t rip, uint64_t rbp)
++{
++	struct {
++		uint64_t fp;
++		uint64_t ret;
++	} frame;
++
++	int error = 0;
++	uint64_t next_fp, raddr;
++	unsigned frames = 0;
++
++	int frame_size = 2 * sizeof(uint64_t);
++	bt[frames++] = rip;
++	while (rbp != 0 && frames < max) {
++		error = copyin(rbp, (char *)&frame, frame_size);
++		raddr = frame.ret;
++
++		if (error || raddr < 4096) {
++			//*out_frames = 0;
++			//return error;
++			break;
++		}
++		next_fp = frame.fp;
++		if (INVALID_USER_FP(next_fp)) {
++			break;
++		}
++
++		bt[frames++] = (uintptr_t)raddr;
++		if (next_fp <= rbp)
++			break;
++		rbp = next_fp;
++	}
++	*out_frames = frames;
++	return error;
++}
++
++//static s_backtrace(uint64_t rip)
++static void argus_backtrace(uint64_t rip, uint64_t rbp)
++{
++	if (!kdebug_enable) return;
++
++	uint32_t frames = 0;
++	uint64_t func_tag = rip;
++	const unsigned BACKTRACE_BUFFER = 64;
++ 	uintptr_t callstack[BACKTRACE_BUFFER] = {0};
++
++	light_backtrace(callstack, BACKTRACE_BUFFER, &frames, rip, rbp);
++
++	//if (frames <= 2) return;
++
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		ARGUS_DBG_BT | DBG_FUNC_START, func_tag,
++		frames,
++		callstack[0],
++		callstack[1],
++		0);
++
++	bool end_early = false;
++ 	for (uint32_t i = 2; i < frames && i + 2 < BACKTRACE_BUFFER; i += 3) {
++		if (callstack[i] == 0)
++			break;
++		if (i + 1 == frames) {
++			callstack[i + 1] = 0;
++			callstack[i + 2] = 0;
++			end_early = true;
++		} else if (i + 2 == frames) {
++			callstack[i + 2] = 0;
++			end_early = true;
++		}
++
++		if (!end_early)
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		else
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		
++	}
++	if (!end_early)
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++				ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					0, 0, 0, 0);
++}
+ 
+ /*
+  * Function:	unix_syscall
+@@ -157,6 +319,11 @@
+ 			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 			    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
+ 			    *ip, *(ip + 1), *(ip + 2), *(ip + 3), 0);
++
++			if (nargs > 4 * sizeof(int))
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++						BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_NONE,
++						*(ip+4), *(ip+5), *(ip+6), *(ip+7), 0);
+ 		}
+ 
+ #if CONFIG_REQUIRES_U32_MUNGING
+@@ -167,9 +334,10 @@
+ 		}
+ #endif
+ 	} else {
+-		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
+-		    0, 0, 0, 0, 0);
++		if (!code_is_kdebug_trace(code))
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
++					0, 0, 0, 0, 0);
+ 	}
+ 
+ 	/*
+@@ -192,6 +360,12 @@
+ 	AUDIT_SYSCALL_ENTER(code, p, uthread);
+ 	error = (*(callp->sy_call))((void *) p, (void *) vt, &(uthread->uu_rval[0]));
+ 	AUDIT_SYSCALL_EXIT(code, p, uthread, error);
++	
++
++	if (__probable(!code_is_kdebug_trace(code)))
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++			BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
++			error, uthread->uu_rval[0], uthread->uu_rval[1], p->p_pid, 0);
+ 
+ #ifdef JOE_DEBUG
+ 	if (uthread->uu_iocount) {
+@@ -249,11 +423,13 @@
+ 		 */
+ 		throttle_lowpri_io(1);
+ 	}
++	/*
+ 	if (__probable(!code_is_kdebug_trace(code))) {
+ 		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+ 		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
+ 		    error, uthread->uu_rval[0], uthread->uu_rval[1], pid, 0);
+ 	}
++	*/
+ 
+ 	if (__improbable(!is_vfork && callp->sy_call == (sy_call_t *)execve && !error)) {
+ 		pal_execve_return(thread);
+@@ -342,14 +518,6 @@
+ 		memcpy(vt, args_start_at_rdi ? &regs->rdi : &regs->rsi, args_in_regs * sizeof(syscall_arg_t));
+ 
+ 
+-		if (!code_is_kdebug_trace(code)) {
+-			uint64_t *ip = (uint64_t *)vt;
+-
+-			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-			    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
+-			    (int)(*ip), (int)(*(ip + 1)), (int)(*(ip + 2)), (int)(*(ip + 3)), 0);
+-		}
+-
+ 		if (__improbable(callp->sy_narg > args_in_regs)) {
+ 			int copyin_count;
+ 
+@@ -363,12 +531,37 @@
+ 				/* NOTREACHED */
+ 			}
+ 		}
++
++		if (!code_is_kdebug_trace(code)) {
++			uint64_t *ip = (uint64_t *)vt;
++
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
++			    *ip, *(ip + 1), *(ip + 2), *(ip + 3), 0);
++
++			if (callp->sy_narg > 4)
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++						BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_NONE,
++						*(ip + 4), *(ip + 5), *(ip + 6), *(ip + 7), 0);
++			//TODO: dump args from memory
++			if (code_is_fop(code)) {
++				get_filepath(p, (int)(*ip));
++			}
++
++		}
++
+ 	} else {
+-		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
+-		    0, 0, 0, 0, 0);
++		if (!code_is_kdebug_trace(code))
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_START,
++					0, 0, 0, 0, 0);
+ 	}
+ 
++	if (code_is_cv(code)) {
++		argus_backtrace(regs->isf.rip, regs->rbp);
++	} 
++
++
+ 	/*
+ 	 * Delayed binding of thread credential to process credential, if we
+ 	 * are not running with an explicitly set thread credential.
+@@ -390,6 +583,12 @@
+ 	error = (*(callp->sy_call))((void *) p, vt, &(uthread->uu_rval[0]));
+ 	AUDIT_SYSCALL_EXIT(code, p, uthread, error);
+ 
++	if (__probable(!code_is_kdebug_trace(code))) {
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
++		    error, uthread->uu_rval[0], uthread->uu_rval[1], pid, 0);
++	}
++
+ #ifdef JOE_DEBUG
+ 	if (uthread->uu_iocount) {
+ 		printf("system call returned with uu_iocount != 0\n");
+@@ -462,11 +661,7 @@
+ 		 */
+ 		throttle_lowpri_io(1);
+ 	}
+-	if (__probable(!code_is_kdebug_trace(code))) {
+-		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
+-		    error, uthread->uu_rval[0], uthread->uu_rval[1], pid, 0);
+-	}
++
+ 
+ #if PROC_REF_DEBUG
+ 	if (__improbable(uthread_get_proc_refcount(uthread))) {
+@@ -510,6 +705,12 @@
+ #endif /* CONFIG_DTRACE */
+ 		AUDIT_SYSCALL_EXIT(code, p, uthread, error);
+ 
++		if (!code_is_kdebug_trace(code)) {
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
++					error, uthread->uu_rval[0], uthread->uu_rval[1], p->p_pid, 0);
++		}
++
+ 		if (error == ERESTART) {
+ 			/*
+ 			 * repeat the syscall
+@@ -566,6 +767,12 @@
+ #endif /* CONFIG_DTRACE */
+ 		AUDIT_SYSCALL_EXIT(code, p, uthread, error);
+ 
++		if (!code_is_kdebug_trace(code)) {
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++					BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
++					error, uthread->uu_rval[0], uthread->uu_rval[1], p->p_pid, 0);
++		}
++
+ 		if (error == ERESTART) {
+ 			pal_syscall_restart( thread, find_user_regs(thread));
+ 		} else if (error != EJUSTRETURN) {
+@@ -601,11 +808,6 @@
+ 		 */
+ 		throttle_lowpri_io(1);
+ 	}
+-	if (!code_is_kdebug_trace(code)) {
+-		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-		    BSDDBG_CODE(DBG_BSD_EXCP_SC, code) | DBG_FUNC_END,
+-		    error, uthread->uu_rval[0], uthread->uu_rval[1], p->p_pid, 0);
+-	}
+ 
+ 	thread_exception_return();
+ 	/* NOTREACHED */
+diff -ura xnu-4903.270.47/bsd/kern/kdebug.c xnu-4903.270.47_trace/bsd/kern/kdebug.c
+--- xnu-4903.270.47/bsd/kern/kdebug.c	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/bsd/kern/kdebug.c	2020-09-06 14:15:34.000000000 -0400
+@@ -274,7 +274,7 @@
+ 
+ int kdbg_control(int *, u_int, user_addr_t, size_t *);
+ 
+-static int kdbg_read(user_addr_t, size_t *, vnode_t, vfs_context_t, uint32_t);
++static int kdbg_read(user_addr_t, size_t *, vnode_t, vfs_context_t, uint32_t, uint64_t raw_file_limit);
+ static int kdbg_readcpumap(user_addr_t, size_t *);
+ static int kdbg_readthrmap_v3(user_addr_t, size_t, int);
+ static int kdbg_readcurthrmap(user_addr_t, size_t *);
+@@ -455,6 +455,7 @@
+ 
+ off_t   RAW_file_offset = 0;
+ int     RAW_file_written = 0;
++static off_t kdbg_thrmap_size = 0;
+ 
+ #define RAW_FLUSH_SIZE  (2 * 1024 * 1024)
+ 
+@@ -3375,6 +3376,7 @@
+ 	kd_regtype kd_Reg;
+ 	kbufinfo_t kd_bufinfo;
+ 	proc_t p;
++	uint64_t raw_file_limit = 0;
+ 
+ 	if (name[0] == KERN_KDWRITETR ||
+ 	    name[0] == KERN_KDWRITETR_V3 ||
+@@ -3388,6 +3390,10 @@
+ 			return EINVAL;
+ 		}
+ 		value = name[1];
++		if (name[0] == KERN_KDWRITETR && namelen >= 3) {
++			raw_file_limit = name[2] % 8192;
++			raw_file_limit = raw_file_limit << 20;
++		}
+ 	}
+ 
+ 	kdbg_lock_init();
+@@ -3533,7 +3539,7 @@
+ 		break;
+ 
+ 	case KERN_KDREADTR:
+-		ret = kdbg_read(where, sizep, NULL, NULL, RAW_VERSION1);
++		ret = kdbg_read(where, sizep, NULL, NULL, RAW_VERSION1, 0);
+ 		break;
+ 
+ 	case KERN_KDWRITETR:
+@@ -3578,9 +3584,9 @@
+ 
+ 				KDBG_RELEASE(TRACE_WRITING_EVENTS | DBG_FUNC_START);
+ 				if (name[0] == KERN_KDWRITETR_V3) {
+-					ret = kdbg_read(0, &number, vp, &context, RAW_VERSION3);
++					ret = kdbg_read(0, &number, vp, &context, RAW_VERSION3, 0);
+ 				} else {
+-					ret = kdbg_read(0, &number, vp, &context, RAW_VERSION1);
++					ret = kdbg_read(0, &number, vp, &context, RAW_VERSION1, raw_file_limit);
+ 				}
+ 				KDBG_RELEASE(TRACE_WRITING_EVENTS | DBG_FUNC_END, number);
+ 
+@@ -3592,6 +3598,7 @@
+ 				} else {
+ 					ret = kdbg_write_thread_map(vp, &context);
+ 				}
++				kdbg_thrmap_size = RAW_file_offset;
+ 			}
+ 			fp->f_fglob->fg_offset = RAW_file_offset;
+ 			vnode_put(vp);
+@@ -3665,7 +3672,7 @@
+  * move through the lists w/o use of any locks
+  */
+ int
+-kdbg_read(user_addr_t buffer, size_t *number, vnode_t vp, vfs_context_t ctx, uint32_t file_version)
++kdbg_read(user_addr_t buffer, size_t *number, vnode_t vp, vfs_context_t ctx, uint32_t file_version, uint64_t dbg_raw_file_limit)
+ {
+ 	unsigned int count;
+ 	unsigned int cpu, min_cpu;
+@@ -3977,9 +3984,28 @@
+ 			}
+ 			if (vp) {
+ 				size_t write_size = tempbuf_number * sizeof(kd_buf);
+-				error = kdbg_write_to_vnode((caddr_t)kdcopybuf, write_size, vp, ctx, RAW_file_offset);
+-				if (!error) {
+-					RAW_file_offset += write_size;
++				//error = kdbg_write_to_vnode((caddr_t)kdcopybuf, write_size, vp, ctx, RAW_file_offset);
++				//if (!error) {
++					//RAW_file_offset += write_size;
++				//}
++
++				if (dbg_raw_file_limit == 0
++					|| dbg_raw_file_limit < (uint64_t)kdbg_thrmap_size
++					|| (dbg_raw_file_limit > RAW_file_offset + write_size)) {
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf, write_size, vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset += write_size;
++				} else {
++					//dbg_file_limit != 0 and Raw_file_offset + write_size > dbg_raw_file_limit
++					size_t tail = (dbg_raw_file_limit - RAW_file_offset) / sizeof(kd_buf);
++
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf, tail * sizeof(kd_buf), vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset = kdbg_thrmap_size;
++
++					error = kdbg_write_to_vnode((caddr_t)kdcopybuf + tail * sizeof(kd_buf), write_size -  tail * sizeof(kd_buf), vp, ctx, RAW_file_offset);
++					if (!error)
++						RAW_file_offset += write_size - tail * sizeof(kd_buf);
+ 				}
+ 
+ 				if (RAW_file_written >= RAW_FLUSH_SIZE) {
+@@ -4293,7 +4319,7 @@
+ 	kdbg_write_thread_map(vp, ctx);
+ 
+ 	write_size = nkdbufs * sizeof(kd_buf);
+-	ret = kdbg_read(0, &write_size, vp, ctx, RAW_VERSION1);
++	ret = kdbg_read(0, &write_size, vp, ctx, RAW_VERSION1, 0);
+ 	if (ret) {
+ 		goto out_close;
+ 	}
+diff -ura xnu-4903.270.47/bsd/kern/kern_xxx.c xnu-4903.270.47_trace/bsd/kern/kern_xxx.c
+--- xnu-4903.270.47/bsd/kern/kern_xxx.c	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/bsd/kern/kern_xxx.c	2020-09-06 14:15:34.000000000 -0400
+@@ -163,3 +163,7 @@
+ 	error = psem_cache_purge_all(p);
+ 	return error;
+ }
++__attribute__((noreturn)) int network__stub__(void);
++int network__stub__(void) { panic("unimplemented network stub"); __builtin_unreachable(); }
++__attribute__((noreturn)) int network__stub1__(void);
++int network__stub1__(void) { panic("unimplemented network stub"); __builtin_unreachable(); }
+diff -ura xnu-4903.270.47/bsd/net/skywalk_stubs.c xnu-4903.270.47_trace/bsd/net/skywalk_stubs.c
+--- xnu-4903.270.47/bsd/net/skywalk_stubs.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/bsd/net/skywalk_stubs.c	2020-09-06 14:15:34.000000000 -0400
+@@ -40,7 +40,6 @@
+ 	/* NOTREACHED */                                        \
+ 	__builtin_unreachable();                                \
+ }
+-
+ STUB(kern_buflet_get_data_offset);
+ STUB(kern_buflet_get_data_length);
+ STUB(kern_buflet_get_object_address);
+diff -ura xnu-4903.270.47/bsd/sys/kdebug.h xnu-4903.270.47_trace/bsd/sys/kdebug.h
+--- xnu-4903.270.47/bsd/sys/kdebug.h	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/bsd/sys/kdebug.h	2020-09-09 04:19:34.000000000 -0400
+@@ -206,6 +206,7 @@
+ #define DBG_ENERGYTRACE 45
+ #define DBG_DISPATCH    46
+ #define DBG_IMG         49
++#define DBG_ARGUS		50
+ #define DBG_UMALLOC     51
+ #define DBG_TURNSTILE   53
+ 
+@@ -461,6 +462,13 @@
+ #define MACH_PROMOTED_UPDATE       0x37 /* thread already promoted, but promotion priority changed */
+ #define MACH_QUIESCENT_COUNTER     0x38 /* quiescent counter tick */
+ 
++/* Add for Argus Scheduler analysis */
++#define MACH_WAIT_REASON		0x41
++#define MACH_WAKEUP_REASON		0x42
++#define MACH_TS_MAINTENANCE		0x43
++#define MACH_CALLCREATE			0x44
++#define MACH_CALLCANCEL			0x45
++
+ /* Variants for MACH_MULTIQ_DEQUEUE */
+ #define MACH_MULTIQ_BOUND     1
+ #define MACH_MULTIQ_GROUP     2
+@@ -493,6 +501,20 @@
+ #define MACH_IPC_KMSG_LINK                      0xb     /* link a kernel kmsg pointer to user mach_msg_header_t */
+ #define MACH_IPC_PORT_ENTRY_MODIFY      0xc     /* A port space gained or lost a port right (reference) */
+ 
++/* Add for Argus IPC analysis */
++#define MACH_IPC_VOUCHER_CONN		0xd
++#define MACH_IPC_VOUCHER_REMOVE		0xe
++#define MACH_IPC_VOUCHER_BANK		0xf
++#define MACH_IPC_VOUCHER_REUSE		0x10
++
++/* Add for Argus *DUMP* message content __not_ported_to_mojave_*/
++#define MACH_IPC_MSG_DUMP			0x11
++#define MACH_IPC_MSG_BOARDER		0x12
++#define MACH_IPC_MSG_DSC			0x13
++#define MACH_IPC_MSG_TRAP			0x14
++#define MACH_IPC_MSG_INTERNAL_DSC	0x15
++#define MACH_IPC_THREAD_VOUCHER		0x16
++
+ /* Codes for thread groups (DBG_MACH_THREAD_GROUP) */
+ #define MACH_THREAD_GROUP_NEW           0x0
+ #define MACH_THREAD_GROUP_FREE          0x1
+@@ -975,6 +997,7 @@
+ #define BANK_SETTLE_CPU_TIME            0x1     /* Bank ledger(chit) rolled up to tasks. */
+ #define BANK_SECURE_ORIGINATOR_CHANGED  0x2     /* Secure Originator changed. */
+ #define BANK_SETTLE_ENERGY              0x3     /* Bank ledger(energy field) rolled up to tasks. */
++#define BANK_VOUCHER_REDEEM				0x4
+ 
+ /* Codes for ATM_SUBAID_INFO */
+ #define ATM_MIN_CALLED                          0x1
+@@ -1035,6 +1058,17 @@
+ #define ATM_CODE(SubClass, code) KDBG_CODE(DBG_ATM, (SubClass), (code))
+ #define TURNSTILE_CODE(SubClass, code) KDBG_CODE(DBG_TURNSTILE, (SubClass), (code))
+ 
++/*Argus Debug code*/
++#define ARGUSDBG_CODE(SubClass, code) KDBG_CODE(DBG_ARGUS, SubClass, code)
++#define ARGUS_RESERVED 255
++/*code for SUBCLASS ARGUS_RESERVE*/
++#define ARGUS_INIT 0
++#define BACK_TRACE 1
++#define PATH_INFO  2
++#define ARGUS_DBG_BT	ARGUSDBG_CODE(ARGUS_RESERVED, BACK_TRACE)
++#define ARGUS_DBG_PATH	ARGUSDBG_CODE(ARGUS_RESERVED, PATH_INFO)
++
++
+ /* Kernel Debug Macros for specific daemons */
+ #define COREDUETDBG_CODE(code) DAEMONDBG_CODE(DBG_DAEMON_COREDUET, code)
+ #define POWERDDBG_CODE(code) DAEMONDBG_CODE(DBG_DAEMON_POWERD, code)
+diff -ura xnu-4903.270.47/config/Private.exports xnu-4903.270.47_trace/config/Private.exports
+--- xnu-4903.270.47/config/Private.exports	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/config/Private.exports	2020-09-06 14:15:33.000000000 -0400
+@@ -629,3 +629,119 @@
+ __Block_tryRetain
+ __Block_use_RR2
+ __Block_use_stret
++_network__stub__
++__Z33IOSKCopyKextIdentifierWithAddressm
++_kern_buflet_get_data_length:_network__stub__
++_kern_buflet_get_data_limit:_network__stub__
++_kern_buflet_get_data_offset:_network__stub__
++_kern_buflet_get_object_address:_network__stub__
++_kern_buflet_get_object_offset:_network__stub__
++_kern_buflet_get_object_segment:_network__stub__
++_kern_buflet_set_data_length:_network__stub__
++_kern_buflet_set_data_offset:_network__stub__
++_kern_channel_advance_slot:_network__stub__
++_kern_channel_available_slot_count:_network__stub__
++_kern_channel_get_context:_network__stub__
++_kern_channel_get_next_slot:_network__stub__
++_kern_channel_get_service_class:_network__stub__
++_kern_channel_increment_ring_net_stats:_network__stub__
++_kern_channel_increment_ring_stats:_network__stub__
++_kern_channel_notify:_network__stub__
++_kern_channel_reclaim:_network__stub__
++_kern_channel_ring_get_container:_network__stub__
++_kern_channel_ring_get_context:_network__stub__
++_kern_channel_slot_attach_packet:_network__stub__
++_kern_channel_slot_detach_packet:_network__stub__
++_kern_channel_slot_get_context:_network__stub__
++_kern_channel_slot_get_packet:_network__stub__
++_kern_channel_tx_refill:_network__stub__
++_kern_copy_and_inet_checksum:_network__stub__
++_kern_inet_checksum:_network__stub__
++_kern_nexus_attr_clone:_network__stub__
++_kern_nexus_attr_create:_network__stub__
++_kern_nexus_attr_destroy:_network__stub__
++_kern_nexus_attr_get:_network__stub__
++_kern_nexus_attr_set:_network__stub__
++_kern_nexus_controller_alloc_net_provider_instance:_network__stub__
++_kern_nexus_controller_alloc_provider_instance:_network__stub__
++_kern_nexus_controller_bind_provider_instance:_network__stub__
++_kern_nexus_controller_create:_network__stub__
++_kern_nexus_controller_deregister_provider:_network__stub__
++_kern_nexus_controller_destroy:_network__stub__
++_kern_nexus_controller_free_provider_instance:_network__stub__
++_kern_nexus_controller_read_provider_attr:_network__stub__
++_kern_nexus_controller_register_provider:_network__stub__
++_kern_nexus_controller_unbind_provider_instance:_network__stub__
++_kern_nexus_deregister_domain_provider:_network__stub__
++_kern_nexus_get_builtin_domain_provider:_network__stub__
++_kern_nexus_get_context:_network__stub__
++_kern_nexus_get_pbufpool:_network__stub__
++_kern_nexus_register_domain_provider:_network__stub__
++_kern_packet_clear_flow_uuid:_network__stub__
++_kern_packet_finalize:_network__stub__
++_kern_packet_get_buflet_count:_network__stub__
++_kern_packet_get_data_length:_network__stub__
++_kern_packet_get_euuid:_network__stub__
++_kern_packet_get_flow_uuid:_network__stub__
++_kern_packet_get_inet_checksum:_network__stub__
++_kern_packet_get_link_broadcast:_network__stub__
++_kern_packet_get_link_ethfcs:_network__stub__
++_kern_packet_get_link_header_offset:_network__stub__
++_kern_packet_get_link_multicast:_network__stub__
++_kern_packet_get_network_header_offset:_network__stub__
++_kern_packet_get_next_buflet:_network__stub__
++_kern_packet_get_object_index:_network__stub__
++_kern_packet_get_policy_id:_network__stub__
++_kern_packet_get_service_class:_network__stub__
++_kern_packet_get_service_class_index:_network__stub__
++_kern_packet_get_timestamp:_network__stub__
++_kern_packet_get_timestamp_requested:_network__stub__
++_kern_packet_get_traffic_class:_network__stub__
++_kern_packet_get_transport_header_offset:_network__stub__
++_kern_packet_get_transport_last_packet:_network__stub__
++_kern_packet_get_transport_new_flow:_network__stub__
++_kern_packet_get_transport_retransmit:_network__stub__
++_kern_packet_get_transport_traffic_background:_network__stub__
++_kern_packet_get_transport_traffic_realtime:_network__stub__
++_kern_packet_get_tx_completion_status:_network__stub__
++_kern_packet_set_flow_uuid:_network__stub__
++_kern_packet_set_inet_checksum:_network__stub__
++_kern_packet_set_link_broadcast:_network__stub__
++_kern_packet_set_link_ethfcs:_network__stub__
++_kern_packet_set_link_header_offset:_network__stub__
++_kern_packet_set_link_multicast:_network__stub__
++_kern_packet_set_network_header_offset:_network__stub__
++_kern_packet_set_policy_id:_network__stub__
++_kern_packet_set_service_class:_network__stub__
++_kern_packet_set_timestamp:_network__stub__
++_kern_packet_set_traffic_class:_network__stub__
++_kern_packet_set_transport_header_offset:_network__stub__
++_kern_packet_set_tx_completion_status:_network__stub__
++_kern_packet_tx_completion:_network__stub__
++_kern_pbufpool_alloc:_network__stub__
++_kern_pbufpool_alloc_batch:_network__stub__
++_kern_pbufpool_alloc_batch_nosleep:_network__stub__
++_kern_pbufpool_alloc_nosleep:_network__stub__
++_kern_pbufpool_create:_network__stub__
++_kern_pbufpool_destroy:_network__stub__
++_kern_pbufpool_free:_network__stub__
++_kern_pbufpool_free_batch:_network__stub__
++_kern_pbufpool_get_context:_network__stub__
++_kern_pbufpool_get_memory_info:_network__stub__
++_kern_segment_get_index:_network__stub__
++_xcpm_bios_mbox_cmd_read
++_xcpm_bios_mbox_cmd_unsafe_read:_xcpm_bios_mbox_cmd_read
++_xcpm_bios_mbox_cmd_write
++_xcpm_is_hwp_enabled
++_xcpm_mbox_lock
++_xcpm_mbox_unlock:_xcpm_mbox_lock
++_pmap_is_trust_cache_loaded
++_pmap_load_image4_trust_cache
++_pmap_load_legacy_trust_cache
++_pmap_lookup_in_loaded_trust_cache:_pmap_is_trust_cache_loaded
++_pmap_lookup_in_static_trust_cache:_pmap_is_trust_cache_loaded
++_pmap_claim_reserved_ppl_page
++_pmap_free_reserved_ppl_page
++_pmap_in_ppl
++_bpf_tap_packet_in:_bpf_tap_in
++_bpf_tap_packet_out:_bpf_tap_out
+diff -ura xnu-4903.270.47/config/Private.x86_64.exports xnu-4903.270.47_trace/config/Private.x86_64.exports
+--- xnu-4903.270.47/config/Private.x86_64.exports	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/config/Private.x86_64.exports	2020-09-06 14:15:33.000000000 -0400
+@@ -1,7 +1,6 @@
+ _IOGetBootKeyStoreData
+ _IOGetAPFSKeyStoreData
+ _IOSetAPFSKeyStoreData
+-__Z33IOSKCopyKextIdentifierWithAddressm
+ __ZN14IOPMrootDomain20claimSystemWakeEventEP9IOServicejPKcP8OSObject
+ __ZN14IOPMrootDomain20restartWithStackshotEv
+ __ZN22IOInterruptEventSource7warmCPUEy
+diff -ura xnu-4903.270.47/iokit/Kernel/IOWorkLoop.cpp xnu-4903.270.47_trace/iokit/Kernel/IOWorkLoop.cpp
+--- xnu-4903.270.47/iokit/Kernel/IOWorkLoop.cpp	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/iokit/Kernel/IOWorkLoop.cpp	2020-09-06 14:15:34.000000000 -0400
+@@ -743,3 +743,5 @@
+ 	reserved->options = (reserved->options & ~kTimeLockPanics) | (options & kTimeLockPanics);
+ 	IORecursiveLockUnlock(gateLock);
+ }
++//const OSSymbol *IOSKCopyKextIdentifierWithAddress(vm_address_t a);
++//const OSSymbol *IOSKCopyKextIdentifierWithAddress(vm_address_t a) { OSKext *k = OSKext::lookupKextWithAddress(a); if (k) { const OSSymbol *s = k->getIdentifier(); k->release(); if (s) { s->retain(); return s; } } return NULL; }
+diff -ura xnu-4903.270.47/iokit/conf/files xnu-4903.270.47_trace/iokit/conf/files
+--- xnu-4903.270.47/iokit/conf/files	2020-09-06 14:15:51.000000000 -0400
++++ xnu-4903.270.47_trace/iokit/conf/files	2020-09-06 14:15:34.000000000 -0400
+@@ -111,3 +111,4 @@
+ iokit/Kernel/IOPerfControl.cpp		optional iokitcpp
+ 
+ iokit/bsddev/skywalk/IOSkywalkSupport.cpp		optional iokitcpp
++iokit/Kernel/IOPerfControl.cpp optional iokitcpp
+diff -ura xnu-4903.270.47/osfmk/bank/bank.c xnu-4903.270.47_trace/osfmk/bank/bank.c
+--- xnu-4903.270.47/osfmk/bank/bank.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/bank/bank.c	2020-09-06 14:15:42.000000000 -0400
+@@ -386,6 +386,9 @@
+ 				thread_group = cur_thread_group;
+ 			}
+ 
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, (ARGUSDBG_CODE(BANK_ACCOUNT_INFO, (BANK_VOUCHER_REDEEM))) | DBG_FUNC_NONE,
++					bank_merchant->bt_pid, bank_holder->bt_pid, 0, 0, 0);
++
+ 			/* Check if trying to redeem for self task, return the default bank task */
+ 			if (bank_holder == bank_merchant &&
+ 			    bank_holder == bank_secureoriginator &&
+diff -ura xnu-4903.270.47/osfmk/i386/bsd_i386.c xnu-4903.270.47_trace/osfmk/i386/bsd_i386.c
+--- xnu-4903.270.47/osfmk/i386/bsd_i386.c	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/i386/bsd_i386.c	2020-09-19 23:30:02.000000000 -0400
+@@ -438,6 +438,110 @@
+ 	return KERN_SUCCESS;
+ }
+ 
++//dirty hack
++#include <kern/backtrace.h>
++#define IS_USERADDR64_CANONICAL(addr)                   \
++	((addr) < (VM_MAX_USER_PAGE_ADDRESS))
++#define INVALID_USER_FP(FP) ((FP) == 0 || !IS_USERADDR64_CANONICAL((FP)))
++#define SYS_mach_msg_trap 31
++#define SYS_mach_msg_overwrite_trap  32
++
++#define code_is_msg(code) ((code) == SYS_mach_msg_trap||\
++						(code) == SYS_mach_msg_overwrite_trap)
++
++static uint32_t
++light_backtrace(uintptr_t *bt, unsigned max, uint32_t *out_frames, uint64_t rip, uint64_t rbp)
++{
++	struct {
++		uint64_t fp;
++		uint64_t ret;
++	} frame;
++
++	int error = 0;
++	uint64_t next_fp, raddr;
++	unsigned frames = 0;
++
++	int frame_size = 2 * sizeof(uint64_t);
++	bt[frames++] = rip;
++	while (rbp != 0 && frames < max) {
++		error = copyin(rbp, (char *)&frame, frame_size);
++		raddr = frame.ret;
++
++		if (error || raddr < 4096) {
++			//*out_frames = 0;
++			//return error;
++			break;
++		}
++		next_fp = frame.fp;
++		if (INVALID_USER_FP(next_fp)) {
++			break;
++		}
++
++		bt[frames++] = (uintptr_t)raddr;
++		if (next_fp <= rbp)
++			break;
++		rbp = next_fp;
++	}
++	*out_frames = frames;
++	return error;
++}
++
++//static s_backtrace(uint64_t rip)
++static void argus_backtrace(uint64_t rip, uint64_t rbp)
++{
++	if (!kdebug_enable) return;
++
++	uint32_t frames = 0;
++	uint64_t func_tag = rip;
++	const unsigned BACKTRACE_BUFFER = 64;
++ 	uintptr_t callstack[BACKTRACE_BUFFER] = {0};
++
++	light_backtrace(callstack, BACKTRACE_BUFFER, &frames, rip, rbp);
++
++	//if (frames <= 2) return;
++
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		ARGUS_DBG_BT | DBG_FUNC_START, func_tag,
++		frames,
++		callstack[0],
++		callstack[1],
++		0);
++
++	bool end_early = false;
++ 	for (uint32_t i = 2; i < frames && i + 2 < BACKTRACE_BUFFER; i += 3) {
++		if (callstack[i] == 0)
++			break;
++		if (i + 1 == frames) {
++			callstack[i + 1] = 0;
++			callstack[i + 2] = 0;
++			end_early = true;
++		} else if (i + 2 == frames) {
++			callstack[i + 2] = 0;
++			end_early = true;
++		}
++
++		if (!end_early)
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		else
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		
++	}
++	if (!end_early)
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++				ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					0, 0, 0, 0);
++}
++
+ 
+ __private_extern__ void mach_call_munger(x86_saved_state_t *state);
+ 
+@@ -504,6 +608,19 @@
+ 	    MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_START,
+ 	    args.arg1, args.arg2, args.arg3, args.arg4, 0);
+ 
++	//if (kdebug_enable && code_is_msg(call_number))
++		//argus_backtrace(regs->eip, regs->ebp);
++
++	//if (argc > 4)
++	//	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++	//			MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_NONE,
++	//			args.arg5, args.arg6, args.arg7, args.arg8, 0);
++
++	//if (argc > 8)
++	//	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++	//			MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_NONE,
++	//			args.arg9, 0, 0, 0, 0);
++
+ 	retval = mach_call(&args);
+ 
+ 	DEBUG_KPRINT_SYSCALL_MACH("mach_call_munger: retval=0x%x\n", retval);
+@@ -557,9 +674,9 @@
+ 		"mach_call_munger64: code=%d(%s)\n",
+ 		call_number, mach_syscall_name_table[call_number]);
+ 
+-	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-	    MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_START,
+-	    regs->rdi, regs->rsi, regs->rdx, regs->r10, 0);
++	//KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++	    //MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_START,
++	    //regs->rdi, regs->rsi, regs->rdx, regs->r10, 0);
+ 
+ 	if (call_number < 0 || call_number >= mach_trap_count) {
+ 		i386_exception(EXC_SYSCALL, regs->rax, 1);
+@@ -596,6 +713,22 @@
+ 	mach_kauth_cred_uthread_update();
+ #endif
+ 
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_START,
++		args.arg1, args.arg2, args.arg3, args.arg4, 0);
++	
++	if (kdebug_enable && code_is_msg(call_number))
++		argus_backtrace(regs->isf.rip, regs->rbp);
++
++	if (argc > 4)
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_NONE,
++				args.arg5, args.arg6, args.arg7, args.arg8, 0);
++	if (argc > 8)
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				MACHDBG_CODE(DBG_MACH_EXCP_SC, (call_number)) | DBG_FUNC_NONE,
++				args.arg9, 0, 0, 0, 0);
++
+ 	regs->rax = (uint64_t)mach_call((void *)&args);
+ 
+ 	DEBUG_KPRINT_SYSCALL_MACH( "mach_call_munger64: retval=0x%llx\n", regs->rax);
+diff -ura xnu-4903.270.47/osfmk/i386/cpuid.h xnu-4903.270.47_trace/osfmk/i386/cpuid.h
+--- xnu-4903.270.47/osfmk/i386/cpuid.h	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/i386/cpuid.h	2020-09-06 14:15:42.000000000 -0400
+@@ -37,6 +37,18 @@
+ #ifndef _MACHINE_CPUID_H_
+ #define _MACHINE_CPUID_H_
+ 
++#define pmNapHalt	0x00000010
++#define pmNapC1		0x00000008
++#define pmNapC2		0x00000004
++#define pmNapC3		0x00000002
++#define pmNapC4		0x00000001
++#define pmNapMask	0x000000FF
++
++#define cfgAdr 		0xCF8
++#define cfgDat 		0xCFC
++#define lpcCfg 		(0x80000000 | (0 << 16) | (31 << 11) | (0 << 8))
++#define XeonCapID5      0x0
++
+ #include <sys/appleapiopts.h>
+ 
+ #if defined(MACH_KERNEL_PRIVATE) && !defined(ASSEMBLER)
+diff -ura xnu-4903.270.47/osfmk/i386/trap.c xnu-4903.270.47_trace/osfmk/i386/trap.c
+--- xnu-4903.270.47/osfmk/i386/trap.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/i386/trap.c	2020-09-19 20:00:43.000000000 -0400
+@@ -348,6 +348,117 @@
+ uint32_t interrupt_timer_coalescing_enabled = 1;
+ uint64_t interrupt_coalesced_timers;
+ 
++#if 0
++#include <kern/backtrace.h>
++#define IS_USERADDR64_CANONICAL(addr)                   \
++	((addr) < (VM_MAX_USER_PAGE_ADDRESS))
++#define INVALID_USER_FP(FP) ((FP) == 0 || !IS_USERADDR64_CANONICAL((FP)))
++
++static uint32_t
++light_backtrace(uintptr_t *bt, unsigned max, uint32_t *out_frames, uint64_t rip, uint64_t rbp)
++{
++	struct {
++		uint64_t fp;
++		uint64_t ret;
++	} frame;
++
++	int error = 0;
++	uint64_t next_fp, raddr;
++	unsigned frames = 0;
++
++	int frame_size = 2 * sizeof(uint64_t);
++	bt[frames++] = rip;
++	while (rbp != 0 && frames < max) {
++		error = copyin(rbp, (char *)&frame, frame_size);
++		raddr = frame.ret;
++
++		if (error || raddr < 4096) {
++			*out_frames = 0;
++			return error;
++		}
++		next_fp = frame.fp;
++		if (INVALID_USER_FP(next_fp)) {
++			break;
++		}
++
++		bt[frames++] = (uintptr_t)raddr;
++		if (next_fp <= rbp)
++			break;
++		rbp = next_fp;
++	}
++	*out_frames = frames;
++	return error;
++}
++
++
++//static s_backtrace(uint64_t rip)
++static void argus_backtrace(uint64_t rip, uint64_t rbp)
++{
++	if (!kdebug_enable) return;
++	if (--(current_thread()->ipi_bt) != 0) return;
++	current_thread()->ipi_bt = 6;
++
++	uint32_t frames = 0;
++	uint64_t func_tag = rip;
++
++	//bool user_64_out; 
++	//uintptr_t *callstack = &(current_thread()->thread_interrupt_bt[0]);
++	//const int BACKTRACE_BUFFER = (sizeof(current_thread()->thread_interrupt_bt) / sizeof(uintptr_t));
++ 	//int err = backtrace_thread_user(current_thread(), callstack, BACKTRACE_BUFFER, &frames, &user_64_out);
++	//if (err || frames <= 2) return;
++
++	const unsigned BACKTRACE_BUFFER = 64;
++ 	uintptr_t callstack[BACKTRACE_BUFFER] = {0};
++	light_backtrace(callstack, BACKTRACE_BUFFER, &frames, rip, rbp);
++	if (frames <= 2) return;
++
++	//kdebug_trace(ARGUS_DBG_BT | DBG_FUNC_START, func_tag,
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		ARGUS_DBG_BT | DBG_FUNC_START, func_tag,
++		frames,
++		callstack[0],
++		callstack[1],
++		0);
++
++	bool end_early = false;
++ 	for (uint32_t i = 2; i < frames && i + 2 < BACKTRACE_BUFFER; i += 3) {
++		if (callstack[i] == 0)
++			break;
++		if (i + 1 == frames) {
++			callstack[i + 1] = 0;
++			callstack[i + 2] = 0;
++			end_early = true;
++		} else if (i + 2 == frames) {
++			callstack[i + 2] = 0;
++			end_early = true;
++		}
++
++		if (!end_early)
++			//kdebug_trace(ARGUS_DBG_BT | DBG_FUNC_INFO, func_tag,
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		else
++			//kdebug_trace(ARGUS_DBG_BT | DBG_FUNC_END, func_tag,
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++					ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					callstack[i],
++					callstack[i + 1],
++					callstack[i + 2],
++					0);
++		
++	}
++	if (!end_early)
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++				ARGUS_DBG_BT|DBG_FUNC_END, func_tag,
++					0, 0, 0, 0);
++		//kdebug_trace(ARGUS_DBG_BT | DBG_FUNC_END, func_tag,
++}
++#endif
++
+ /*
+  * Handle interrupts:
+  *  - local APIC interrupts (IPIs, timers, etc) are handled by the kernel,
+@@ -358,6 +469,7 @@
+ {
+ 	uint64_t        rip;
+ 	uint64_t        rsp;
++	uint64_t		rbp;
+ 	int             interrupt_num;
+ 	boolean_t       user_mode = FALSE;
+ 	int             ipl;
+@@ -369,6 +481,7 @@
+ 	x86_saved_state64_t     *state64 = saved_state64(state);
+ 	rip = state64->isf.rip;
+ 	rsp = state64->isf.rsp;
++	rbp = state64->rbp;
+ 	interrupt_num = state64->isf.trapno;
+ 	if (state64->isf.cs & 0x03) {
+ 		user_mode = TRUE;
+@@ -378,19 +491,32 @@
+ 		cpu_data_ptr[cnum]->cpu_hwIntpexits[interrupt_num]++;
+ 	}
+ 
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		ARGUSDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_START,
++		(uint64_t)(current_thread()->sched_pri) << 32 | (uint64_t)interrupt_num,
++		(user_mode ? rip : VM_KERNEL_UNSLIDE(rip)),
++		user_mode,
++		(uint64_t)(current_thread()->ast) << 32 | (uint64_t)(current_thread()->reason), /*ast related*/
++		0);
++
+ 	if (interrupt_num == (LAPIC_DEFAULT_INTERRUPT_BASE + LAPIC_INTERPROCESSOR_INTERRUPT)) {
+ 		itype = DBG_INTR_TYPE_IPI;
++
++		//if (user_mode)
++			//argus_backtrace(rip, rbp);
++
+ 	} else if (interrupt_num == (LAPIC_DEFAULT_INTERRUPT_BASE + LAPIC_TIMER_INTERRUPT)) {
+ 		itype = DBG_INTR_TYPE_TIMER;
+ 	} else {
+ 		itype = DBG_INTR_TYPE_OTHER;
+ 	}
+ 
+-	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-	    MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_START,
+-	    interrupt_num,
+-	    (user_mode ? rip : VM_KERNEL_UNSLIDE(rip)),
+-	    user_mode, itype, 0);
++	//KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++	    //MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_START,
++	    //interrupt_num,
++	    //(user_mode ? rip : VM_KERNEL_UNSLIDE(rip)),
++	    //user_mode, itype, 0);
++
+ 
+ 	SCHED_STATS_INTERRUPT(current_processor());
+ 
+@@ -488,8 +614,14 @@
+ 	kperf_interrupt();
+ #endif /* KPERF */
+ 
+-	KDBG_RELEASE(MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_END,
+-	    interrupt_num);
++	//KDBG_RELEASE(MACHDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_END,
++	   // interrupt_num);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE, 
++		ARGUSDBG_CODE(DBG_MACH_EXCP_INTR, 0) | DBG_FUNC_END,
++		(uint64_t)(current_thread()->sched_pri) << 32 | (uint64_t)interrupt_num,
++		(uint64_t)(current_thread()->ast) << 32 | (uint64_t)(current_thread()->reason), /*ast related*/
++		*(uint64_t*)&(current_thread()->effective_policy),
++		*(uint64_t*)&(current_thread()->requested_policy), 0);
+ 
+ 	assert(ml_get_interrupts_enabled() == FALSE);
+ }
+diff -ura xnu-4903.270.47/osfmk/ipc/ipc_kmsg.c xnu-4903.270.47_trace/osfmk/ipc/ipc_kmsg.c
+--- xnu-4903.270.47/osfmk/ipc/ipc_kmsg.c	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/ipc/ipc_kmsg.c	2020-09-06 14:15:42.000000000 -0400
+@@ -196,6 +196,9 @@
+ /*
+  * Forward declarations
+  */
++
++static void ipc_msg_voucher_info(uint64_t ksmg, ipc_voucher_t peek_voucher);	
++
+ void ipc_msg_print_untyped64(
+ 	mach_msg_body_t         *body);
+ 
+@@ -1517,6 +1520,58 @@
+ #endif
+ 	return ipc_kmsg_alloc(size);
+ }
++/*
++ * Routine: ipc_msg_voucher_info
++ *		Add by wlm
++ */
++
++static void ipc_msg_voucher_info(uint64_t kmsg, ipc_voucher_t peek_voucher)
++{
++	//mach_voucher_attr_content_t content[MACH_VOUCHER_BANK_CONTENT_SIZE];
++	unsigned char content[MACH_VOUCHER_BANK_CONTENT_SIZE];
++	mach_voucher_attr_content_size_t size = MACH_VOUCHER_BANK_CONTENT_SIZE;
++	kern_return_t ret = mach_voucher_extract_attr_content(peek_voucher, MACH_VOUCHER_ATTR_KEY_BANK, content, &size);
++	if (size == 0 || ret != KERN_SUCCESS)
++		return;
++	char * sub_content = (char *)content;
++	char enter[8];
++	int read_size = 0;
++	while ((uint64_t)sub_content - (uint64_t)content < size - 1 && sub_content != NULL) {
++		if (!strncmp((const char*)sub_content, " Bank Context", 13)){
++			int bank_pid;
++			sscanf((const char*)sub_content," Bank Context for a pid %d%[\n]%n", &bank_pid, enter, &read_size);
++    		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
++				BANK_TASK, (uint64_t)bank_pid << 32, 0);	
++		} else if (!strncmp((const char*)sub_content, " Bank Account", 13)) {
++			int holder_pid, merchant_pid;
++			int originator_pid, proximate_pid;
++			uint32_t orig_persona, prox_persona;
++			sscanf((const char *)sub_content,
++				" Bank Account linking holder pid %d with merchant pid %d, originator PID/persona: %d, %u and proximate PID/persona: %d, %u%[\n]%n",
++					&holder_pid, &merchant_pid,
++					&originator_pid, &orig_persona,
++					&proximate_pid, &prox_persona, 
++					enter, &read_size); 
++			/*
++					" Bank Account linking holder pid %d with merchant pid %d%[\n]%n",
++					&holder_pid, &merchant_pid, enter, &read_size); 
++			*/
++    		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC, MACH_IPC_VOUCHER_BANK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				VM_KERNEL_ADDRPERM((uintptr_t)peek_voucher),
++				//BANK_ACCOUNT,
++				(uint64_t)originator_pid << 32 | proximate_pid,
++				((uint64_t)holder_pid << 32) | merchant_pid,
++				0);	
++		}
++		if (read_size == 0)
++			break;
++		sub_content += read_size;
++		read_size = 0;
++	}
++}
+ 
+ 
+ /*
+@@ -3266,6 +3321,7 @@
+ 	mach_msg_option_t       *optionp)
+ {
+ 	mach_msg_return_t           mr;
++	uint64_t is_mig = 0;
+ 
+ 	kmsg->ikm_header->msgh_bits &= MACH_MSGH_BITS_USER;
+ 
+@@ -3275,12 +3331,33 @@
+ 		return mr;
+ 	}
+ 
+-	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
+-	    VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
+-	    (uintptr_t)kmsg->ikm_header->msgh_bits,
+-	    (uintptr_t)kmsg->ikm_header->msgh_id,
+-	    VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
+-	    0);
++	if (IP_VALID(kmsg->ikm_voucher)) {
++		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++
++	ipc_port_t port = (ipc_port_t) kmsg->ikm_header->msgh_remote_port;
++	assert(IP_VALID(port));
++	//ip_lock(port);
++	if (ip_active(port) && (port->ip_receiver == ipc_space_kernel))
++		is_mig = 1UL << 60;
++	//ip_unlock(port);
++
++    KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			  VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			  (uintptr_t)kmsg->ikm_header->msgh_bits,
++			  ((uintptr_t)kmsg->ikm_header->msgh_id | is_mig),
++			  VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			  0);
++
++//	KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++//	    VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++//	    (uintptr_t)kmsg->ikm_header->msgh_bits,
++//	    (uintptr_t)kmsg->ikm_header->msgh_id,
++//	    VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++//	    0);
+ 
+ 	DEBUG_KPRINT_SYSCALL_IPC("ipc_kmsg_copyin header:\n%.8x\n%.8x\n%p\n%p\n%p\n%.8x\n",
+ 	    kmsg->ikm_header->msgh_size,
+@@ -3333,14 +3410,31 @@
+ 	ipc_object_t remote = (ipc_object_t) kmsg->ikm_header->msgh_remote_port;
+ 	ipc_object_t local = (ipc_object_t) kmsg->ikm_header->msgh_local_port;
+ 
++	uint64_t rport_name = 0, lport_name = 0;
++	uint64_t from_kernel = 1UL << 58;
++	ipc_port_t port = NULL;
++
+ 	/* translate the destination and reply ports */
+ 	if (!IO_VALID(remote)) {
+ 		return MACH_SEND_INVALID_DEST;
+ 	}
+ 
+ 	ipc_object_copyin_from_kernel(remote, rname);
++	port = (ipc_port_t)remote;
++	if (ip_active(port)) {
++		ip_lock(port);
++		rport_name = port->ip_receiver_name;
++		ip_unlock(port);
++	}
++
+ 	if (IO_VALID(local)) {
+ 		ipc_object_copyin_from_kernel(local, lname);
++		port = (ipc_port_t)local;
++		if (ip_active(port)) {
++			ip_lock(port);
++			lport_name = port->ip_receiver_name;
++			ip_unlock(port);
++		}
+ 	}
+ 
+ 	/*
+@@ -3361,6 +3455,31 @@
+ 
+ 		kmsg->ikm_header->msgh_bits = bits;
+ 		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0) {
++			if (IP_VALID(kmsg->ikm_voucher)) {
++				if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++					ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++					ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++				}
++			}
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++					VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++					(uintptr_t)kmsg->ikm_header->msgh_bits,
++					((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++					VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++					0);
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++					VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++					VM_KERNEL_ADDRPERM(remote),//kmsg->ikm_header->msgh_remote_port),
++					VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++					0);
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++					VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++					0,
++					MACH_SEND_MSG, 0, 0);
++
+ 			return MACH_MSG_SUCCESS;
+ 		}
+ 	}
+@@ -3456,6 +3575,31 @@
+ 			}
+ 		}
+ 	}
++	if (IP_VALID(kmsg->ikm_voucher)) {
++		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			(uintptr_t)kmsg->ikm_header->msgh_bits,
++			((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++			VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			0);
++
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++			VM_KERNEL_ADDRPERM(remote), //kmsg->ikm_header->msgh_remote_port),
++			VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++			0);
++
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++			0,
++			MACH_SEND_MSG, 0, 0);
++
+ 	return MACH_MSG_SUCCESS;
+ }
+ 
+@@ -3470,16 +3614,33 @@
+ 	ipc_object_t remote = (ipc_object_t) kmsg->ikm_header->msgh_remote_port;
+ 	ipc_object_t local = (ipc_object_t) kmsg->ikm_header->msgh_local_port;
+ 
++	uint64_t rport_name = 0, lport_name = 0;
++	uint64_t from_kernel = 1UL << 58;
++	ipc_port_t port = NULL;
++
+ 	/* translate the destination and reply ports */
+ 	if (!IO_VALID(remote)) {
+ 		return MACH_SEND_INVALID_DEST;
+ 	}
+ 
+ 	ipc_object_copyin_from_kernel(remote, rname);
++
++	port = (ipc_port_t)remote;
++	if (ip_active(port)) {
++		ip_lock(port);
++		rport_name = port->ip_receiver_name;
++		ip_unlock(port);
++	}
++
+ 	if (IO_VALID(local)) {
+ 		ipc_object_copyin_from_kernel(local, lname);
++		port = (ipc_port_t)local;
++		if (ip_active(port)) {
++			ip_lock(port);
++			lport_name = port->ip_receiver_name;
++			ip_unlock(port);
++		}
+ 	}
+-
+ 	/*
+ 	 *	The common case is a complex message with no reply port,
+ 	 *	because that is what the memory_object interface uses.
+@@ -3498,6 +3659,31 @@
+ 
+ 		kmsg->ikm_header->msgh_bits = bits;
+ 		if ((bits & MACH_MSGH_BITS_COMPLEX) == 0) {
++			if (IP_VALID(kmsg->ikm_voucher)) {
++				if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++					ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++					ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++				}
++			}
++
++    		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				(uintptr_t)kmsg->ikm_header->msgh_bits,
++				((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++				VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++				0);
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++				VM_KERNEL_ADDRPERM(remote),//kmsg->ikm_header->msgh_remote_port),
++				VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++				0);
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++			0,
++			MACH_SEND_MSG, 0, 0);
++
+ 			return MACH_MSG_SUCCESS;
+ 		}
+ 	}
+@@ -3633,6 +3819,29 @@
+ 			}
+ 		}
+ 	}
++	if (IP_VALID(kmsg->ikm_voucher)) {
++		if (ip_kotype(kmsg->ikm_voucher) == IKOT_VOUCHER) {
++			ipc_voucher_t peek_voucher = (ipc_voucher_t)(kmsg->ikm_voucher->ip_kobject);
++			ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++		}
++	}
++
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_SEND) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			(uintptr_t)kmsg->ikm_header->msgh_bits,
++			((uintptr_t)kmsg->ikm_header->msgh_id | from_kernel),
++			VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(kmsg->ikm_voucher)),
++			0);
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ((rport_name << 32) | lport_name), 
++			VM_KERNEL_ADDRPERM(remote), //kmsg->ikm_header->msgh_remote_port),
++		VM_KERNEL_ADDRPERM(local), //kmsg->ikm_header->msgh_local_port),
++		0);
++	KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++			0,
++			MACH_SEND_MSG, 0, 0);
++
+ 	return MACH_MSG_SUCCESS;
+ }
+ #endif /* IKM_SUPPORT_LEGACY */
+@@ -3950,6 +4159,12 @@
+ 			ipc_port_release_send(release_voucher_port);
+ 		}
+ 
++		if (IP_VALID(voucher)) {
++			if (ip_kotype(voucher) == IKOT_VOUCHER) {
++				ipc_voucher_t peek_voucher = (ipc_voucher_t)(voucher->ip_kobject);
++				ipc_msg_voucher_info((uint64_t)kmsg, peek_voucher);	
++			}
++		}
+ 
+ 		if ((option & MACH_RCV_VOUCHER) != 0) {
+ 			KERNEL_DEBUG_CONSTANT(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_RECV) | DBG_FUNC_NONE,
+@@ -3967,6 +4182,13 @@
+ 			    0);
+ 		}
+ 
++		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC, MACH_IPC_MSG_RECV) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++				(uintptr_t)kmsg->ikm_header->msgh_bits,
++				(uintptr_t)kmsg->ikm_header->msgh_id,
++				VM_KERNEL_ADDRPERM((uintptr_t)unsafe_convert_port_to_voucher(voucher)),
++				0);
++
+ 		msg->msgh_bits = MACH_MSGH_BITS_SET(reply_type, dest_type,
+ 		    voucher_type, mbits);
+ 		msg->msgh_local_port = CAST_MACH_NAME_TO_PORT(dest_name);
+diff -ura xnu-4903.270.47/osfmk/ipc/ipc_voucher.h xnu-4903.270.47_trace/osfmk/ipc/ipc_voucher.h
+--- xnu-4903.270.47/osfmk/ipc/ipc_voucher.h	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/ipc/ipc_voucher.h	2020-09-06 14:15:42.000000000 -0400
+@@ -313,6 +313,13 @@
+ extern uintptr_t unsafe_convert_port_to_voucher(
+ 	ipc_port_t              port);
+ 
++extern kern_return_t
++mach_voucher_extract_attr_content(
++	ipc_voucher_t				voucher,
++	mach_voucher_attr_key_t			key,
++	mach_voucher_attr_content_t		content,
++	mach_voucher_attr_content_size_t	*in_out_size);
++
+ /* Convert from a port to a voucher */
+ extern ipc_voucher_t convert_port_to_voucher(
+ 	ipc_port_t              port);
+diff -ura xnu-4903.270.47/osfmk/ipc/mach_msg.c xnu-4903.270.47_trace/osfmk/ipc/mach_msg.c
+--- xnu-4903.270.47/osfmk/ipc/mach_msg.c	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/ipc/mach_msg.c	2020-09-06 14:15:42.000000000 -0400
+@@ -117,6 +117,7 @@
+ #define offsetof(type, member)  ((size_t)(&((type *)0)->member))
+ #endif /* offsetof */
+ 
++extern char	*proc_name_address(struct proc *p);
+ /*
+  * Forward declarations - kernel internal routines
+  */
+@@ -394,8 +395,27 @@
+ 	trailer_size = ipc_kmsg_add_trailer(kmsg, space, option, self, seqno, FALSE,
+ 	    kmsg->ikm_header->msgh_remote_port->ip_context);
+ 
++	uintptr_t internal_remote = (uintptr_t)(kmsg->ikm_header->msgh_remote_port);
++	uintptr_t internal_local = (uintptr_t)(kmsg->ikm_header->msgh_local_port); 
++
+ 	mr = ipc_kmsg_copyout(kmsg, space, map, MACH_MSG_BODY_NULL, option);
+ 
++	if (mr == MACH_MSG_SUCCESS) {
++		uint64_t ports_name = (((uint64_t)(kmsg->ikm_header->msgh_local_port)) << 32 | (uint64_t)(kmsg->ikm_header->msgh_remote_port));
++		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name,		
++			VM_KERNEL_ADDRPERM(internal_remote),
++			VM_KERNEL_ADDRPERM(internal_local), 0);
++		
++		KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++			VM_KERNEL_ADDRPERM((uintptr_t)kmsg),
++			(rcv_addr >= VM_MIN_KERNEL_AND_KEXT_ADDRESS ||
++				rcv_addr + kmsg->ikm_header->msgh_size + trailer_size >= VM_MIN_KERNEL_AND_KEXT_ADDRESS) 
++				? (uintptr_t)0 : (uintptr_t)rcv_addr,
++			MACH_RCV_MSG /* this is on the receive/copyout path */,
++			0, 0);
++	}
++
+ 	if (mr != MACH_MSG_SUCCESS) {
+ 		/* already received importance, so have to undo that here */
+ 		ipc_importance_unreceive(kmsg, option);
+@@ -542,8 +562,22 @@
+ 		    0, 0,
+ 		    0);
+ 
++		uint64_t ports_name = ((uint64_t)(kmsg->ikm_header->msgh_remote_port) << 32 | (uint64_t)(kmsg->ikm_header->msgh_local_port));
++
+ 		mr = ipc_kmsg_copyin(kmsg, space, map, override, &option);
+ 
++		if (mr == MACH_MSG_SUCCESS) {
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_MSG_TRAP) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), ports_name,
++				VM_KERNEL_ADDRPERM(kmsg->ikm_header->msgh_remote_port),
++				VM_KERNEL_ADDRPERM(kmsg->ikm_header->msgh_local_port), 0);
++
++			KERNEL_DEBUG_CONSTANT(ARGUSDBG_CODE(DBG_MACH_IPC,MACH_IPC_KMSG_LINK) | DBG_FUNC_NONE,
++				VM_KERNEL_ADDRPERM((uintptr_t)kmsg), 
++				msg_addr,
++				MACH_SEND_MSG, 0, 0);
++		}
++
+ 		if (mr != MACH_MSG_SUCCESS) {
+ 			ipc_kmsg_free(kmsg);
+ 			KDBG(MACHDBG_CODE(DBG_MACH_IPC, MACH_IPC_KMSG_INFO) | DBG_FUNC_END, mr);
+diff -ura xnu-4903.270.47/osfmk/kern/sched_prim.c xnu-4903.270.47_trace/osfmk/kern/sched_prim.c
+--- xnu-4903.270.47/osfmk/kern/sched_prim.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/sched_prim.c	2020-09-06 14:15:41.000000000 -0400
+@@ -834,10 +834,18 @@
+ 	}
+ #endif /* KPERF */
+ 
+-	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
+-	    MACHDBG_CODE(DBG_MACH_SCHED, MACH_MAKE_RUNNABLE) | DBG_FUNC_NONE,
+-	    (uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result,
+-	    sched_run_buckets[TH_BUCKET_RUN], 0);
++ 	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		ARGUSDBG_CODE(DBG_MACH_SCHED,MACH_MAKE_RUNNABLE) | DBG_FUNC_NONE,
++		(uintptr_t)thread_tid(thread),
++		thread->sched_pri,
++		thread->wait_result,
++		(((uint64_t)(ready_for_runq) << 32) | (uint64_t)new_run_count & ((1UL << 32 ) - 1)),
++		0);
++
++//	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++//	    MACHDBG_CODE(DBG_MACH_SCHED, MACH_MAKE_RUNNABLE) | DBG_FUNC_NONE,
++//	    (uintptr_t)thread_tid(thread), thread->sched_pri, thread->wait_result,
++//	    sched_run_buckets[TH_BUCKET_RUN], 0);
+ 
+ 	DTRACE_SCHED2(wakeup, struct thread *, thread, struct proc *, thread->task->bsd_info);
+ 
+@@ -1451,6 +1459,14 @@
+ 
+ 		/* TODO: Can we instead assert TH_TERMINATE is not set?  */
+ 		if ((thread->state & (TH_WAIT | TH_TERMINATE)) == TH_WAIT) {
++			uint64_t pid = task_pid(thread->task);
++			pid = (pid << 32) | task_pid(current_thread()->task);
++
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++				(uintptr_t)thread_tid(thread), thread->wait_event,
++				CLEAR_WAIT, pid, 0);
++
+ 			return thread_go(thread, wresult);
+ 		} else {
+ 			return KERN_NOT_WAITING;
+@@ -5346,6 +5362,10 @@
+ 		uint64_t ndeadline = ctime + sched_tick_interval;
+ 
+ 		if (__probable(__sync_bool_compare_and_swap(&sched_maintenance_deadline, deadline, ndeadline))) {
++
++			KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_TS_MAINTENANCE) | DBG_FUNC_NONE,
++				0, 0, 0, 0, 0);
+ 			thread_wakeup((event_t)sched_timeshare_maintenance_continue);
+ 			sched_maintenance_wakeups++;
+ 		}
+diff -ura xnu-4903.270.47/osfmk/kern/thread.c xnu-4903.270.47_trace/osfmk/kern/thread.c
+--- xnu-4903.270.47/osfmk/kern/thread.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/thread.c	2020-09-06 14:15:41.000000000 -0400
+@@ -1585,6 +1585,7 @@
+ 
+ 	DTRACE_PROC1(lwp__create, thread_t, *out_thread);
+ 
++	new_thread->ipi_bt = 7;
+ 	return KERN_SUCCESS;
+ }
+ 
+diff -ura xnu-4903.270.47/osfmk/kern/thread.h xnu-4903.270.47_trace/osfmk/kern/thread.h
+--- xnu-4903.270.47/osfmk/kern/thread.h	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/thread.h	2020-09-06 14:15:42.000000000 -0400
+@@ -596,6 +596,8 @@
+ 	turnstile_update_flags_t inheritor_flags; /* inheritor flags for inheritor field */
+ 	block_hint_t    pending_block_hint;
+ 	block_hint_t    block_hint;      /* What type of primitive last caused us to block. */
++	uintptr_t		thread_interrupt_bt[64];
++	int32_t			ipi_bt;
+ };
+ 
+ #define ith_state           saved.receive.state
+diff -ura xnu-4903.270.47/osfmk/kern/thread_call.c xnu-4903.270.47_trace/osfmk/kern/thread_call.c
+--- xnu-4903.270.47/osfmk/kern/thread_call.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/thread_call.c	2020-09-06 14:15:42.000000000 -0400
+@@ -474,6 +474,13 @@
+ 
+ 	if (old_queue == NULL) {
+ 		call->tc_submit_count++;
++		KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLCREATE) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM(&group->pending_queue), 0);
++
+ 	} else if (old_queue != &group->pending_queue &&
+ 	    old_queue != &group->delayed_queues[TCF_ABSOLUTE] &&
+ 	    old_queue != &group->delayed_queues[TCF_CONTINUOUS]) {
+@@ -532,6 +539,13 @@
+ 	    old_queue == &group->delayed_queues[TCF_CONTINUOUS]) {
+ 		/* TODO: if it's in the other delayed queue, that might not be OK */
+ 		// we did nothing, and that's fine
++		KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM((uint64_t)call), 0);
++
+ 	} else {
+ 		panic("tried to move a thread call (%p) between groups (old_queue: %p)", call, old_queue);
+ 	}
+@@ -1080,6 +1094,13 @@
+ 
+ 	_arm_delayed_call_timer(call, group, flavor);
+ 
++	KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLCREATE) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM((uint64_t)call), 0);
++
+ #if CONFIG_DTRACE
+ 	DTRACE_TMR5(thread_callout__create, thread_call_func_t, call->tc_call.func,
+ 	    uint64_t, (deadline - sdeadline), uint64_t, (call->tc_ttd >> 32),
+@@ -1129,6 +1150,15 @@
+ 	DTRACE_TMR4(thread_callout__cancel, thread_call_func_t, call->tc_call.func,
+ 	    0, (call->tc_ttd >> 32), (unsigned) (call->tc_ttd & 0xFFFFFFFF));
+ #endif
++	if (canceled) {
++
++		KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLCANCEL) | DBG_FUNC_NONE,
++			VM_KERNEL_UNSLIDE(call->tc_call.func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(call->tc_call.param1), 
++			VM_KERNEL_UNSLIDE_OR_PERM((uint64_t)call), 0);
++	}
+ 
+ 	return canceled;
+ }
+@@ -1396,8 +1426,22 @@
+ 	    (unsigned) (tc_ttd & 0xFFFFFFFF), is_delayed, call);
+ #endif
+ 
++	KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLOUT) | DBG_FUNC_START,
++			VM_KERNEL_UNSLIDE(func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(param1),
++			VM_KERNEL_UNSLIDE_OR_PERM((uint64_t)call), 0);
++
+ 	(*func)(param0, param1);
+ 
++	KERNEL_DEBUG_CONSTANT(
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_CALLOUT) | DBG_FUNC_END,
++			VM_KERNEL_UNSLIDE(func), 
++			VM_KERNEL_UNSLIDE_OR_PERM(param0),
++			VM_KERNEL_UNSLIDE_OR_PERM(param1),
++			VM_KERNEL_UNSLIDE_OR_PERM((uint64_t)call), 0);
++
+ #if CONFIG_DTRACE
+ 	DTRACE_TMR6(thread_callout__end, thread_call_func_t, func, int, 0, int, (tc_ttd >> 32),
+ 	    (unsigned) (tc_ttd & 0xFFFFFFFF), is_delayed, call);
+diff -ura xnu-4903.270.47/osfmk/kern/timer.c xnu-4903.270.47_trace/osfmk/kern/timer.c
+--- xnu-4903.270.47/osfmk/kern/timer.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/timer.c	2020-09-06 14:15:41.000000000 -0400
+@@ -146,3 +146,5 @@
+ 	PROCESSOR_DATA(processor, thread_timer) = new_timer;
+ 	new_timer->tstamp = tstamp;
+ }
++//uint64_t mach_bridge_remote_time(uint64_t a); uint64_t mach_bridge_remote_time(uint64_t a) { (void)a; return 0; }
++//void mach_bridge_register_regwrite_timestamp_callback(void (*func)(uint64_t)); void mach_bridge_register_regwrite_timestamp_callback(void (*func)(uint64_t)) { (void)func; return; }
+diff -ura xnu-4903.270.47/osfmk/kern/waitq.c xnu-4903.270.47_trace/osfmk/kern/waitq.c
+--- xnu-4903.270.47/osfmk/kern/waitq.c	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/waitq.c	2020-09-06 14:15:41.000000000 -0400
+@@ -111,6 +111,7 @@
+ #define wqerr(fmt, ...) \
+ 	printf("WQ[%s] ERROR: " fmt "\n", __func__, ## __VA_ARGS__)
+ 
++
+ /*
+  * file-static functions / data
+  */
+@@ -2885,6 +2886,13 @@
+ 				thread->wait_result = THREAD_AWAKENED;
+ 				thread_unlock(thread);
+ 				splx(s);
++				
++				KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++						ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
++						(uintptr_t)(wait_event),
++						task_pid(current_thread()->task)/* interruptible*/,
++						deadline, thread->wait_result, 0);
++
+ 				return THREAD_AWAKENED;
+ 			}
+ 		}
+@@ -2976,6 +2984,11 @@
+ 
+ 	splx(s);
+ 
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++				ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAIT)|DBG_FUNC_NONE,
++				(uintptr_t)(wait_event),
++				task_pid(current_thread()->task)/* interruptible*/,
++				deadline, wait_result, 0);
+ 	return wait_result;
+ }
+ 
+@@ -3140,6 +3153,14 @@
+ 		assert_thread_magic(thread);
+ 		remqueue(&thread->wait_links);
+ 		maybe_adjust_thread_pri(thread, priority, waitq);
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
++
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event,
++			WAKEUP_ALL /*waitq*/, pid, 0);
++
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+@@ -3198,6 +3219,14 @@
+ 
+ 	if (thread != THREAD_NULL) {
+ 		maybe_adjust_thread_pri(thread, priority, waitq);
++
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
++		
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE, pid, 0);
++
+ 		kern_return_t ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+@@ -3254,6 +3283,13 @@
+ 	}
+ 
+ 	if (thread != THREAD_NULL) {
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
++
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_ONE, pid, 0); 
++
+ 		kern_return_t __assert_only ret;
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+@@ -3309,6 +3345,12 @@
+ 		return KERN_NOT_WAITING;
+ 	}
+ 
++	uint64_t pid = task_pid(thread->task);
++	pid = (pid << 32) | task_pid(current_thread()->task);
++	KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++		ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++		(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR, pid, 0);
++
+ 	ret = thread_go(thread, result);
+ 	assert(ret == KERN_SUCCESS);
+ 	thread_unlock(thread);
+@@ -5661,6 +5703,13 @@
+ 	waitq_unlock(waitq);
+ 
+ 	if (ret == KERN_SUCCESS) {
++		uint64_t pid = task_pid(thread->task);
++		pid = (pid << 32) | task_pid(current_thread()->task);
++
++		KERNEL_DEBUG_CONSTANT_IST(KDEBUG_TRACE,
++			ARGUSDBG_CODE(DBG_MACH_SCHED, MACH_WAKEUP_REASON) | DBG_FUNC_NONE,
++			(uintptr_t)thread_tid(thread), wake_event, WAKEUP_THR, pid, 0);
++
+ 		ret = thread_go(thread, result);
+ 		assert(ret == KERN_SUCCESS);
+ 		thread_unlock(thread);
+diff -ura xnu-4903.270.47/osfmk/kern/waitq.h xnu-4903.270.47_trace/osfmk/kern/waitq.h
+--- xnu-4903.270.47/osfmk/kern/waitq.h	2020-09-06 14:15:52.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/kern/waitq.h	2020-09-06 14:15:42.000000000 -0400
+@@ -39,6 +39,11 @@
+ 
+ #include <sys/cdefs.h>
+ 
++#define WAKEUP_ALL	0x1
++#define WAKEUP_ONE	0x2
++#define WAKEUP_THR  0x3
++#define CLEAR_WAIT	0x4
++
+ #ifdef XNU_KERNEL_PRIVATE
+ /* priority queue static asserts fail for __ARM64_ARCH_8_32__ kext builds */
+ #include <kern/priority_queue.h>
+diff -ura xnu-4903.270.47/osfmk/vm/pmap.h xnu-4903.270.47_trace/osfmk/vm/pmap.h
+--- xnu-4903.270.47/osfmk/vm/pmap.h	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/vm/pmap.h	2020-09-06 14:15:42.000000000 -0400
+@@ -815,6 +815,15 @@
+ 	vm_size_t img4_manifest_actual_len,
+ 	bool dry_run);
+ 
++extern bool pmap_is_trust_cache_loaded(const uuid_t uuid);
++extern uint32_t pmap_lookup_in_static_trust_cache(const uint8_t cdhash[CS_CDHASH_LEN]);
++extern bool pmap_lookup_in_loaded_trust_caches(const uint8_t cdhash[CS_CDHASH_LEN]);
++
++extern bool pmap_in_ppl(void);
++
++extern void *pmap_claim_reserved_ppl_page(void);
++extern void pmap_free_reserved_ppl_page(void *kva);
++
+ extern void pmap_ledger_alloc_init(size_t);
+ extern ledger_t pmap_ledger_alloc(void);
+ extern void pmap_ledger_free(ledger_t);
+diff -ura xnu-4903.270.47/osfmk/x86_64/loose_ends.c xnu-4903.270.47_trace/osfmk/x86_64/loose_ends.c
+--- xnu-4903.270.47/osfmk/x86_64/loose_ends.c	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/x86_64/loose_ends.c	2020-09-06 14:15:42.000000000 -0400
+@@ -1042,3 +1042,11 @@
+ 	return;
+ }
+ #endif
++uint32_t xcpm_bios_mbox_cmd_read(uint32_t a); static uint32_t __xcpm_reg[64] = {};
++uint32_t xcpm_bios_mbox_cmd_read(uint32_t a) { return __xcpm_reg[a%64]; }
++void xcpm_bios_mbox_cmd_write(uint32_t a, uint32_t b);
++void xcpm_bios_mbox_cmd_write(uint32_t a, uint32_t b) { __xcpm_reg[a%64] = b; }
++boolean_t xcpm_is_hwp_enabled(void);
++boolean_t xcpm_is_hwp_enabled(void) { return 0; }
++void xcpm_mbox_lock(void);
++void xcpm_mbox_lock(void) {}
+diff -ura xnu-4903.270.47/osfmk/x86_64/pmap.c xnu-4903.270.47_trace/osfmk/x86_64/pmap.c
+--- xnu-4903.270.47/osfmk/x86_64/pmap.c	2020-09-06 14:15:53.000000000 -0400
++++ xnu-4903.270.47_trace/osfmk/x86_64/pmap.c	2020-09-06 14:15:42.000000000 -0400
+@@ -3464,3 +3464,39 @@
+ 	return PMAP_TC_UNKNOWN_FORMAT;
+ }
+ 
++bool
++pmap_is_trust_cache_loaded(const uuid_t __unused uuid) { return false; }
++
++bool
++pmap_lookup_in_loaded_trust_caches(const uint8_t __unused cdhash[20])
++{
++// Unsupported on this architecture.
++return false;
++}
++
++uint32_t
++pmap_lookup_in_static_trust_cache(const uint8_t __unused cdhash[20])
++{
++// Unsupported on this architecture.
++return false;
++}
++
++bool
++pmap_in_ppl(void)
++{
++// Nonexistent on this architecture.
++return false;
++}
++
++void *
++pmap_claim_reserved_ppl_page(void)
++{
++// Unsupported on this architecture.
++return NULL;
++}
++
++void
++pmap_free_reserved_ppl_page(void __unused *kva)
++{
++// Unsupported on this architecture.
++}
