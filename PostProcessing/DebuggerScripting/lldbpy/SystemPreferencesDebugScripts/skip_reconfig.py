@@ -53,7 +53,7 @@ except ImportError:
 
 def extract_symbol_from_thread_info(line):
 	##
-	#extrace symbol from thread_info line lines[1]
+	#extract symbol from thread_info line lines[1]
 	#* thread #1: tid = 0x6b39b, 0x00000001040ddd56 orig.AppKit`-[NSApplication run] + 640,\
 	#   queue = 'com.apple.main-thread', stop reason = step out
 	#* thread #1: tid = 0x8f0ea, 0x000000010aff623c orig.AppKit`_NSIsWindowOnOrExpectedToBeOnSpace + 1,\
@@ -95,7 +95,7 @@ def run_thread_return(debugger):
 def run_read_rax(debugger):
 	return_obj = lldb.SBCommandReturnObject()
 	command_interpreter = debugger.GetCommandInterpreter()
-	command_interperter.HandleCommand('register read rax', return_obj)
+	command_interpreter.HandleCommand('register read rax', return_obj)
 	return return_obj.GetOutput()
 
 def run_step_in(debugger):
@@ -129,15 +129,15 @@ def step_and_record(process, debugger, options):
 			if '->  0x1043fac26' in asm_code and skip == 1:
 				skip = 0
 				
-				print "WLM begin try to writ pc"
+				print "WLM begin try to write pc"
 				ret = run_commands(debugger, ['register read'])
 				print ret
 				#ret = run_commands(debugger, ['memory read/2xw `$rbp + 8`'])
 				#print "original pc = ", ret
 				ret = run_commands(debugger, ['register write rip 0x1043fac28'])
-				print "WLM end try to writ pc 0x1043fac28",  ret
+				print "WLM end try to write pc 0x1043fac28",  ret
 				ret = run_commands(debugger, ['register read rip'])
-				print "writen rip ", ret
+				print "written rip ", ret
 				top_frame, thread_info, asm_code = run_step_inst(debugger)
 				print asm_code
 				top_frame, thread_info, asm_code = run_step_inst(debugger)
@@ -181,7 +181,7 @@ def set_breakpoint(debugger, options):
 
 def main(argv):
 ##
-#--breakpoint begin_funcion --normal_end [end_function] --spin_end [end_function] 
+#--breakpoint begin_function --normal_end [end_function] --spin_end [end_function] 
 #--pid attached_process
 ##
 	parser = optparse.OptionParser()
