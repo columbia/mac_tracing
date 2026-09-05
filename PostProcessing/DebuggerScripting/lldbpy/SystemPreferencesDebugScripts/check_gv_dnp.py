@@ -54,7 +54,7 @@ except ImportError:
 
 def extract_symbol_from_thread_info(line):
 	##
-	#extrace symbol from thread_info line lines[1]
+	#extract symbol from thread_info line lines[1]
 	#* thread #1: tid = 0x6b39b, 0x00000001040ddd56 orig.AppKit`-[NSApplication run] + 640,\
 	#   queue = 'com.apple.main-thread', stop reason = step out
 	#* thread #1: tid = 0x8f0ea, 0x000000010aff623c orig.AppKit`_NSIsWindowOnOrExpectedToBeOnSpace + 1,\
@@ -165,7 +165,7 @@ def set_breakpoint(debugger, options):
 
 def main(argv):
 ##
-#--breakpoint begin_funcion --normal_end [end_function] --spin_end [end_function] 
+#--breakpoint begin_function --normal_end [end_function] --spin_end [end_function] 
 #--pid attached_process
 ##
 	parser = optparse.OptionParser()

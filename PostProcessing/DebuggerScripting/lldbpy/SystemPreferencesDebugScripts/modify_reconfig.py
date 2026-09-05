@@ -163,7 +163,7 @@ def set_breakpoint(debugger, options):
 
 def main(argv):
 ##
-#--breakpoint begin_funcion --normal_end [end_function] --spin_end [end_function] 
+#--breakpoint begin_function --normal_end [end_function] --spin_end [end_function] 
 #--pid attached_process
 ##
 	parser = optparse.OptionParser()
